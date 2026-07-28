@@ -80,7 +80,10 @@ export default function ServerSettings() {
     }
   };
 
-  const usePreset = async (id: string, label: string) => {
+  // Not named `usePreset`: a plain callback prefixed with `use` is treated as a
+  // hook by the rules-of-hooks lint, which then (correctly) objects to it being
+  // called from an onClick.
+  const applyPreset = async (id: string, label: string) => {
     if (!confirm(`Apply preset "${label}"? This writes PalWorldSettings.ini immediately.`)) return;
     setBusy(true);
     try {
@@ -230,7 +233,7 @@ export default function ServerSettings() {
                   {preset.description}
                 </div>
               </div>
-              <button className="btn" disabled={busy} onClick={() => usePreset(preset.id, preset.label)}>
+              <button className="btn" disabled={busy} onClick={() => applyPreset(preset.id, preset.label)}>
                 Apply
               </button>
             </div>

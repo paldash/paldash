@@ -64,9 +64,16 @@ __pycache__/
 venv/
 *.egg-info/
 
-# Artifacts
-*.md
-!README.md
-*.txt
-!requirements.txt
+# ─── Scratch artifacts ───────────────────────────────────
+# A blanket `*.md` used to live here. It silently excluded CLAUDE.md, AGENTS.md
+# and everything under docs/ — project documentation was never being committed.
+# Ignore the throwaway files by name instead.
+/*.txt
+!/requirements.txt
+# Session exports dropped in the project root by `/export`
+/[0-9][0-9][0-9][0-9]-[0-9][0-9]-*.txt
 
+# Reference archives (66MB of third-party zips) and the real save used for
+# testing — both stay local. refworld/ contains real Steam IDs and player names.
+refs/
+/refworld/

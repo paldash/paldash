@@ -408,6 +408,33 @@ types, per-item totals identical, zero mismatches.
 
 ---
 
+## Development & tests
+
+```bash
+./scripts/setup-dev.sh          # builds .venv, compiles palsav from refs/
+.venv/bin/python -m pytest      # 151 tests, ~100s
+```
+
+The suite is in two tiers:
+
+| Command | Tests | Time | Needs |
+|---|---:|---:|---|
+| `pytest -m "not integration"` | 136 | <1s | nothing |
+| `pytest` | 151 | ~100s | `refworld/` + `palsav` |
+
+Unit tests cover the corruption guard (every way it must refuse to write), path
+handling, the settings-INI parser, the access-policy ceiling, and the container
+sort algorithm on synthetic data. Integration tests run the real pipeline against
+a real world: parse a 55 MB save, sort every container, write it, re-read from
+disk and prove not one item moved in or out. They skip cleanly when `refworld/`
+is absent, so a fresh checkout still runs green.
+
+If you change anything under `backend/safety.py`, `backend/backup.py` or
+`backend/saveedit.py`, run the full suite — the slow tests are the ones that
+actually prove the save is safe.
+
+---
+
 ## Known gaps
 
 Being straight about what is not done:

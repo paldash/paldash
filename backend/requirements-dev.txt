@@ -1,0 +1,10 @@
+# Development and test dependencies.
+#   pip install -r backend/requirements.txt -r backend/requirements-dev.txt
+#
+# The unit tests (136 of them) need nothing beyond pytest — they run in under a
+# second and never touch a save file. The integration tests additionally need
+# `palsav` and a real world in refworld/; both skip cleanly when absent.
+
+-r requirements.txt
+
+pytest>=8.0

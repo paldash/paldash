@@ -199,7 +199,10 @@ def write_ini(changes: dict[str, Any], path: Optional[str] = None) -> dict[str, 
     if not applied:
         return {"applied": [], "changed": False, "path": path, "restartRequired": False}
 
-    with open(path, "r", encoding="utf-8", errors="replace") as f:
+    # newline="" disables universal-newline translation. Without it Python
+    # silently converts CRLF to LF while reading, the check below could never
+    # fire, and a Windows server's INI came back rewritten with LF endings.
+    with open(path, "r", encoding="utf-8", errors="replace", newline="") as f:
         original = f.read()
 
     newline = "\r\n" if "\r\n" in original else "\n"
