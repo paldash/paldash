@@ -1,0 +1,47 @@
+{
+  "_comment": [
+    "Absolute totals for Palworld 1.0 progression categories.",
+    "",
+    "Save files record only what a player has OBTAINED, so a save can never tell",
+    "you how much is left. These are published figures used as denominators, with",
+    "the cross-server union as a fallback for anything not listed.",
+    "",
+    "Validated directly against a real 1.0 save:",
+    "  dungeons = 170  matches DungeonPointMarkerSaveData exactly",
+    "",
+    "CAUTION on observation-based validation: towerBosses was briefly set to 7",
+    "because that matched the most-advanced player's defeated count. That was a",
+    "coincidence — 1.0 has 9 towers (Auri & Shaolong and Zenara & Astralym were",
+    "added), and the player simply had not beaten the last two. A save can only",
+    "ever show a lower bound, so agreement with observation never confirms a",
+    "total. Prefer published figures, and treat matches as unproven.",
+    "",
+    "paldeck comes from the bundled pal database (299 entries), which is derived",
+    "from the game's own tables and is authoritative.",
+    "",
+    "If a figure here is ever lower than what a player has actually obtained, the",
+    "code falls back to the observed value, so a stale number can never produce a",
+    "negative 'remaining' count."
+  ],
+  "_source": "https://paldb.cc/en/v1.0.0 and community trackers, July 2026",
+  "totals": {
+    "towerBosses": 9,
+    "fieldBosses": 65,
+    "paldeck": 299,
+    "effigies": 313,
+    "dungeons": 170,
+    "sealedRealms": 18
+  },
+  "_confidence": {
+    "towerBosses": "high — 1.0 list enumerated in full (Zoe, Lily, Axel, Marcus, Victor, Saya, Bjorn, Auri, Zenara)",
+    "paldeck": "high — matches the bundled pal database derived from game tables",
+    "dungeons": "high — matches DungeonPointMarkerSaveData in a real save",
+    "fieldBosses": "medium — figure may predate 1.0 additions",
+    "effigies": "medium — counts Pal Effigies including variants, not just Lifmunk",
+    "sealedRealms": "medium — not cross-checked against a save"
+  },
+  "unverified": [
+    "fastTravel",
+    "areasFound"
+  ]
+}

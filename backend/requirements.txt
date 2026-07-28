@@ -1,0 +1,26 @@
+# ─── Web layer ───────────────────────────────────────────
+fastapi>=0.104.0
+uvicorn>=0.24.0
+psutil>=5.9.0
+orjson>=3.11.8
+
+# ─── Save parsing (NOT installable from here — see below) ─
+# `palworld-save-tools` (the PyPI package) CANNOT read Palworld 1.0 saves and has
+# been removed from this file. As of the 1.0 / Summer 2026 update the game
+# compresses saves with Oodle Kraken and the magic bytes changed from `PlZ` to
+# `PlM`; that package only knows `PlZ` (zlib), and several of its RawData
+# decoders are also out of date for 1.0 (character RawData raises
+# "EOF not reached").
+#
+# We use `palsav` + `palooz` from the actively maintained PalworldSaveTools
+# project instead. `palooz` is a C++ extension wrapping the open-source `ooz`
+# Kraken decoder and lives in a git submodule, so it must be built from a
+# checkout WITH SUBMODULES — a plain `pip install git+...` will not fetch
+# `dep/ooz` and the build will fail. The Dockerfile handles this.
+#
+# Manual install:
+#   git clone --recurse-submodules https://github.com/deafdudecomputers/PalworldSaveTools.git
+#   pip install ./PalworldSaveTools/src/palsav/palooz
+#   pip install ./PalworldSaveTools/src/palsav
+#
+# palsav is GPL-3.0-or-later and is used here as a library.

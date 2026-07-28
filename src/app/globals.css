@@ -1,0 +1,436 @@
+@import "tailwindcss";
+
+/*
+ * Clean dark theme.
+ *
+ * Neutral greys, flat surfaces, one accent colour, borders instead of glows.
+ * No glassmorphism, no gradient text, no backdrop blur, no pulsing.
+ *
+ * Class names are unchanged from the previous theme so component markup keeps
+ * working; only the visual language changed. `.glass-card` is now just a plain
+ * panel.
+ *
+ * Fonts are the system stack — the old Google Fonts @import blocked first paint
+ * on a network request, which is a poor trade for a LAN dashboard.
+ */
+
+:root {
+  /* Surfaces, darkest to lightest */
+  --bg-primary: #0f1115;
+  --bg-secondary: #14171c;
+  --bg-card: #181b21;
+  --bg-card-hover: #1e222a;
+  --bg-surface: #1e222a;
+  --bg-input: #101318;
+
+  --border-primary: #272b33;
+  --border-strong: #363b45;
+  --border-accent: #3d4956;
+
+  --text-primary: #e6e8ea;
+  --text-secondary: #a1a7b0;
+  --text-muted: #6d747e;
+
+  /* One accent, used sparingly */
+  --accent: #5b9dd9;
+  --accent-hover: #6fadE5;
+  --accent-subtle: rgba(91, 157, 217, 0.12);
+
+  /* Semantic only — never decorative */
+  --accent-emerald: #4d9e75;
+  --accent-amber: #c9973f;
+  --accent-red: #c25757;
+  --accent-blue: #5b9dd9;
+  --accent-cyan: #5b9dd9;
+  --accent-purple: #8d84c7;
+
+  --status-online: #4d9e75;
+  --status-offline: #c25757;
+  --status-warning: #c9973f;
+  --status-info: #5b9dd9;
+
+  --radius: 6px;
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  font-family: var(--font-sans);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+/* ─── Panels ─────────────────────────────────────────── */
+.glass-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius);
+}
+
+.stat-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+.stat-value {
+  font-size: 1.75rem;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  line-height: 1.1;
+  color: var(--text-primary);
+}
+.stat-label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  letter-spacing: 0.02em;
+}
+
+/* ─── Status dot ─────────────────────────────────────── */
+.status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+.status-dot.online { background: var(--status-online); }
+.status-dot.offline { background: var(--status-offline); }
+.status-dot.warning { background: var(--status-warning); }
+
+/* Kept so existing markup does not break; now a no-op. */
+.gradient-text { color: var(--text-primary); }
+
+/* ─── Sidebar ────────────────────────────────────────── */
+.sidebar-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: var(--radius);
+  border: none;
+  border-left: 2px solid transparent;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+  font-size: 14px;
+  font-weight: 450;
+  width: 100%;
+  text-align: left;
+}
+.sidebar-btn:hover {
+  background: var(--bg-card);
+  color: var(--text-primary);
+}
+.sidebar-btn.active {
+  background: var(--bg-card);
+  color: var(--text-primary);
+  border-left-color: var(--accent);
+  font-weight: 500;
+}
+
+/* ─── Buttons ────────────────────────────────────────── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 7px 14px;
+  border-radius: var(--radius);
+  font-size: 13px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease;
+  border: 1px solid var(--border-strong);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+}
+.btn:hover { background: var(--bg-card-hover); border-color: var(--border-accent); }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn:disabled:hover { background: var(--bg-surface); border-color: var(--border-strong); }
+
+.btn-primary {
+  background: var(--accent);
+  color: #0f1115;
+  border-color: var(--accent);
+  font-weight: 600;
+}
+.btn-primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+
+.btn-ghost {
+  background: transparent;
+  color: var(--text-secondary);
+  border-color: var(--border-primary);
+}
+.btn-ghost:hover { background: var(--bg-card); color: var(--text-primary); }
+
+.btn-danger {
+  background: transparent;
+  color: var(--accent-red);
+  border-color: rgba(194, 87, 87, 0.4);
+}
+.btn-danger:hover { background: rgba(194, 87, 87, 0.1); border-color: var(--accent-red); }
+
+.btn-warning {
+  background: transparent;
+  color: var(--accent-amber);
+  border-color: rgba(201, 151, 63, 0.4);
+}
+.btn-warning:hover { background: rgba(201, 151, 63, 0.1); border-color: var(--accent-amber); }
+
+/* ─── Inputs ─────────────────────────────────────────── */
+.input, .select {
+  background: var(--bg-input);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  padding: 7px 10px;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-family: inherit;
+  transition: border-color 0.12s ease;
+  width: 100%;
+  outline: none;
+}
+.input:focus, .select:focus { border-color: var(--accent); }
+.input::placeholder { color: var(--text-muted); }
+
+/* ─── Badges ─────────────────────────────────────────── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  border: 1px solid var(--border-primary);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+}
+.badge-online { color: var(--status-online); border-color: rgba(77, 158, 117, 0.35); }
+.badge-offline { color: var(--status-offline); border-color: rgba(194, 87, 87, 0.35); }
+.badge-warning { color: var(--status-warning); border-color: rgba(201, 151, 63, 0.35); }
+.badge-info { color: var(--status-info); border-color: rgba(91, 157, 217, 0.35); }
+
+/* ─── Tabs ───────────────────────────────────────────── */
+.tab-bar {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--border-primary);
+  padding: 0;
+}
+.tab-btn {
+  padding: 8px 14px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: color 0.12s ease, border-color 0.12s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: -1px;
+}
+.tab-btn:hover { color: var(--text-secondary); }
+.tab-btn.active { color: var(--text-primary); border-bottom-color: var(--accent); }
+
+/* ─── Tables ─────────────────────────────────────────── */
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.table th {
+  text-align: left;
+  font-weight: 500;
+  color: var(--text-muted);
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-primary);
+  white-space: nowrap;
+}
+.table td {
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--border-primary);
+  color: var(--text-secondary);
+}
+.table tr:last-child td { border-bottom: none; }
+.table tbody tr:hover td { background: var(--bg-card-hover); }
+
+/* ─── Notices ────────────────────────────────────────── */
+.lock-banner {
+  background: var(--bg-card);
+  border: 1px solid var(--border-primary);
+  border-left: 2px solid var(--accent-amber);
+  border-radius: var(--radius);
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.notice {
+  border: 1px solid var(--border-primary);
+  border-left: 2px solid var(--accent);
+  background: var(--bg-card);
+  border-radius: var(--radius);
+  padding: 12px 16px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+.notice-warn { border-left-color: var(--accent-amber); }
+.notice-danger { border-left-color: var(--accent-red); }
+
+/* ─── Inventory ──────────────────────────────────────── */
+.inventory-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, 48px);
+  gap: 4px;
+}
+.inventory-slot {
+  width: 48px;
+  height: 48px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-primary);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  cursor: pointer;
+}
+.inventory-slot:hover { border-color: var(--border-accent); }
+.inventory-slot .stack-count {
+  position: absolute;
+  bottom: 1px;
+  right: 3px;
+  font-size: 10px;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+}
+
+/* ─── Map ────────────────────────────────────────────── */
+.map-container {
+  height: 100%;
+  width: 100%;
+  border-radius: var(--radius);
+  overflow: hidden;
+  border: 1px solid var(--border-primary);
+}
+.map-container .leaflet-container {
+  background: #0b0d11;
+  height: 100%;
+  width: 100%;
+}
+.player-marker { background: transparent; border: none; }
+.player-marker-dot {
+  width: 11px;
+  height: 11px;
+  background: var(--accent);
+  border: 2px solid #0f1115;
+  border-radius: 50%;
+}
+.base-marker-icon {
+  width: 14px;
+  height: 14px;
+  background: var(--accent-amber);
+  border: 2px solid #0f1115;
+  border-radius: 3px;
+}
+.poi-marker-icon {
+  width: 10px;
+  height: 10px;
+  background: var(--text-muted);
+  border: 1px solid #0f1115;
+  border-radius: 50%;
+}
+
+.leaflet-popup-content-wrapper {
+  background: var(--bg-card) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border-strong) !important;
+  border-radius: var(--radius) !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4) !important;
+}
+.leaflet-popup-tip {
+  background: var(--bg-card) !important;
+  border: 1px solid var(--border-strong) !important;
+}
+.leaflet-control-zoom a {
+  background: var(--bg-card) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border-primary) !important;
+}
+.leaflet-control-zoom a:hover { background: var(--bg-card-hover) !important; }
+.leaflet-control-attribution {
+  background: rgba(15, 17, 21, 0.85) !important;
+  color: var(--text-muted) !important;
+  font-size: 10px !important;
+}
+
+/* ─── Layout helpers ─────────────────────────────────── */
+.dashboard-grid { display: grid; gap: 14px; }
+.grid-2 { grid-template-columns: repeat(2, 1fr); }
+.grid-3 { grid-template-columns: repeat(3, 1fr); }
+.grid-4 { grid-template-columns: repeat(4, 1fr); }
+@media (max-width: 1024px) {
+  .grid-4 { grid-template-columns: repeat(2, 1fr); }
+  .grid-3 { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 640px) {
+  .grid-4, .grid-3, .grid-2 { grid-template-columns: 1fr; }
+}
+
+.mono { font-family: var(--font-mono); }
+.section-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Decorative background/animations removed; kept as no-ops for existing markup. */
+.bg-grid { background: var(--bg-primary); }
+.fade-in { animation: fadeIn 0.15s ease-out; }
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.slide-up { animation: fadeIn 0.15s ease-out; }
+.animate-pulse-glow, .animate-float { animation: none; }
+.glow-cyan, .glow-purple, .glow-green, .glow-red { box-shadow: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

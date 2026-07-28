@@ -1,0 +1,170 @@
+# Palworld server + dashboard, sharing one bind mount and one private network.
+#
+# If you already have a compose file for your server, you do NOT need this whole
+# file — copy just the `dashboard:` service into it (see README, "Adding to an
+# existing compose file") and make sure both services share a network and mount
+# the same host directory.
+
+services:
+  # ─── The game server ────────────────────────────────────
+  # Replace this with your existing server service if you have one. The only
+  # things the dashboard needs from it are: the same bind mount, a shared
+  # network, and RESTAPIEnabled=true.
+  palworld:
+    image: thijsvanloef/palworld-server-docker:latest
+    container_name: palworld-server
+    restart: unless-stopped
+    stop_grace_period: 30s
+    ports:
+      - "8211:8211/udp"   # game
+      - "27015:27015/udp" # query
+      # REST API is NOT published: only the dashboard talks to it, over the
+      # private network below. Palworld's own docs warn against exposing it.
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - PORT=8211
+      - PLAYERS=16
+      - SERVER_NAME=${SERVER_NAME:-My Palworld Server}
+      - ADMIN_PASSWORD=${PALWORLD_ADMIN_PASSWORD:?set PALWORLD_ADMIN_PASSWORD in .env}
+      - RCON_ENABLED=true
+      - RCON_PORT=25575
+      # Required for the dashboard's live features and its safety checks.
+      - REST_API_ENABLED=true
+      - REST_API_PORT=8212
+    volumes:
+      - ./palworld:/palworld
+    networks:
+      - palnet
+
+  # ─── The dashboard ──────────────────────────────────────
+  dashboard:
+    build: .
+    # image: palworld-dashboard:latest   # if you build/push it yourself
+    container_name: palworld-dashboard
+    restart: unless-stopped
+    depends_on:
+      - palworld
+    ports:
+      - "3000:3000"   # UI. Put this behind a reverse proxy / VPN if it is not LAN-only.
+      # Port 8400 (the save backend) is deliberately NOT published. It has no
+      # auth of its own and binds to loopback inside the container.
+    volumes:
+      # SAME host directory the server uses. The dashboard reads save files
+      # straight off it.
+      #
+      # For a hard guarantee that the dashboard can never write to your server
+      # files, append `:ro` here and set SAVE_READ_ONLY=true below. Backups and
+      # the parse cache live on their own volumes, so read-only still leaves
+      # everything except restore and settings-editing working.
+      - ./palworld:/palworld
+      # Parse cache. Keeping it on a named volume means a container restart does
+      # not trigger a fresh (expensive) Level.sav parse.
+      - dashboard-cache:/app/cache
+      # Backups live outside the server directory so that mounting /palworld
+      # read-only does not break them.
+      - dashboard-backups:/app/backups
+    environment:
+      # ─── Talking to the server ───
+      # Service name, resolved by Docker's DNS on the shared network below.
+      # No host.docker.internal, no host networking, nothing published.
+      - PALWORLD_REST_URL=http://palworld:8212
+      - PALWORLD_ADMIN_PASSWORD=${PALWORLD_ADMIN_PASSWORD:?set PALWORLD_ADMIN_PASSWORD in .env}
+
+      # ─── Dashboard login ───
+      # Admin password. Without it, admin login is refused outright.
+      - PANEL_PASSWORD=${PANEL_PASSWORD:?set PANEL_PASSWORD in .env}
+      # Signs session cookies. Generate: openssl rand -hex 32
+      - SESSION_SECRET=${SESSION_SECRET:-}
+      # Read-only guest login (map, server status, bases).
+      - GUEST_VIEW_ENABLED=${GUEST_VIEW_ENABLED:-true}
+
+      # ─── Paths inside the container ───
+      - SAVE_BASE_DIR=/palworld/Pal/Saved/SaveGames/0
+      - BACKUP_DIR=/app/backups
+      - CACHE_DIR=/app/cache
+      # Auto-detected from SAVE_BASE_DIR; override if your layout differs.
+      # - PALWORLD_CONFIG_INI=/palworld/Pal/Saved/Config/LinuxServer/PalWorldSettings.ini
+
+      # ─── Corruption safety ───
+      # Never write to save files, even when the server is provably stopped.
+      - SAVE_READ_ONLY=${SAVE_READ_ONLY:-false}
+      # A .sav written within this window means the server is alive.
+      - SAVE_ACTIVITY_WINDOW_SECONDS=300
+      # Leave false. True lets an *inconclusive* server-state check count as
+      # "stopped", which is how live saves get corrupted.
+      - ALLOW_UNVERIFIED_EDITS=false
+
+      # ─── Performance (see README: "Keeping it light") ───
+      # Level.sav parsing runs in a niced subprocess. Turn it off entirely and
+      # the REST-API features keep working.
+      - PARSE_ENABLED=${PARSE_ENABLED:-true}
+      - PARSE_MIN_INTERVAL_SECONDS=${PARSE_MIN_INTERVAL_SECONDS:-900}
+      - PARSE_TIMEOUT_SECONDS=600
+      # Item container decoding: nice for chest contents, costs time and memory.
+      - PARSE_INCLUDE_ITEMS=${PARSE_INCLUDE_ITEMS:-true}
+
+      # ─── Controlling the game server container (optional) ───
+      # Palworld's REST API can STOP the game process but never START one, and
+      # it knows nothing about containers. These commands give the dashboard the
+      # full stop -> edit saves -> start cycle.
+      #
+      # The dashboard container itself never needs root and never sees the
+      # Docker socket: the docker-proxy sidecar below holds it and exposes only
+      # container start/stop/restart. Uncomment that service, then these:
+      # - STOP_COMMAND=docker -H tcp://docker-proxy:2375 stop palworld-server
+      # - START_COMMAND=docker -H tcp://docker-proxy:2375 start palworld-server
+      # - RESTART_COMMAND=docker -H tcp://docker-proxy:2375 restart palworld-server
+      #
+      # Leave them unset to drive it by hand instead — stopping the palworld
+      # service does not affect this container, so the dashboard stays up and
+      # unlocks save editing on its own once the server is provably down:
+      #   docker compose stop palworld   /   docker compose start palworld
+
+      # ─── Internal ───
+      - PYTHON_BACKEND_URL=http://127.0.0.1:8400
+      - BACKEND_PORT=8400
+    # Keep the parser from ever starving the game server.
+    cpus: ${DASHBOARD_CPUS:-1.0}
+    mem_limit: ${DASHBOARD_MEM:-3g}
+    networks:
+      - palnet
+
+  # ─── Optional: let the dashboard start/stop the server container ───
+  # Exposes a deliberately tiny slice of the Docker API instead of handing the
+  # dashboard the raw socket. The dashboard runs as a normal user and never
+  # mounts /var/run/docker.sock; only this sidecar does, read-only.
+  #
+  # Worth understanding: anything that can reach this proxy can start/stop
+  # containers, so keep it on the private network and never publish its port.
+  #
+  # docker-proxy:
+  #   image: tecnativa/docker-socket-proxy:latest
+  #   container_name: palworld-docker-proxy
+  #   restart: unless-stopped
+  #   environment:
+  #     - CONTAINERS=1        # inspect containers (needed to resolve names)
+  #     - POST=1              # start/stop/restart are POST requests
+  #     - ALLOW_RESTARTS=1
+  #     # everything else stays denied
+  #     - IMAGES=0
+  #     - NETWORKS=0
+  #     - VOLUMES=0
+  #     - EXEC=0
+  #     - SERVICES=0
+  #     - SWARM=0
+  #     - SYSTEM=0
+  #     - INFO=0
+  #   volumes:
+  #     - /var/run/docker.sock:/var/run/docker.sock:ro
+  #   networks:
+  #     - palnet
+  #   # No `ports:` — reachable only from inside palnet.
+
+networks:
+  palnet:
+    driver: bridge
+
+volumes:
+  dashboard-cache:
+  dashboard-backups:
