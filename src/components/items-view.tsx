@@ -37,7 +37,16 @@ export default function ItemsView() {
   const filtered = useMemo(() => {
     if (!data) return [];
     const q = query.trim().toLowerCase();
-    return q ? data.items.filter((i) => i.itemId.toLowerCase().includes(q)) : data.items;
+    if (!q) return data.items;
+    // Match on the display name, the internal ID and the category, so both
+    // "Ancient Civilization Part" and "AncientCivilizationParts" find it.
+    return data.items.filter(
+      (i) =>
+        i.name.toLowerCase().includes(q) ||
+        i.itemId.toLowerCase().includes(q) ||
+        i.typeA.toLowerCase().includes(q) ||
+        i.typeB.toLowerCase().includes(q)
+    );
   }, [data, query]);
 
   if (error) {
@@ -99,14 +108,28 @@ export default function ItemsView() {
         <table className="table">
           <thead>
             <tr>
-              <th style={{ width: '70%' }}>Item</th>
+              <th style={{ width: '55%' }}>Item</th>
+              <th style={{ width: '25%' }}>Category</th>
               <th>Total</th>
             </tr>
           </thead>
           <tbody>
             {filtered.map((item) => (
-              <tr key={item.itemId}>
-                <td className="mono" style={{ color: 'var(--text-primary)' }}>{item.itemId}</td>
+              <tr key={item.itemId} title={item.description || undefined}>
+                <td style={{ color: 'var(--text-primary)' }}>
+                  {item.name}
+                  {/* Keep the internal ID visible but secondary — it is what the
+                      save actually stores, and it is what you search a wiki for. */}
+                  <span
+                    className="mono"
+                    style={{ color: 'var(--text-muted)', fontSize: 11, marginLeft: 8 }}
+                  >
+                    {item.itemId}
+                  </span>
+                </td>
+                <td style={{ color: 'var(--text-muted)', fontSize: 12 }}>
+                  {item.typeB || item.typeA || '—'}
+                </td>
                 <td className="mono">{item.count.toLocaleString()}</td>
               </tr>
             ))}
@@ -124,8 +147,11 @@ export default function ItemsView() {
       </div>
 
       <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-        Item IDs are the game&apos;s internal names. Totals cover every container
-        in the world: base chests, guild chests, player inventories and palboxes.
+        {data && !data.namesResolved
+          ? 'Bundled game data is missing, so items show their internal IDs. Run scripts/build-gamedata.py. '
+          : 'Names come from bundled Palworld 1.0 game data; the grey text is the internal ID stored in the save. '}
+        Totals cover every container in the world: base chests, guild chests,
+        player inventories and palboxes.
       </p>
     </div>
   );

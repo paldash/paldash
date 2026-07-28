@@ -522,16 +522,46 @@ def extract_player_progress(gvas: Any) -> dict[str, Any]:
     return progress
 
 
+# Progress categories whose true total is computable from the game's own data
+# tables, so they need no published estimate at all.
+_EXACT_TOTALS: dict[str, str] = {
+    "fastTravel": "fastTravelPoints",   # 174
+    "paldeck": "paldeckForms",          # 303 — PaldeckUnlockFlag keys on forms
+}
+
+
 @lru_cache(maxsize=1)
-def _reference_totals() -> dict[str, int]:
-    """Published 1.0 totals, bundled in backend/data/reference_totals.json."""
+def _reference_totals() -> dict[str, tuple[int, str]]:
+    """
+    Denominators as {label: (total, source)}.
+
+    Two tiers. `gamedata` figures are computed from the game's own data tables
+    and are exact. `reference` figures are published community counts for things
+    the tables do not enumerate (tower bosses, effigies, sealed realms) and are
+    only as good as their source.
+    """
+    totals: dict[str, tuple[int, str]] = {}
+
     path = os.path.join(os.path.dirname(__file__), "data", "reference_totals.json")
     try:
         with open(path) as f:
-            return json.load(f).get("totals", {})
+            for label, value in (json.load(f).get("totals") or {}).items():
+                totals[label] = (int(value), "reference")
     except Exception as e:  # noqa: BLE001
         logger.warning("Could not load reference totals: %s", e)
-        return {}
+
+    # Exact figures win over published ones.
+    try:
+        import gamedata
+
+        exact = gamedata.totals()
+        for label, key in _EXACT_TOTALS.items():
+            if exact.get(key):
+                totals[label] = (int(exact[key]), "gamedata")
+    except Exception as e:  # noqa: BLE001
+        logger.warning("Game data unavailable, using published totals only: %s", e)
+
+    return totals
 
 
 def progress_totals(per_player: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
@@ -555,10 +585,12 @@ def progress_totals(per_player: list[dict[str, Any]]) -> dict[str, dict[str, Any
     totals: dict[str, dict[str, Any]] = {}
     for label, keys in observed.items():
         seen = len(keys)
-        published = reference.get(label)
-        if published and published >= seen:
-            totals[label] = {"total": published, "source": "reference"}
+        known = reference.get(label)
+        if known and known[0] >= seen:
+            totals[label] = {"total": known[0], "source": known[1]}
         else:
+            # Either we have no figure, or ours is lower than what somebody has
+            # actually obtained — in which case ours is stale, not their save.
             totals[label] = {"total": seen, "source": "discovered"}
     return totals
 

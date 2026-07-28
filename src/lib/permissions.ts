@@ -71,6 +71,12 @@ const SAVE_PATHS: [RegExp, Capability, Feature | null][] = [
   [/^items$/, CAPABILITIES.VIEW_DETAIL, FEATURES.ITEMS],
   [/^breeding\//, CAPABILITIES.VIEW_DETAIL, FEATURES.BREEDING],
 
+  // Static reference data bundled with the dashboard — fast-travel coordinates,
+  // item names, 1.0 totals. None of it is server-specific and all of it is on
+  // every Palworld wiki, so it follows the map toggle rather than being secret.
+  [/^world\/fasttravel$/, CAPABILITIES.VIEW_BASIC, FEATURES.MAP_OBJECTS],
+  [/^world\/reference$/, CAPABILITIES.VIEW_BASIC, FEATURES.SERVER_STATUS],
+
   [/^edit\/sort\/stackables$/, CAPABILITIES.SAVE_SORT_STACKABLES, null],
   [/^edit\/sort\/all$/, CAPABILITIES.SAVE_SORT_ALL, null],
   [/^edit\//, CAPABILITIES.SAVE_EDIT_FULL, null],

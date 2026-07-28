@@ -19,6 +19,7 @@ from fastapi import FastAPI, HTTPException, Query
 from pydantic import BaseModel
 
 import breeding
+import gamedata
 import lifecycle
 import policy as policy_module
 import savecache
@@ -57,6 +58,7 @@ def health() -> dict[str, Any]:
         "worldCount": len(world_dirs),
         "cache": savecache.status(),
         "breedingData": breeding.data_available(),
+        "gameData": gamedata.available(),
         "lifecycle": lifecycle.status(),
     }
 
@@ -160,7 +162,23 @@ def get_pals(owner: Optional[str] = None) -> list[dict]:
     if owner:
         key = owner.lower()
         pals = [p for p in pals if (p.get("ownerUid") or "").lower().startswith(key)]
-    return pals
+
+    enriched = []
+    for pal in pals:
+        details = gamedata.describe_pal(pal.get("speciesId") or "")
+        enriched.append(
+            {
+                **pal,
+                "speciesName": details["name"],
+                "icon": details["icon"],
+                "elements": details["elements"],
+                "paldeckNumber": details["paldeckNumber"],
+                "passiveSkillNames": [
+                    gamedata.passive_name(p) for p in (pal.get("passiveSkills") or [])
+                ],
+            }
+        )
+    return enriched
 
 
 @app.get("/api/mapobjects")
@@ -169,7 +187,40 @@ def get_map_objects(category: Optional[str] = None) -> list[dict]:
     objects = savecache.get_section("mapObjects")
     if category:
         objects = [o for o in objects if o.get("category") == category]
-    return objects
+    return [
+        {**o, "name": gamedata.structure_name(o.get("objectId") or "")}
+        for o in objects
+    ]
+
+
+# ─── Static world data (bundled, not from the save) ──────
+
+
+@app.get("/api/world/fasttravel")
+def get_fast_travel_points() -> dict[str, Any]:
+    """
+    All fast-travel points, with world coordinates and in-game names.
+
+    These are static level actors, so they appear nowhere in a save file — only
+    a player's *unlocked* list does. The coordinates share the save's world
+    space, so they drop straight onto the existing map transform.
+    """
+    try:
+        return {"points": gamedata.fast_travel_points()}
+    except gamedata.GameDataUnavailable as e:
+        raise HTTPException(503, str(e))
+
+
+@app.get("/api/world/reference")
+def get_reference_data() -> dict[str, Any]:
+    """Exact Palworld 1.0 totals, computed from the game's own data tables."""
+    try:
+        return {
+            "totals": gamedata.totals(),
+            "workSuitability": gamedata.work_suitabilities(),
+        }
+    except gamedata.GameDataUnavailable as e:
+        raise HTTPException(503, str(e))
 
 
 @app.get("/api/items")
@@ -177,16 +228,27 @@ def get_item_totals(limit: int = Query(500, ge=1, le=5000)) -> dict[str, Any]:
     """
     Every item on the server, totalled across all containers — the equivalent of
     standing at an item retrieval unit and asking what exists.
+
+    Names are resolved at request time rather than baked into the parse cache, so
+    refreshing the bundled game data does not require re-parsing the world.
     """
     data = savecache.get_data() or {}
     items = data.get("items") or []
     containers = data.get("containers") or {}
+
+    enriched = []
+    for entry in items[:limit]:
+        details = gamedata.describe_item(entry.get("itemId") or "")
+        details.pop("id", None)  # `itemId` is the canonical key here
+        enriched.append({**entry, **details})
+
     return {
-        "items": items[:limit],
+        "items": enriched,
         "itemTypes": len(items),
         "totalCount": sum(i["count"] for i in items),
         "containersScanned": len(containers),
         "truncated": len(items) > limit,
+        "namesResolved": gamedata.available(),
     }
 
 

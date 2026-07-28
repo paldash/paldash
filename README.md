@@ -326,16 +326,21 @@ See `.env.example`; every variable is documented there.
 
 This project stands on other people's work:
 
-- **[PalworldSaveTools][pst]** by deafdudecomputers — the `palsav` / `palooz`
-  packages that read Palworld 1.0's Oodle-compressed `PlM` saves. Licensed
-  **GPL-3.0-or-later** and used here as a library; if you redistribute this
-  project, that licence applies to your distribution.
+- **[PalworldSaveTools][pst]** by deafdudecomputers, used two ways under two
+  different licences:
+  - The `palsav` / `palooz` packages that read Palworld 1.0's Oodle-compressed
+    `PlM` saves. Licensed **GPL-3.0-or-later** and used here as a library; if you
+    redistribute this project, that licence applies to your distribution.
+  - Its `resources/game_data/` tables (**MIT**, © 2026 Pylar), which this project
+    compiles into `backend/data/gamedata.json.gz` — every item, Pal, passive,
+    active skill, technology and structure name, plus all 174 fast-travel points
+    with world coordinates. Regenerate with `scripts/build-gamedata.py`.
 - **[ooz](https://github.com/powzix/ooz)** by powzix — the open-source Kraken
   decompressor that `palooz` wraps.
 - **[palcalc](https://github.com/tylercamp/palcalc)** by tylercamp (**MIT**) —
-  the breeding pair table and Pal database in `backend/data/`, extracted from the
-  game's own CombiRank tables, plus the coordinate reference samples used to
-  calibrate world → map conversion.
+  the breeding pair table in `backend/data/`, extracted from the game's own
+  CombiRank tables, plus the coordinate reference samples used to calibrate
+  world → map conversion.
 - **[palworld-save-tools](https://github.com/cheahjs/palworld-save-tools)** by
   cheahjs — the original GVAS reader this ecosystem is built on, and the
   reference for the save structure.

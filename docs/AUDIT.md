@@ -68,16 +68,16 @@ than attempting all of it.
 | Backup & restore | 30% | Directory copy only; no archive/verify/schedule/browse |
 | Save editing | 12% | Two sort modes work; everything else 501 |
 | Live map | 25% | Transform fitted, save POIs only; no static POIs, no tiles |
-| Reference data | 15% | Small derived subset; the authoritative DB sits unused in `refs/` |
+| Reference data | 90% | ✅ Phase 1: full 1.0 DB bundled at 215 KB; icons still not shipped |
 | Auth & accounts | 20% | Shared password, 2 roles, no users/audit/rate-limit |
 | Permissions | 45% | Capability model is sound; only 2 roles bound to it |
 | Server dashboard | 30% | REST status; no metrics history, no admin commands |
 | Docker | 80% | Genuinely good; needs multi-image validation |
 | Import / export | 0% | Not started |
 | Migration tools | 0% | Not started |
-| Testing | 45% | ✅ Phase 0: 151 backend tests. Frontend still 0 |
+| Testing | 50% | ✅ 196 backend tests. Frontend still 0 |
 | Documentation | 70% | ✅ Phase 0: `.gitignore` fixed, AGENTS.md written |
-| **Weighted total** | **~36%** | was 32% before Phase 0 |
+| **Weighted total** | **~43%** | 32% at audit → 36% after Phase 0 → 43% after Phase 1 |
 
 ---
 
@@ -379,13 +379,37 @@ Two real defects found and fixed — see §2.10.
 
 Verified green: `npm run lint` 0 errors · `npm run build` succeeds · 151/151 tests pass.
 
-### Phase 1 — Adopt the reference data (2–3 days) · **highest value/effort ratio**
-Bundle `game_data/` as gzipped assets + icons; friendly-name resolver across item/Pal/
-passive/skill/tech/structure; replace derived breeding data and `reference_totals.json`
-with authoritative figures; MIT attribution in README.
-*Immediate effect:* every list stops showing `AIcore` and starts showing "AI Core"; tech
-totals become exact (1,413 / 185).
-**Risk: low. Dependencies: none.** Good first Sonnet subagent task — mechanical, verifiable.
+### Phase 1 — Adopt the reference data · ✅ **COMPLETE** (2026-07-28)
+
+`scripts/build-gamedata.py` compiles the archive into `backend/data/gamedata.json.gz` —
+**215 KB gzipped** for 2,466 items, 753 Pals, 1,905 passives, 375 skills, 588 technologies,
+1,088 structures and 174 fast-travel points. Committed, so no archive or network is needed
+at runtime. `backend/gamedata.py` resolves names with graceful fallback; wired into
+`/api/items`, `/api/pals`, `/api/mapobjects`, plus new `/api/world/fasttravel` and
+`/api/world/reference`. MIT attribution added to README.
+
+**Measured coverage against the real save: items 645/645, passives 124/124, structures
+52/52, Pals 248/289** — the 289 figure includes NPCs (merchants, guards, tower bosses),
+which now resolve through `character_name()`.
+
+Three findings worth recording:
+
+1. **Lookups must be case-insensitive.** The upstream data is inconsistently capitalised —
+   a save stores `Sheepball`, `OctopusGirl`, `SwordCutlassfish`; the reference spells them
+   `SheepBall`, `OctopusGIrl` (a typo), `SwordCutlassFish`. Exact matching silently loses
+   eight real Pals. Pinned by test.
+2. **Paldeck needs two denominators.** `PaldeckUnlockFlag` keys on *forms*, so completion
+   is out of **303**, not the 204 distinct Paldeck numbers (variants share a number with a
+   letter suffix). The old bundled figure of 299 was close but wrong.
+3. **`fieldBosses: 65` was wrong** and the fallback guard caught it — players on the
+   reference server have collectively defeated **82**. Removed rather than shipped; the
+   category now honestly reports `discovered`.
+
+Also now available but deliberately not yet used: **`maxStack` per item**. The sorter
+currently infers its merge ceiling from the largest stack in the save; swapping in the real
+limit changes what a sort writes, so it belongs in Phase 5 with tests, not as a drive-by.
+
+Verified: 196/196 tests pass (up from 151) · lint 0 errors · build succeeds.
 
 ### Phase 2 — The map (4–5 days)
 Ship map imagery; fix the `feybreak` → `tree` naming; 174 named fast-travel markers;

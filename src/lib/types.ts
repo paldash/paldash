@@ -99,6 +99,15 @@ export interface InventorySlot {
 export interface PalInfo {
   instanceId: string;
   characterId: string;
+  /** Species with any BOSS_/PREDATOR_ prefix stripped. */
+  speciesId?: string;
+  /** In-game species name resolved from bundled game data, e.g. "Lamball". */
+  speciesName?: string;
+  icon?: string;
+  elements?: string[];
+  paldeckNumber?: number;
+  /** Passive skills as display names, parallel to `passiveSkills`. */
+  passiveSkillNames?: string[];
   nickname: string;
   level: number;
   exp: number;
@@ -198,13 +207,33 @@ export interface MapObject {
   grade?: string | null;
 }
 
+/** One item type, totalled server-wide and resolved against the bundled game data. */
+export interface ItemTotalRow {
+  itemId: string;
+  count: number;
+  /** In-game display name, or a humanised fallback when `known` is false. */
+  name: string;
+  icon: string;
+  rarity: number;
+  typeA: string;
+  typeB: string;
+  /** The game's real stack ceiling; 0 when unknown. */
+  maxStack: number;
+  weight: number;
+  description: string;
+  /** Whether the ID matched a reference entry rather than falling back. */
+  known: boolean;
+}
+
 /** Server-wide item totals across every container. */
 export interface ItemTotals {
-  items: { itemId: string; count: number }[];
+  items: ItemTotalRow[];
   itemTypes: number;
   totalCount: number;
   containersScanned: number;
   truncated: boolean;
+  /** False when the bundled game data is missing, so names are IDs. */
+  namesResolved: boolean;
 }
 
 /**

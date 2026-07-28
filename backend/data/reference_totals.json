@@ -1,13 +1,24 @@
 {
   "_comment": [
-    "Absolute totals for Palworld 1.0 progression categories.",
+    "Published totals for Palworld 1.0 progression categories that the game's own",
+    "data tables do NOT enumerate.",
     "",
     "Save files record only what a player has OBTAINED, so a save can never tell",
     "you how much is left. These are published figures used as denominators, with",
     "the cross-server union as a fallback for anything not listed.",
     "",
-    "Validated directly against a real 1.0 save:",
-    "  dungeons = 170  matches DungeonPointMarkerSaveData exactly",
+    "SUPERSEDED — now computed from backend/data/gamedata.json.gz, straight from",
+    "the game's data tables, and therefore exact:",
+    "  fastTravel = 174   (was listed here as unverified)",
+    "  paldeck    = 303   (was 299; a save's PaldeckUnlockFlag keys on forms, not",
+    "                      Paldeck numbers, and 303 forms carry a Paldeck entry)",
+    "  technology = 1413 points over 537 techs; 185 ancient over 51 boss techs",
+    "",
+    "REMOVED — fieldBosses was 65. Players on the reference server have between",
+    "them defeated 82 distinct field bosses, so 65 was simply wrong (it predates",
+    "the 1.0 additions). Rather than ship a figure known to be too low, the",
+    "category falls back to the observed union and is honestly labelled",
+    "'discovered'. Restore a number here only with a 1.0-current source.",
     "",
     "CAUTION on observation-based validation: towerBosses was briefly set to 7",
     "because that matched the most-advanced player's defeated count. That was a",
@@ -16,32 +27,25 @@
     "ever show a lower bound, so agreement with observation never confirms a",
     "total. Prefer published figures, and treat matches as unproven.",
     "",
-    "paldeck comes from the bundled pal database (299 entries), which is derived",
-    "from the game's own tables and is authoritative.",
-    "",
     "If a figure here is ever lower than what a player has actually obtained, the",
     "code falls back to the observed value, so a stale number can never produce a",
-    "negative 'remaining' count."
+    "negative 'remaining' count. That fallback is what exposed fieldBosses."
   ],
   "_source": "https://paldb.cc/en/v1.0.0 and community trackers, July 2026",
   "totals": {
     "towerBosses": 9,
-    "fieldBosses": 65,
-    "paldeck": 299,
     "effigies": 313,
     "dungeons": 170,
     "sealedRealms": 18
   },
   "_confidence": {
     "towerBosses": "high — 1.0 list enumerated in full (Zoe, Lily, Axel, Marcus, Victor, Saya, Bjorn, Auri, Zenara)",
-    "paldeck": "high — matches the bundled pal database derived from game tables",
-    "dungeons": "high — matches DungeonPointMarkerSaveData in a real save",
-    "fieldBosses": "medium — figure may predate 1.0 additions",
+    "dungeons": "high — matches DungeonPointMarkerSaveData (170) in a real save",
     "effigies": "medium — counts Pal Effigies including variants, not just Lifmunk",
     "sealedRealms": "medium — not cross-checked against a save"
   },
   "unverified": [
-    "fastTravel",
-    "areasFound"
+    "areasFound",
+    "dungeonsCleared"
   ]
 }
