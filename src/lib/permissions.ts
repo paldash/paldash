@@ -104,6 +104,12 @@ const ROUTES: RouteRule[] = [
   // Apply requires a planHash query param the backend checks against a fresh
   // re-plan, so this route cannot be used to write without a preview first.
   { pattern: /^import\/apply$/, methods: ['POST'], capability: CAPABILITIES.SAVE_EDIT_FULL, feature: null },
+  // The schema is a read: the UI renders its editor from it, so it must not
+  // need the write capability just to show what the bounds are.
+  { pattern: /^edit\/schema\/(player|pal)$/, methods: ['GET'], capability: CAPABILITIES.VIEW_DETAIL, feature: null },
+  // Preview before apply, and apply carries a planHash the backend re-checks.
+  { pattern: /^edit\/pal\/[A-Za-z0-9-]+\/preview$/, methods: ['POST'], capability: CAPABILITIES.SAVE_EDIT_FULL, feature: null },
+  { pattern: /^edit\/pal\/[A-Za-z0-9-]+$/, methods: ['POST'], capability: CAPABILITIES.SAVE_EDIT_FULL, feature: null },
   { pattern: /^export\/(world|player|guild|base|container)$/, methods: ['GET'], capability: CAPABILITIES.VIEW_DETAIL, feature: null },
   { pattern: /^reports$/, methods: ['GET'], capability: CAPABILITIES.VIEW_DETAIL, feature: FEATURES.ITEMS },
   { pattern: /^reports\/[a-z-]+$/, methods: ['GET'], capability: CAPABILITIES.VIEW_DETAIL, feature: FEATURES.ITEMS },

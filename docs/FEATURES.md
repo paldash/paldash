@@ -61,6 +61,7 @@ Legend: ✅ works · 🟡 works with a caveat · 🔴 not built
 | Container sorting (stackables / all) | ✅ | Conservation-verified, auto-rollback |
 | Structured export (5 kinds) | ✅ | **Phase 6**, checksummed and verifiable |
 | Container import | ✅ | **Phase 6**, dry-run diff + plan hash + scope-verified write |
+| Pal editor (level, EXP, rank, IVs, nickname) | ✅ | **Phase 7**, preview → apply → verify → rollback. Needs `SECURITY_LEVEL=full` |
 | Base-scoped sorting | ✅ | **Phase 5** |
 | Real stack limits | ✅ | **Phase 5**, `max(authoritative, observed)` |
 | Category rules / priorities / profiles | 🔴 | Deferred — these decide *where an item goes*, which is editor semantics |

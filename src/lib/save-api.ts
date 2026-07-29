@@ -1,6 +1,9 @@
 import type {
   BaseCamp,
   BaseStorage,
+  EditPlan,
+  EditResult,
+  EditSchema,
   GuildInfo,
   PlayerSaveData,
   ContainerContents,
@@ -137,7 +140,65 @@ export async function sortContainers(
   });
 }
 
-// ─── Per-base storage & reports ─────────────────────────
+// ─── Character editing ──────────────────────────────────
+
+/**
+ * A Pal as `/api/pals` returns it — the parsed record plus name/icon
+ * enrichment. Deliberately narrower than `PalInfo`, which describes a fuller
+ * shape the save parser does not currently produce.
+ */
+export interface PalRecord {
+  instanceId: string;
+  ownerUid: string;
+  characterId: string;
+  speciesId: string;
+  speciesName?: string;
+  icon?: string;
+  elements?: string[];
+  paldeckNumber?: number;
+  nickname: string;
+  gender: string;
+  level: number;
+  exp: number;
+  rank: number;
+  isBoss: boolean;
+  ivs: Record<string, number>;
+  passiveSkills: string[];
+  passiveSkillNames?: string[];
+}
+
+export async function getPals(owner?: string): Promise<PalRecord[]> {
+  return saveFetch(`/pals${owner ? `?owner=${encodeURIComponent(owner)}` : ''}`);
+}
+
+export async function getEditSchema(target: 'pal' | 'player'): Promise<EditSchema> {
+  return saveFetch(`/edit/schema/${target}`);
+}
+
+export async function previewPalEdit(
+  instanceId: string,
+  changes: Record<string, unknown>
+): Promise<EditPlan> {
+  return saveFetch(`/edit/pal/${encodeURIComponent(instanceId)}/preview`, {
+    method: 'POST',
+    body: JSON.stringify({ changes }),
+  });
+}
+
+/**
+ * Apply an edit. `planHash` must come from the preview the user actually saw —
+ * the backend re-plans and refuses if it no longer matches.
+ */
+export async function applyPalEdit(
+  instanceId: string,
+  changes: Record<string, unknown>,
+  planHash: string
+): Promise<EditResult> {
+  return saveFetch(
+    `/edit/pal/${encodeURIComponent(instanceId)}?planHash=${encodeURIComponent(planHash)}`,
+    { method: 'POST', body: JSON.stringify({ changes }) }
+  );
+}
 
 export type ExportKind = 'world' | 'player' | 'guild' | 'base' | 'container';
 
@@ -179,6 +240,8 @@ export async function verifyExport(file: File): Promise<{
 }> {
   return saveFetch('/export/verify', { method: 'POST', body: await file.text() });
 }
+
+// ─── Per-base storage & reports ─────────────────────────
 
 export async function getBaseStorage(): Promise<BaseStorage[]> {
   return saveFetch('/bases/storage');

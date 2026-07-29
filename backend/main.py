@@ -26,7 +26,9 @@ import accounts
 import audit
 import authz
 import breeding
+import charedit
 import db
+import editschema
 import gamedata
 import lifecycle
 import policy as policy_module
@@ -1378,6 +1380,99 @@ def sort_stackables(req: SortRequest, request: Request) -> dict:
 def sort_all(req: SortRequest, request: Request) -> dict:
     """Tidy containers including equipment, carrying dynamic_id links along."""
     return _run_sort("all", req.merge, request, req.baseId)
+
+
+@app.get("/api/edit/schema/{target}")
+def edit_schema(target: str, request: Request) -> dict:
+    """
+    What is editable, and within what bounds — so the UI renders from the same
+    schema the backend enforces rather than a second copy that can drift.
+    """
+    authz.require(request, roles_module.VIEW_DETAIL)
+    try:
+        return {
+            "target": target,
+            "fields": editschema.describe(target),
+            "readOnly": list(charedit.PAL_READ_ONLY) if target == "pal" else [],
+            "expBands": editschema.exp_bands(target),
+            "maxLevel": editschema.MAX_LEVEL,
+        }
+    except editschema.SchemaError as e:
+        raise HTTPException(404, str(e))
+
+
+class PalEditRequest(BaseModel):
+    changes: dict
+
+
+def _find_pal_object(instance_id: str):
+    """Locate one Pal in a fresh parse of Level.sav."""
+    from savefiles import get_level_sav_path
+
+    level_path = get_level_sav_path()
+    if not level_path:
+        raise HTTPException(503, "Level.sav not found")
+
+    gvas = load_gvas(level_path)
+    if gvas is None:
+        raise HTTPException(503, "Could not parse Level.sav")
+
+    for entry in charedit._character_entries(gvas):
+        key = entry.get("key") if isinstance(entry, dict) else None
+        if str((key or {}).get("InstanceId", {}).get("value") or "") == instance_id:
+            obj = charedit._save_parameter(entry)
+            if obj is None:
+                raise HTTPException(404, "That character has no editable data")
+            return obj
+    raise HTTPException(404, f"No Pal with instance id {instance_id}")
+
+
+@app.post("/api/edit/pal/{instance_id}/preview")
+def preview_pal_edit(instance_id: str, req: PalEditRequest, request: Request) -> dict:
+    """Dry-run a Pal edit. Read-only; returns the diff and a plan hash."""
+    authz.require(request, roles_module.SAVE_EDIT_FULL)
+    plan = charedit.plan_pal_edit(_find_pal_object(instance_id), req.changes)
+    return {**plan, "instanceId": instance_id, "applied": False}
+
+
+@app.post("/api/edit/pal/{instance_id}")
+def edit_pal(
+    instance_id: str, req: PalEditRequest, request: Request, planHash: str = Query(...)
+) -> dict:
+    """
+    Apply a previewed Pal edit.
+
+    `planHash` is mandatory for the same reason it is on imports: it is the diff
+    the operator was shown, and a world that moved since then must not be
+    written blind.
+    """
+    user = authz.require_user(request, roles_module.SAVE_EDIT_FULL)
+    ip = authz.client_ip(request)
+
+    def failed(message: str, status: int):
+        audit.record(
+            audit.SAVE_EDIT, username=user["username"], role=user["role"],
+            target=f"pal:{instance_id}", detail=message, ip=ip, result=audit.RESULT_FAILED,
+        )
+        return HTTPException(status, message)
+
+    try:
+        result = charedit.apply_pal_edit(instance_id, req.changes, expected_plan_hash=planHash)
+    except ServerRunningError as e:
+        raise failed(str(e), 423)
+    except charedit.EditError as e:
+        raise failed(str(e), 409)
+    except Exception as e:  # noqa: BLE001
+        logger.exception("Pal edit failed")
+        raise failed(f"Pal edit failed: {e}", 500)
+
+    audit.record(
+        audit.SAVE_EDIT, username=user["username"], role=user["role"],
+        target=f"pal:{instance_id}",
+        detail={"changes": result["changes"], "backupId": result["backupId"]},
+        ip=ip,
+    )
+    return result
 
 
 class EditRequest(BaseModel):

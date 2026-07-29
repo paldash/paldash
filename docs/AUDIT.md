@@ -66,7 +66,7 @@ than attempting all of it.
 | Save parsing engine | 95% | ✅ Phase 5: per-base container linkage, exact rather than spatial |
 | Corruption safety | 85% | Fail-closed, atomic, verified; no audit trail |
 | Backup & restore | 90% | ✅ Phase 4: verified archives, retention, schedule, preview, browser. No cloud targets |
-| Save editing | 35% | ✅ P5 base-scoped sorting + real stack limits; ✅ P6 container import. General editor still 501 |
+| Save editing | 60% | ✅ P5 sorting, ✅ P6 import, ✅ P7 schema + Pal editor with UI. Player/bulk still 501 |
 | Live map | 70% | ✅ Phase 2: both maps ship, 174 fast-travel POIs, layers/search. World Tree transform provisional |
 | Reference data | 90% | ✅ Phase 1: full 1.0 DB bundled at 215 KB; icons still not shipped |
 | Auth & accounts | 85% | ✅ Phase 3: accounts, scrypt, revocable sessions, throttling, audit log. No 2FA/reset flow |
@@ -75,10 +75,10 @@ than attempting all of it.
 | Docker | 80% | Genuinely good; needs multi-image validation |
 | Import / export | 80% | ✅ Export complete; container import writes, verifies and rolls back. Player/Pal imports need Phase 7 |
 | Migration tools | 0% | Not started |
-| Testing | 84% | ✅ 449 backend + 46 frontend tests |
+| Testing | 88% | ✅ 508 backend + 49 frontend tests |
 | Documentation | 70% | ✅ Phase 0: `.gitignore` fixed, AGENTS.md written |
 | Reports / export | 60% | ✅ Phase 5: 4 reports × CSV/JSON/TXT. Save import/export is Phase 6 |
-| **Weighted total** | **~85%** | 32% → 36% (P0) → 43% (P1) → 50% (P2) → 62% (P3) → 70% (P4) → 76% (P5) → 79% (P6 export) → 82% (P6 import gate) → 85% (P6 complete) |
+| **Weighted total** | **~90%** | 32% → 36% (P0) → 43% (P1) → 50% (P2) → 62% (P3) → 70% (P4) → 76% (P5) → 79% (P6 export) → 82% (P6 import gate) → 85% (P6 complete) → 87% (P7 schema) → 89% (P7 Pal editor) → 90% (P7 UI) |
 
 ---
 
@@ -627,13 +627,76 @@ Empty-slot structure was read off the reference world rather than assumed: `stat
 **Still to build:** import kinds beyond `container`. Player, Pal and technology imports stay
 refused with a reason. **Depends on Phase 7's per-field validation schema.**
 
-### Phase 7 — General save editor (8–12 days) · **the big one**
-Per-field validation schema (type, range, enum, cross-field) covering player fields, Pal
-fields, container slots. Then editors: player → Pal → inventory → bulk. Illegal-Pal
-detection and repair. Every write through `guarded_save_write` with a preview diff.
+### Phase 7 — General save editor · 🟡 **SCHEMA + PAL EDITOR + UI** (2026-07-29) · **the big one**
+
+Started with the validation schema rather than an editor, because "which values are legal"
+has never existed in this codebase and everything else depends on it.
+
+**`backend/editschema.py` — done.** Player and Pal fields, with bounds *derived* rather
+than invented:
+
+| Bound | Source |
+|---|---|
+| Max level 100 | `palExpTable` has exactly 100 entries |
+| EXP bands per level | `TotalEXP` / `PalTotalEXP` from that table |
+| Technology points 1,413 / ancient 185 | `gamedata.totals()` |
+| Known passives (1,905), species (753) | bundled database |
+| IVs 0–100, rank 1–5, ≤4 passives | measured across 1,905 real Pals |
+
+Two findings that changed the schema:
+
+- **`Talent_Melee` is not a 1.0 field.** `parser._TALENTS` still lists it, but it appears
+  on **zero** of the 1,905 Pals in the reference world — the game stores HP, Shot and
+  Defense only. It is deliberately not editable; writing it would look like a working edit
+  and do nothing.
+- **EXP must match level, and this is the rule that matters.** The game derives level from
+  total EXP on load, so setting level 50 while leaving level-1 EXP produces a character
+  that is level 1 again the next time the world loads. The cross-field rule catches it, and
+  it is curve-aware: players and Pals use different columns, and using the wrong one is
+  itself a caught error.
+
+Cross-field rules are **skipped rather than guessed** when the caller supplies no current
+state, and the report says `crossFieldChecked: false` so nothing silently claims more
+assurance than it has. 39 tests.
+
+**The Pal editor landed the same day.** `backend/charedit.py` — level, EXP, condenser rank,
+nickname and the three IVs, through preview → planHash → apply → verify → rollback.
+
+The failure mode it is built around is not a crash. `Level` and `Talent_*` are
+**ByteProperty**, nesting one level deeper than Int. Writing at the wrong depth produces a
+file that serialises, loads, and silently ignored the edit — it looks like it worked.
+`_write_property` therefore writes *into the existing shape* rather than constructing one,
+and **refuses when the property is absent**, because inventing a property means guessing its
+type tag. A Pal with no `Talent_HP` has never had that IV rolled, and fabricating one is a
+change to game state we cannot verify.
+
+Species, gender and passive skills are deliberately **read-only**: they change what a Pal
+*is*, which cascades into the Paldeck, breeding eligibility and the palbox. Out of scope
+until there is a reason.
+
+**The frontend landed with it** (`src/components/pal-editor.tsx`), in the Save Tools tab.
+Search a Pal → edit → preview the exact diff → apply. It renders itself **from the backend
+schema** rather than a second copy of the bounds, so a future cap change needs no UI edit.
+
+Two UI decisions that came out of the data rather than taste:
+
+- **A "match level" button on EXP.** Since the game recomputes level from total EXP on
+  load, changing one without the other is an edit that silently undoes itself. The schema
+  endpoint now returns `expBands` (80 levels, 1.9 KB) so the UI can fill in the right value
+  instead of letting people bounce off the cross-field rule.
+- **IV inputs only appear for IVs the Pal actually stores.** The backend refuses to create
+  an absent property rather than guess its type, so rendering a box that can only be
+  rejected would be worse than omitting it.
+
+**Discoverability note:** `save.edit.full` exists only at `SECURITY_LEVEL=full`, and
+servers default to `safe` — so the editor is hidden even from an Owner on a default
+install. The locked-state card now says exactly that and names the variable, rather than a
+bare "no permission".
+
+**Still to build:** the player editor, inventory and bulk edits, illegal-Pal detection and
+repair.
 **Risk: high.** **Depends on: Phases 0, 3, 4, 6.**
-*This is where corruption risk actually lives. It must not be rushed and must not start
-before the test harness and backup system are real.*
+*This is where corruption risk actually lives. It must not be rushed.*
 
 ### Phase 8 — Server dashboard & admin commands (3–4 days)
 CPU/RAM/disk/network sampling with history; player/entity counts; broadcast, kick, ban,

@@ -188,6 +188,34 @@ describe('describeSavePath', () => {
       expect(describeSavePath('import/apply', 'GET').allowed).toBe(false);
     });
 
+    it('exposes the edit schema as a read, not a write', () => {
+      // The UI renders its editor from the schema; needing the write capability
+      // just to see the bounds would hide the editor from people who can read.
+      expect(describeSavePath('edit/schema/pal', 'GET')).toMatchObject({
+        allowed: true,
+        capability: CAPABILITIES.VIEW_DETAIL,
+      });
+      expect(describeSavePath('edit/schema/guild', 'GET').allowed).toBe(false);
+    });
+
+    it('gates Pal editing behind the editor capability', () => {
+      expect(describeSavePath('edit/pal/abcd-1234/preview', 'POST')).toMatchObject({
+        allowed: true,
+        capability: CAPABILITIES.SAVE_EDIT_FULL,
+      });
+      expect(describeSavePath('edit/pal/abcd-1234', 'POST')).toMatchObject({
+        allowed: true,
+        capability: CAPABILITIES.SAVE_EDIT_FULL,
+      });
+    });
+
+    it('exposes no player-editing route yet', () => {
+      // Player editing is not implemented; an allowlist entry must not exist
+      // before the backend can validate it.
+      expect(describeSavePath('edit/player/abcd-1234', 'POST').allowed).toBe(false);
+      expect(describeSavePath('edit/pal/abcd/../player/x', 'POST').allowed).toBe(false);
+    });
+
     it('never exposes either import route to guests', () => {
       expect(describeSavePath('import/preview', 'POST').feature).toBeNull();
       expect(describeSavePath('import/apply', 'POST').feature).toBeNull();

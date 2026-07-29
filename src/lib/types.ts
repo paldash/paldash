@@ -155,6 +155,54 @@ export interface PalInfo {
   baseId?: string;
 }
 
+/** One editable field, as the backend describes it. */
+export interface EditField {
+  name: string;
+  kind: 'int' | 'string' | 'enum' | 'list';
+  label: string;
+  min: number | null;
+  max: number | null;
+  choices: string[] | null;
+  note: string;
+}
+
+export interface EditSchema {
+  target: string;
+  fields: EditField[];
+  readOnly: string[];
+  /** `{level: [minExp, maxExp]}` — maxExp is null only past the table. */
+  expBands: Record<string, [number, number | null]>;
+  maxLevel: number;
+}
+
+export interface EditChange {
+  field: string;
+  label: string;
+  before: unknown;
+  after: unknown;
+}
+
+export interface EditPlan {
+  ok: boolean;
+  problems: { field: string | null; problem: string }[];
+  changes: EditChange[];
+  fieldsChanged?: number;
+  planHash: string;
+  crossFieldChecked?: boolean;
+  instanceId?: string;
+  applied?: boolean;
+}
+
+export interface EditResult {
+  ok: boolean;
+  applied: boolean;
+  instanceId: string;
+  fieldsChanged: number;
+  changes: EditChange[];
+  backupId: string;
+  verified: boolean;
+}
+
 export interface ContainerContents {
   containerId: string;
   slots: InventorySlot[];
