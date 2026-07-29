@@ -26,6 +26,24 @@ if BACKEND_DIR not in sys.path:
 
 
 @pytest.fixture
+def fresh_db(tmp_path, monkeypatch):
+    """
+    An empty database for one test.
+
+    db.py caches a connection per thread, so the cache has to be dropped as well
+    as the path repointed — otherwise every test would share the first one.
+    """
+    import db
+
+    path = str(tmp_path / "dashboard.db")
+    monkeypatch.setattr(db, "DB_PATH", path)
+    db.reset_for_tests()
+    db.init()
+    yield path
+    db.reset_for_tests()
+
+
+@pytest.fixture
 def refworld() -> str:
     """The real reference world, or skip."""
     path = os.path.join(PROJECT_ROOT, "refworld")

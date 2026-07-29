@@ -14,7 +14,17 @@ import type {
   CacheStatus,
 } from './types';
 
-export type Role = 'admin' | 'guest';
+export type { Role } from './auth-types';
+import type { Role } from './auth-types';
+
+/** The signed-in account, or null for a guest. */
+export interface SessionUser {
+  username: string;
+  displayName: string;
+  role: Role;
+  steamUid?: string;
+  mustChangePassword?: boolean;
+}
 
 interface DashboardState {
   // ─── Auth ──────────────────────────────────
@@ -23,9 +33,13 @@ interface DashboardState {
   isAuthenticated: boolean;
   authChecked: boolean;
   userRole: Role;
-  /** What this session may do. Presentation only — the proxies enforce it. */
+  user: SessionUser | null;
+  /** What this session may do. Presentation only — the backend enforces it. */
   capabilities: string[];
   setAuthenticated: (v: boolean, role?: Role) => void;
+  setUser: (u: SessionUser | null) => void;
+  /** Convenience for the UI. Never a substitute for a server-side check. */
+  can: (capability: string) => boolean;
   setAuthChecked: (v: boolean) => void;
   setCapabilities: (c: string[]) => void;
 
@@ -82,12 +96,15 @@ interface DashboardState {
 
 const MAX_FPS_HISTORY = 360; // 30 min at 5s interval
 
-export const useDashboardStore = create<DashboardState>((set) => ({
+export const useDashboardStore = create<DashboardState>((set, get) => ({
   isAuthenticated: false,
   authChecked: false,
   userRole: 'guest',
+  user: null,
   capabilities: [],
   setAuthenticated: (v, role = 'guest') => set({ isAuthenticated: v, userRole: role }),
+  setUser: (u) => set({ user: u, userRole: u?.role ?? 'guest' }),
+  can: (capability) => get().capabilities.includes(capability),
   setAuthChecked: (v) => set({ authChecked: v }),
   setCapabilities: (c) => set({ capabilities: c }),
 
@@ -165,6 +182,8 @@ export const useDashboardStore = create<DashboardState>((set) => ({
     set({
       isAuthenticated: false,
       userRole: 'guest',
+      user: null,
+      capabilities: [],
       serverInfo: null,
       serverMetrics: null,
       onlinePlayers: [],

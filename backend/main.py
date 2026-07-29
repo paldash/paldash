@@ -15,13 +15,18 @@ import logging
 import os
 from typing import Any, Optional
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request
 from pydantic import BaseModel
 
+import accounts
+import audit
+import authz
 import breeding
+import db
 import gamedata
 import lifecycle
 import policy as policy_module
+import roles as roles_module
 import savecache
 import saveedit
 import settings_ini
@@ -38,7 +43,269 @@ from savefiles import find_world_dirs, get_default_world_dir, get_player_sav_pat
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="Palworld Save Backend", version="2.0.0")
+app = FastAPI(title="Palworld Save Backend", version="3.0.0")
+
+
+@app.on_event("startup")
+def _startup() -> None:
+    """Prepare storage and make sure somebody can actually sign in."""
+    db.init()
+    accounts.purge_expired()
+    created = accounts.bootstrap_from_env()
+    if created:
+        audit.record(
+            audit.USER_CREATE,
+            username="system", role="owner", target=created,
+            detail="bootstrapped first Owner from PANEL_PASSWORD",
+        )
+
+
+# ─── Authentication ──────────────────────────────────────
+
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+
+@app.post("/api/auth/login")
+def login(req: LoginRequest, request: Request) -> dict[str, Any]:
+    """
+    Verify credentials and open a session.
+
+    Rate limiting lives in accounts.authenticate: per-IP and per-username, with
+    exponential backoff persisted across restarts.
+    """
+    ip = authz.client_ip(request)
+    try:
+        token, user = accounts.authenticate(
+            req.username, req.password, ip=ip,
+            user_agent=request.headers.get("User-Agent", ""),
+        )
+    except accounts.RateLimited as e:
+        audit.record(
+            audit.RATE_LIMITED, username=req.username, target="login",
+            detail=f"retry after {e.retry_after}s", ip=ip, result=audit.RESULT_DENIED,
+        )
+        raise HTTPException(429, str(e), headers={"Retry-After": str(e.retry_after)})
+    except accounts.AccountError as e:
+        audit.record(
+            audit.LOGIN_FAILED, username=req.username, target="login",
+            detail=str(e), ip=ip, result=audit.RESULT_FAILED,
+        )
+        raise HTTPException(401, str(e))
+
+    audit.record(audit.LOGIN, username=user["username"], role=user["role"], ip=ip)
+    return {
+        "token": token,
+        "user": user,
+        "capabilities": sorted(authz.effective_capabilities(user)),
+    }
+
+
+@app.post("/api/auth/logout")
+def logout(request: Request) -> dict[str, Any]:
+    token = request.headers.get(authz.SESSION_HEADER, "")
+    who = authz.actor(request)
+    revoked = accounts.revoke_session(token) if token else False
+    if revoked:
+        audit.record(
+            audit.LOGOUT, username=who["username"], role=who["role"], ip=who["ip"]
+        )
+    return {"ok": True, "revoked": revoked}
+
+
+@app.get("/api/auth/session")
+def whoami(request: Request) -> dict[str, Any]:
+    """Who the caller is and what they may do. Anonymous callers get guest."""
+    user = authz.current_user(request)
+    policy = policy_module.load_policy()
+    return {
+        "user": user,
+        "role": user["role"] if user else "guest",
+        "capabilities": sorted(authz.effective_capabilities(user)),
+        "securityLevel": policy["securityLevel"],
+        "visibility": None if user else policy["guestVisibility"],
+        "anyUsers": accounts.user_count() > 0,
+    }
+
+
+class PasswordChange(BaseModel):
+    currentPassword: str
+    newPassword: str
+
+
+@app.post("/api/auth/password")
+def change_own_password(req: PasswordChange, request: Request) -> dict[str, Any]:
+    """
+    Change your own password.
+
+    Requires the current one, so a stolen session cannot lock the real owner out.
+    Every other session for this account is revoked afterwards.
+    """
+    user = authz.current_user(request)
+    if not user:
+        raise HTTPException(401, "Sign in to do this.")
+
+    ip = authz.client_ip(request)
+    try:
+        accounts.authenticate(user["username"], req.currentPassword, ip=ip)
+    except accounts.AccountError:
+        audit.record(
+            audit.USER_PASSWORD, username=user["username"], role=user["role"],
+            target=user["username"], detail="wrong current password",
+            ip=ip, result=audit.RESULT_FAILED,
+        )
+        raise HTTPException(403, "Current password is incorrect.")
+
+    try:
+        accounts.set_password(user["username"], req.newPassword)
+    except accounts.AccountError as e:
+        raise HTTPException(400, str(e))
+
+    audit.record(
+        audit.USER_PASSWORD, username=user["username"], role=user["role"],
+        target=user["username"], detail="changed own password", ip=ip,
+    )
+    return {"ok": True, "signedOutEverywhere": True}
+
+
+# ─── Accounts ────────────────────────────────────────────
+
+
+@app.get("/api/roles")
+def get_roles() -> list[dict]:
+    """Role presets and what each grants."""
+    return roles_module.describe()
+
+
+@app.get("/api/users")
+def get_users(request: Request) -> list[dict]:
+    authz.require(request, roles_module.USERS_MANAGE)
+    return accounts.list_users()
+
+
+class UserCreate(BaseModel):
+    username: str
+    password: str
+    role: str = roles_module.DEFAULT_ROLE
+    steamUid: str = ""
+    displayName: str = ""
+    mustChangePassword: bool = True
+
+
+@app.post("/api/users")
+def add_user(req: UserCreate, request: Request) -> dict:
+    actor_user = authz.require_user(request, roles_module.USERS_MANAGE)
+
+    if not roles_module.can_manage(actor_user["role"], req.role):
+        raise HTTPException(403, "You cannot create an account above your own role.")
+
+    try:
+        user = accounts.create_user(
+            req.username, req.password, role=req.role,
+            steam_uid=req.steamUid, display_name=req.displayName,
+            must_change_password=req.mustChangePassword,
+        )
+    except accounts.AccountError as e:
+        raise HTTPException(400, str(e))
+
+    audit.record(
+        audit.USER_CREATE, username=actor_user["username"], role=actor_user["role"],
+        target=req.username, detail={"role": req.role},
+        ip=authz.client_ip(request),
+    )
+    return user
+
+
+class UserUpdate(BaseModel):
+    role: Optional[str] = None
+    steamUid: Optional[str] = None
+    displayName: Optional[str] = None
+    disabled: Optional[bool] = None
+    password: Optional[str] = None
+
+
+@app.patch("/api/users/{username}")
+def edit_user(username: str, req: UserUpdate, request: Request) -> dict:
+    actor_user = authz.require_user(request, roles_module.USERS_MANAGE)
+
+    existing = accounts.get_user(username)
+    if not existing:
+        raise HTTPException(404, f"No such user: {username}")
+
+    # You may not act on somebody more privileged than you, nor promote anyone
+    # above yourself.
+    if not roles_module.can_manage(actor_user["role"], existing["role"]):
+        raise HTTPException(403, "You cannot modify an account above your own role.")
+    if req.role and not roles_module.can_manage(actor_user["role"], req.role):
+        raise HTTPException(403, "You cannot grant a role above your own.")
+
+    try:
+        if req.password:
+            accounts.set_password(username, req.password)
+        user = accounts.update_user(
+            username, role=req.role, steam_uid=req.steamUid,
+            display_name=req.displayName, disabled=req.disabled,
+        )
+    except accounts.AccountError as e:
+        raise HTTPException(400, str(e))
+
+    audit.record(
+        audit.USER_UPDATE, username=actor_user["username"], role=actor_user["role"],
+        target=username,
+        detail=req.model_dump(exclude_none=True, exclude={"password"})
+        | ({"password": "changed"} if req.password else {}),
+        ip=authz.client_ip(request),
+    )
+    return user
+
+
+@app.delete("/api/users/{username}")
+def remove_user(username: str, request: Request) -> dict:
+    actor_user = authz.require_user(request, roles_module.USERS_MANAGE)
+
+    existing = accounts.get_user(username)
+    if not existing:
+        raise HTTPException(404, f"No such user: {username}")
+    if not roles_module.can_manage(actor_user["role"], existing["role"]):
+        raise HTTPException(403, "You cannot delete an account above your own role.")
+    if existing["username"].lower() == actor_user["username"].lower():
+        raise HTTPException(400, "You cannot delete your own account.")
+
+    try:
+        accounts.delete_user(username)
+    except accounts.AccountError as e:
+        raise HTTPException(400, str(e))
+
+    audit.record(
+        audit.USER_DELETE, username=actor_user["username"], role=actor_user["role"],
+        target=username, ip=authz.client_ip(request),
+    )
+    return {"ok": True}
+
+
+# ─── Audit log ───────────────────────────────────────────
+
+
+@app.get("/api/audit")
+def get_audit(
+    request: Request,
+    limit: int = Query(200, ge=1, le=1000),
+    offset: int = Query(0, ge=0),
+    action: Optional[str] = None,
+    username: Optional[str] = None,
+    result: Optional[str] = None,
+    since: Optional[str] = None,
+) -> dict[str, Any]:
+    authz.require(request, roles_module.AUDIT_VIEW)
+    return {
+        **audit.query(
+            limit=limit, offset=offset, action=action,
+            username=username, result=result, since=since,
+        ),
+        "actions": audit.actions_seen(),
+    }
 
 
 # ─── Health & status ─────────────────────────────────────
@@ -70,6 +337,23 @@ class ShutdownNote(BaseModel):
     reason: Optional[str] = ""
 
 
+def _lifecycle(request: Request, action: str, runner, supported) -> dict[str, Any]:
+    """Shared authorization, auditing and error handling for container control."""
+    user = authz.require_user(request, roles_module.SERVER_CONTROL)
+    ip = authz.client_ip(request)
+    try:
+        result = runner()
+    except RuntimeError as e:
+        audit.record(
+            action, username=user["username"], role=user["role"],
+            detail=str(e), ip=ip, result=audit.RESULT_FAILED,
+        )
+        raise HTTPException(501 if not supported() else 500, str(e))
+
+    audit.record(action, username=user["username"], role=user["role"], detail=result, ip=ip)
+    return result
+
+
 @app.post("/api/server/note-shutdown")
 def note_shutdown(req: ShutdownNote) -> dict[str, Any]:
     """
@@ -83,35 +367,35 @@ def note_shutdown(req: ShutdownNote) -> dict[str, Any]:
 
 
 @app.post("/api/server/restart")
-def restart_server() -> dict[str, Any]:
+def restart_server(request: Request) -> dict[str, Any]:
     """Run the configured RESTART_COMMAND, if the operator enabled one."""
-    try:
-        return lifecycle.run_restart_command()
-    except RuntimeError as e:
-        raise HTTPException(501 if not lifecycle.restart_supported() else 500, str(e))
+    return _lifecycle(
+        request, audit.SERVER_RESTART,
+        lifecycle.run_restart_command, lifecycle.restart_supported,
+    )
 
 
 @app.post("/api/server/start-container")
-def start_container() -> dict[str, Any]:
+def start_container(request: Request) -> dict[str, Any]:
     """Bring the server container back after maintenance."""
-    try:
-        return lifecycle.run_start_command()
-    except RuntimeError as e:
-        raise HTTPException(501 if not lifecycle.start_supported() else 500, str(e))
+    return _lifecycle(
+        request, audit.SERVER_START,
+        lifecycle.run_start_command, lifecycle.start_supported,
+    )
 
 
 @app.post("/api/server/stop-container")
-def stop_container() -> dict[str, Any]:
+def stop_container(request: Request) -> dict[str, Any]:
     """
     Stop the whole server container, not just the game process.
 
     This is the clean way to prepare for save edits: a stopped container cannot
     relaunch the server underneath an in-progress write.
     """
-    try:
-        return lifecycle.run_stop_command()
-    except RuntimeError as e:
-        raise HTTPException(501 if not lifecycle.stop_supported() else 500, str(e))
+    return _lifecycle(
+        request, audit.SERVER_STOP,
+        lifecycle.run_stop_command, lifecycle.stop_supported,
+    )
 
 
 # ─── Access policy ───────────────────────────────────────
@@ -129,11 +413,22 @@ class PolicyUpdate(BaseModel):
 
 
 @app.post("/api/policy")
-def update_policy(req: PolicyUpdate) -> dict[str, Any]:
+def update_policy(req: PolicyUpdate, request: Request) -> dict[str, Any]:
+    user = authz.require_user(request, roles_module.POLICY_MANAGE)
+    changes = req.model_dump(exclude_none=True)
     try:
-        policy_module.save_policy(req.model_dump(exclude_none=True))
+        policy_module.save_policy(changes)
     except ValueError as e:
+        audit.record(
+            audit.POLICY_UPDATE, username=user["username"], role=user["role"],
+            detail=str(e), ip=authz.client_ip(request), result=audit.RESULT_FAILED,
+        )
         raise HTTPException(400, str(e))
+
+    audit.record(
+        audit.POLICY_UPDATE, username=user["username"], role=user["role"],
+        detail=changes, ip=authz.client_ip(request),
+    )
     return policy_module.describe()
 
 
@@ -451,7 +746,7 @@ class SettingsWrite(BaseModel):
 
 
 @app.post("/api/settings/ini")
-def write_settings(req: SettingsWrite) -> dict:  # noqa: D401
+def write_settings(req: SettingsWrite, request: Request) -> dict:  # noqa: D401
     """
     Write settings to the INI.
 
@@ -459,24 +754,42 @@ def write_settings(req: SettingsWrite) -> dict:  # noqa: D401
     save directory, so there is no corruption risk — but it will not take effect
     until the server restarts.
     """
+    user = authz.require_user(request, roles_module.SETTINGS_WRITE)
     try:
-        policy_module.require_capability("settings.write")
-        return settings_ini.write_ini(req.changes)
-    except PermissionError as e:
-        raise HTTPException(403, str(e))
+        result = settings_ini.write_ini(req.changes)
     except settings_ini.SettingsError as e:
+        audit.record(
+            audit.SETTINGS_WRITE, username=user["username"], role=user["role"],
+            detail=str(e), ip=authz.client_ip(request), result=audit.RESULT_FAILED,
+        )
         raise HTTPException(400, str(e))
+
+    audit.record(
+        audit.SETTINGS_WRITE, username=user["username"], role=user["role"],
+        target=result.get("path"), detail=result.get("applied"),
+        ip=authz.client_ip(request),
+    )
+    return result
 
 
 @app.post("/api/settings/preset/{preset_id}")
-def apply_settings_preset(preset_id: str) -> dict:
+def apply_settings_preset(preset_id: str, request: Request) -> dict:
+    user = authz.require_user(request, roles_module.SETTINGS_WRITE)
     try:
-        policy_module.require_capability("settings.write")
-        return settings_ini.apply_preset(preset_id)
-    except PermissionError as e:
-        raise HTTPException(403, str(e))
+        result = settings_ini.apply_preset(preset_id)
     except settings_ini.SettingsError as e:
+        audit.record(
+            audit.SETTINGS_PRESET, username=user["username"], role=user["role"],
+            target=preset_id, detail=str(e), ip=authz.client_ip(request),
+            result=audit.RESULT_FAILED,
+        )
         raise HTTPException(400, str(e))
+
+    audit.record(
+        audit.SETTINGS_PRESET, username=user["username"], role=user["role"],
+        target=preset_id, detail=result.get("applied"), ip=authz.client_ip(request),
+    )
+    return result
 
 
 # ─── Backups ─────────────────────────────────────────────
@@ -492,7 +805,7 @@ class BackupRequest(BaseModel):
 
 
 @app.post("/api/backup")
-def make_backup(req: BackupRequest) -> dict:
+def make_backup(req: BackupRequest, request: Request) -> dict:
     """
     Snapshot the world directory.
 
@@ -500,36 +813,66 @@ def make_backup(req: BackupRequest) -> dict:
     writes elsewhere. Files may be mid-autosave, so a backup taken on a running
     server is a best-effort snapshot — stop the server for a guaranteed-clean one.
     """
+    user = authz.require_user(request, roles_module.BACKUP_MANAGE)
     world_dir = get_default_world_dir()
     if not world_dir:
         raise HTTPException(404, "No world directory found")
     try:
-        return create_backup(world_dir, req.description or "")
+        meta = create_backup(world_dir, req.description or "")
     except Exception as e:  # noqa: BLE001
+        audit.record(
+            audit.BACKUP_CREATE, username=user["username"], role=user["role"],
+            detail=str(e), ip=authz.client_ip(request), result=audit.RESULT_FAILED,
+        )
         raise HTTPException(500, f"Backup failed: {e}")
+
+    audit.record(
+        audit.BACKUP_CREATE, username=user["username"], role=user["role"],
+        target=meta["id"],
+        detail={"sizeBytes": meta["sizeBytes"], "serverWasRunning": meta["serverWasRunning"]},
+        ip=authz.client_ip(request),
+    )
+    return meta
 
 
 @app.post("/api/restore/{backup_id}")
-def do_restore(backup_id: str) -> dict:
+def do_restore(backup_id: str, request: Request) -> dict:
+    user = authz.require_user(request, roles_module.BACKUP_MANAGE)
+    ip = authz.client_ip(request)
+
     try:
-        policy_module.require_capability("backup.manage")
         assert_writable()
-    except PermissionError as e:
-        raise HTTPException(403, str(e))
     except ServerRunningError as e:
+        audit.record(
+            audit.BACKUP_RESTORE, username=user["username"], role=user["role"],
+            target=backup_id, detail=str(e), ip=ip, result=audit.RESULT_FAILED,
+        )
         raise HTTPException(423, str(e))
 
     if not restore_backup(backup_id):
+        audit.record(
+            audit.BACKUP_RESTORE, username=user["username"], role=user["role"],
+            target=backup_id, detail="not found", ip=ip, result=audit.RESULT_FAILED,
+        )
         raise HTTPException(404, f"Backup {backup_id} not found")
 
+    audit.record(
+        audit.BACKUP_RESTORE, username=user["username"], role=user["role"],
+        target=backup_id, ip=ip,
+    )
     savecache.request_parse(force=True)
     return {"success": True}
 
 
 @app.delete("/api/backups/{backup_id}")
-def remove_backup(backup_id: str) -> dict:
+def remove_backup(backup_id: str, request: Request) -> dict:
+    user = authz.require_user(request, roles_module.BACKUP_MANAGE)
     if not delete_backup(backup_id):
         raise HTTPException(404, f"Backup {backup_id} not found")
+    audit.record(
+        audit.BACKUP_DELETE, username=user["username"], role=user["role"],
+        target=backup_id, ip=authz.client_ip(request),
+    )
     return {"success": True}
 
 
@@ -540,39 +883,67 @@ class SortRequest(BaseModel):
     merge: bool = True
 
 
-def _run_sort(mode: str, merge: bool) -> dict:
-    capability = "save.sort.stackables" if mode == "stackables" else "save.sort.all"
+def _run_sort(mode: str, merge: bool, request: Request) -> dict:
+    """
+    Authorization and auditing for a container sort.
+
+    Both gates apply: the caller's role must grant the capability AND the
+    security level must permit it. Enforced here rather than only in the proxy,
+    so the rule holds even for something that reaches the backend directly.
+    """
+    capability = (
+        roles_module.SAVE_SORT_STACKABLES if mode == "stackables"
+        else roles_module.SAVE_SORT_ALL
+    )
+    user = authz.require_user(request, capability)
+    ip = authz.client_ip(request)
+
+    def failed(message: str, status: int):
+        audit.record(
+            audit.SAVE_SORT, username=user["username"], role=user["role"],
+            target=mode, detail=message, ip=ip, result=audit.RESULT_FAILED,
+        )
+        return HTTPException(status, message)
+
     try:
-        # Security level is enforced here as well as in the proxy, so the policy
-        # holds even if something reaches the backend directly.
-        policy_module.require_capability(capability)
-        return saveedit.sort_containers(mode=mode, merge=merge)
-    except PermissionError as e:
-        raise HTTPException(403, str(e))
+        result = saveedit.sort_containers(mode=mode, merge=merge)
     except ServerRunningError as e:
-        raise HTTPException(423, str(e))
+        raise failed(str(e), 423)
     except saveedit.SaveEditError as e:
-        raise HTTPException(409, str(e))
+        raise failed(str(e), 409)
     except Exception as e:  # noqa: BLE001
         logger.exception("Sort failed")
-        raise HTTPException(500, f"Sort failed: {e}")
+        raise failed(f"Sort failed: {e}", 500)
+
+    audit.record(
+        audit.SAVE_SORT, username=user["username"], role=user["role"],
+        target=mode,
+        detail={
+            "containersTouched": result.get("containersTouched"),
+            "slotsChanged": result.get("slotsChanged"),
+            "backupId": result.get("backupId"),
+            "merged": merge,
+        },
+        ip=ip,
+    )
+    return result
 
 
 @app.post("/api/edit/sort/stackables")
-def sort_stackables(req: SortRequest) -> dict:
+def sort_stackables(req: SortRequest, request: Request) -> dict:
     """
     Tidy containers, touching only plain stackable items.
 
     Anything with a dynamic_id (weapons, armour, tools) is left exactly where it
     is, so durability records cannot be orphaned.
     """
-    return _run_sort("stackables", req.merge)
+    return _run_sort("stackables", req.merge, request)
 
 
 @app.post("/api/edit/sort/all")
-def sort_all(req: SortRequest) -> dict:
+def sort_all(req: SortRequest, request: Request) -> dict:
     """Tidy containers including equipment, carrying dynamic_id links along."""
-    return _run_sort("all", req.merge)
+    return _run_sort("all", req.merge, request)
 
 
 class EditRequest(BaseModel):

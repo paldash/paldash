@@ -1,6 +1,7 @@
 'use client';
 
 import { useDashboardStore } from '@/lib/store';
+import { CAPABILITIES } from '@/lib/permissions';
 import { announce, forceSave, shutdownServer, stopServer } from '@/lib/api';
 import { noteShutdown } from '@/lib/save-api';
 import {
@@ -23,7 +24,8 @@ function formatUptime(seconds: number): string {
 }
 
 export default function ServerOverview() {
-  const { serverMetrics, serverInfo, fpsHistory, serverStatus, onlinePlayers, userRole } = useDashboardStore();
+  const { serverMetrics, serverInfo, fpsHistory, serverStatus, onlinePlayers, capabilities } =
+    useDashboardStore();
   const [announceText, setAnnounceText] = useState('');
   const [shutdownWait, setShutdownWait] = useState(60);
   const [actionFeedback, setActionFeedback] = useState<string | null>(null);
@@ -240,8 +242,8 @@ export default function ServerOverview() {
           )}
         </div>
 
-        {/* Admin Controls */}
-        {userRole === 'admin' && (
+        {/* Server controls: Moderator and above. */}
+        {capabilities.includes(CAPABILITIES.SERVER_CONTROL) && (
           <div className="glass-card" style={{ padding: 20 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
               <Cpu size={16} style={{ color: 'var(--accent-amber)' }} />

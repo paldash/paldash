@@ -10,6 +10,9 @@ import type {
   LifecycleStatus,
   MapObject,
   FastTravelPoint,
+  ManagedUser,
+  RolePreset,
+  AuditPage,
   ItemTotals,
   IniSettings,
   PalboxSummary,
@@ -253,4 +256,73 @@ export async function editSaveData(request: SaveEditRequest): Promise<{ success:
     method: 'POST',
     body: JSON.stringify(request),
   });
+}
+
+
+// ─── Accounts ────────────────────────────────────────────
+
+export async function getRolePresets(): Promise<RolePreset[]> {
+  return saveFetch('/roles');
+}
+
+export async function getUsers(): Promise<ManagedUser[]> {
+  return saveFetch('/users');
+}
+
+export async function createUser(payload: {
+  username: string;
+  password: string;
+  role: string;
+  steamUid?: string;
+  displayName?: string;
+  mustChangePassword?: boolean;
+}): Promise<ManagedUser> {
+  return saveFetch('/users', { method: 'POST', body: JSON.stringify(payload) });
+}
+
+export async function updateUser(
+  username: string,
+  changes: Partial<{
+    role: string;
+    steamUid: string;
+    displayName: string;
+    disabled: boolean;
+    password: string;
+  }>
+): Promise<ManagedUser> {
+  return saveFetch(`/users/${encodeURIComponent(username)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(changes),
+  });
+}
+
+export async function deleteUser(username: string): Promise<{ ok: boolean }> {
+  return saveFetch(`/users/${encodeURIComponent(username)}`, { method: 'DELETE' });
+}
+
+export async function changeOwnPassword(
+  currentPassword: string,
+  newPassword: string
+): Promise<{ ok: boolean }> {
+  return saveFetch('/auth/password', {
+    method: 'POST',
+    body: JSON.stringify({ currentPassword, newPassword }),
+  });
+}
+
+// ─── Audit log ───────────────────────────────────────────
+
+export async function getAuditLog(params: {
+  limit?: number;
+  offset?: number;
+  action?: string;
+  username?: string;
+  result?: string;
+} = {}): Promise<AuditPage> {
+  const query = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined && value !== '') query.set(key, String(value));
+  }
+  const suffix = query.toString();
+  return saveFetch(`/audit${suffix ? `?${suffix}` : ''}`);
 }

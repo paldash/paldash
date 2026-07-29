@@ -165,7 +165,54 @@ export type DashboardTab =
   | 'breeding'
   | 'settings'
   | 'access'
+  | 'users'
+  | 'audit'
   | 'editor';
+
+/** One account, as returned by the users endpoint. */
+export interface ManagedUser {
+  id: number;
+  username: string;
+  role: string;
+  steamUid: string;
+  displayName: string;
+  disabled: boolean;
+  mustChangePassword: boolean;
+  createdAt: string;
+  lastLogin: string | null;
+}
+
+/** A role preset and what it grants. */
+export interface RolePreset {
+  id: string;
+  label: string;
+  rank: number;
+  description: string;
+  capabilities: string[];
+  assignable: boolean;
+}
+
+/** One entry in the append-only audit log. */
+export interface AuditEntry {
+  id: number;
+  ts: string;
+  username: string | null;
+  role: string | null;
+  action: string;
+  target: string | null;
+  detail: string | null;
+  ip: string | null;
+  result: 'ok' | 'failed' | 'denied';
+}
+
+export interface AuditPage {
+  entries: AuditEntry[];
+  total: number;
+  limit: number;
+  offset: number;
+  retentionDays: number;
+  actions: string[];
+}
 
 /** The backend's fail-closed verdict on whether the game server is running. */
 export interface ServerState {

@@ -1,115 +1,162 @@
 /**
  * Session handling. Server-side only — never import this from a client component.
  *
- * The previous login was decorative: `password.length > 0` granted admin, and
- * the API proxies did no checking at all, so anyone who could reach port 3000
- * could POST /api/palworld/shutdown regardless of what the UI showed them.
+ * WHAT CHANGED AND WHY
+ * --------------------
+ * This used to be a stateless HMAC-signed cookie carrying a role. Three problems
+ * with that, all of them security findings:
  *
- * Sessions are stateless HMAC-signed cookies. There is no session store to keep
- * in sync between the two processes, and nothing sensitive lives in the cookie.
+ *   - It could not be revoked. Logging out cleared the browser's copy while the
+ *     token stayed valid for its full 12 hours, and disabling a user did nothing
+ *     until their cookie expired.
+ *   - There was one shared password and two roles, so nothing could be
+ *     attributed to a person.
+ *   - There was no throttling, so the single password could be guessed at
+ *     network speed.
+ *
+ * The cookie now holds an opaque random token issued by the Python backend,
+ * which stores only its hash. Every request resolves it against the database, so
+ * logout, "disable account" and role changes all take effect immediately.
+ *
+ * The extra loopback call per request is a fraction of a millisecond, and it
+ * buys real revocation — worth it for a tool whose whole job is guarding
+ * something irreplaceable.
  */
 
-import { createHash, createHmac, randomBytes, timingSafeEqual } from 'crypto';
 import type { NextRequest } from 'next/server';
-
-export type { Role } from './auth-types';
 import type { Role } from './auth-types';
 
+export type { Role } from './auth-types';
+
 export const SESSION_COOKIE = 'pw_session';
-const SESSION_TTL_SECONDS = 60 * 60 * 12;
+export const SESSION_HEADER = 'X-Session-Token';
 
-let ephemeralSecret: string | null = null;
+const BACKEND = process.env.PYTHON_BACKEND_URL || 'http://127.0.0.1:8400';
+const SESSION_TTL_SECONDS = Number(process.env.SESSION_TTL_HOURS || 12) * 3600;
 
-/**
- * Signing key. Prefers an explicit SESSION_SECRET; otherwise derives one from
- * PANEL_PASSWORD so that changing the password invalidates existing sessions.
- * With neither set, only guests can log in, and a random per-process key means
- * their sessions simply end on restart.
- */
-function getSecret(): string {
-  const explicit = process.env.SESSION_SECRET?.trim();
-  if (explicit) return explicit;
-
-  const password = process.env.PANEL_PASSWORD?.trim();
-  if (password) {
-    return createHash('sha256').update(`palworld-dashboard:${password}`).digest('hex');
-  }
-
-  if (!ephemeralSecret) {
-    ephemeralSecret = randomBytes(32).toString('hex');
-    console.warn(
-      '[auth] Neither SESSION_SECRET nor PANEL_PASSWORD is set. Admin login is ' +
-        'disabled and guest sessions will not survive a restart.'
-    );
-  }
-  return ephemeralSecret;
+export interface SessionUser {
+  id: number;
+  username: string;
+  role: Role;
+  steamUid: string;
+  displayName: string;
+  disabled: boolean;
+  mustChangePassword: boolean;
 }
 
-export function isAdminConfigured(): boolean {
-  return Boolean(process.env.PANEL_PASSWORD?.trim());
+export interface SessionInfo {
+  user: SessionUser | null;
+  role: Role;
+  capabilities: string[];
+  securityLevel: string;
+  visibility: Record<string, boolean> | null;
+  anyUsers: boolean;
+}
+
+export function getSessionToken(request: NextRequest): string {
+  return request.cookies.get(SESSION_COOKIE)?.value ?? '';
+}
+
+async function backend(path: string, init: RequestInit = {}): Promise<Response> {
+  return fetch(`${BACKEND}${path}`, {
+    ...init,
+    headers: { 'Content-Type': 'application/json', ...(init.headers ?? {}) },
+    cache: 'no-store',
+  });
+}
+
+/**
+ * Resolve the caller's session.
+ *
+ * Deliberately not cached: caching would reintroduce a revocation window, which
+ * is the exact problem this replaced.
+ */
+export async function getSession(request: NextRequest): Promise<SessionInfo> {
+  const token = getSessionToken(request);
+  try {
+    const res = await backend('/api/auth/session', {
+      headers: token ? { [SESSION_HEADER]: token } : {},
+    });
+    if (!res.ok) throw new Error(`session lookup failed: ${res.status}`);
+    return (await res.json()) as SessionInfo;
+  } catch {
+    // Backend unreachable. Fail closed: no user, no capabilities.
+    return {
+      user: null,
+      role: 'guest',
+      capabilities: [],
+      securityLevel: 'readonly',
+      visibility: {},
+      anyUsers: false,
+    };
+  }
+}
+
+export async function login(
+  username: string,
+  password: string,
+  forwardedFor: string,
+  userAgent: string
+): Promise<
+  | { ok: true; token: string; user: SessionUser; capabilities: string[] }
+  | { ok: false; status: number; error: string; retryAfter?: string }
+> {
+  const res = await backend('/api/auth/login', {
+    method: 'POST',
+    headers: { 'X-Forwarded-For': forwardedFor, 'User-Agent': userAgent },
+    body: JSON.stringify({ username, password }),
+  });
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    return {
+      ok: false,
+      status: res.status,
+      error: body.detail || body.error || 'Sign-in failed',
+      retryAfter: res.headers.get('Retry-After') ?? undefined,
+    };
+  }
+
+  const data = await res.json();
+  return { ok: true, token: data.token, user: data.user, capabilities: data.capabilities };
+}
+
+export async function logout(token: string): Promise<void> {
+  if (!token) return;
+  await backend('/api/auth/logout', {
+    method: 'POST',
+    headers: { [SESSION_HEADER]: token },
+  }).catch(() => undefined);
 }
 
 export function isGuestEnabled(): boolean {
   return process.env.GUEST_VIEW_ENABLED?.toLowerCase() !== 'false';
 }
 
-/** Constant-time password comparison over fixed-length digests. */
-export function checkAdminPassword(candidate: string): boolean {
-  const expected = process.env.PANEL_PASSWORD?.trim();
-  if (!expected) return false;
+/**
+ * Cookie flags.
+ *
+ * `secure` is inferred from the request rather than hard-coded: forcing it
+ * breaks the common LAN deployment over plain http, and leaving it off behind a
+ * TLS reverse proxy leaks the session cookie over any accidental plaintext hop.
+ * COOKIE_SECURE overrides when the operator knows better.
+ */
+export function sessionCookieOptions(request?: NextRequest) {
+  const override = process.env.COOKIE_SECURE?.toLowerCase();
+  let secure = override === 'true';
 
-  const a = createHash('sha256').update(candidate).digest();
-  const b = createHash('sha256').update(expected).digest();
-  return timingSafeEqual(a, b);
-}
-
-function base64url(input: Buffer | string): string {
-  return Buffer.from(input).toString('base64url');
-}
-
-function sign(payload: string): string {
-  return createHmac('sha256', getSecret()).update(payload).digest('base64url');
-}
-
-export function createSessionToken(role: Role): string {
-  const body = base64url(
-    JSON.stringify({ role, exp: Math.floor(Date.now() / 1000) + SESSION_TTL_SECONDS })
-  );
-  return `${body}.${sign(body)}`;
-}
-
-export function verifySessionToken(token: string | undefined): Role | null {
-  if (!token) return null;
-
-  const [body, signature] = token.split('.');
-  if (!body || !signature) return null;
-
-  const expected = sign(body);
-  // Compare as fixed-length digests so length differences cannot throw.
-  const a = createHash('sha256').update(signature).digest();
-  const b = createHash('sha256').update(expected).digest();
-  if (!timingSafeEqual(a, b)) return null;
-
-  try {
-    const claims = JSON.parse(Buffer.from(body, 'base64url').toString());
-    if (typeof claims.exp !== 'number' || claims.exp < Date.now() / 1000) return null;
-    if (claims.role !== 'admin' && claims.role !== 'guest') return null;
-    return claims.role as Role;
-  } catch {
-    return null;
+  if (!override && request) {
+    const proto =
+      request.headers.get('x-forwarded-proto')?.split(',')[0].trim() ??
+      new URL(request.url).protocol.replace(':', '');
+    secure = proto === 'https';
   }
-}
 
-export function getRole(request: NextRequest): Role | null {
-  return verifySessionToken(request.cookies.get(SESSION_COOKIE)?.value);
+  return {
+    httpOnly: true,
+    sameSite: 'lax' as const,
+    path: '/',
+    maxAge: SESSION_TTL_SECONDS,
+    secure,
+  };
 }
-
-export const sessionCookieOptions = {
-  httpOnly: true,
-  sameSite: 'lax' as const,
-  path: '/',
-  maxAge: SESSION_TTL_SECONDS,
-  // Only set Secure when actually served over HTTPS — forcing it breaks the
-  // common LAN deployment over plain http://.
-  secure: process.env.COOKIE_SECURE?.toLowerCase() === 'true',
-};

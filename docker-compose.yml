@@ -58,8 +58,9 @@ services:
       # the parse cache live on their own volumes, so read-only still leaves
       # everything except restore and settings-editing working.
       - ./palworld:/palworld
-      # Parse cache. Keeping it on a named volume means a container restart does
-      # not trigger a fresh (expensive) Level.sav parse.
+      # Parse cache AND the accounts/audit database. Keeping it on a named
+      # volume means a container restart neither loses your accounts nor
+      # triggers a fresh (expensive) Level.sav parse.
       - dashboard-cache:/app/cache
       # Backups live outside the server directory so that mounting /palworld
       # read-only does not break them.
@@ -71,13 +72,18 @@ services:
       - PALWORLD_REST_URL=http://palworld:8212
       - PALWORLD_ADMIN_PASSWORD=${PALWORLD_ADMIN_PASSWORD:?set PALWORLD_ADMIN_PASSWORD in .env}
 
-      # ─── Dashboard login ───
-      # Admin password. Without it, admin login is refused outright.
+      # ─── Dashboard accounts ───
+      # Creates the first Owner account on a fresh database, then is ignored.
+      # Add everyone else from the Users tab; each person gets their own login,
+      # their own role, and their own line in the audit log.
       - PANEL_PASSWORD=${PANEL_PASSWORD:?set PANEL_PASSWORD in .env}
-      # Signs session cookies. Generate: openssl rand -hex 32
-      - SESSION_SECRET=${SESSION_SECRET:-}
-      # Read-only guest login (map, server status, bases).
+      # Sessions live in SQLite and are revocable, so there is no signing key.
+      - SESSION_TTL_HOURS=${SESSION_TTL_HOURS:-12}
+      - AUDIT_RETENTION_DAYS=${AUDIT_RETENTION_DAYS:-180}
+      # Read-only guest view (map, server status, bases).
       - GUEST_VIEW_ENABLED=${GUEST_VIEW_ENABLED:-true}
+      # Ceiling on what any account may change, even an Owner.
+      - SECURITY_LEVEL=${SECURITY_LEVEL:-safe}
 
       # ─── Paths inside the container ───
       - SAVE_BASE_DIR=/palworld/Pal/Saved/SaveGames/0

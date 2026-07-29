@@ -69,15 +69,15 @@ than attempting all of it.
 | Save editing | 12% | Two sort modes work; everything else 501 |
 | Live map | 70% | ✅ Phase 2: both maps ship, 174 fast-travel POIs, layers/search. World Tree transform provisional |
 | Reference data | 90% | ✅ Phase 1: full 1.0 DB bundled at 215 KB; icons still not shipped |
-| Auth & accounts | 20% | Shared password, 2 roles, no users/audit/rate-limit |
-| Permissions | 45% | Capability model is sound; only 2 roles bound to it |
+| Auth & accounts | 85% | ✅ Phase 3: accounts, scrypt, revocable sessions, throttling, audit log. No 2FA/reset flow |
+| Permissions | 90% | ✅ Phase 3: 7 role presets, two-gate model, route allowlist |
 | Server dashboard | 30% | REST status; no metrics history, no admin commands |
 | Docker | 80% | Genuinely good; needs multi-image validation |
 | Import / export | 0% | Not started |
 | Migration tools | 0% | Not started |
-| Testing | 55% | ✅ 227 backend tests. Frontend still 0 |
+| Testing | 65% | ✅ 293 backend + 34 frontend tests |
 | Documentation | 70% | ✅ Phase 0: `.gitignore` fixed, AGENTS.md written |
-| **Weighted total** | **~50%** | 32% audit → 36% (P0) → 43% (P1) → 50% (P2) |
+| **Weighted total** | **~62%** | 32% → 36% (P0) → 43% (P1) → 50% (P2) → 62% (P3) |
 
 ---
 
@@ -340,20 +340,20 @@ detour. No further files are needed from PST beyond what `refs/` already contain
 
 ## 5. Security audit
 
-| # | Severity | Issue | Fix |
+| # | Severity | Issue | Status |
 |---|---|---|---|
-| S1 | **Critical** | No rate limiting on `/api/auth/login`. Single shared password, brute-forceable at network speed. | Per-IP limit + exponential backoff + lockout. `refs/` has `rate-limit.ts` to model. |
-| S2 | **Critical** | No audit log. Sorting rewrites `Level.sav`; nothing records who or when. | Append-only log for every write; required by the brief. |
-| S3 | **High** | No accounts. One password = one identity; cannot revoke one person's access or attribute an action. | SQLite users + Argon2id. |
-| S4 | **High** | Session revocation impossible. Logout clears the cookie; the token stays valid to `exp` (12 h). | Server-side session table or token version counter. |
-| S5 | **High** | Proxy path handling uses regex prefixes on a joined catch-all. Unmatched paths correctly fail closed to admin-only, but an admin can reach arbitrary backend paths. | Explicit route allowlist; reject `..` and encoded separators. |
-| S6 | **Medium** | `RESTART/STOP/START_COMMAND` are operator-set and run via `shlex.split` (no shell) — but any admin-session holder can trigger them. | Bind to a capability; log every invocation. |
-| S7 | **Medium** | No CSRF tokens. `SameSite=Lax` blocks cross-site POST cookies, so exposure is limited today. | Add tokens with the accounts work. |
-| S8 | **Medium** | `COOKIE_SECURE` defaults false (correct for LAN http, wrong behind a proxy). | Auto-enable on `X-Forwarded-Proto: https`. |
-| S9 | **Medium** | No upload validation — because uploads don't exist yet. Import is a top request. | Magic-byte check, size cap, sandboxed parse, never trust filenames. |
-| S10 | **Low** | Backend has no auth; safe only while loopback-bound. | Shared-secret header as defence in depth. |
-| S11 | **Low** | No dependency scanning. | `npm audit` + `pip-audit` in CI. |
-| S12 | **Low** | Container runs as root unless the image says otherwise. | Explicit `USER` in Dockerfile. |
+| S1 | ~~Critical~~ | No rate limiting on login. | ✅ **Fixed** (P3). Per-IP and per-username, exponential backoff, persisted in SQLite so a restart does not reset an attacker's budget. Returns 429 with `Retry-After`. |
+| S2 | ~~Critical~~ | No audit log. | ✅ **Fixed** (P3). Append-only table; every write, refusal and sign-in recorded with who/when/where. No delete endpoint exists — pinned by test. |
+| S3 | ~~High~~ | No accounts; one password = one identity. | ✅ **Fixed** (P3). Real accounts, scrypt hashing, 7 role presets, per-user Steam-UID linkage. |
+| S4 | ~~High~~ | Session revocation impossible. | ✅ **Fixed** (P3). Server-side sessions stored hashed. Logout, disabling an account, changing a role or changing a password all take effect immediately. |
+| S5 | ~~High~~ | Proxy used prefix matching with a permissive default. | ✅ **Fixed** (P3). Explicit allowlist with per-method capabilities; traversal rejected before matching; unknown paths 404. 34 vitest cases. |
+| S6 | ~~Medium~~ | Lifecycle commands runnable by any admin session. | ✅ **Fixed** (P3). Bound to `server.control` (Moderator+) and audited. |
+| S7 | Medium | No CSRF tokens. | 🟡 **Mitigated.** `SameSite=Lax` blocks cross-site POST cookies, and state-changing routes are POST/PATCH/DELETE only. Tokens still worth adding. |
+| S8 | ~~Medium~~ | `COOKIE_SECURE` defaulted false. | ✅ **Fixed** (P3). Inferred from `X-Forwarded-Proto`/request scheme, overridable. |
+| S9 | Medium | No upload validation. | 🔴 Open — uploads do not exist yet. Must be addressed **in Phase 6** before import ships. |
+| S10 | ~~Low~~ | Backend had no auth of its own. | ✅ **Largely fixed** (P3). It now resolves sessions itself and enforces capabilities; loopback binding is defence in depth rather than the only control. |
+| S11 | Low | No dependency scanning. | 🔴 Open. `npm audit` + `pip-audit` in CI. |
+| S12 | Low | Container runs as root unless the image says otherwise. | 🔴 Open. Explicit `USER` in Dockerfile. |
 
 Not vulnerable: SQL injection (no SQL), XSS (React escapes; no `dangerouslySetInnerHTML`),
 command injection (no shell), path traversal into the save dir (`savefiles.py` resolves and
@@ -443,11 +443,41 @@ Also fixed: the second landmass was named "Feybreak" throughout. It is the **Wor
 
 Verified: 227/227 tests pass · lint 0 errors · build succeeds.
 
-### Phase 3 — Accounts, audit, hardening (5–7 days) · **security-critical**
-SQLite; users with Argon2id; the 7 permission presets bound to the existing capability map;
-per-user Steam-ID linkage (this is what unlocks every per-player feature); append-only audit
-log; rate limiting; session revocation; route allowlist. Fixes S1–S8.
-**Risk: medium** (auth is easy to get subtly wrong). **Depends on: Phase 0.**
+### Phase 3 — Accounts, audit, hardening · ✅ **COMPLETE** (2026-07-28)
+
+SQLite (`backend/db.py`) holding users, sessions, login attempts and an append-only audit
+log. Real accounts with scrypt-hashed passwords, the 7 role presets, per-user Steam-UID
+linkage, server-side revocable sessions, per-IP and per-username throttling with exponential
+backoff, and a proxy route allowlist. New **Users** and **Audit log** tabs.
+
+**Closes S1–S8 and most of S10.** See §5 for the updated table.
+
+Design decisions worth recording:
+
+- **The backend now authenticates for itself.** It used to trust the Next.js layer
+  completely, so every proxy bug was an auth bypass. The session token is forwarded and the
+  backend resolves it against its own database — the proxy passes a credential rather than
+  asserting an identity, and a forged `X-Actor-Role` header does nothing. Pinned by test.
+- **scrypt, not Argon2id.** Argon2 is the textbook answer but means shipping `argon2-cffi`
+  into a container that already compiles a C++ Oodle extension. scrypt is memory-hard,
+  well-analysed, and in the standard library. Parameters cost ~64 MB and ~100 ms per
+  verification and travel with the hash, so they can be raised later without invalidating
+  anyone's password.
+- **Two independent gates.** A role grants a capability; the security level can still
+  withhold it. An Owner on a `readonly` server cannot write — that dial protects the world
+  from mistakes, not from untrusted people. Both directions are tested.
+- **Sessions are stored hashed**, so a stolen database does not yield live sessions.
+- **Guests hold no cookie at all.** A guest is simply an unauthenticated caller, which
+  removes a whole category of "what does a credential naming nobody mean" questions.
+- **Upgrade path preserved**: on first start with no users, `PANEL_PASSWORD` bootstraps the
+  first Owner, so existing deployments keep working with the same password.
+
+Also added **the first frontend tests** (vitest, 34 of them) covering the route allowlist,
+because claiming a security fix with no verification is not much of a fix. They caught
+vitest running a stale copy of the source out of `.next/standalone/` — which would have
+stayed green against yesterday's build.
+
+Verified: 293 backend + 34 frontend tests pass · lint 0 errors · build succeeds.
 
 ### Phase 4 — Backup & restore, properly (4–5 days)
 Compressed archives with manifest + checksums; integrity verify; retention; scheduling
@@ -553,13 +583,22 @@ because the data is already parsed:
 
 ## 10. Deployment blockers
 
-**Critical** — S1 (login rate limiting), S2 (audit log), no `USER` in Dockerfile.
-~~zero tests~~ ✅ closed in Phase 0.
-**High** — S3/S4 (accounts, revocation), backup verification before any editor expansion.
-~~`.gitignore` excluding docs~~ ✅ closed in Phase 0.
-**Medium** — S5 route allowlist, S7 CSRF, S8 cookie-secure detection, map imagery missing,
-multi-image Docker validation.
-**Low** — S10 backend shared secret, S11 dependency scanning, API versioning.
+**Critical** — no `USER` in Dockerfile (S12).
+~~zero tests~~ ✅ P0 · ~~S1 rate limiting~~ ✅ P3 · ~~S2 audit log~~ ✅ P3.
+**High** — backup verification before any editor expansion (Phase 4); S9 upload validation
+before import ships (Phase 6).
+~~`.gitignore` excluding docs~~ ✅ P0 · ~~S3/S4 accounts & revocation~~ ✅ P3 · ~~S5 route
+allowlist~~ ✅ P3.
+**Medium** — S7 CSRF tokens (mitigated by SameSite, not eliminated), multi-image Docker
+validation.
+~~S8 cookie-secure~~ ✅ P3 · ~~map imagery missing~~ ✅ P2.
+**Low** — S11 dependency scanning, API versioning.
+~~S10 backend auth~~ ✅ P3.
+
+**Verdict: no longer blocked on authentication.** With Phase 3 done the remaining
+deployment blockers are operational (`USER` in the Dockerfile, dependency scanning) rather
+than architectural. Exposing this beyond a trusted LAN is now a reasonable proposition once
+S12 is closed and Phase 4 gives backups you can verify.
 
 **Licensing decision (not a blocker for private use):** `palsav` is GPL-3.0-or-later, so
 publishing this dashboard means licensing it GPL-3.0. The alternatives are to accept that,

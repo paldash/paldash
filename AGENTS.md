@@ -10,7 +10,8 @@ shared bind mount.
 
 - `src/` — Next.js 16 App Router UI. The API routes under `src/app/api/` are the
   **entire security boundary**; see below.
-- `backend/` — FastAPI service that parses and (carefully) mutates save files.
+- `backend/` — FastAPI service that parses and (carefully) mutates save files,
+  and owns the SQLite database holding accounts, sessions and the audit log.
 - `docs/AUDIT.md` — current state, gap analysis, and the phased roadmap. Read
   this before planning work.
 - `refs/` — third-party reference archives (gitignored, ~66 MB). Contains the
@@ -26,10 +27,11 @@ shared bind mount.
 ./scripts/setup-dev.sh
 
 # Tests
-.venv/bin/python -m pytest                      # everything (~100s)
-.venv/bin/python -m pytest -m "not integration"  # unit only, <1s, no save needed
+.venv/bin/python -m pytest                       # backend, everything (~140s)
+.venv/bin/python -m pytest -m "not integration"  # backend unit only (~35s)
 .venv/bin/python -m pytest -m "not slow"         # skip full-world parses
 .venv/bin/python -m pytest backend/tests/test_safety.py -k read_only  # one test
+npm test                                          # frontend (vitest)
 
 # Frontend
 npm run dev
@@ -80,17 +82,27 @@ exercise the real pipeline against a real world.
 
 ## Security boundary
 
-The Python backend has **no authentication** and binds to loopback. The Next.js
-proxy routes (`src/app/api/save/`, `src/app/api/palworld/`) are the only thing
-separating a guest from the save editor. Treat every change there as
-security-critical.
+**The backend authenticates for itself.** The session token travels as
+`X-Session-Token` and `backend/authz.py` resolves it against SQLite. The proxy
+forwards a credential; it does not assert an identity, so a forged header does
+nothing. Do not reintroduce trust in proxy-supplied roles.
 
-Access control is capability-based (`src/lib/permissions.ts`) with a runtime
-policy layer (`backend/policy.py`) where **environment variables are a ceiling**:
-`SECURITY_LEVEL=readonly` in compose cannot be raised from the web UI.
+Two gates must both agree before anything is written:
 
-Known gaps are catalogued in `docs/AUDIT.md` §5 — there is currently one shared
-password, no user accounts, no audit log and no login rate limiting.
+1. the caller's **role** grants the capability (`backend/roles.py`)
+2. the **security level** permits it (`backend/policy.py`, where environment
+   variables are a ceiling the web UI cannot raise)
+
+The Next.js proxy additionally enforces an **allowlist** of backend routes
+(`src/lib/permissions.ts`). It is not a prefix match with a default — anything
+not explicitly listed is refused, and traversal is rejected before matching. Add
+a route there when you add one to the backend, or it is unreachable.
+
+Sessions are server-side and revocable; passwords are scrypt-hashed; sign-in is
+throttled per IP and per username. Every mutating action is audited
+(`backend/audit.py`) — add an `audit.record` call to any new one.
+
+Remaining gaps are catalogued in `docs/AUDIT.md` §5.
 
 ## Reference data
 
@@ -110,4 +122,9 @@ so anything adopted is fetched once and bundled.
 - Backend modules are flat and import each other directly. Module-level constants
   capture environment variables **at import time**, so tests monkeypatch the
   module attribute, not `os.environ`.
-- No test framework on the frontend yet. Backend tests are pytest, no plugins.
+- Backend tests are pytest, no plugins. Frontend tests are vitest
+  (`src/**/*.test.ts`); `vitest.config.ts` excludes `.next/` so a stale build
+  copy cannot be discovered and pass in place of the real source.
+- New backend module needing storage? Use `backend/db.py` (SQLite). The Python
+  process owns that file exclusively — Next.js asks over loopback rather than
+  opening a second driver.

@@ -1,9 +1,12 @@
 /**
- * Capability and feature names.
+ * Capability and feature names, and the backend route allowlist.
  *
  * Pure constants and pure functions only — this module is imported by client
- * components, so it must never touch `fs` or the policy file. Policy-aware
- * resolution lives in `permissions-server.ts`.
+ * components, so it must never touch `fs` or the policy file.
+ *
+ * `backend/roles.py` is the authority for who gets what; this mirrors the names
+ * for the UI and for routing decisions. The backend re-checks every capability
+ * itself, so a mistake here cannot grant access it should not.
  */
 
 export const CAPABILITIES = {
@@ -11,7 +14,9 @@ export const CAPABILITIES = {
   VIEW_BASIC: 'view.basic',
   /** Read player saves, inventories, item totals, breeding. */
   VIEW_DETAIL: 'view.detail',
-  /** Kick/ban/announce/save/shutdown through the game's REST API. */
+  /** Read one's own character only. */
+  VIEW_SELF: 'view.self',
+  /** Kick/ban/announce/restart through the game's REST API. */
   SERVER_CONTROL: 'server.control',
   /** Read and write PalWorldSettings.ini. */
   SETTINGS_WRITE: 'settings.write',
@@ -19,6 +24,10 @@ export const CAPABILITIES = {
   BACKUP_MANAGE: 'backup.manage',
   /** Change the access policy itself. */
   POLICY_MANAGE: 'policy.manage',
+  /** Create and modify accounts. */
+  USERS_MANAGE: 'users.manage',
+  /** Read the audit log. */
+  AUDIT_VIEW: 'audit.view',
 
   /** Sort/merge plain stackable items. Cannot touch equipment. */
   SAVE_SORT_STACKABLES: 'save.sort.stackables',
@@ -30,7 +39,7 @@ export const CAPABILITIES = {
 
 export type Capability = (typeof CAPABILITIES)[keyof typeof CAPABILITIES];
 
-/** Write capabilities that the security level gates. */
+/** Write capabilities that the security level gates, on top of the role. */
 export const POLICY_GATED: Capability[] = [
   CAPABILITIES.SETTINGS_WRITE,
   CAPABILITIES.BACKUP_MANAGE,
@@ -40,8 +49,8 @@ export const POLICY_GATED: Capability[] = [
 ];
 
 /**
- * Visibility features a guest can be granted or denied individually. Admins
- * always see everything.
+ * Visibility features a guest can be granted or denied individually. Signed-in
+ * users are governed by their role instead.
  */
 export const FEATURES = {
   SERVER_STATUS: 'serverStatus',
@@ -57,45 +66,98 @@ export const FEATURES = {
 export type Feature = (typeof FEATURES)[keyof typeof FEATURES];
 
 /**
- * Save-backend path -> { capability, feature }.
+ * Backend routes reachable through the save proxy.
  *
- * `feature` is the guest visibility toggle; a path with no feature is
- * admin-only. First match wins, and anything unmatched is admin-only by
- * default so a new endpoint is never accidentally public.
+ * This is an ALLOWLIST, not a pattern match with a default. Previously an
+ * unmatched path fell through to a default capability, which meant a new backend
+ * route was reachable the moment it existed — and a path such as
+ * `..%2F..%2Fauth%2Flogin` matched nothing and took the default branch. Anything
+ * not named here is now refused outright.
+ *
+ * `feature` is the guest visibility toggle; `null` means signed-in only.
  */
-const SAVE_PATHS: [RegExp, Capability, Feature | null][] = [
-  [/^health$/, CAPABILITIES.VIEW_BASIC, FEATURES.SERVER_STATUS],
-  [/^bases$/, CAPABILITIES.VIEW_BASIC, FEATURES.BASES],
-  [/^guilds$/, CAPABILITIES.VIEW_BASIC, FEATURES.GUILDS],
-  [/^mapobjects$/, CAPABILITIES.VIEW_BASIC, FEATURES.MAP_OBJECTS],
-  [/^items$/, CAPABILITIES.VIEW_DETAIL, FEATURES.ITEMS],
-  [/^breeding\//, CAPABILITIES.VIEW_DETAIL, FEATURES.BREEDING],
-
-  // Static reference data bundled with the dashboard — fast-travel coordinates,
-  // item names, 1.0 totals. None of it is server-specific and all of it is on
-  // every Palworld wiki, so it follows the map toggle rather than being secret.
-  [/^world\/fasttravel$/, CAPABILITIES.VIEW_BASIC, FEATURES.MAP_OBJECTS],
-  [/^world\/reference$/, CAPABILITIES.VIEW_BASIC, FEATURES.SERVER_STATUS],
-
-  [/^edit\/sort\/stackables$/, CAPABILITIES.SAVE_SORT_STACKABLES, null],
-  [/^edit\/sort\/all$/, CAPABILITIES.SAVE_SORT_ALL, null],
-  [/^edit\//, CAPABILITIES.SAVE_EDIT_FULL, null],
-
-  [/^policy$/, CAPABILITIES.POLICY_MANAGE, null],
-  [/^settings\//, CAPABILITIES.SETTINGS_WRITE, null],
-  [/^backup/, CAPABILITIES.BACKUP_MANAGE, null],
-  [/^restore\//, CAPABILITIES.BACKUP_MANAGE, null],
-  [/^server\//, CAPABILITIES.SERVER_CONTROL, null],
-];
-
-export function describeSavePath(path: string): {
+interface RouteRule {
+  pattern: RegExp;
+  methods: string[];
   capability: Capability;
   feature: Feature | null;
-} {
-  for (const [pattern, capability, feature] of SAVE_PATHS) {
-    if (pattern.test(path)) return { capability, feature };
+}
+
+const ROUTES: RouteRule[] = [
+  // ─── Reads ───
+  { pattern: /^health$/, methods: ['GET'], capability: CAPABILITIES.VIEW_BASIC, feature: FEATURES.SERVER_STATUS },
+  { pattern: /^bases$/, methods: ['GET'], capability: CAPABILITIES.VIEW_BASIC, feature: FEATURES.BASES },
+  { pattern: /^guilds$/, methods: ['GET'], capability: CAPABILITIES.VIEW_BASIC, feature: FEATURES.GUILDS },
+  { pattern: /^mapobjects$/, methods: ['GET'], capability: CAPABILITIES.VIEW_BASIC, feature: FEATURES.MAP_OBJECTS },
+  { pattern: /^world\/fasttravel$/, methods: ['GET'], capability: CAPABILITIES.VIEW_BASIC, feature: FEATURES.MAP_OBJECTS },
+  { pattern: /^world\/reference$/, methods: ['GET'], capability: CAPABILITIES.VIEW_BASIC, feature: FEATURES.SERVER_STATUS },
+  { pattern: /^roles$/, methods: ['GET'], capability: CAPABILITIES.VIEW_BASIC, feature: FEATURES.SERVER_STATUS },
+
+  { pattern: /^items$/, methods: ['GET'], capability: CAPABILITIES.VIEW_DETAIL, feature: FEATURES.ITEMS },
+  { pattern: /^pals$/, methods: ['GET'], capability: CAPABILITIES.VIEW_DETAIL, feature: FEATURES.BREEDING },
+  { pattern: /^breeding\/[a-z]+$/, methods: ['GET'], capability: CAPABILITIES.VIEW_DETAIL, feature: FEATURES.BREEDING },
+  { pattern: /^players$/, methods: ['GET'], capability: CAPABILITIES.VIEW_DETAIL, feature: null },
+  { pattern: /^players\/[A-Za-z0-9-]+$/, methods: ['GET'], capability: CAPABILITIES.VIEW_DETAIL, feature: null },
+  { pattern: /^progress$/, methods: ['GET'], capability: CAPABILITIES.VIEW_DETAIL, feature: null },
+  { pattern: /^inventory\/[A-Za-z0-9-]+$/, methods: ['GET'], capability: CAPABILITIES.VIEW_DETAIL, feature: null },
+
+  // ─── Writes ───
+  { pattern: /^refresh$/, methods: ['POST'], capability: CAPABILITIES.VIEW_BASIC, feature: null },
+  { pattern: /^policy$/, methods: ['GET'], capability: CAPABILITIES.VIEW_BASIC, feature: FEATURES.SERVER_STATUS },
+  { pattern: /^policy$/, methods: ['POST'], capability: CAPABILITIES.POLICY_MANAGE, feature: null },
+
+  { pattern: /^settings\/ini$/, methods: ['GET'], capability: CAPABILITIES.SETTINGS_WRITE, feature: null },
+  { pattern: /^settings\/ini$/, methods: ['POST'], capability: CAPABILITIES.SETTINGS_WRITE, feature: null },
+  { pattern: /^settings\/preset\/[a-z0-9_]+$/, methods: ['POST'], capability: CAPABILITIES.SETTINGS_WRITE, feature: null },
+
+  { pattern: /^backups$/, methods: ['GET'], capability: CAPABILITIES.BACKUP_MANAGE, feature: null },
+  { pattern: /^backup$/, methods: ['POST'], capability: CAPABILITIES.BACKUP_MANAGE, feature: null },
+  { pattern: /^backups\/[A-Za-z0-9]+$/, methods: ['DELETE'], capability: CAPABILITIES.BACKUP_MANAGE, feature: null },
+  { pattern: /^restore\/[A-Za-z0-9]+$/, methods: ['POST'], capability: CAPABILITIES.BACKUP_MANAGE, feature: null },
+
+  { pattern: /^edit\/sort\/stackables$/, methods: ['POST'], capability: CAPABILITIES.SAVE_SORT_STACKABLES, feature: null },
+  { pattern: /^edit\/sort\/all$/, methods: ['POST'], capability: CAPABILITIES.SAVE_SORT_ALL, feature: null },
+  { pattern: /^edit$/, methods: ['POST'], capability: CAPABILITIES.SAVE_EDIT_FULL, feature: null },
+
+  { pattern: /^server\/(note-shutdown|restart|start-container|stop-container)$/, methods: ['POST'], capability: CAPABILITIES.SERVER_CONTROL, feature: null },
+
+  // ─── Accounts & audit ───
+  { pattern: /^users$/, methods: ['GET', 'POST'], capability: CAPABILITIES.USERS_MANAGE, feature: null },
+  { pattern: /^users\/[A-Za-z0-9._-]+$/, methods: ['PATCH', 'DELETE'], capability: CAPABILITIES.USERS_MANAGE, feature: null },
+  { pattern: /^audit$/, methods: ['GET'], capability: CAPABILITIES.AUDIT_VIEW, feature: null },
+  { pattern: /^auth\/password$/, methods: ['POST'], capability: CAPABILITIES.VIEW_BASIC, feature: null },
+];
+
+export interface RouteVerdict {
+  allowed: boolean;
+  capability?: Capability;
+  feature?: Feature | null;
+  reason?: string;
+}
+
+/**
+ * Look up a backend path.
+ *
+ * Rejects anything containing a path traversal attempt before matching, so an
+ * encoded `..` cannot reach the backend even if some future rule would have
+ * matched the decoded form.
+ */
+export function describeSavePath(path: string, method: string): RouteVerdict {
+  if (!path || path.includes('..') || path.includes('//') || path.startsWith('/')) {
+    return { allowed: false, reason: 'Invalid path' };
   }
-  return { capability: CAPABILITIES.VIEW_DETAIL, feature: null };
+
+  const candidates = ROUTES.filter((r) => r.pattern.test(path));
+  if (candidates.length === 0) {
+    return { allowed: false, reason: 'Unknown endpoint' };
+  }
+
+  const match = candidates.find((r) => r.methods.includes(method));
+  if (!match) {
+    return { allowed: false, reason: `${method} is not allowed on this endpoint` };
+  }
+
+  return { allowed: true, capability: match.capability, feature: match.feature };
 }
 
 /** Palworld REST paths a guest may read, subject to their visibility toggles. */

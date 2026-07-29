@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Monitor, Map, Users, Building2, Wrench, LogIn, LogOut,
   Server, Shield, Eye, Lock, Unlock, Sliders, Egg, RefreshCw, Package, ShieldCheck,
+  UserCog, ScrollText,
 } from 'lucide-react';
 import { useDashboardStore } from '@/lib/store';
 import {
@@ -13,6 +14,8 @@ import {
 import { getBackendHealth, getBases, getGuilds, requestRefresh } from '@/lib/save-api';
 import ItemsView from '@/components/items-view';
 import AccessSettings from '@/components/access-settings';
+import UserManager from '@/components/user-manager';
+import AuditLog from '@/components/audit-log';
 import ServerOverview from '@/components/server-overview';
 import InteractiveMap from '@/components/interactive-map';
 import PlayerRoster from '@/components/player-roster';
@@ -20,26 +23,41 @@ import BaseViewer from '@/components/base-viewer';
 import SaveEditor from '@/components/save-editor';
 import ServerSettings from '@/components/server-settings';
 import BreedingPlanner from '@/components/breeding-planner';
+import { CAPABILITIES } from '@/lib/permissions';
+import { ROLE_LABEL, type Role } from '@/lib/auth-types';
 import type { DashboardTab } from '@/lib/types';
 
-const TABS: { id: DashboardTab; label: string; icon: React.ReactNode; adminOnly?: boolean }[] = [
+/**
+ * Tabs are gated on capabilities, not on a role name. A Moderator sees the audit
+ * log but not save tools; an Administrator sees both; a Player sees neither.
+ * Hiding a tab is cosmetic — the backend refuses the request either way.
+ */
+const TABS: {
+  id: DashboardTab;
+  label: string;
+  icon: React.ReactNode;
+  requires?: string;
+}[] = [
   { id: 'overview', label: 'Overview', icon: <Monitor size={15} /> },
   { id: 'map', label: 'Map', icon: <Map size={15} /> },
   { id: 'bases', label: 'Bases', icon: <Building2 size={15} /> },
-  { id: 'items', label: 'Items', icon: <Package size={15} />, adminOnly: true },
-  { id: 'players', label: 'Players', icon: <Users size={15} />, adminOnly: true },
-  { id: 'breeding', label: 'Breeding', icon: <Egg size={15} />, adminOnly: true },
-  { id: 'settings', label: 'Settings', icon: <Sliders size={15} />, adminOnly: true },
-  { id: 'access', label: 'Access', icon: <ShieldCheck size={15} />, adminOnly: true },
-  { id: 'editor', label: 'Save Tools', icon: <Wrench size={15} />, adminOnly: true },
+  { id: 'items', label: 'Items', icon: <Package size={15} />, requires: CAPABILITIES.VIEW_DETAIL },
+  { id: 'players', label: 'Players', icon: <Users size={15} />, requires: CAPABILITIES.VIEW_DETAIL },
+  { id: 'breeding', label: 'Breeding', icon: <Egg size={15} />, requires: CAPABILITIES.VIEW_DETAIL },
+  { id: 'settings', label: 'Settings', icon: <Sliders size={15} />, requires: CAPABILITIES.SETTINGS_WRITE },
+  { id: 'access', label: 'Access', icon: <ShieldCheck size={15} />, requires: CAPABILITIES.POLICY_MANAGE },
+  { id: 'users', label: 'Users', icon: <UserCog size={15} />, requires: CAPABILITIES.USERS_MANAGE },
+  { id: 'audit', label: 'Audit log', icon: <ScrollText size={15} />, requires: CAPABILITIES.AUDIT_VIEW },
+  { id: 'editor', label: 'Save Tools', icon: <Wrench size={15} />, requires: CAPABILITIES.SAVE_SORT_STACKABLES },
 ];
 
 export default function Home() {
   const store = useDashboardStore();
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState('');
   const [busy, setBusy] = useState(false);
-  const [availability, setAvailability] = useState({ adminAvailable: true, guestAvailable: true });
+  const [availability, setAvailability] = useState({ anyUsers: true, guestAvailable: true });
   const [refreshing, setRefreshing] = useState(false);
   const [refreshNote, setRefreshNote] = useState<string | null>(null);
 
@@ -55,10 +73,13 @@ export default function Home() {
       .then((session) => {
         if (cancelled) return;
         setAvailability({
-          adminAvailable: session.adminAvailable,
+          anyUsers: session.anyUsers,
           guestAvailable: session.guestAvailable,
         });
-        if (session.role) storeRef.current.setAuthenticated(true, session.role);
+        if (session.user) {
+          storeRef.current.setUser(session.user);
+          storeRef.current.setAuthenticated(true, session.user.role as Role);
+        }
         storeRef.current.setCapabilities(session.capabilities ?? []);
       })
       .catch(() => undefined)
@@ -75,9 +96,11 @@ export default function Home() {
     setBusy(true);
     setLoginError('');
     try {
-      const { role } = await login(password);
+      const { role, user, capabilities } = await login(username, password);
       setPassword('');
-      store.setAuthenticated(true, role);
+      store.setUser(user);
+      store.setCapabilities(capabilities ?? []);
+      store.setAuthenticated(true, role as Role);
     } catch (err) {
       setLoginError(err instanceof Error ? err.message : 'Login failed');
     } finally {
@@ -184,6 +207,8 @@ export default function Home() {
 
   if (!store.isAuthenticated) {
     return <LoginScreen
+      username={username}
+      setUsername={setUsername}
       password={password}
       setPassword={setPassword}
       onSubmit={handleLogin}
@@ -194,7 +219,9 @@ export default function Home() {
     />;
   }
 
-  const visibleTabs = TABS.filter((t) => store.userRole === 'admin' || !t.adminOnly);
+  const visibleTabs = TABS.filter(
+    (t) => !t.requires || store.capabilities.includes(t.requires)
+  );
   const activeTab = visibleTabs.some((t) => t.id === store.activeTab)
     ? store.activeTab
     : 'overview';
@@ -261,8 +288,12 @@ export default function Home() {
             </span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 11, color: 'var(--text-muted)', padding: '0 8px 8px' }}>
-            {store.userRole === 'admin' ? <Shield size={11} /> : <Eye size={11} />}
-            <span>{store.userRole === 'admin' ? 'Admin' : 'Guest'}</span>
+            {store.userRole === 'guest' ? <Eye size={11} /> : <Shield size={11} />}
+            <span title={store.user?.username}>
+              {store.user
+                ? `${store.user.displayName} · ${ROLE_LABEL[store.userRole]}`
+                : ROLE_LABEL.guest}
+            </span>
           </div>
           <button className="btn btn-ghost" style={{ width: '100%' }} onClick={handleLogout}>
             <LogOut size={13} /> Sign out
@@ -335,6 +366,8 @@ export default function Home() {
           {activeTab === 'breeding' && <BreedingPlanner />}
           {activeTab === 'settings' && <ServerSettings />}
           {activeTab === 'access' && <AccessSettings />}
+          {activeTab === 'users' && <UserManager />}
+          {activeTab === 'audit' && <AuditLog />}
           {activeTab === 'editor' && <SaveEditor />}
         </div>
       </main>
@@ -352,15 +385,17 @@ function formatAge(seconds: number | null): string {
 }
 
 function LoginScreen({
-  password, setPassword, onSubmit, onGuest, error, busy, availability,
+  username, setUsername, password, setPassword, onSubmit, onGuest, error, busy, availability,
 }: {
+  username: string;
+  setUsername: (v: string) => void;
   password: string;
   setPassword: (v: string) => void;
   onSubmit: (e: React.FormEvent) => void;
   onGuest: () => void;
   error: string;
   busy: boolean;
-  availability: { adminAvailable: boolean; guestAvailable: boolean };
+  availability: { anyUsers: boolean; guestAvailable: boolean };
 }) {
   return (
     <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', padding: 20 }}>
@@ -373,18 +408,37 @@ function LoginScreen({
           Server administration and save tools
         </p>
 
+        {!availability.anyUsers && (
+          <div className="notice notice-warn" style={{ fontSize: 12, marginBottom: 14 }}>
+            No accounts exist yet. Set <span className="mono">PANEL_PASSWORD</span> in
+            your compose file and restart — the first Owner account is created from
+            it automatically.
+          </div>
+        )}
+
         <form onSubmit={onSubmit}>
           <label style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 6, display: 'block' }}>
-            Panel password
+            Username
+          </label>
+          <input
+            className="input"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            placeholder="admin"
+            autoComplete="username"
+            disabled={!availability.anyUsers || busy}
+            autoFocus
+          />
+          <label style={{ fontSize: 12, color: 'var(--text-secondary)', margin: '12px 0 6px', display: 'block' }}>
+            Password
           </label>
           <input
             type="password"
             className="input"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder={availability.adminAvailable ? 'Enter password' : 'PANEL_PASSWORD not configured'}
-            disabled={!availability.adminAvailable || busy}
-            autoFocus
+            autoComplete="current-password"
+            disabled={!availability.anyUsers || busy}
           />
 
           {error && (
@@ -396,7 +450,7 @@ function LoginScreen({
               type="submit"
               className="btn btn-primary"
               style={{ flex: 1 }}
-              disabled={!availability.adminAvailable || busy}
+              disabled={!availability.anyUsers || busy}
             >
               <LogIn size={14} /> Sign in
             </button>
@@ -409,8 +463,9 @@ function LoginScreen({
         </form>
 
         <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 16, lineHeight: 1.5 }}>
-          Guests can view the map, server status and base locations. Admin tools,
-          player data and save editing require the panel password.
+          Guests can view the map, server status and base locations, subject to
+          what this server exposes. Everything else needs an account — repeated
+          failed sign-ins are throttled per user and per address.
         </p>
       </div>
     </div>

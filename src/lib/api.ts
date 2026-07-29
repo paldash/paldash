@@ -1,3 +1,4 @@
+import type { SessionUser } from './store';
 import type {
   ServerInfo,
   ServerMetrics,
@@ -9,11 +10,14 @@ const BASE = '/api/palworld';
 
 // ─── Auth ───────────────────────────────────────────────
 
-export async function login(password: string): Promise<{ role: 'admin' }> {
+export async function login(
+  username: string,
+  password: string
+): Promise<{ role: string; user: SessionUser; capabilities: string[] }> {
   const res = await fetch('/api/auth/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ password }),
+    body: JSON.stringify({ username, password }),
   });
   if (!res.ok) {
     const body = await res.json().catch(() => ({ error: 'Login failed' }));
@@ -40,14 +44,15 @@ export async function logout(): Promise<void> {
 }
 
 export async function getSession(): Promise<{
-  role: 'admin' | 'guest' | null;
+  role: string;
+  user: SessionUser | null;
   capabilities: string[];
-  adminAvailable: boolean;
   guestAvailable: boolean;
+  anyUsers: boolean;
 }> {
   const res = await fetch('/api/auth/session');
   if (!res.ok) {
-    return { role: null, capabilities: [], adminAvailable: false, guestAvailable: true };
+    return { role: 'guest', user: null, capabilities: [], guestAvailable: true, anyUsers: false };
   }
   return res.json();
 }

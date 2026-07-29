@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getRole, type Role } from '@/lib/auth';
-import { REST_GUEST_FEATURES } from '@/lib/permissions';
+import { getSession } from '@/lib/auth';
+import { CAPABILITIES, REST_GUEST_FEATURES } from '@/lib/permissions';
 import { guestMaySee } from '@/lib/permissions-server';
 
 const PALWORLD_REST_URL = process.env.PALWORLD_REST_URL || 'http://127.0.0.1:8212';
@@ -26,21 +26,19 @@ export async function POST(
 }
 
 async function handle(request: NextRequest, path: string[], method: 'GET' | 'POST') {
-  const role = getRole(request);
-  if (!role) {
-    return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  const endpoint = path[0] ?? '';
+  if (!/^[a-z0-9_-]+$/i.test(endpoint) || path.length > 2) {
+    return NextResponse.json({ error: 'Unknown endpoint' }, { status: 404 });
   }
 
-  const endpoint = path[0] ?? '';
+  const session = await getSession(request);
+  const signedIn = session.user !== null;
 
-  if (role !== 'admin') {
-    // Every POST here is an admin action (kick/ban/announce/save/shutdown/stop).
+  if (!signedIn) {
+    // Every POST here is a privileged action (kick/ban/announce/save/shutdown).
     const feature = REST_GUEST_FEATURES[endpoint];
     if (method !== 'GET' || !feature) {
-      return NextResponse.json(
-        { error: 'Administrator access required' },
-        { status: 403 }
-      );
+      return NextResponse.json({ error: 'Sign in to do this.' }, { status: 401 });
     }
     if (!guestMaySee(feature)) {
       return NextResponse.json(
@@ -48,16 +46,24 @@ async function handle(request: NextRequest, path: string[], method: 'GET' | 'POS
         { status: 403 }
       );
     }
+  } else if (method === 'POST' && !session.capabilities.includes(CAPABILITIES.SERVER_CONTROL)) {
+    // Kick, ban, announce, save, shutdown: Moderator and above.
+    return NextResponse.json(
+      { error: 'Your role does not allow controlling the server.' },
+      { status: 403 }
+    );
+  } else if (!session.capabilities.includes(CAPABILITIES.VIEW_BASIC)) {
+    return NextResponse.json({ error: 'Your role does not allow this.' }, { status: 403 });
   }
 
-  return proxyRequest(`/v1/api/${path.join('/')}`, request, method, role, endpoint);
+  return proxyRequest(`/v1/api/${path.join('/')}`, request, method, signedIn, endpoint);
 }
 
 async function proxyRequest(
   apiPath: string,
   request: NextRequest,
   method: 'GET' | 'POST',
-  role: Role,
+  signedIn: boolean,
   endpoint: string
 ) {
   try {
@@ -85,7 +91,7 @@ async function proxyRequest(
     let data = await res.json().catch(() => ({}));
 
     // Guests get to see who is online and where, but not their IPs or IDs.
-    if (role !== 'admin' && endpoint === 'players' && data && Array.isArray(data.players)) {
+    if (!signedIn && endpoint === 'players' && data && Array.isArray(data.players)) {
       data = {
         ...data,
         players: data.players.map((player: Record<string, unknown>) => {

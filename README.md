@@ -70,13 +70,12 @@ services:
       - "3000:3000"
     volumes:
       - ./palworld:/palworld       # <- EXACTLY the same mount your server uses
-      - dashboard-cache:/app/cache
+      - dashboard-cache:/app/cache   # parse cache AND the accounts database
     environment:
       # http://<your server's service name>:<REST port>
       - PALWORLD_REST_URL=http://palworld:8212
       - PALWORLD_ADMIN_PASSWORD=${PALWORLD_ADMIN_PASSWORD}
-      - PANEL_PASSWORD=${PANEL_PASSWORD}
-      - SESSION_SECRET=${SESSION_SECRET}
+      - PANEL_PASSWORD=${PANEL_PASSWORD}   # creates the first Owner account
       - SAVE_BASE_DIR=/palworld/Pal/Saved/SaveGames/0
       - BACKUP_DIR=/palworld/backups
       - CACHE_DIR=/app/cache
@@ -255,22 +254,51 @@ working; only save-derived views (bases, guilds, breeding) go dark.
 
 ## Access control
 
-Two roles, enforced **server-side** in the API proxies, not just hidden in the UI:
+**Accounts.** Every person gets their own login. On first start with no accounts,
+`PANEL_PASSWORD` creates the first **Owner** automatically, so an existing
+deployment keeps working with the same password — add real accounts from the
+**Users** tab afterwards.
 
-- **Admin** — everything. Requires `PANEL_PASSWORD`.
-- **Guest** — read-only: map, server status, online players, base locations.
-  Blocked from player saves, inventories, backups, settings and every write.
-  Player IPs and account IDs are stripped from guest responses.
+Seven role presets, least to most privileged:
 
-Sessions are HMAC-signed `httpOnly` cookies. Set `GUEST_VIEW_ENABLED=false` to
-disable guest access; if `PANEL_PASSWORD` is unset, admin login is refused
-outright rather than falling open.
+| Role | Can do |
+|---|---|
+| **Guest** | Not signed in. Only what the visibility toggles allow, with names and IDs stripped. |
+| **Read only** | A named account that can look but not touch. |
+| **Player** | Server overview plus their own character. |
+| **Trusted player** | Full visibility of other players, guild inventories, breeding planner. Still read-only. |
+| **Moderator** | Kick, ban, announce, restart, take backups, read the audit log. |
+| **Administrator** | Server settings and save editing as well. |
+| **Owner** | Everything, including accounts and the security policy. |
 
-> The previous version accepted *any non-empty password* as admin and left both
-> API proxies unauthenticated — anyone who could reach port 3000 could shut the
-> server down. Both are fixed.
+**Two gates, both must agree.** A role grants a capability; the security level
+withholds it. An Owner on a `readonly` server still cannot write — that dial is
+about protecting the world from mistakes, not about trust. Nobody can grant a
+role above their own, and the last Owner cannot be demoted, disabled or deleted.
 
----
+**Sessions are revocable.** Signing out, disabling an account, changing someone's
+role or changing a password all take effect immediately rather than whenever a
+cookie happens to expire. Tokens are stored hashed, so a stolen database does not
+hand over live sessions.
+
+**Sign-in is throttled** per address and per username, with exponential backoff
+that survives a restart.
+
+**Everything is audited.** Every save write, settings change, restore, container
+stop, account change and policy change is recorded with who, when, from where and
+whether it succeeded — including refusals. The log is append-only: there is no
+endpoint that deletes an entry, and entries age out on a retention timer whose
+own runs are logged.
+
+```yaml
+# Which parts of the world guests may see, and the write ceiling.
+- SECURITY_LEVEL=safe          # readonly | safe | full — a ceiling the UI cannot raise
+- GUEST_VIEW_ENABLED=true
+- GUEST_SEE_CHESTS=false
+- AUDIT_RETENTION_DAYS=180
+- MIN_PASSWORD_LENGTH=10
+- SESSION_TTL_HOURS=12
+```
 
 ## Server settings & PvP
 
@@ -433,19 +461,23 @@ types, per-item totals identical, zero mismatches.
 
 ```bash
 ./scripts/setup-dev.sh          # builds .venv, compiles palsav from refs/
-.venv/bin/python -m pytest      # 151 tests, ~100s
+.venv/bin/python -m pytest      # backend: 293 tests, ~140s
+npm test                        # frontend: 34 tests, <1s
 ```
 
-The suite is in two tiers:
+The suite is in tiers:
 
 | Command | Tests | Time | Needs |
 |---|---:|---:|---|
-| `pytest -m "not integration"` | 136 | <1s | nothing |
-| `pytest` | 151 | ~100s | `refworld/` + `palsav` |
+| `npm test` | 34 | <1s | nothing |
+| `pytest -m "not integration"` | 275 | ~35s | nothing |
+| `pytest` | 293 | ~140s | `refworld/` + `palsav` |
 
 Unit tests cover the corruption guard (every way it must refuse to write), path
-handling, the settings-INI parser, the access-policy ceiling, and the container
-sort algorithm on synthetic data. Integration tests run the real pipeline against
+handling, the settings-INI parser, the access-policy ceiling, the container sort
+algorithm on synthetic data, password hashing, session revocation, login
+throttling, and the role model. The frontend tests cover the proxy route
+allowlist. Integration tests run the real pipeline against
 a real world: parse a 55 MB save, sort every container, write it, re-read from
 disk and prove not one item moved in or out. They skip cleanly when `refworld/`
 is absent, so a fresh checkout still runs green.
