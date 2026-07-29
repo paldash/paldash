@@ -2,9 +2,9 @@
 
 Snapshot: **2026-07-29**. Phases 0–7 complete; Phase 8 not started.
 
-`702 backend + 61 frontend tests, 0 failures. 0 lint errors (15 pre-existing
-warnings). Clean production build.` Integration tests run against a real 1.0
-world and include every write path.
+`743 backend + 64 frontend tests, 0 failures. 0 lint errors (15 pre-existing
+warnings).` Integration tests run against a real 1.0 world and include every
+write path.
 
 ---
 
@@ -43,6 +43,7 @@ identical before and after, checked twice.
 | Player editor | Spans two files; either mismatch rolls back the whole world |
 | Illegal-Pal check | Scans against the same schema the editor enforces |
 | Import / export | Versioned, checksummed; `planHash` refuses a world that moved |
+| Pal import | Same envelope as the export; unwritable fields listed, never dropped |
 
 ### Access control
 Seven roles, two independent gates (role capability ∩ security level), a route
@@ -78,6 +79,23 @@ applies to peers and below, never upward, so a player can never hide from staff
 and no exemption list is needed. Applied server-side in both the save endpoints
 and the REST proxy — live positions come from the game, not the save, so a
 filter in only one place would leave a hidden player showing as a live dot.
+
+### Request cost
+`backend/viewcache.py` memoises the two things the request path was repeating:
+views derived from a parse (keyed on the parse generation) and values derived
+from a file (keyed on its size and mtime). Nothing is keyed on a clock, and
+authorisation and privacy decisions are deliberately excluded.
+
+| Path | Before | After |
+|---|---:|---:|
+| `get_players()`, 5 players | 11,500 µs | 34 µs |
+| `/api/pals`, 1,905 Pals | 12 ms | ~0 |
+| `/api/mapobjects`, 3,370 objects | 10 ms | ~0 |
+| Privacy filter, 20 accounts | 60 µs | *not cached, on purpose* |
+
+`get_players()` is the one that mattered — four endpoints call it and the cost
+is per player, so a 32-player server was paying ~73 ms of identical Oodle
+decompression and GVAS parsing on every roster, progress and discovery request.
 
 ---
 
@@ -133,7 +151,10 @@ Worth reading before trusting any number that is not in the table above.
 - **The 35,687 world objects are bundled but not on the map.** A layer that
   renders them needs viewport culling — that many markers at once is not
   reasonable to draw.
-- **Player and Pal *file* imports are refused.** Only container imports write.
+- **Player and technology imports are refused.** Container and Pal imports work.
+- **Creating a Pal by import needs one of that species already in the world**, since
+  `palclone` copies a record rather than inventing one. Refused with that reason,
+  not guessed at.
 - **`fieldBosses` and `areasFound` have no true denominator** — they fall back
   to the observed union across players and are labelled "discovered".
 - **Migration tools** (Steam ↔ dedicated ↔ Game Pass) are not started.
@@ -193,17 +214,29 @@ dominant design constraint.
 - Container Stop/Start buttons hidden unless configured
 - README, AGENTS.md, FEATURES.md brought current
 
+- Request-path caching (`viewcache.py`) and the player-save path index
+- Pal import (#27) — `pal` export kind, `palimport.py`, UI, 33 tests
+- `docs/DEPLOYMENT.md` (#29), including working stop/start commands
+- Password rotation closed out (#22) — see below
+
 ### Open — needs you
 | # | Item |
 |---|---|
-| 22 | **Rotate `PALWORLD_ADMIN_PASSWORD` and `ServerPassword`** — both appeared in a session transcript. Change in `.env`, recreate the container |
 | — | World Tree: build or open anything on that landmass to confirm map orientation |
+
+#22 is **done**. The code side was already complete — `settings_ini.SECRET_KEYS`
+masks `AdminPassword` and `ServerPassword` on every read and in the audit log,
+and `read_ini(reveal=True)` is used only by the write path. Verified that no
+`PalWorldSettings.ini` or `.env` has ever been committed (`git log --all` over
+those paths is empty) and that session transcripts are gitignored twice over.
+The only outstanding action was rotation, which is done.
 
 ### Open — buildable now
 | # | Item | Size |
 |---|---|---|
-| — | Wire the discoveries map layer (data and policy are done) | small |
+| 25 | Privacy UI: self-service control on the account page | small |
 | 21 | Game-update resilience: build-id detection, re-derive on update, stale-data banner, **and re-check extracted positions** (ore/chest/effigy coordinates are static per build, so a new build must re-run the extractors and diff) | medium |
-| — | Extract dungeons, bosses, ore nodes, spawners from the pak | medium |
+| 30 | Map layer for the 35,687 extracted world objects (needs viewport culling) | medium |
+| 28 | Per-base map visibility | medium |
 | — | Phase 8 | 3–4 days |
-| — | Phase 9: migration, presets, mod detection, multi-image Docker | 4–6 days |
+| 26 | Phase 9: solo-world export, migration, presets, mod detection, multi-image Docker | 4–6 days |

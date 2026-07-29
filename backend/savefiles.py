@@ -86,6 +86,53 @@ def list_player_uids(world_dir: Optional[str] = None) -> list[str]:
     )
 
 
+# Normalised uid -> path, per Players/ directory, keyed on that directory's
+# mtime. See _player_index for why the mtime is the right key.
+_player_index_cache: dict[str, tuple[float, dict[str, str]]] = {}
+
+
+def _player_index(players_dir: str) -> dict[str, str]:
+    """
+    Every player save in one directory, indexed by normalised uid.
+
+    Built rather than searched because the search never short-circuits. The
+    exact-match fast path in `get_player_sav_path` cannot fire on a
+    case-sensitive filesystem: Level.sav supplies a lowercase dashed GUID and the
+    file on disk is uppercase undashed, so every lookup fell through to a full
+    `os.listdir` plus a normalise-and-compare per entry. Four endpoints resolve
+    every player's path on every request, which made that a directory scan per
+    player per request.
+
+    Keyed on the directory's mtime, which changes exactly when a save is added or
+    removed — the only events that can change a uid-to-path mapping. A save being
+    rewritten in place moves the file's mtime, not the directory's, and does not
+    affect this index (`viewcache.per_file` keys on the file for that).
+    """
+    try:
+        stamp = os.stat(players_dir).st_mtime
+    except OSError:
+        return {}
+
+    cached = _player_index_cache.get(players_dir)
+    if cached is not None and cached[0] == stamp:
+        return cached[1]
+
+    index: dict[str, str] = {}
+    try:
+        names = os.listdir(players_dir)
+    except OSError:
+        return {}
+
+    for name in names:
+        if not name.endswith(".sav"):
+            continue
+        stem = os.path.splitext(name)[0]
+        index[stem.replace("-", "").lower()] = os.path.join(players_dir, name)
+
+    _player_index_cache[players_dir] = (stamp, index)
+    return index
+
+
 def get_player_sav_path(uid: str, world_dir: Optional[str] = None) -> Optional[str]:
     """
     Path to one player's save. `uid` is sanitised to a bare filename so a
@@ -109,20 +156,11 @@ def get_player_sav_path(uid: str, world_dir: Optional[str] = None) -> Optional[s
     if not os.path.isdir(players_dir):
         return None
 
-    # Exact match first, then a normalised comparison.
-    direct = os.path.join(players_dir, f"{safe_uid}.sav")
-    if os.path.exists(direct):
-        return direct
-
-    wanted = safe_uid.replace("-", "").lower()
-    for name in os.listdir(players_dir):
-        if not name.endswith(".sav"):
-            continue
-        stem = os.path.splitext(name)[0]
-        if stem.replace("-", "").lower() == wanted:
-            return os.path.join(players_dir, name)
-
-    return None
+    # The index is normalised on both sides, so this covers the exact match too.
+    # Sanitisation above still happens on the raw uid — the index is a lookup
+    # table, not a permission check, and must never be the thing standing between
+    # a crafted uid and the filesystem.
+    return _player_index(players_dir).get(safe_uid.replace("-", "").lower())
 
 
 def find_settings_ini() -> Optional[str]:

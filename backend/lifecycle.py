@@ -37,10 +37,17 @@ from safety import get_server_state
 
 logger = logging.getLogger(__name__)
 
-# Optional command that genuinely restarts the server, e.g.
-#   RESTART_COMMAND=docker restart palworld-server
-# Requires access to something that can do that (Docker socket or a socket
-# proxy). Unset by default: no such access, no such button.
+# Optional command that genuinely restarts the server. Requires access to
+# something that can do that (a Docker socket proxy, a systemd unit, an SSH key).
+# Unset by default: no such access, no such button.
+#
+# Note the runtime image has **no `docker` CLI** — a command starting with
+# `docker` fails with "not found". It does have `node` with a global fetch, so the
+# Docker HTTP API is reachable without adding anything; docs/DEPLOYMENT.md §4 has
+# the exact working commands.
+#
+# Split with shlex and run without a shell (see _run_configured), so a
+# double-quoted script argument stays one argv element.
 RESTART_COMMAND = os.environ.get("RESTART_COMMAND", "").strip()
 # Stopping the *container* rather than just the game process. This is the one
 # that makes save editing genuinely safe: with the container down, nothing can

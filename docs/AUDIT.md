@@ -591,8 +591,10 @@ safe code.
   the world moved after the operator approved the preview.
 - `POST /api/import/preview` is read-only and gated on `SAVE_EDIT_FULL` — the preview tells
   you how to build an acceptable document, which is editor knowledge.
-- **Only `container` imports are supported.** Player, Pal and technology imports are
-  refused with a reason rather than half-validated; they need Phase 7's per-field schema.
+- **`container` imports go through this module; Pal imports go through `palimport`.**
+  Player and technology imports are still refused with a reason rather than
+  half-validated. The refusal message names the right module when a Pal document
+  arrives here, so a wrong door does not read as an unbuilt feature.
 - **There is no apply endpoint and no allowlist entry for one**, and a frontend test
   asserts that, so adding one has to be a deliberate act.
 
@@ -624,8 +626,11 @@ early rather than at write time.
 Empty-slot structure was read off the reference world rather than assumed: `static_id: ""`,
 `count: 0`, and a zeroed `dynamic_id`.
 
-**Still to build:** import kinds beyond `container`. Player, Pal and technology imports stay
-refused with a reason. **Depends on Phase 7's per-field validation schema.**
+**Since done:** Pal imports (`palimport.py`, plus a `pal` export kind), on top of Phase 7's
+validation schema. It adds no write path — `overwrite` routes to `charedit.apply_pal_batch`
+and `create` to `palclone.apply_clone`.
+
+**Still to build:** player and technology imports, which stay refused with a reason.
 
 ### Phase 7 — General save editor · ✅ **COMPLETE** (2026-07-29)
 

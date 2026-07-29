@@ -267,6 +267,54 @@ export interface ClonePlan {
   applied?: boolean;
 }
 
+/**
+ * A field the document carried that the import will not write, and why.
+ *
+ * Rendered, not swallowed. An export contains a Pal's owner, container and slot;
+ * an import cannot set any of them, and someone moving a Pal between servers
+ * would reasonably assume ownership came along.
+ */
+export interface IgnoredField {
+  field: string | null;
+  problem: string;
+  instanceId?: string;
+}
+
+export interface PalImportPlan {
+  ok: boolean;
+  problems: { field?: string | null; instanceId?: string | null; problem: string }[];
+  ignored?: IgnoredField[];
+  mode?: 'overwrite' | 'create';
+  /** overwrite mode: the per-Pal diff, same shape the bulk editor shows. */
+  pals?: BulkEditPal[];
+  palsChanged?: number;
+  palsUnchanged?: number;
+  fieldsChanged?: number;
+  /** create mode: the same-species Pal whose record will be copied. */
+  templateInstanceId?: string;
+  speciesId?: string;
+  source?: { speciesName: string; nickname: string; level: number };
+  slotIndices?: number[];
+  containerId?: string;
+  planHash: string;
+  applied?: boolean;
+}
+
+export interface PalImportResult {
+  ok: boolean;
+  applied: boolean;
+  mode: 'overwrite' | 'create';
+  ignored?: IgnoredField[];
+  backupId: string;
+  verified: boolean;
+  /** create mode. */
+  newInstanceIds?: string[];
+  slotIndices?: number[];
+  /** overwrite mode. */
+  palsChanged?: number;
+  fieldsChanged?: number;
+}
+
 export interface CloneResult {
   ok: boolean;
   applied: boolean;

@@ -135,12 +135,14 @@ const ROUTES: RouteRule[] = [
   { pattern: /^edit\/pal-containers$/, methods: ['GET'], capability: CAPABILITIES.SAVE_EDIT_FULL, feature: null },
   { pattern: /^edit\/pal\/clone\/preview$/, methods: ['POST'], capability: CAPABILITIES.SAVE_EDIT_FULL, feature: null },
   { pattern: /^edit\/pal\/clone$/, methods: ['POST'], capability: CAPABILITIES.SAVE_EDIT_FULL, feature: null },
+  { pattern: /^edit\/pal\/import\/preview$/, methods: ['POST'], capability: CAPABILITIES.SAVE_EDIT_FULL, feature: null },
+  { pattern: /^edit\/pal\/import$/, methods: ['POST'], capability: CAPABILITIES.SAVE_EDIT_FULL, feature: null },
   // Scanning for illegal Pals is a read — it is how an admin finds out whether
   // anyone has been cheating, and that must not require the write capability.
   { pattern: /^palcheck\/scan$/, methods: ['GET'], capability: CAPABILITIES.VIEW_DETAIL, feature: null },
   { pattern: /^palcheck\/repair\/preview$/, methods: ['POST'], capability: CAPABILITIES.SAVE_EDIT_FULL, feature: null },
   { pattern: /^palcheck\/repair$/, methods: ['POST'], capability: CAPABILITIES.SAVE_EDIT_FULL, feature: null },
-  { pattern: /^export\/(world|player|guild|base|container)$/, methods: ['GET'], capability: CAPABILITIES.VIEW_DETAIL, feature: null },
+  { pattern: /^export\/(world|player|guild|base|container|pal)$/, methods: ['GET'], capability: CAPABILITIES.VIEW_DETAIL, feature: null },
   { pattern: /^reports$/, methods: ['GET'], capability: CAPABILITIES.VIEW_DETAIL, feature: FEATURES.ITEMS },
   { pattern: /^reports\/[a-z-]+$/, methods: ['GET'], capability: CAPABILITIES.VIEW_DETAIL, feature: FEATURES.ITEMS },
   { pattern: /^items$/, methods: ['GET'], capability: CAPABILITIES.VIEW_DETAIL, feature: FEATURES.ITEMS },

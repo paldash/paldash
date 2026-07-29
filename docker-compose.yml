@@ -133,10 +133,18 @@ services:
       #
       # The dashboard container itself never needs root and never sees the
       # Docker socket: the docker-proxy sidecar below holds it and exposes only
-      # container start/stop/restart. Uncomment that service, then these:
-      # - STOP_COMMAND=docker -H tcp://docker-proxy:2375 stop palworld-server
-      # - START_COMMAND=docker -H tcp://docker-proxy:2375 start palworld-server
-      # - RESTART_COMMAND=docker -H tcp://docker-proxy:2375 restart palworld-server
+      # container start/stop/restart. Uncomment that service, then these.
+      #
+      # These call the Docker HTTP API with `node`, NOT the `docker` CLI, which
+      # is deliberately not installed in the runtime image (~35 MB for one
+      # feature). Node ships a global fetch and the image is node:20, so this
+      # needs nothing extra. `304` is success on purpose: the API returns it when
+      # the container was already in the requested state, and treating that as a
+      # failure would make "stop the server" error out exactly when the server is
+      # already stopped. See docs/DEPLOYMENT.md §4.
+      # - STOP_COMMAND=node -e "fetch('http://docker-proxy:2375/containers/palworld-server/stop',{method:'POST'}).then(r=>process.exit(r.status<300||r.status===304?0:1)).catch(()=>process.exit(1))"
+      # - START_COMMAND=node -e "fetch('http://docker-proxy:2375/containers/palworld-server/start',{method:'POST'}).then(r=>process.exit(r.status<300||r.status===304?0:1)).catch(()=>process.exit(1))"
+      # - RESTART_COMMAND=node -e "fetch('http://docker-proxy:2375/containers/palworld-server/restart',{method:'POST'}).then(r=>process.exit(r.status<300||r.status===304?0:1)).catch(()=>process.exit(1))"
       #
       # Leave them unset to drive it by hand instead — stopping the palworld
       # service does not affect this container, so the dashboard stays up and

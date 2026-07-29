@@ -13,6 +13,8 @@ import type {
   PalContainer,
   ClonePlan,
   CloneResult,
+  PalImportPlan,
+  PalImportResult,
   SlotPatch,
   SlotEditPlan,
   SlotEditResult,
@@ -263,6 +265,46 @@ export async function applyClone(
   return saveFetch(`/edit/pal/clone?planHash=${encodeURIComponent(planHash)}`, {
     method: 'POST',
     body: JSON.stringify({ instanceId, containerId, count, changes: changes ?? null }),
+  });
+}
+
+// ─── Pal import ──────────────────────────────────────────
+//
+// The document is passed through untouched: it is a `saveexport` envelope whose
+// checksum covers the payload, so anything this client "helpfully" normalised
+// would fail verification on the backend.
+
+export async function previewPalImport(
+  document: unknown,
+  mode: 'overwrite' | 'create',
+  target: { instanceId?: string; containerId?: string } = {}
+): Promise<PalImportPlan> {
+  return saveFetch('/edit/pal/import/preview', {
+    method: 'POST',
+    body: JSON.stringify({
+      document,
+      mode,
+      instanceId: target.instanceId ?? '',
+      containerId: target.containerId ?? '',
+    }),
+  });
+}
+
+export async function applyPalImport(
+  document: unknown,
+  mode: 'overwrite' | 'create',
+  planHash: string,
+  target: { instanceId?: string; containerId?: string; templateInstanceId?: string } = {}
+): Promise<PalImportResult> {
+  return saveFetch(`/edit/pal/import?planHash=${encodeURIComponent(planHash)}`, {
+    method: 'POST',
+    body: JSON.stringify({
+      document,
+      mode,
+      instanceId: target.instanceId ?? '',
+      containerId: target.containerId ?? '',
+      templateInstanceId: target.templateInstanceId ?? '',
+    }),
   });
 }
 

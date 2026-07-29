@@ -147,9 +147,21 @@ def test_a_tampered_document_is_refused_before_planning():
 
 
 def test_unsupported_kinds_are_refused_with_a_reason():
-    doc = saveexport.envelope("player", {"player": {}, "pals": []}, "W")
+    doc = saveexport.envelope("world", {"anything": True}, "W")
 
-    with pytest.raises(saveimport.ImportRefused, match="not implemented"):
+    with pytest.raises(saveimport.ImportRefused, match="not 'world'"):
+        saveimport.plan_container_import(doc, CURRENT)
+
+
+def test_a_pal_document_is_refused_by_pointing_at_the_pal_importer():
+    """
+    Refusing is right — this module only writes containers — but a refusal that
+    does not say where the feature *does* live reads as "unsupported" when it is
+    actually "wrong door".
+    """
+    doc = saveexport.envelope("pal", {"pal": {"instanceId": "a"}}, "W")
+
+    with pytest.raises(saveimport.ImportRefused, match="palimport"):
         saveimport.plan_container_import(doc, CURRENT)
 
 

@@ -14,6 +14,7 @@ import CharacterEditor from './character-editor';
 import BulkPalEditor from './bulk-pal-editor';
 import SlotEditor from './slot-editor';
 import PalCheck from './pal-check';
+import PalImport from './pal-import';
 
 /**
  * Save Tools.
@@ -254,6 +255,9 @@ docker compose start palworld    # bring it back`}
           <CharacterEditor canEdit={canEdit} />
           <BulkPalEditor canEdit={canEdit} />
           <SlotEditor canEdit={canEdit} />
+          <div className="glass-card" style={{ padding: 16 }}>
+            <PalImport canEdit={canEdit} />
+          </div>
         </>
       ) : (
         <div className="glass-card" style={{ padding: 16, opacity: 0.75 }}>

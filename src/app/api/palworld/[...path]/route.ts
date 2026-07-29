@@ -114,7 +114,15 @@ async function proxyRequest(
       if (body) init.body = body;
     }
 
-    const res = await fetch(`${PALWORLD_REST_URL}${apiPath}`, init);
+    // The privacy lookup does not depend on the game's answer, so it is started
+    // alongside rather than after it. Sequentially it added ~1 ms of loopback to
+    // every live-position poll; concurrently it adds nothing, because the game
+    // server's own round trip is the longer of the two and always was.
+    const needsPrivacy = endpoint === 'players';
+    const [res, hidden] = await Promise.all([
+      fetch(`${PALWORLD_REST_URL}${apiPath}`, init),
+      needsPrivacy ? hiddenPlayerUids(getSessionToken(request)) : Promise.resolve(new Set<string>()),
+    ]);
 
     if (!res.ok) {
       return NextResponse.json(
@@ -131,7 +139,6 @@ async function proxyRequest(
       // Per-player privacy applies to live positions too. Without this a player
       // who hid themselves would disappear from the save-derived map and keep
       // showing as a live dot on the same screen.
-      const hidden = await hiddenPlayerUids(getSessionToken(request));
       if (hidden.size) {
         players = players.filter(
           (p) => !hidden.has(normaliseUid(p.userId ?? p.playerId))

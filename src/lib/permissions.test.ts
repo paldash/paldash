@@ -75,6 +75,10 @@ describe('describeSavePath', () => {
       ['edit/pal-containers', 'GET', CAPABILITIES.SAVE_EDIT_FULL],
       ['edit/pal/clone', 'POST', CAPABILITIES.SAVE_EDIT_FULL],
       ['edit/pal/clone/preview', 'POST', CAPABILITIES.SAVE_EDIT_FULL],
+      ['edit/pal/import', 'POST', CAPABILITIES.SAVE_EDIT_FULL],
+      ['edit/pal/import/preview', 'POST', CAPABILITIES.SAVE_EDIT_FULL],
+      // A Pal export is a read, at the same gate as every other export.
+      ['export/pal', 'GET', CAPABILITIES.VIEW_DETAIL],
       ['palcheck/scan', 'GET', CAPABILITIES.VIEW_DETAIL],
       ['palcheck/repair', 'POST', CAPABILITIES.SAVE_EDIT_FULL],
       ['palcheck/repair/preview', 'POST', CAPABILITIES.SAVE_EDIT_FULL],

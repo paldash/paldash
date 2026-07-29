@@ -35,7 +35,7 @@ logger = logging.getLogger(__name__)
 
 SCHEMA_VERSION = 1
 
-KINDS = ("world", "player", "guild", "base", "container")
+KINDS = ("world", "player", "guild", "base", "container", "pal")
 
 
 class ExportError(Exception):
@@ -238,12 +238,37 @@ def export_container(sections: dict, container_id: str) -> dict:
     )
 
 
+def export_pal(sections: dict, instance_id: str) -> dict:
+    """
+    One Pal, in exactly the shape a `player` export embeds in its `pals` list.
+
+    Deliberately the same dict, not a reshaped one. `palimport` reads both kinds
+    by pulling Pals out of the payload, so one export format covers "put this Pal
+    back" and "put this player's whole team back" — and there is no second shape
+    to keep in sync when a field is added to the parser.
+    """
+    pal = next(
+        (p for p in sections.get("pals", []) if p.get("instanceId") == instance_id), None
+    )
+    if pal is None:
+        raise ExportError(f"No Pal {instance_id} in the current parse")
+
+    return envelope(
+        "pal",
+        {"pal": pal},
+        sections.get("worldGuid", ""),
+        palName=pal.get("nickname") or "",
+        speciesId=pal.get("speciesId") or "",
+    )
+
+
 BUILDERS = {
     "world": (export_world, False),
     "player": (export_player, True),
     "guild": (export_guild, True),
     "base": (export_base, True),
     "container": (export_container, True),
+    "pal": (export_pal, True),
 }
 
 

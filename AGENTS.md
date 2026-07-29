@@ -224,8 +224,52 @@ be fabricated. `extract_containers` exposes `hasDynamicId` so this is caught at
 preview time. An empty slot on disk is `static_id: ""`, `count: 0` and a zeroed
 `dynamic_id` — read off the reference world, not assumed.
 
-Only `container` imports exist. Player, Pal and technology imports are refused
-with a reason until Phase 7's per-field validation schema exists.
+`container` and Pal imports exist. Player and technology imports are still refused
+with a reason.
+
+## A Pal import is a translation, not a third writer
+
+`palimport.py` has no `guarded_save_write` call, no property writing and no record
+creation. Like `slotedit.py`, it turns a document into the change set an existing
+writer already takes:
+
+    overwrite  ->  charedit.plan_pal_batch / apply_pal_batch
+    create     ->  palclone.plan_clone / apply_clone
+
+**`apply_import` reads the document only — it never loads the world.** Both writers
+open `Level.sav` inside the write guard and re-plan against that live tree. Planning
+here as well would validate against a copy read moments earlier: a second source of
+truth, and guaranteed to be the staler one.
+
+**One format, shared with the export.** `saveexport` kind `pal` emits the *same
+dict* a `player` export embeds in `pals`, which is the same dict the parser
+produces. So "restore this Pal" and "restore this player's team" are one file read
+two ways, and adding a parser field does not need a second shape updated.
+
+**An export says more than an import may write**, and the difference is *reported*,
+never dropped. `ownerUid`, `containerId`, `slotIndex`, `guildId`, `hp`, `isBoss`,
+`speciesId` and `gender` all appear in an export and none are settable — they
+describe where a Pal *is*, not what it is. `extract_changes` returns them in
+`ignored` with a reason and the UI lists them before the apply button, because
+someone moving a Pal between servers would otherwise reasonably believe ownership
+came with it.
+
+`IMPORTABLE` is **derived from `editschema.PAL_FIELDS`**, not listed. A hand-written
+list is how a new field silently stays unimportable, or a removed one keeps being
+written by something that no longer validates it.
+
+**Create needs a same-species template already in the world.** `palclone`
+deep-copies a record precisely because the right `CustomVersionData` and
+`permission_tribe_id` are whatever this save uses, so a species cannot be
+fabricated — no template means a refusal naming the species, not a guess. Gender
+comes from the template too, and a document that disagrees is reported rather than
+half-applied.
+
+**Create is one Pal per request.** Not caution: `apply_clone`'s verification — both
+arrays grew by exactly *n*, no other container changed length — is written for one
+request, and a batch reusing it would be checking the wrong invariant. `overwrite`
+takes any number because `apply_pal_batch` is already a batch writer with the same
+all-or-nothing guarantee.
 
 ## Security boundary
 
@@ -503,3 +547,54 @@ a live dot on the same screen.
 
 Privacy governs map and roster visibility only. The audit log, account management
 and save editing all work on real identities regardless.
+
+## Caching is keyed on what changes, never on a timer
+
+`backend/viewcache.py`. Two keys, because there are two reasons data changes:
+
+- **`derived(key, build)`** — anything computed from `Level.sav`, keyed on
+  `savecache.generation()`. That counter moves only when a parse completes, and
+  **replacing the parse result is itself the invalidation**, so there is no
+  `invalidate()` call next to a new write for anyone to forget.
+- **`per_file(path, build)`** — anything computed from a file, keyed on its
+  `(size, mtime)`. A player save rewritten by the game, by the editor, or by a
+  backup restore invalidates itself. Same stamp `read_sav_bytes` uses for its
+  torn-read guard: if it is stable enough to trust a read against, it is stable
+  enough to key a cache on.
+
+No TTLs. A time-based cache is wrong in both directions here — stale while the
+world has already changed, and re-doing work while it hasn't.
+
+**What was actually slow, measured on the reference world:**
+
+| Path | Before | After |
+|---|---:|---:|
+| `get_players()` (5 players) | 11,500 µs | 34 µs |
+| `/api/pals` enrichment (1,905) | 12 ms | ~0 |
+| `/api/mapobjects` naming (3,370) | 10 ms | ~0 |
+
+`get_players()` was the one that mattered: four endpoints call it, the cost is
+*per player*, and each player's `.sav` was being Oodle-decompressed and
+GVAS-parsed from scratch every time. A 32-player server was paying ~73 ms of
+identical parsing on every roster, progress and discovery request.
+
+`savefiles._player_index` is part of the same fix. The old exact-match fast path
+**could never fire on a case-sensitive filesystem** — `Level.sav` supplies a
+lowercase dashed GUID and the file on disk is uppercase undashed — so every
+lookup fell through to a full `os.listdir` plus a normalise-and-compare per
+entry, once per player per request. It is now a normalised index keyed on the
+directory's mtime, which changes exactly when a save is added or removed.
+Sanitisation still runs on the raw uid *before* the index: the index is a lookup
+table, not a permission check.
+
+**Authorisation and privacy decisions are deliberately not cached.** Measured on
+a 20-account database the entire per-request privacy filter costs **~60 µs** —
+against ~12 ms to name a world's Pals. The failure mode of a stale entry is not a
+slow page, it is a player who asked to be hidden still being shown to the peer
+they hid from. 60 µs does not buy that risk.
+
+**Cached values are returned by reference, not copied** — copying a 1.3 MB
+payload per request gives back most of what the cache saves. Endpoints that
+narrow a cached list (`?owner=`, `?category=`) filter into a new list and never
+edit an element in place. Filtering happens *after* the cached build for the same
+reason: keying on the query would mean the shared work is never shared.

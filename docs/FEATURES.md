@@ -59,8 +59,9 @@ Legend: ✅ works · 🟡 works with a caveat · 🔴 not built
 | Near-full base warnings | ✅ | **Phase 5**, 90 % threshold |
 | Reports: CSV / JSON / TXT | ✅ | **Phase 5**, 4 report types |
 | Container sorting (stackables / all) | ✅ | Conservation-verified, auto-rollback |
-| Structured export (5 kinds) | ✅ | **Phase 6**, checksummed and verifiable |
+| Structured export (6 kinds) | ✅ | **Phase 6**, checksummed and verifiable; `pal` added later |
 | Container import | ✅ | **Phase 6**, dry-run diff + plan hash + scope-verified write |
+| Pal import (`pal` / `player` export) | ✅ | Overwrite existing or add a new Pal; unwritable fields listed, not dropped |
 | Pal editor (level, EXP, rank, IVs, nickname) | ✅ | **Phase 7**, preview → apply → verify → rollback. Needs `SECURITY_LEVEL=full` |
 | Base-scoped sorting | ✅ | **Phase 5** |
 | Real stack limits | ✅ | **Phase 5**, `max(authoritative, observed)` |
@@ -110,7 +111,7 @@ Legend: ✅ works · 🟡 works with a caveat · 🔴 not built
 | Item | Reason |
 |---|---|
 | General save editor | Phase 7. Returns 501. The write path is proven; per-field validation is not |
-| Save import beyond containers | Phase 7. Container import ships; player/Pal/technology imports refused until the per-field schema exists |
+| Player and technology imports | Container and Pal imports ship; these two stay refused with a reason |
 | Migration (Steam ↔ dedicated ↔ Game Pass) | Phase 9 |
 | Mod detection / plugin support | Phase 9; full mod save parsing is out of scope permanently |
 | Cheat mode / arbitrary value injection | **Deliberately never.** Directly opposed to the corruption-safety goal |

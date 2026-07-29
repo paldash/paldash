@@ -33,6 +33,7 @@ import gamedata
 import lifecycle
 import palcheck
 import palclone
+import palimport
 import policy as policy_module
 import privacy
 import reports
@@ -44,6 +45,7 @@ import saveimport
 import slotedit
 import schedule as schedule_module
 import settings_ini
+import viewcache
 import backup as backup_module
 from backupstore import BackupError
 from parser import (
@@ -350,6 +352,7 @@ def health() -> dict[str, Any]:
         "breedingData": breeding.data_available(),
         "gameData": gamedata.available(),
         "lifecycle": lifecycle.status(),
+        "viewCache": viewcache.stats(),
     }
 
 
@@ -575,15 +578,10 @@ def get_guilds(request: Request) -> list[dict]:
     return out
 
 
-@app.get("/api/pals")
-def get_pals(owner: Optional[str] = None) -> list[dict]:
-    pals = savecache.get_section("pals")
-    if owner:
-        key = owner.lower()
-        pals = [p for p in pals if (p.get("ownerUid") or "").lower().startswith(key)]
-
+def _enriched_pals() -> list[dict]:
+    """Every Pal with its friendly names attached. ~12 ms on a 1,905-Pal world."""
     enriched = []
-    for pal in pals:
+    for pal in savecache.get_section("pals"):
         details = gamedata.describe_pal(pal.get("speciesId") or "")
         enriched.append(
             {
@@ -601,6 +599,23 @@ def get_pals(owner: Optional[str] = None) -> list[dict]:
             }
         )
     return enriched
+
+
+@app.get("/api/pals")
+def get_pals(owner: Optional[str] = None) -> list[dict]:
+    """
+    Pals, named. Enrichment is cached per parse rather than redone per request.
+
+    Filtering happens *after* the cached build, not before: `?owner=` would
+    otherwise make the cache key depend on the query and the shared work would
+    never be shared. Narrowing 1,905 rows costs microseconds; naming them costs
+    milliseconds.
+    """
+    pals = viewcache.derived("pals:enriched", _enriched_pals)
+    if owner:
+        key = owner.lower()
+        pals = [p for p in pals if (p.get("ownerUid") or "").lower().startswith(key)]
+    return pals
 
 
 @app.get("/api/bases/storage")
@@ -623,16 +638,21 @@ def get_one_base_storage(base_id: str) -> dict:
     raise HTTPException(404, f"No base {base_id}, or the world has not been parsed yet")
 
 
+def _named_map_objects() -> list[dict]:
+    """~10 ms across 3,370 placed objects, and identical until the next parse."""
+    return [
+        {**o, "name": gamedata.structure_name(o.get("objectId") or "")}
+        for o in savecache.get_section("mapObjects")
+    ]
+
+
 @app.get("/api/mapobjects")
 def get_map_objects(category: Optional[str] = None) -> list[dict]:
     """Placed world objects with coordinates: chests, palboxes, farms, benches."""
-    objects = savecache.get_section("mapObjects")
+    objects = viewcache.derived("mapObjects:named", _named_map_objects)
     if category:
         objects = [o for o in objects if o.get("category") == category]
-    return [
-        {**o, "name": gamedata.structure_name(o.get("objectId") or "")}
-        for o in objects
-    ]
+    return objects
 
 
 # ─── Static world data (bundled, not from the save) ──────
@@ -796,28 +816,41 @@ def list_players(request: Request) -> list[dict]:
     )
 
 
+def _read_player_sav(path: str, uid: str) -> dict:
+    """One player's own save, decompressed and extracted. ~2.3 ms."""
+    gvas = load_gvas(path)
+    if not gvas:
+        return {}
+    try:
+        detail = dict(extract_player_save(gvas, uid))
+        detail["progress"] = extract_player_progress(gvas)
+        return detail
+    except Exception as e:  # noqa: BLE001
+        logger.warning("Player save extract failed for %s: %s", uid, e)
+        return {}
+
+
 def get_players() -> list[dict]:
     """
     Players from Level.sav, enriched with their own .sav where available.
 
-    Player .sav files are ~100KB, so reading them is cheap enough to do inline;
-    only Level.sav goes through the background worker.
-    """
-    players = savecache.get_section("players")
-    enriched = []
+    Each player .sav is Oodle-decompressed and GVAS-parsed, which is ~2.3 ms —
+    small enough to have looked free, except that four endpoints call this
+    (`/api/players`, `/api/progress`, `/api/world/discoveries`,
+    `/api/players/{uid}`) and the cost is per player. A 32-player server was
+    paying ~73 ms of identical parsing on every one of those requests.
 
-    for player in players:
+    `viewcache.per_file` keys on the file's own size and mtime, so a player
+    logging out, the player editor writing, or a backup restore all invalidate it
+    without anything having to remember to say so.
+    """
+    enriched = []
+    for player in savecache.get_section("players"):
         entry = dict(player)
         uid = (player.get("uid") or "").replace("-", "")
         path = get_player_sav_path(uid) if uid else None
         if path:
-            gvas = load_gvas(path)
-            if gvas:
-                try:
-                    entry.update(extract_player_save(gvas, uid))
-                    entry["progress"] = extract_player_progress(gvas)
-                except Exception as e:  # noqa: BLE001
-                    logger.warning("Player save extract failed for %s: %s", uid, e)
+            entry.update(viewcache.per_file(path, lambda p=path, u=uid: _read_player_sav(p, u)))
         enriched.append(entry)
 
     return enriched
@@ -1359,7 +1392,8 @@ def _export_sections() -> dict:
 @app.get("/api/export/{kind}")
 def export_save(kind: str, request: Request, id: Optional[str] = None):
     """
-    Export world / player / guild / base / container as a verifiable JSON document.
+    Export world / player / guild / base / container / pal as a verifiable JSON
+    document.
 
     Read-only. Gated on VIEW_DETAIL and audited, because an export is the whole
     inventory (and real Steam IDs) in one file.
@@ -2144,6 +2178,102 @@ def palcheck_repair(
             "fieldsChanged": result["fieldsChanged"],
             "palsWithUnfixableIssues": result["palsWithUnfixableIssues"],
             "backupId": result["backupId"],
+        },
+        ip=ip,
+    )
+    return result
+
+
+# ─── Pal import ──────────────────────────────────────────
+
+
+class PalImportRequest(BaseModel):
+    # A saveexport envelope of kind 'pal' or 'player' — the same file the export
+    # endpoint produces, unmodified.
+    document: dict
+    mode: str = "overwrite"
+    # overwrite: optional, forces every Pal in the document onto one target.
+    instanceId: str = ""
+    # create: required destination.
+    containerId: str = ""
+    # create: the template chosen at preview time. See palimport.apply_import.
+    templateInstanceId: str = ""
+
+
+@app.post("/api/edit/pal/import/preview")
+def preview_pal_import(req: PalImportRequest, request: Request) -> dict:
+    """
+    Dry-run a Pal import. Read-only.
+
+    The response carries `ignored`: the fields the document contains that this
+    build will not write, each with a reason. An export says more than an import
+    may write — ownership, container and slot describe where a Pal *is* — and
+    dropping those silently would let someone believe a Pal changed hands.
+    """
+    authz.require(request, roles_module.SAVE_EDIT_FULL)
+    try:
+        return {
+            **palimport.plan_import(
+                _clone_gvas(), req.document, req.mode,
+                instance_id=req.instanceId, container_id=req.containerId,
+            ),
+            "applied": False,
+        }
+    except palimport.PalImportRefused as e:
+        raise HTTPException(422, str(e))
+    except palimport.PalImportError as e:
+        raise HTTPException(400, str(e))
+
+
+@app.post("/api/edit/pal/import")
+def import_pal(req: PalImportRequest, request: Request, planHash: str = Query(...)) -> dict:
+    """
+    Apply a Pal import.
+
+    Writes nothing itself: `overwrite` goes to the batch Pal editor and `create`
+    to the cloner, both of which re-plan against the live world inside the write
+    guard and refuse a stale plan. This endpoint's job is the audit record and the
+    error mapping.
+    """
+    user = authz.require_user(request, roles_module.SAVE_EDIT_FULL)
+    ip = authz.client_ip(request)
+
+    def failed(message: str, status: int):
+        audit.record(
+            audit.SAVE_EDIT, username=user["username"], role=user["role"],
+            target=f"palimport:{req.mode}", detail=message, ip=ip,
+            result=audit.RESULT_FAILED,
+        )
+        return HTTPException(status, message)
+
+    try:
+        result = palimport.apply_import(
+            req.document, req.mode,
+            instance_id=req.instanceId, container_id=req.containerId,
+            template_instance_id=req.templateInstanceId,
+            expected_plan_hash=planHash,
+        )
+    except ServerRunningError as e:
+        raise failed(str(e), 423)
+    except palimport.PalImportRefused as e:
+        raise failed(str(e), 422)
+    except palimport.PalImportError as e:
+        raise failed(str(e), 400)
+    except (charedit.EditError, palclone.CloneError) as e:
+        raise failed(str(e), 409)
+    except Exception as e:  # noqa: BLE001
+        logger.exception("Pal import failed")
+        raise failed(f"Pal import failed: {e}", 500)
+
+    audit.record(
+        audit.SAVE_EDIT, username=user["username"], role=user["role"],
+        target=f"palimport:{req.mode}",
+        detail={
+            "mode": result["mode"],
+            "ignoredFields": sorted({i["field"] for i in result.get("ignored") or [] if i.get("field")}),
+            "backupId": result.get("backupId"),
+            **({"newInstanceIds": result["newInstanceIds"]} if "newInstanceIds" in result
+               else {"palsChanged": result.get("palsChanged")}),
         },
         ip=ip,
     )

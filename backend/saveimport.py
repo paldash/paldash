@@ -153,11 +153,15 @@ def plan_container_import(document: dict, current_slots: list[dict]) -> dict:
 
     kind = report["kind"]
     if kind not in SUPPORTED_KINDS:
+        extra = (
+            " Pal documents ('pal' and 'player' exports) are imported by `palimport`, "
+            "which routes them to the Pal editor rather than through this module."
+            if kind in ("pal", "player") else
+            " Player fields and technology points still need per-field validation, and "
+            "importing them unvalidated is how a world stops loading."
+        )
         raise ImportRefused(
-            f"Importing a {kind!r} export is not implemented. This build imports "
-            f"{', '.join(SUPPORTED_KINDS)} only — player, Pal and technology fields need the "
-            "per-field validation schema that is not built yet, and importing them "
-            "unvalidated is how a world stops loading."
+            f"This module imports {', '.join(SUPPORTED_KINDS)} exports, not {kind!r}." + extra
         )
 
     payload = document["payload"]

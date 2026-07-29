@@ -48,6 +48,10 @@ The bundled `docker-compose.yml` runs both the game server and the dashboard on 
 private bridge network sharing `./palworld`. If you already run a server, don't
 use that file — use the snippet below.
 
+**`docs/DEPLOYMENT.md`** goes deeper: which server images are actually tested,
+matching PUID/PGID on the shared mount, read-only mode, working stop/start
+commands, and the three container traps that only show up on a real build.
+
 ---
 
 ## Adding this to an existing compose file
@@ -191,8 +195,14 @@ configured, in which case it becomes "Announce & restart".
 Optional, and off by default because it requires container control:
 
 ```yaml
-- RESTART_COMMAND=docker -H tcp://docker-proxy:2375 restart palworld-server
+- RESTART_COMMAND=node -e "fetch('http://docker-proxy:2375/containers/palworld-server/restart',{method:'POST'}).then(r=>process.exit(r.status<300||r.status===304?0:1)).catch(()=>process.exit(1))"
 ```
+
+That calls the Docker HTTP API with `node`, **not** the `docker` CLI — which is
+deliberately not installed in the runtime image, so a command beginning with
+`docker` fails with "not found". Node ships a global fetch and the image is
+node:20, so this needs nothing extra. `docs/DEPLOYMENT.md` §4 covers stop/start
+as well, and why `304` counts as success.
 
 Mounting `/var/run/docker.sock` into the dashboard is **root-equivalent on the
 host** — a bad trade for a container with a web login. Use the commented
@@ -472,8 +482,26 @@ All of it is implemented and verified against a real world:
 | Pal editor | Name, level, EXP, condenser rank, IVs, passive and active skills |
 | Bulk Pal edits | One change set across many Pals, all-or-nothing |
 | Pal duplication | Copy a Pal into a chosen palbox slot |
+| **Pal import** | From a `pal` or `player` export — level, stars, skills, passives, IVs |
 | Player editor | Name, level, EXP, technology and ancient points |
 | Illegal-Pal check | Scan for out-of-range stats, repair by clamping |
+
+### Importing a Pal
+
+Export a Pal (or a whole player, which includes their team) and import it back —
+same file, unmodified. Two modes:
+
+- **Overwrite** writes the file's values onto Pals already in the world, matched by
+  instance id. Re-importing this world's own export is therefore a restore.
+- **Add as a new Pal** creates one, by copying a same-species Pal already in the
+  save and applying the file's fields. If you have never had that species, the
+  import is refused and says so — a Pal's record carries values specific to the save
+  it lives in, so one is copied rather than invented.
+
+**The preview lists every field it will *not* write.** An export contains a Pal's
+owner, container, slot and guild; none of those are editable. Dropping them silently
+would let you believe an imported Pal changed hands, so they are shown with a reason
+before you approve anything.
 
 **Permissions are capabilities, not roles.** `save.sort.stackables`,
 `save.sort.all` and `save.edit.full` are separate grants, enforced in the API
@@ -515,8 +543,8 @@ types, per-item totals identical, zero mismatches.
 
 ```bash
 ./scripts/setup-dev.sh          # builds .venv, compiles palsav from refs/
-.venv/bin/python -m pytest      # backend: 293 tests, ~140s
-npm test                        # frontend: 34 tests, <1s
+.venv/bin/python -m pytest      # backend: 743 tests, ~140s
+npm test                        # frontend: 64 tests, <1s
 ```
 
 The suite is in tiers:

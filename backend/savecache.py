@@ -56,7 +56,17 @@ _state: dict[str, Any] = {
     "startedAt": 0.0,
     "lastError": None,
     "lastDurationSec": None,
+    # Bumped every time `data` is replaced. `viewcache` keys derived views on
+    # it, so anything computed from a parse is recomputed exactly once per
+    # parse instead of once per request — and there is no invalidation call
+    # anywhere to forget, because replacing the data *is* the invalidation.
+    "generation": 0,
 }
+
+
+def generation() -> int:
+    """Which parse the current data came from. 0 means nothing has loaded."""
+    return int(_state["generation"])
 
 
 def _load_from_disk() -> None:
@@ -69,6 +79,7 @@ def _load_from_disk() -> None:
             _state["data"] = cached
             _state["parsedAt"] = cached.get("parsedAt", 0.0)
             _state["sourceMtime"] = cached.get("sourceMtime", 0.0)
+            _state["generation"] += 1
             logger.info(
                 "Loaded cached save data from disk (%s)",
                 cached.get("counts", {}),
@@ -153,6 +164,7 @@ def _run_worker() -> None:
             _state["sourceMtime"] = source_mtime
             _state["lastError"] = None
             _state["lastDurationSec"] = round(duration, 1)
+            _state["generation"] += 1
 
         try:
             os.replace(out_path, _CACHE_FILE)
