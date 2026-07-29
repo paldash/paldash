@@ -200,6 +200,27 @@ export async function applyPalEdit(
   );
 }
 
+export async function previewPlayerEdit(
+  uid: string,
+  changes: Record<string, unknown>
+): Promise<EditPlan> {
+  return saveFetch(`/edit/player/${encodeURIComponent(uid)}/preview`, {
+    method: 'POST',
+    body: JSON.stringify({ changes }),
+  });
+}
+
+export async function applyPlayerEdit(
+  uid: string,
+  changes: Record<string, unknown>,
+  planHash: string
+): Promise<EditResult> {
+  return saveFetch(
+    `/edit/player/${encodeURIComponent(uid)}?planHash=${encodeURIComponent(planHash)}`,
+    { method: 'POST', body: JSON.stringify({ changes }) }
+  );
+}
+
 export type ExportKind = 'world' | 'player' | 'guild' | 'base' | 'container';
 
 /**

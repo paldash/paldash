@@ -209,11 +209,22 @@ describe('describeSavePath', () => {
       });
     });
 
-    it('exposes no player-editing route yet', () => {
-      // Player editing is not implemented; an allowlist entry must not exist
-      // before the backend can validate it.
-      expect(describeSavePath('edit/player/abcd-1234', 'POST').allowed).toBe(false);
+    it('gates player editing behind the editor capability', () => {
+      expect(describeSavePath('edit/player/abcd-1234/preview', 'POST')).toMatchObject({
+        allowed: true,
+        capability: CAPABILITIES.SAVE_EDIT_FULL,
+      });
+      expect(describeSavePath('edit/player/abcd-1234', 'POST')).toMatchObject({
+        allowed: true,
+        capability: CAPABILITIES.SAVE_EDIT_FULL,
+      });
+    });
+
+    it('refuses malformed character-edit paths', () => {
       expect(describeSavePath('edit/pal/abcd/../player/x', 'POST').allowed).toBe(false);
+      expect(describeSavePath('edit/player/abcd/extra', 'POST').allowed).toBe(false);
+      expect(describeSavePath('edit/guild/abcd', 'POST').allowed).toBe(false);
+      expect(describeSavePath('edit/player/abcd-1234', 'GET').allowed).toBe(false);
     });
 
     it('never exposes either import route to guests', () => {

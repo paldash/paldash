@@ -187,3 +187,140 @@ def test_applying_a_plan_by_hand_round_trips():
     assert view["rank"] == 5
     assert view["ivs"]["hp"] == 100
     assert view["level"] == 10, "an unrelated field was disturbed"
+
+
+# ─── Player editing ──────────────────────────────────────────────
+
+
+def player_character(level=30, exp=None, nickname="Nirb"):
+    import gamedata
+
+    if exp is None:
+        exp = int(gamedata.load()["palExpTable"][str(level)]["TotalEXP"])
+    return {
+        "IsPlayer": int_prop(True),
+        "NickName": int_prop(nickname),
+        "Level": byte_prop(level),
+        "Exp": int_prop(exp),
+    }
+
+
+def player_save(tech=120, ancient=13, with_tech=True):
+    save = {"bossTechnologyPoint": int_prop(ancient)}
+    if with_tech:
+        save["TechnologyPoint"] = int_prop(tech)
+    return save
+
+
+def test_player_view_merges_both_files():
+    view = charedit.read_player(player_character(level=30), player_save(tech=120, ancient=13))
+
+    assert view["level"] == 30
+    assert view["nickname"] == "Nirb"
+    assert view["technologyPoints"] == 120
+    assert view["ancientTechnologyPoints"] == 13
+
+
+def test_an_absent_technology_property_is_absent_not_zero():
+    """
+    "Nought unspent points" and "this save has never had that property" are
+    different, and only one of them can be written. One of the five players in
+    the reference world has no `TechnologyPoint` at all.
+    """
+    view = charedit.read_player(player_character(), player_save(with_tech=False))
+
+    assert "technologyPoints" not in view
+    assert view["ancientTechnologyPoints"] == 13
+
+
+def test_editing_an_absent_property_is_refused_before_any_write():
+    plan = charedit.plan_player_edit(
+        player_character(), {"technologyPoints": 500}, player_save(with_tech=False)
+    )
+
+    assert not plan["ok"]
+    assert "no 'TechnologyPoint' stored" in plan["problems"][0]["problem"]
+    assert plan["changes"] == []
+
+
+def test_a_valid_player_edit_plans_cleanly():
+    plan = charedit.plan_player_edit(
+        player_character(level=30), {"technologyPoints": 300}, player_save()
+    )
+
+    assert plan["ok"], plan["problems"]
+    assert plan["fieldsChanged"] == 1
+    assert plan["touchesPlayerSave"] is True
+    assert plan["touchesLevelSav"] is False
+
+
+def test_the_plan_says_which_files_it_would_touch():
+    """A player edit can span two files; the UI should be able to say so."""
+    both = charedit.plan_player_edit(
+        player_character(level=30),
+        {"nickname": "Renamed", "technologyPoints": 300},
+        player_save(),
+    )
+
+    assert both["touchesLevelSav"] is True
+    assert both["touchesPlayerSave"] is True
+
+
+def test_player_technology_points_are_capped_at_what_exists():
+    ok = charedit.plan_player_edit(player_character(), {"technologyPoints": 1413}, player_save())
+    over = charedit.plan_player_edit(player_character(), {"technologyPoints": 1414}, player_save())
+
+    assert ok["ok"]
+    assert not over["ok"]
+
+
+def test_player_exp_uses_the_player_curve():
+    """
+    Players and Pals have different EXP curves. Using the Pal one here would
+    reject valid edits and accept invalid ones.
+    """
+    import gamedata
+
+    level = 40
+    player_exp = int(gamedata.load()["palExpTable"][str(level)]["TotalEXP"])
+    pal_exp = int(gamedata.load()["palExpTable"][str(level)]["PalTotalEXP"])
+
+    assert charedit.plan_player_edit(
+        player_character(level=1, exp=0), {"level": level, "exp": player_exp}, player_save()
+    )["ok"]
+    assert not charedit.plan_player_edit(
+        player_character(level=1, exp=0), {"level": level, "exp": pal_exp}, player_save()
+    )["ok"]
+
+
+def test_player_level_respects_the_cap():
+    assert not charedit.plan_player_edit(player_character(), {"level": 81}, player_save())["ok"]
+
+
+def test_unknown_player_fields_are_refused():
+    plan = charedit.plan_player_edit(player_character(), {"godMode": True}, player_save())
+
+    assert not plan["ok"]
+    assert "not a writable player field" in plan["problems"][0]["problem"]
+
+
+def test_pal_only_fields_are_not_writable_on_a_player():
+    for field in ("rank", "ivs.hp"):
+        assert not charedit.plan_player_edit(
+            player_character(), {field: 5}, player_save()
+        )["ok"]
+
+
+def test_writing_player_fields_hits_the_right_shapes():
+    char = player_character(level=30)
+    save = player_save(tech=120)
+
+    charedit._write_property(char, "Level", 55)
+    charedit._write_property(save, "TechnologyPoint", 700)
+
+    assert char["Level"] == {"value": {"type": "None", "value": 55}}   # ByteProperty
+    assert save["TechnologyPoint"] == {"value": 700}                   # IntProperty
+
+    view = charedit.read_player(char, save)
+    assert view["level"] == 55
+    assert view["technologyPoints"] == 700

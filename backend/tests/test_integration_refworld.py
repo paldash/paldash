@@ -592,3 +592,114 @@ def test_dashed_lowercase_uid_finds_the_uppercase_file(refworld):
 
     dashed = f"{stem[:8]}-{stem[8:12]}-{stem[12:16]}-{stem[16:20]}-{stem[20:32]}".lower()
     assert savefiles.get_player_sav_path(dashed, refworld) is not None
+
+
+@pytest.mark.slow
+def test_player_edit_writes_both_files_and_verifies(palsav_available, sandbox):
+    """
+    A player edit spans Level.sav and Players/<UID>.sav, which cannot be written
+    atomically together. This exercises the real pair on a real world.
+    """
+    import charedit
+    from parser import load_gvas, _v
+    from savefiles import get_player_sav_path
+
+    world = sandbox["world"]
+    level = os.path.join(world, "Level.sav")
+
+    # A player who actually stores TechnologyPoint — one of the five does not.
+    players_dir = os.path.join(world, "Players")
+    chosen_uid = None
+    for name in sorted(os.listdir(players_dir)):
+        if not name.endswith(".sav") or "_dps" in name:
+            continue
+        gvas = load_gvas(os.path.join(players_dir, name))
+        save = _v(getattr(gvas, "properties", {}), "SaveData", "value", default={}) or {}
+        if "TechnologyPoint" in save:
+            stem = os.path.splitext(name)[0]
+            chosen_uid = f"{stem[:8]}-{stem[8:12]}-{stem[12:16]}-{stem[16:20]}-{stem[20:32]}".lower()
+            break
+    assert chosen_uid, "no player in the reference world stores TechnologyPoint"
+
+    player_path = get_player_sav_path(chosen_uid, world)
+    assert player_path and os.path.exists(player_path)
+
+    def read_state():
+        char_gvas = load_gvas(level)
+        key_uid = chosen_uid.replace("-", "").lower()
+        char = None
+        for entry in charedit._character_entries(char_gvas):
+            key = entry.get("key") if isinstance(entry, dict) else None
+            if str(_v(key, "PlayerUId", "value", default="") or "").replace("-", "").lower() == key_uid:
+                obj = charedit._save_parameter(entry)
+                if obj is not None and obj.get("IsPlayer", {}).get("value") is True:
+                    char = obj
+                    break
+        save_gvas = load_gvas(player_path)
+        save = _v(getattr(save_gvas, "properties", {}), "SaveData", "value", default={}) or {}
+        return charedit.read_player(char, save)
+
+    before = read_state()
+    new_name = "EditedByTest"
+    new_tech = min(1413, before["technologyPoints"] + 7)
+
+    char_obj, save_obj = _player_objects(level, player_path, chosen_uid)
+    plan = charedit.plan_player_edit(
+        char_obj, {"nickname": new_name, "technologyPoints": new_tech}, save_obj
+    )
+    assert plan["ok"], plan["problems"]
+    assert plan["touchesLevelSav"] and plan["touchesPlayerSave"], "expected a two-file edit"
+
+    result = charedit.apply_player_edit(
+        chosen_uid,
+        {"nickname": new_name, "technologyPoints": new_tech},
+        expected_plan_hash=plan["planHash"],
+    )
+
+    assert result["ok"] is True
+    assert result["verified"] is True
+    assert len(result["filesWritten"]) == 2, result["filesWritten"]
+
+    after = read_state()
+    assert after["nickname"] == new_name          # from Level.sav
+    assert after["technologyPoints"] == new_tech  # from the player's own .sav
+    assert after["level"] == before["level"], "an unrelated field moved"
+
+
+def _player_objects(level_path, player_path, uid):
+    """(character object, player SaveData) for the planner."""
+    import charedit
+    from parser import load_gvas, _v
+
+    key_uid = uid.replace("-", "").lower()
+    gvas = load_gvas(level_path)
+    char = None
+    for entry in charedit._character_entries(gvas):
+        key = entry.get("key") if isinstance(entry, dict) else None
+        if str(_v(key, "PlayerUId", "value", default="") or "").replace("-", "").lower() == key_uid:
+            obj = charedit._save_parameter(entry)
+            if obj is not None and obj.get("IsPlayer", {}).get("value") is True:
+                char = obj
+                break
+    save_gvas = load_gvas(player_path)
+    save = _v(getattr(save_gvas, "properties", {}), "SaveData", "value", default={}) or {}
+    return char, save
+
+
+@pytest.mark.slow
+def test_player_edit_refuses_a_stale_plan_and_writes_nothing(palsav_available, sandbox):
+    import charedit
+
+    level = os.path.join(sandbox["world"], "Level.sav")
+    original = open(level, "rb").read()
+
+    players_dir = os.path.join(sandbox["world"], "Players")
+    stem = os.path.splitext(
+        next(n for n in sorted(os.listdir(players_dir)) if n.endswith(".sav") and "_dps" not in n)
+    )[0]
+    uid = f"{stem[:8]}-{stem[8:12]}-{stem[12:16]}-{stem[16:20]}-{stem[20:32]}".lower()
+
+    with pytest.raises(charedit.EditError, match="no longer matches"):
+        charedit.apply_player_edit(uid, {"nickname": "Nope"}, expected_plan_hash="stale")
+
+    assert open(level, "rb").read() == original

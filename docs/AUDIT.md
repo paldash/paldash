@@ -66,7 +66,7 @@ than attempting all of it.
 | Save parsing engine | 95% | ✅ Phase 5: per-base container linkage, exact rather than spatial |
 | Corruption safety | 85% | Fail-closed, atomic, verified; no audit trail |
 | Backup & restore | 90% | ✅ Phase 4: verified archives, retention, schedule, preview, browser. No cloud targets |
-| Save editing | 60% | ✅ P5 sorting, ✅ P6 import, ✅ P7 schema + Pal editor with UI. Player/bulk still 501 |
+| Save editing | 70% | ✅ P5 sorting, ✅ P6 import, ✅ P7 Pal + player editors with UI. Inventory/bulk still 501 |
 | Live map | 70% | ✅ Phase 2: both maps ship, 174 fast-travel POIs, layers/search. World Tree transform provisional |
 | Reference data | 90% | ✅ Phase 1: full 1.0 DB bundled at 215 KB; icons still not shipped |
 | Auth & accounts | 85% | ✅ Phase 3: accounts, scrypt, revocable sessions, throttling, audit log. No 2FA/reset flow |
@@ -75,10 +75,10 @@ than attempting all of it.
 | Docker | 80% | Genuinely good; needs multi-image validation |
 | Import / export | 80% | ✅ Export complete; container import writes, verifies and rolls back. Player/Pal imports need Phase 7 |
 | Migration tools | 0% | Not started |
-| Testing | 88% | ✅ 508 backend + 49 frontend tests |
+| Testing | 90% | ✅ 521 backend + 50 frontend tests |
 | Documentation | 70% | ✅ Phase 0: `.gitignore` fixed, AGENTS.md written |
 | Reports / export | 60% | ✅ Phase 5: 4 reports × CSV/JSON/TXT. Save import/export is Phase 6 |
-| **Weighted total** | **~90%** | 32% → 36% (P0) → 43% (P1) → 50% (P2) → 62% (P3) → 70% (P4) → 76% (P5) → 79% (P6 export) → 82% (P6 import gate) → 85% (P6 complete) → 87% (P7 schema) → 89% (P7 Pal editor) → 90% (P7 UI) |
+| **Weighted total** | **~92%** | 32% → 36% (P0) → 43% (P1) → 50% (P2) → 62% (P3) → 70% (P4) → 76% (P5) → 79% (P6 export) → 82% (P6 import gate) → 85% (P6 complete) → 87% (P7 schema) → 89% (P7 Pal editor) → 90% (P7 UI) → 92% (P7 player editor) |
 
 ---
 
@@ -627,7 +627,7 @@ Empty-slot structure was read off the reference world rather than assumed: `stat
 **Still to build:** import kinds beyond `container`. Player, Pal and technology imports stay
 refused with a reason. **Depends on Phase 7's per-field validation schema.**
 
-### Phase 7 — General save editor · 🟡 **SCHEMA + PAL EDITOR + UI** (2026-07-29) · **the big one**
+### Phase 7 — General save editor · 🟡 **SCHEMA + PAL & PLAYER EDITORS + UI** (2026-07-29)
 
 Started with the validation schema rather than an editor, because "which values are legal"
 has never existed in this codebase and everything else depends on it.
@@ -693,8 +693,27 @@ servers default to `safe` — so the editor is hidden even from an Owner on a de
 install. The locked-state card now says exactly that and names the variable, rather than a
 bare "no permission".
 
-**Still to build:** the player editor, inventory and bulk edits, illegal-Pal detection and
-repair.
+**The player editor landed too (2026-07-29), and it is the awkward one.** A player is
+stored across TWO files — name/level/EXP in `Level.sav`, technology points in
+`Players/<UID>.sav` — which cannot be written atomically together. Both are written, both
+are re-read and verified, and any mismatch rolls back the whole world. That is coherent
+because `collect_world_files` walks `Players/`, so the pre-edit backup already covers the
+pair.
+
+Two things the reference world taught us:
+
+- **`TechnologyPoint` is absent on players who never banked an unspent point** — 1 of the 5
+  here. The planner refuses that field up front with an explanation, rather than letting
+  the write path discover it and roll back.
+- **`bossTechnologyPoint` is the ancient-technology counter.** The naming is the game's.
+
+The UI became a single **character editor** with a Pals/Players toggle
+(`src/components/character-editor.tsx`) — the two subjects collapse to one shape, so one
+list and one schema-driven form serve both. It warns in the confirm dialog when an edit
+spans both files, and reports which files were written.
+
+**Still to build:** inventory slot editing, bulk edits across many Pals, and illegal-Pal
+detection and repair.
 **Risk: high.** **Depends on: Phases 0, 3, 4, 6.**
 *This is where corruption risk actually lives. It must not be rushed.*
 

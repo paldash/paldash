@@ -10,7 +10,7 @@ import {
   Lock, Unlock, ShieldCheck, Play, Square, ArrowUpDown, PenLine, Target,
 } from 'lucide-react';
 import { CAPABILITIES } from '@/lib/permissions';
-import PalEditor from './pal-editor';
+import CharacterEditor from './character-editor';
 
 /**
  * Save Tools.
@@ -212,15 +212,15 @@ docker compose start palworld    # bring it back`}
       </div>
 
       {has(CAPABILITIES.SAVE_EDIT_FULL) ? (
-        <PalEditor canEdit={canEdit} />
+        <CharacterEditor canEdit={canEdit} />
       ) : (
         <div className="glass-card" style={{ padding: 16, opacity: 0.75 }}>
           <div className="section-title" style={{ marginBottom: 8 }}>
-            <PenLine size={14} /> Pal editor
+            <PenLine size={14} /> Character editor
             <span className="badge" style={{ marginLeft: 'auto' }}>Locked</span>
           </div>
           <p style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.7 }}>
-            Editing Pal levels, experience, condenser rank and IVs needs the{' '}
+            Editing Pal and player levels, experience, condenser rank and IVs needs the{' '}
             <span className="mono">save.edit.full</span> capability, which exists only at
             security level <strong>full</strong>. Servers default to <strong>safe</strong>,
             so this stays hidden until someone deliberately raises it — even for an Owner.
@@ -233,13 +233,13 @@ docker compose start palworld    # bring it back`}
 
       <OperationCard
         icon={<PenLine size={14} />}
-        title="Player and bulk editing"
-        description="Player levels, technology points, inventory slots and bulk operations across many Pals at once. The validation schema covers player fields already; the write path and UI do not exist yet."
+        title="Inventory and bulk editing"
+        description="Individual inventory slots and bulk operations across many Pals at once. Illegal-Pal detection and repair also lands here."
         badge="Not implemented"
         allowed={has(CAPABILITIES.SAVE_EDIT_FULL)}
         canEdit={canEdit}
         busy={false}
-        disabledReason="Coming later — the Pal editor above uses the same verified write path."
+        disabledReason="Coming later — the character editor above uses the same verified write path."
         onRun={() => undefined}
       />
 

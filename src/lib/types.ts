@@ -107,6 +107,11 @@ export interface PlayerSaveData {
   palStorage: PalInfo[];
   technologyPoints: number;
   unlockedRecipes: string[];
+  /** Progression counters read from the player's own .sav. */
+  progress?: Record<string, unknown> & {
+    technologyPoints?: number;
+    ancientTechnologyPoints?: number;
+  };
 }
 
 export interface InventoryInfo {
@@ -190,13 +195,19 @@ export interface EditPlan {
   planHash: string;
   crossFieldChecked?: boolean;
   instanceId?: string;
+  uid?: string;
   applied?: boolean;
+  /** A player edit can span Level.sav and the player's own .sav. */
+  touchesLevelSav?: boolean;
+  touchesPlayerSave?: boolean;
 }
 
 export interface EditResult {
   ok: boolean;
   applied: boolean;
-  instanceId: string;
+  instanceId?: string;
+  uid?: string;
+  filesWritten?: string[];
   fieldsChanged: number;
   changes: EditChange[];
   backupId: string;

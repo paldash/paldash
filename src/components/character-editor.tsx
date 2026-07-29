@@ -3,12 +3,23 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { PenLine, Search, ShieldCheck, AlertTriangle, Wand2, Undo2 } from 'lucide-react';
 import {
-  getEditSchema, previewPalEdit, applyPalEdit, getPals, type PalRecord,
+  getEditSchema, previewPalEdit, applyPalEdit, getPals,
+  previewPlayerEdit, applyPlayerEdit, getSavePlayers, type PalRecord,
 } from '@/lib/save-api';
-import type { EditSchema, EditPlan } from '@/lib/types';
+import type { EditSchema, EditPlan, PlayerSaveData } from '@/lib/types';
+
+type Mode = 'pal' | 'player';
+
+/** The two subject types share enough shape to drive one editor. */
+interface Subject {
+  id: string;
+  title: string;
+  subtitle: string;
+  seed: Record<string, string | number>;
+}
 
 /**
- * Pal editor.
+ * Character editor — Pals and players.
  *
  * Three-step by design, mirroring the backend: change fields → preview the exact
  * diff → apply. The apply carries the preview's `planHash`, and the backend
@@ -18,11 +29,13 @@ import type { EditSchema, EditPlan } from '@/lib/types';
  * The editor renders itself from the backend's schema rather than a second copy
  * of the bounds. If the level cap changes, this UI follows without a code change.
  */
-export default function PalEditor({ canEdit }: { canEdit: boolean }) {
+export default function CharacterEditor({ canEdit }: { canEdit: boolean }) {
+  const [mode, setMode] = useState<Mode>('pal');
   const [schema, setSchema] = useState<EditSchema | null>(null);
   const [pals, setPals] = useState<PalRecord[]>([]);
+  const [players, setPlayers] = useState<PlayerSaveData[]>([]);
   const [search, setSearch] = useState('');
-  const [selected, setSelected] = useState<PalRecord | null>(null);
+  const [selected, setSelected] = useState<Subject | null>(null);
   const [draft, setDraft] = useState<Record<string, string | number>>({});
   const [plan, setPlan] = useState<EditPlan | null>(null);
   const [busy, setBusy] = useState(false);
@@ -31,17 +44,18 @@ export default function PalEditor({ canEdit }: { canEdit: boolean }) {
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([getEditSchema('pal'), getPals()])
-      .then(([s, p]) => {
+    Promise.all([getEditSchema(mode), mode === 'pal' ? getPals() : getSavePlayers()])
+      .then(([s, subjects]) => {
         if (cancelled) return;
         setSchema(s);
-        setPals(p);
+        if (mode === 'pal') setPals(subjects as PalRecord[]);
+        else setPlayers(subjects as PlayerSaveData[]);
       })
       .catch((e: unknown) => {
         if (!cancelled) setError(e instanceof Error ? e.message : 'Could not load the editor');
       });
     return () => { cancelled = true; };
-  }, []);
+  }, [mode]);
 
   // Only fields the schema allows AND this Pal actually stores. Rendering an
   // IV the save has no property for produces an input that can only be rejected.
@@ -50,47 +64,61 @@ export default function PalEditor({ canEdit }: { canEdit: boolean }) {
       (schema?.fields ?? []).filter(
         (f) =>
           !schema?.readOnly.includes(f.name) &&
-          (!selected || !f.name.startsWith('ivs.') || f.name in draft)
+          // Only offer a field this particular save actually carries.
+          (!selected || f.name in draft)
       ),
     [schema, selected, draft]
   );
 
+  // Both subject types collapse to the same shape so one list and one form
+  // serve both. Seeds carry only fields the save actually stores — the backend
+  // refuses to create an absent property, so offering it would be a dead end.
+  const subjects: Subject[] = useMemo(() => {
+    if (mode === 'pal') {
+      return pals.map((p) => {
+        const seed: Record<string, string | number> = {
+          nickname: p.nickname ?? '',
+          level: p.level ?? 1,
+          exp: p.exp ?? 0,
+          rank: p.rank ?? 1,
+        };
+        for (const [iv, value] of Object.entries(p.ivs ?? {})) seed[`ivs.${iv}`] = value;
+        return {
+          id: p.instanceId,
+          title: p.nickname || p.speciesName || p.speciesId,
+          subtitle: `Lv ${p.level}${p.nickname && p.speciesName ? ` · ${p.speciesName}` : ''}`,
+          seed,
+        };
+      });
+    }
+    return players.map((p) => {
+      const seed: Record<string, string | number> = {
+        nickname: p.name ?? '',
+        level: p.level ?? 1,
+        exp: p.exp ?? 0,
+      };
+      const tech = p.progress?.technologyPoints;
+      const ancient = p.progress?.ancientTechnologyPoints;
+      if (typeof tech === 'number') seed.technologyPoints = tech;
+      if (typeof ancient === 'number') seed.ancientTechnologyPoints = ancient;
+      return { id: p.uid, title: p.name || p.uid, subtitle: `Lv ${p.level}`, seed };
+    });
+  }, [mode, pals, players]);
+
   const matches = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return pals.slice(0, 40);
-    return pals
-      .filter((p) =>
-        (p.nickname || '').toLowerCase().includes(q) ||
-        (p.speciesName || '').toLowerCase().includes(q) ||
-        (p.speciesId || '').toLowerCase().includes(q)
-      )
+    if (!q) return subjects.slice(0, 40);
+    return subjects
+      .filter((s) => s.title.toLowerCase().includes(q) || s.subtitle.toLowerCase().includes(q))
       .slice(0, 40);
-  }, [pals, search]);
+  }, [subjects, search]);
 
-  /**
-   * Seed the draft from every field this Pal actually stores.
-   *
-   * IVs are seeded only when present. A Pal with no `Talent_Shot` has never had
-   * that IV rolled, and the backend refuses to create the property rather than
-   * guess its type — so offering an empty box that can only fail is worse than
-   * not offering it.
-   */
-  const select = useCallback((pal: PalRecord) => {
-    setSelected(pal);
+  const select = useCallback((subject: Subject) => {
+    setSelected(subject);
     setPlan(null);
     setError(null);
     setDone(null);
-
-    const next: Record<string, string | number> = {
-      nickname: pal.nickname ?? '',
-      level: pal.level ?? 1,
-      exp: pal.exp ?? 0,
-      rank: pal.rank ?? 1,
-    };
-    for (const [iv, value] of Object.entries(pal.ivs ?? {})) {
-      next[`ivs.${iv}`] = value;
-    }
-    setDraft(next);
+    setDraft({ ...subject.seed });
   }, []);
 
   const set = (field: string, value: string | number) => {
@@ -123,7 +151,11 @@ export default function PalEditor({ canEdit }: { canEdit: boolean }) {
     if (!selected) return;
     setBusy(true); setError(null); setDone(null);
     try {
-      setPlan(await previewPalEdit(selected.instanceId, changes));
+      setPlan(
+        mode === 'pal'
+          ? await previewPalEdit(selected.id, changes)
+          : await previewPlayerEdit(selected.id, changes)
+      );
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Preview failed');
     } finally {
@@ -134,25 +166,26 @@ export default function PalEditor({ canEdit }: { canEdit: boolean }) {
   const apply = async () => {
     if (!selected || !plan?.ok || !plan.planHash) return;
     if (!confirm(
-      `Apply ${plan.changes.length} change(s) to ${selected.nickname || selected.speciesName}?\n\n` +
+      `Apply ${plan.changes.length} change(s) to ${selected.title}?\n\n` +
+      (plan.touchesPlayerSave && plan.touchesLevelSav
+        ? 'This edit spans Level.sav and this player\u2019s own save file.\n\n'
+        : '') +
       'A full backup is taken first. The result is read back from disk and verified; ' +
       'if anything does not match, the world is rolled back automatically.'
     )) return;
 
     setBusy(true); setError(null);
     try {
-      const result = await applyPalEdit(selected.instanceId, changes, plan.planHash);
+      const result =
+        mode === 'pal'
+          ? await applyPalEdit(selected.id, changes, plan.planHash)
+          : await applyPlayerEdit(selected.id, changes, plan.planHash);
+      const files = result.filesWritten?.length ? ` (${result.filesWritten.join(', ')})` : '';
       setDone(
-        `Applied ${result.fieldsChanged} change(s) and verified. Rollback point: ${result.backupId}.`
+        `Applied ${result.fieldsChanged} change(s)${files} and verified. ` +
+        `Rollback point: ${result.backupId}.`
       );
       setPlan(null);
-      setPals((list) =>
-        list.map((p) =>
-          p.instanceId === selected.instanceId
-            ? { ...p, ...{ nickname: String(draft.nickname), level: Number(draft.level), exp: Number(draft.exp) } }
-            : p
-        )
-      );
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Edit failed');
     } finally {
@@ -166,8 +199,26 @@ export default function PalEditor({ canEdit }: { canEdit: boolean }) {
   return (
     <div className="glass-card" style={{ padding: 16 }}>
       <div className="section-title" style={{ marginBottom: 10 }}>
-        <PenLine size={14} /> Pal editor
-        <span className="badge" style={{ marginLeft: 'auto' }}>Level cap {schema.maxLevel}</span>
+        <PenLine size={14} /> Character editor
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 4 }}>
+          {(['pal', 'player'] as Mode[]).map((m) => (
+            <button
+              key={m}
+              className={m === mode ? 'btn btn-primary' : 'btn btn-ghost'}
+              style={{ padding: '2px 10px', fontSize: 11 }}
+              onClick={() => {
+                setMode(m);
+                setSelected(null);
+                setDraft({});
+                setPlan(null);
+                setSearch('');
+              }}
+            >
+              {m === 'pal' ? 'Pals' : 'Players'}
+            </button>
+          ))}
+          <span className="badge">Level cap {schema.maxLevel}</span>
+        </div>
       </div>
 
       {!canEdit && (
@@ -196,7 +247,7 @@ export default function PalEditor({ canEdit }: { canEdit: boolean }) {
             <input
               className="input"
               style={{ paddingLeft: 26, width: '100%' }}
-              placeholder={`Search ${pals.length} Pals…`}
+              placeholder={`Search ${subjects.length} ${mode === 'pal' ? 'Pals' : 'players'}…`}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -206,31 +257,27 @@ export default function PalEditor({ canEdit }: { canEdit: boolean }) {
             maxHeight: 320, overflowY: 'auto',
             border: '1px solid var(--border-primary)', borderRadius: 6,
           }}>
-            {matches.map((pal) => (
+            {matches.map((subject) => (
               <button
-                key={pal.instanceId}
-                onClick={() => select(pal)}
+                key={subject.id}
+                onClick={() => select(subject)}
                 style={{
                   display: 'block', width: '100%', textAlign: 'left',
                   padding: '7px 10px', fontSize: 12, cursor: 'pointer',
-                  background: selected?.instanceId === pal.instanceId
-                    ? 'var(--bg-input)' : 'transparent',
+                  background: selected?.id === subject.id ? 'var(--bg-input)' : 'transparent',
                   border: 'none', borderBottom: '1px solid var(--border-primary)',
                   color: 'var(--text-primary)',
                 }}
               >
-                <span style={{ fontWeight: 500 }}>
-                  {pal.nickname || pal.speciesName || pal.speciesId}
-                </span>
+                <span style={{ fontWeight: 500 }}>{subject.title}</span>
                 <span style={{ color: 'var(--text-muted)', marginLeft: 6 }}>
-                  Lv {pal.level}
-                  {pal.nickname && pal.speciesName ? ` · ${pal.speciesName}` : ''}
+                  {subject.subtitle}
                 </span>
               </button>
             ))}
             {matches.length === 0 && (
               <p style={{ padding: 12, fontSize: 12, color: 'var(--text-muted)' }}>
-                No Pals match “{search}”.
+                Nothing matches “{search}”.
               </p>
             )}
           </div>
@@ -240,9 +287,9 @@ export default function PalEditor({ canEdit }: { canEdit: boolean }) {
         <div style={{ flex: '2 1 340px', minWidth: 300 }}>
           {!selected ? (
             <p style={{ fontSize: 13, color: 'var(--text-muted)', padding: '20px 0' }}>
-              Pick a Pal to edit. Species, gender and passive skills are not editable —
-              they change what the Pal <em>is</em>, which cascades into the Paldeck and
-              breeding.
+              {mode === 'pal'
+                ? 'Pick a Pal to edit. Species, gender and passive skills are not editable — they change what the Pal is, which cascades into the Paldeck and breeding.'
+                : 'Pick a player to edit. Name, level and EXP live in Level.sav; technology points live in that player’s own save file, so an edit can touch both.'}
             </p>
           ) : (
             <>

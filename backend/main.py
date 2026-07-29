@@ -1475,6 +1475,101 @@ def edit_pal(
     return result
 
 
+def _find_player_objects(uid: str):
+    """
+    (character object from Level.sav, SaveData from the player's own .sav).
+
+    Both are needed because a player's editable fields are split across the two
+    files — name/level/EXP in one, technology points in the other.
+    """
+    from savefiles import get_default_world_dir, get_level_sav_path
+
+    world_dir = get_default_world_dir()
+    level_path = get_level_sav_path(world_dir)
+    if not level_path:
+        raise HTTPException(503, "Level.sav not found")
+
+    gvas = load_gvas(level_path)
+    if gvas is None:
+        raise HTTPException(503, "Could not parse Level.sav")
+
+    key_uid = uid.replace("-", "").lower()
+    char_obj = None
+    for entry in charedit._character_entries(gvas):
+        key = entry.get("key") if isinstance(entry, dict) else None
+        entry_uid = str((key or {}).get("PlayerUId", {}).get("value") or "")
+        if entry_uid.replace("-", "").lower() != key_uid:
+            continue
+        obj = charedit._save_parameter(entry)
+        if obj is not None and obj.get("IsPlayer", {}).get("value") is True:
+            char_obj = obj
+            break
+    if char_obj is None:
+        raise HTTPException(404, f"No player character with uid {uid}")
+
+    player_save = None
+    player_path = get_player_sav_path(uid, world_dir)
+    if player_path:
+        player_gvas = load_gvas(player_path)
+        if player_gvas is not None:
+            player_save = (
+                getattr(player_gvas, "properties", {}).get("SaveData", {}).get("value") or {}
+            )
+    return char_obj, player_save
+
+
+@app.post("/api/edit/player/{uid}/preview")
+def preview_player_edit(uid: str, req: PalEditRequest, request: Request) -> dict:
+    """Dry-run a player edit. Read-only; says which files it would touch."""
+    authz.require(request, roles_module.SAVE_EDIT_FULL)
+    char_obj, player_save = _find_player_objects(uid)
+    plan = charedit.plan_player_edit(char_obj, req.changes, player_save)
+    return {**plan, "uid": uid, "applied": False}
+
+
+@app.post("/api/edit/player/{uid}")
+def edit_player(
+    uid: str, req: PalEditRequest, request: Request, planHash: str = Query(...)
+) -> dict:
+    """
+    Apply a previewed player edit.
+
+    This one can write two files. They cannot be written atomically together, so
+    both are verified afterwards and any mismatch rolls back the whole world.
+    """
+    user = authz.require_user(request, roles_module.SAVE_EDIT_FULL)
+    ip = authz.client_ip(request)
+
+    def failed(message: str, status: int):
+        audit.record(
+            audit.SAVE_EDIT, username=user["username"], role=user["role"],
+            target=f"player:{uid}", detail=message, ip=ip, result=audit.RESULT_FAILED,
+        )
+        return HTTPException(status, message)
+
+    try:
+        result = charedit.apply_player_edit(uid, req.changes, expected_plan_hash=planHash)
+    except ServerRunningError as e:
+        raise failed(str(e), 423)
+    except charedit.EditError as e:
+        raise failed(str(e), 409)
+    except Exception as e:  # noqa: BLE001
+        logger.exception("Player edit failed")
+        raise failed(f"Player edit failed: {e}", 500)
+
+    audit.record(
+        audit.SAVE_EDIT, username=user["username"], role=user["role"],
+        target=f"player:{uid}",
+        detail={
+            "changes": result["changes"],
+            "filesWritten": result["filesWritten"],
+            "backupId": result["backupId"],
+        },
+        ip=ip,
+    )
+    return result
+
+
 class EditRequest(BaseModel):
     targetType: str
     targetId: str
