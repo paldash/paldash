@@ -9,6 +9,7 @@ import type {
   CacheStatus,
   LifecycleStatus,
   MapObject,
+  FastTravelPoint,
   ItemTotals,
   IniSettings,
   PalboxSummary,
@@ -130,6 +131,17 @@ export async function requestRefresh(): Promise<{ started: boolean; reason: stri
 
 export async function getMapObjects(category?: string): Promise<MapObject[]> {
   return saveFetch(`/mapobjects${category ? `?category=${encodeURIComponent(category)}` : ''}`);
+}
+
+/**
+ * Fast-travel statues, from bundled game data rather than the save.
+ *
+ * Returns an empty list rather than throwing when the reference data is missing,
+ * so a missing bundle degrades the map instead of breaking it.
+ */
+export async function getFastTravelPoints(): Promise<FastTravelPoint[]> {
+  const data = await saveFetch<{ points: FastTravelPoint[] }>('/world/fasttravel');
+  return data.points ?? [];
 }
 
 export async function getItemTotals(): Promise<ItemTotals> {

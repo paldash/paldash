@@ -363,6 +363,16 @@ html, body {
   border: 2px solid #0f1115;
   border-radius: 3px;
 }
+/* Fast-travel statues. A diamond so they stay distinguishable from bases
+   (squares) and players (circles) without relying on colour alone. */
+.fasttravel-marker-icon {
+  width: 9px;
+  height: 9px;
+  margin: 1.5px;
+  background: #e0c060;
+  border: 1.5px solid #0f1115;
+  transform: rotate(45deg);
+}
 .poi-marker-icon {
   width: 10px;
   height: 10px;

@@ -233,9 +233,24 @@ def test_fast_travel_covers_both_landmasses():
     points = gamedata.fast_travel_points()
     world_tree = [p for p in points if p["x"] > 300000]
     palpagos = [p for p in points if p["x"] <= 300000]
-    assert len(world_tree) >= 15, "World Tree fast-travel points are missing"
-    assert len(palpagos) >= 100
+
+    assert len(palpagos) == 157
+    assert len(world_tree) == 17
     assert any("Root" in p["name"] for p in world_tree)
+
+
+def test_landmasses_are_cleanly_separated():
+    """
+    The two regions need separate map images and separate transforms, and the
+    code decides which by thresholding world X at 300,000. That only works if
+    there is a real gap — verify nothing sits near the boundary.
+    """
+    points = gamedata.fast_travel_points()
+    palpagos_max = max(p["x"] for p in points if p["x"] <= 300000)
+    world_tree_min = min(p["x"] for p in points if p["x"] > 300000)
+
+    assert palpagos_max < 300000 < world_tree_min
+    assert world_tree_min - palpagos_max > 150000, "landmasses are not clearly separated"
 
 
 def test_fast_travel_names_are_localized_not_internal():

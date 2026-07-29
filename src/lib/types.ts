@@ -197,14 +197,36 @@ export interface MapObject {
   id: string;
   kind: string;
   category: string;
+  /** Friendly structure name from bundled game data; falls back to `kind`. */
+  name?: string;
   x: number;
   y: number;
   z: number;
   baseCampId: string;
+  /**
+   * True when the object was placed by the world rather than a player. On a real
+   * save this splits about 3,600 world-placed to 500 base-placed POIs, and they
+   * belong on different map layers.
+   */
+  worldPlaced?: boolean;
   guildId: string;
   buildPlayerUid: string;
   opened?: boolean | null;
   grade?: string | null;
+}
+
+/**
+ * A fast-travel statue. These are static level actors, so they appear in no save
+ * file — only a player's *unlocked* list does. Positions ship as bundled game
+ * data and share the save's world coordinate space.
+ */
+export interface FastTravelPoint {
+  key: string;
+  id: string;
+  name: string;
+  x: number;
+  y: number;
+  z: number;
 }
 
 /** One item type, totalled server-wide and resolved against the bundled game data. */

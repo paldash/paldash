@@ -133,19 +133,27 @@ export const useDashboardStore = create<DashboardState>((set) => ({
   cacheStatus: null,
   setCacheStatus: (c) => set({ cacheStatus: c }),
 
-  // Chests are off by default: a mature world has thousands and they drown
-  // everything else out.
+  // Defaults aim at a readable first view. The high-volume world layers are off
+  // because a mature world has ~2,300 chests, ~600 fishing-junk piles and ~500
+  // ore nodes, which drown out everything else.
   mapLayers: {
     players: true,
     bases: true,
+    fastTravel: true,
     palbox: true,
     breeding: true,
     statue: true,
     chest: false,
+    oreNode: false,
+    oilrigChest: false,
+    fishingJunk: false,
+    drop: false,
     crafting: false,
     production: false,
+    farm: false,
     storage: false,
     comfort: false,
+    defense: false,
     egg: false,
   },
   toggleMapLayer: (layer) =>

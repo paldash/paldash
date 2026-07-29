@@ -384,17 +384,32 @@ def extract_player_save(gvas: Any, uid: str) -> dict:
 
 # Only categorised objects are surfaced. A save contains thousands of walls,
 # roofs and pillars that would bloat the payload and tell you nothing.
+# Order matters — first match wins, so the specific patterns come first.
 _POI_CATEGORIES: list[tuple[str, re.Pattern]] = [
+    # Naturally occurring ore, coal, sulfur and quartz nodes. These are placed by
+    # the world, not by players, and there are hundreds of them — the single
+    # biggest untapped layer already sitting in every save.
+    ("oreNode", re.compile(r"DamagableRock|DamagableWood|MeteorDrop", re.I)),
+    # World loot. Fishing junk and oil-rig crates are worth telling apart from
+    # ordinary chests: one is background noise, the other marks a raid target.
+    ("fishingJunk", re.compile(r"TreasureBox_FishingJunk", re.I)),
+    ("oilrigChest", re.compile(r"TreasureBox_Oilrig", re.I)),
     ("chest", re.compile(r"TreasureBox|ItemChest|GuildChest", re.I)),
+    ("drop", re.compile(r"CommonDropItem3D|DroppedCharacter", re.I)),
+
     ("palbox", re.compile(r"PalBox", re.I)),
     ("breeding", re.compile(r"MonsterFarm", re.I)),
     ("statue", re.compile(r"GoddessStatue", re.I)),
     ("crafting", re.compile(r"WeaponFactory|SphereFactory|Workbench|WorkBench|RepairBench", re.I)),
-    ("production", re.compile(r"OilPump|StonePit|QuartzPit|BlastFurnace|Deforest|ElectricGenerator", re.I)),
-    ("storage", re.compile(r"PalFoodBox|Refrigerator|PalMedicineBox", re.I)),
+    ("production", re.compile(r"OilPump|StonePit|QuartzPit|CoalPit|CopperPit|BlastFurnace|Deforest|ElectricGenerator|Crusher|FlourMill|IceCrusher", re.I)),
+    ("farm", re.compile(r"FarmBlock", re.I)),
+    ("storage", re.compile(r"PalFoodBox|Refrigerator|PalMedicineBox|CoolerBox", re.I)),
     ("comfort", re.compile(r"Spa|PlayerBed|MedicalPalBed", re.I)),
     ("egg", re.compile(r"HatchingPalEgg|PalEgg", re.I)),
+    ("defense", re.compile(r"DefenseWall|Turret|DefenseOther", re.I)),
 ]
+
+ZERO_GUID = "00000000-0000-0000-0000-000000000000"
 
 
 def _categorise(map_object_id: str) -> Optional[str]:
@@ -429,6 +444,13 @@ def extract_map_objects(gvas: Any) -> list[dict]:
         translation = _v(raw, "initital_transform_cache", "translation", default={}) or {}
         concrete = _v(entry, "ConcreteModel", "value", "RawData", "value") or {}
 
+        # An object belongs to a base camp, or it was placed by the world. On a
+        # real save this splits roughly 1,019 base-placed to 3,604 world-placed,
+        # and they want completely different map layers: one is "what my guild
+        # built", the other is "what is out there to go and find".
+        base_camp = str(raw.get("base_camp_id_belong_to") or "")
+        world_placed = base_camp in ("", "None", ZERO_GUID)
+
         objects.append(
             {
                 "id": str(raw.get("instance_id") or ""),
@@ -437,7 +459,8 @@ def extract_map_objects(gvas: Any) -> list[dict]:
                 "x": float(translation.get("x") or 0.0),
                 "y": float(translation.get("y") or 0.0),
                 "z": float(translation.get("z") or 0.0),
-                "baseCampId": str(raw.get("base_camp_id_belong_to") or ""),
+                "baseCampId": "" if world_placed else base_camp,
+                "worldPlaced": world_placed,
                 "guildId": str(raw.get("group_id_belong_to") or ""),
                 "buildPlayerUid": str(raw.get("build_player_uid") or ""),
                 # Chest-specific extras, absent on other object types.

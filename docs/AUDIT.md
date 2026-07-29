@@ -67,7 +67,7 @@ than attempting all of it.
 | Corruption safety | 85% | Fail-closed, atomic, verified; no audit trail |
 | Backup & restore | 30% | Directory copy only; no archive/verify/schedule/browse |
 | Save editing | 12% | Two sort modes work; everything else 501 |
-| Live map | 25% | Transform fitted, save POIs only; no static POIs, no tiles |
+| Live map | 70% | ✅ Phase 2: both maps ship, 174 fast-travel POIs, layers/search. World Tree transform provisional |
 | Reference data | 90% | ✅ Phase 1: full 1.0 DB bundled at 215 KB; icons still not shipped |
 | Auth & accounts | 20% | Shared password, 2 roles, no users/audit/rate-limit |
 | Permissions | 45% | Capability model is sound; only 2 roles bound to it |
@@ -75,9 +75,9 @@ than attempting all of it.
 | Docker | 80% | Genuinely good; needs multi-image validation |
 | Import / export | 0% | Not started |
 | Migration tools | 0% | Not started |
-| Testing | 50% | ✅ 196 backend tests. Frontend still 0 |
+| Testing | 55% | ✅ 227 backend tests. Frontend still 0 |
 | Documentation | 70% | ✅ Phase 0: `.gitignore` fixed, AGENTS.md written |
-| **Weighted total** | **~43%** | 32% at audit → 36% after Phase 0 → 43% after Phase 1 |
+| **Weighted total** | **~50%** | 32% audit → 36% (P0) → 43% (P1) → 50% (P2) |
 
 ---
 
@@ -411,11 +411,37 @@ limit changes what a sort writes, so it belongs in Phase 5 with tests, not as a 
 
 Verified: 196/196 tests pass (up from 151) · lint 0 errors · build succeeds.
 
-### Phase 2 — The map (4–5 days)
-Ship map imagery; fix the `feybreak` → `tree` naming; 174 named fast-travel markers;
-world-vs-base object split (3,604/1,019); ore and chest layers; layer toggles, search,
-fly-to, coordinate readout; marker clustering for performance.
-**Risk: low-medium** (coordinate validation for each new layer). **Depends on: Phase 1.**
+### Phase 2 — The map · ✅ **COMPLETE** (2026-07-28)
+
+Both 8192px map textures ship (`scripts/install-map-assets.py` → `public/maps/`, 4.3 MB
+committed so a clone and the Docker image both work out of the box). 174 named fast-travel
+markers, world-vs-base split, new ore/oil-rig/fishing-junk/farm/defense layers, grouped
+layer toggles with per-region counts, search with fly-to and automatic region switching,
+live coordinate readout, canvas rendering for POIs.
+
+**The headline correction: Palworld 1.0 does not have one continuous map.** The old code
+said it did. Checking all 174 fast-travel points against the fitted transform:
+
+- **157/157 Palpagos points land inside the image**
+- **0/17 World Tree points do** — they fall at negative pixel coordinates
+
+So each landmass needs its own image and transform, exactly as in-game. That 157/157 result
+is also the strongest validation the Palpagos transform has ever had: those points were not
+used to fit it.
+
+**The World Tree transform is provisional and labelled as such in the UI.** There is no
+ground truth to fit against: the reference save has zero objects on that landmass, the 17
+fast-travel points give world coordinates but no pixel positions, and land-detection in the
+texture is too weak to optimise against (sampling the 157 *known-correct* Palpagos points
+found 36% "ocean-blue" versus 58% of random pixels — that cannot pin four parameters from
+17 points). Rather than fabricate a precise-looking fit, it is derived from one stated
+assumption (same ~82% framing Palpagos uses), verified internally consistent, and flagged
+with a banner. **It becomes fittable the moment anyone builds or opens a chest there** —
+the save then supplies real positions, and only four constants change.
+
+Also fixed: the second landmass was named "Feybreak" throughout. It is the **World Tree**.
+
+Verified: 227/227 tests pass · lint 0 errors · build succeeds.
 
 ### Phase 3 — Accounts, audit, hardening (5–7 days) · **security-critical**
 SQLite; users with Argon2id; the 7 permission presets bound to the existing capability map;

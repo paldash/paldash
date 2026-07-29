@@ -352,9 +352,25 @@ This project stands on other people's work:
 
 ## Map & items
 
+**Two maps, not one.** Palworld 1.0 has the Palpagos Islands and the World Tree,
+and they are separate maps in-game with separate framings — verified by checking
+all 174 fast-travel points against the coordinate transform: 157/157 Palpagos
+points land on the Palpagos image, 0/17 World Tree points do. Use the region
+switcher above the map. Both images install with:
+
+```bash
+python3 scripts/install-map-assets.py    # extracts from refs/ into public/maps/
+```
+
+Positions on **Palpagos are calibrated and verified**. Positions on the **World
+Tree are approximate** and the UI says so: no save has any objects on that
+landmass yet, so there is nothing to fit the transform against. It becomes exact
+as soon as anyone builds a base or opens a chest there.
+
 **Map.** Points of interest come from the save itself — no external dataset
-needed. On a real world that's ~3,400 markers: chests (with opened/unopened
-state), palboxes, breeding farms, statues, crafting benches, production nodes and
+needed. On a real world that's ~4,100 markers: chests (with opened/unopened
+state), ore and mining nodes, oil-rig crates, palboxes, breeding farms, statues,
+crafting benches, production nodes and
 storage, plus guild bases drawn with their actual build radius and live player
 positions. Layers toggle individually and chests default to off because a mature
 world has thousands.
@@ -448,10 +464,12 @@ Being straight about what is not done:
   Pal IVs and individual slot edits are not exposed. The write path is proven
   (sorting uses it), but a general editor has far more ways to produce a world
   the game refuses to load, so each field needs validating first.
-- **Fast-travel statues and tower bosses** are not on the map. Unlike chests,
-  those are static world data that does not live in save files, so they need a
-  bundled coordinate dataset. Dungeons are *partially* available — the save
-  records 118 of them and their state, but only by spawn-area name, not position.
+- **Tower bosses, dungeons and effigies** are not on the map. Fast-travel
+  statues now are — all 174, from bundled game data — but those three have no
+  published coordinates in any dataset we have. Dungeons are *partially*
+  available: the save records 170 markers and their state, but by spawn-area
+  name, not position.
+- **The World Tree map transform is provisional.** See "Map & items" above.
 - **Per-player logins** are not built. The data exists —
   `UnlockedWorldMapFlags` (fog of war), `FastTravelPointUnlockFlag`,
   `PaldeckUnlockFlag`, boss-defeat flags — so per-player fog-of-war views are
