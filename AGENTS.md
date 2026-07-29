@@ -282,3 +282,73 @@ so anything adopted is fetched once and bundled.
 - New backend module needing storage? Use `backend/db.py` (SQLite). The Python
   process owns that file exclusively — Next.js asks over loopback rather than
   opening a second driver.
+
+## Bulk and slot edits reuse, they do not duplicate
+
+Three Phase 7 features write, and none of them opened a new path to the save:
+
+- `slotedit.py` turns a slot patch into a container **import document** and hands
+  it to `saveimport`. It exists so the risky code stays in one file.
+- `palcheck.py` repairs by producing values and calling `charedit.apply_pal_batch`.
+- `charedit.apply_pal_batch` is the one batch writer; `plan_pal_batch` takes
+  **per-Pal** change sets, and `spread_changes` builds the same-for-everyone shape
+  from it. Bulk edits and repairs are the same code path.
+
+A batch is **all-or-nothing on purpose.** Half of 200 Pals moved, with nothing
+recording where it stopped, is worse than a refusal.
+
+A slot-edit document names **only the patched slots**. `plan_container_import`
+leaves unnamed indices alone, so a partial document is a first-class thing: an
+unrecognised item elsewhere in the chest cannot block an edit that never touched
+it, and a stale view of the rest cannot revert someone else's change.
+
+## EXP-vs-level is one-sided, and that was measured
+
+The obvious rule — EXP must sit inside its level's band — is half wrong. On the
+reference world: **0** of 1,905 Pals and 0 of 5 players sit *above* their band;
+**8** Pals sit below it. A freshly caught Pal arrives at its wild level with
+almost no EXP and the game leaves it there.
+
+So low EXP is a state Palworld produces itself and must not be rejected or
+flagged. High EXP never occurs naturally and *is* acted on at load, so that half
+is a hard rejection. `editschema._check_exp_matches_level` and
+`palcheck.inspect_pal` both follow this; don't "fix" the asymmetry.
+
+## An unrecognised character id is not evidence of cheating
+
+`CharacterSaveParameterMap` holds humans, and the bundled tables are incomplete:
+13 of the reference world's 1,905 characters are ordinary NPCs (`Male_Soldier`,
+`Female_DesertPeople`, `Scientist_LaserRifle`) that the 753-Pal and NPC tables do
+not list. They carry IVs and passive skills exactly like a Pal, so **there is no
+structural way to tell them apart.**
+
+`palcheck` therefore classifies `unknown_species` as an **advisory** and never
+counts it in `palsFlagged`. Use `gamedata.character()` (Pals *or* NPCs), never
+`gamedata.pal()`, for anything out of that map. A first pass using `pal()` alone
+reported 108 of 1,905 Pals as illegal on a completely clean world.
+
+## The game's own files are readable, and they settle arguments
+
+`refs/palworld/` is a dedicated server install. Two things it is good for:
+
+- **`Pal-LinuxServer.pak` is unencrypted** (zero key GUID, `bEncryptedIndex=0`),
+  v11, Oodle-compressed — and this project already ships an Oodle decompressor
+  for saves. `scripts/read-pak-index.py` lists all 158,444 entries without
+  extracting anything.
+
+  The main world is **World Partition**: 9,978 streaming cells named
+  `MainGrid_L0_X<col>_Y<row>`. Those names *are* coordinates. **Cell size is
+  25,600 world units** — at that value all 174 fast-travel points land on an
+  occupied cell (12,800 gets 66, 51,200 gets 157). Connected components give one
+  cluster per landmass, which is how the World Tree's extent was finally pinned
+  down. A future update's new landmass will show up the same way.
+
+- **`DefaultPalWorldSettings.ini`** is the authoritative 119-setting list. Check
+  presets and highlight groups against it rather than against memory —
+  `EggDefaultHatchingTime` sat in a highlight group matching nothing for months;
+  the real key is `PalEggDefaultHatchingTime`.
+
+**Never commit anything from `refs/palworld/`.** Besides the size, its
+`PalWorldSettings.ini` holds live server passwords. `settings_ini.SECRET_KEYS`
+masks those on read and in the audit log; `read_ini(reveal=True)` is for the
+write path only.

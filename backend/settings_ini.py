@@ -106,8 +106,29 @@ def _format(value: Any, value_type: str, original_raw: str) -> str:
     return str(value).strip()
 
 
-def read_ini(path: Optional[str] = None) -> dict[str, Any]:
-    """Parse the INI into ordered, typed options."""
+# Settings whose values must not leave this process.
+#
+# `OptionSettings` is one long line and the reader returns all of it, so the
+# server's admin and join passwords were being handed to every caller of
+# `/api/settings/ini` in cleartext. That endpoint is SETTINGS_WRITE-gated, so it
+# was never public — but "only admins can read the admin password" is not a
+# security property worth having, and the value also ends up in browser devtools,
+# any HTTP log, and any screenshot of the settings page.
+#
+# They stay writable. Reading returns `value: ""` with `isSet`, and `write_ini`
+# treats an empty string for one of these as "leave it alone" — the standard
+# password-field contract, so a form that round-trips the masked value cannot
+# blank the real one.
+SECRET_KEYS = ("AdminPassword", "ServerPassword")
+
+
+def read_ini(path: Optional[str] = None, reveal: bool = False) -> dict[str, Any]:
+    """
+    Parse the INI into ordered, typed options.
+
+    Secrets are masked unless `reveal=True`, which only the write path uses —
+    it needs the current raw value to tell whether a change is a no-op.
+    """
     path = path or find_settings_ini()
     if not path:
         raise SettingsError(
@@ -134,7 +155,18 @@ def read_ini(path: Optional[str] = None) -> dict[str, Any]:
             key, raw = pair.split("=", 1)
             key = key.strip()
             value_type, value = _classify(raw)
-            options[key] = {"value": value, "type": value_type, "raw": raw.strip()}
+            entry = {"value": value, "type": value_type, "raw": raw.strip()}
+            if key in SECRET_KEYS and not reveal:
+                entry = {
+                    "value": "",
+                    "type": value_type,
+                    "raw": "",
+                    "secret": True,
+                    # Whether one is configured at all is safe to say, and an
+                    # admin does need to know an empty admin password is empty.
+                    "isSet": bool(value),
+                }
+            options[key] = entry
         break
 
     if not found:
@@ -169,7 +201,9 @@ def write_ini(changes: dict[str, Any], path: Optional[str] = None) -> dict[str, 
     Unknown keys are rejected rather than appended — a typo'd key silently added
     to the line is how people end up with a server that will not boot.
     """
-    current = read_ini(path)
+    # reveal=True: the diff below compares against the current raw value, and a
+    # masked one would make every password write look like a change.
+    current = read_ini(path, reveal=True)
     path = current["path"]
     options = current["options"]
 
@@ -183,6 +217,16 @@ def write_ini(changes: dict[str, Any], path: Optional[str] = None) -> dict[str, 
             "Only keys already present in your INI can be changed."
         )
 
+    # An empty string for a secret means "leave it alone", because that is what
+    # a form submitting the masked value looks like. Clearing a password for
+    # real is deliberate enough to deserve doing outside the dashboard.
+    changes = {
+        k: v for k, v in changes.items()
+        if not (k in SECRET_KEYS and isinstance(v, str) and v == "")
+    }
+    if not changes:
+        return {"applied": [], "changed": False, "path": path, "restartRequired": False}
+
     applied: list[dict[str, Any]] = []
     replacements: dict[str, str] = {}
 
@@ -192,9 +236,17 @@ def write_ini(changes: dict[str, Any], path: Optional[str] = None) -> dict[str, 
         if new_raw == meta["raw"]:
             continue
         replacements[key] = new_raw
-        applied.append(
-            {"key": key, "from": meta["raw"], "to": new_raw, "type": meta["type"]}
-        )
+        # The before/after pair goes into the API response *and* into
+        # `audit.record`, so a password change would otherwise write both the old
+        # and the new password into a permanent, queryable log.
+        secret = key in SECRET_KEYS
+        applied.append({
+            "key": key,
+            "from": "(hidden)" if secret else meta["raw"],
+            "to": "(hidden)" if secret else new_raw,
+            "type": meta["type"],
+            **({"secret": True} if secret else {}),
+        })
 
     if not applied:
         return {"applied": [], "changed": False, "path": path, "restartRequired": False}
@@ -322,7 +374,10 @@ HIGHLIGHT_GROUPS: list[dict[str, Any]] = [
             "DayTimeSpeedRate",
             "NightTimeSpeedRate",
             "CollectionDropRate",
-            "EggDefaultHatchingTime",
+            # `Pal`-prefixed. Without it this highlight silently matched nothing,
+            # caught by checking the group keys against a real server's
+            # DefaultPalWorldSettings.ini rather than against memory.
+            "PalEggDefaultHatchingTime",
         ],
     },
     {

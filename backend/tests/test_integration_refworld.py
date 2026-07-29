@@ -703,3 +703,364 @@ def test_player_edit_refuses_a_stale_plan_and_writes_nothing(palsav_available, s
         charedit.apply_player_edit(uid, {"nickname": "Nope"}, expected_plan_hash="stale")
 
     assert open(level, "rb").read() == original
+
+
+# ─── Inventory slot editing ──────────────────────────────────────
+
+
+def _read_all_containers(level_path):
+    from palsav.core import decompress_sav_to_gvas
+    from palsav.gvas import GvasFile
+    from palsav.paltypes import PALWORLD_CUSTOM_PROPERTIES, PALWORLD_TYPE_HINTS
+    import saveedit
+    import saveimport
+
+    raw, _ = decompress_sav_to_gvas(open(level_path, "rb").read())
+    tree = GvasFile.read(raw, PALWORLD_TYPE_HINTS, PALWORLD_CUSTOM_PROPERTIES)
+    entries = tree.properties["worldSaveData"]["value"]["ItemContainerSaveData"]["value"]
+    return {saveedit._container_id_of(e): saveimport._live_slots(e) for e in entries}
+
+
+def _plain_container(containers):
+    """A container of plain stackables with at least one free and one used slot."""
+    return next(
+        (cid, s) for cid, s in containers.items()
+        if len(s) >= 2
+        and not any(x["hasDynamicId"] for x in s)
+        and any(not x["isEmpty"] for x in s)
+        and any(x["isEmpty"] for x in s)
+    )
+
+
+@pytest.mark.slow
+def test_slot_edit_writes_one_slot_and_nothing_else(palsav_available, sandbox):
+    """
+    The slot editor end to end on a real world.
+
+    The whole point of routing through the importer is scope: exactly one
+    container changes, exactly one slot inside it, and everything else in an
+    8,000-container world is byte-identical afterwards.
+    """
+    import slotedit
+
+    level = os.path.join(sandbox["world"], "Level.sav")
+    before = _read_all_containers(level)
+    target_id, slots = _plain_container(before)
+
+    free = next(s for s in slots if s["isEmpty"])
+    patch = [{"slotIndex": free["slotIndex"], "itemId": "Wood", "stackCount": 7}]
+
+    plan = slotedit.plan_slot_edit(target_id, patch, slots)
+    assert plan["ok"], plan["problems"]
+    assert plan["slotsChanged"] == 1
+    assert plan["changes"][0]["action"] == "add"
+
+    result = slotedit.apply_slot_edit(
+        target_id, patch, slots, expected_plan_hash=plan["planHash"]
+    )
+    assert result["ok"] and result["verified"]
+    assert result["backupId"]
+
+    after = _read_all_containers(level)
+    changed = {cid for cid in before if before[cid] != after.get(cid)}
+    assert changed == {target_id}, f"slot edit escaped into {changed - {target_id}}"
+
+    written = {s["slotIndex"]: s for s in after[target_id]}
+    assert written[free["slotIndex"]]["itemId"] == "Wood"
+    assert written[free["slotIndex"]]["stackCount"] == 7
+
+    # Every other slot in the target container is also untouched.
+    untouched = [s for s in slots if s["slotIndex"] != free["slotIndex"]]
+    for original in untouched:
+        assert written[original["slotIndex"]] == original
+
+
+@pytest.mark.slow
+def test_slot_edit_can_clear_a_slot(palsav_available, sandbox):
+    import slotedit
+
+    level = os.path.join(sandbox["world"], "Level.sav")
+    target_id, slots = _plain_container(_read_all_containers(level))
+
+    used = next(s for s in slots if not s["isEmpty"])
+    patch = [{"slotIndex": used["slotIndex"], "itemId": "", "stackCount": 0}]
+
+    plan = slotedit.plan_slot_edit(target_id, patch, slots)
+    assert plan["changes"][0]["action"] == "clear"
+
+    slotedit.apply_slot_edit(target_id, patch, slots, expected_plan_hash=plan["planHash"])
+
+    written = {s["slotIndex"]: s for s in _read_all_containers(level)[target_id]}
+    assert written[used["slotIndex"]]["isEmpty"]
+    assert written[used["slotIndex"]]["itemId"] == ""
+
+
+@pytest.mark.slow
+def test_slot_edit_refuses_a_stale_plan_and_writes_nothing(palsav_available, sandbox):
+    import saveimport
+    import slotedit
+
+    level = os.path.join(sandbox["world"], "Level.sav")
+    before_bytes = open(level, "rb").read()
+    target_id, slots = _plain_container(_read_all_containers(level))
+
+    free = next(s for s in slots if s["isEmpty"])
+    patch = [{"slotIndex": free["slotIndex"], "itemId": "Wood", "stackCount": 7}]
+
+    with pytest.raises(saveimport.ImportError_, match="no longer matches"):
+        slotedit.apply_slot_edit(
+            target_id, patch, slots, expected_plan_hash="not-the-real-hash"
+        )
+
+    assert open(level, "rb").read() == before_bytes
+
+
+@pytest.mark.slow
+def test_slot_edit_refuses_while_the_server_is_up(palsav_available, sandbox, monkeypatch):
+    import safety
+    import slotedit
+
+    level = os.path.join(sandbox["world"], "Level.sav")
+    before_bytes = open(level, "rb").read()
+    target_id, slots = _plain_container(_read_all_containers(level))
+    free = next(s for s in slots if s["isEmpty"])
+    patch = [{"slotIndex": free["slotIndex"], "itemId": "Wood", "stackCount": 7}]
+
+    plan = slotedit.plan_slot_edit(target_id, patch, slots)
+    monkeypatch.setattr(
+        safety, "_probe_tcp", lambda: safety.Signal("tcp_port", "running", "test")
+    )
+
+    with pytest.raises(safety.ServerRunningError):
+        slotedit.apply_slot_edit(target_id, patch, slots, expected_plan_hash=plan["planHash"])
+
+    assert open(level, "rb").read() == before_bytes
+
+
+# ─── Bulk Pal editing ────────────────────────────────────────────
+
+
+def _pal_view(level_path, instance_ids):
+    """{instanceId: editable view} straight off disk."""
+    import charedit
+    from parser import load_gvas
+
+    gvas = load_gvas(level_path)
+    found = charedit._index_pals(gvas, set(instance_ids))
+    return {i: charedit.read_pal(obj) for i, obj in found.items()}
+
+
+@pytest.mark.slow
+def test_bulk_edit_writes_every_selected_pal(palsav_available, sandbox):
+    """
+    A real batch write. The reference world has 1,905 Pals; this takes a slice
+    of them, moves one field, and checks that all of them landed and none of the
+    others did.
+    """
+    import charedit
+    from parser import extract_characters, load_gvas
+
+    level = os.path.join(sandbox["world"], "Level.sav")
+    _players, pals = extract_characters(load_gvas(level))
+
+    # Pals whose rank we can move without colliding with the cap — and which
+    # actually *store* a Rank. `_num` defaults an absent property to 1, so the
+    # parsed view cannot tell "rank 1" from "never condensed"; only the planner
+    # can, and it refuses the latter rather than inventing the property.
+    import charedit as _charedit
+    from parser import load_gvas as _load
+
+    candidates = [p for p in pals if p.get("rank", 1) < 5]
+    objects = _charedit._index_pals(_load(level), {p["instanceId"] for p in candidates})
+    ids = [
+        p["instanceId"] for p in candidates
+        if "Rank" in objects.get(p["instanceId"], {})
+    ][:12]
+    assert len(ids) >= 3, "reference world should have condensable Pals storing a Rank"
+
+    untouched_id = next(p["instanceId"] for p in pals if p["instanceId"] not in ids)
+    before_untouched = _pal_view(level, [untouched_id])[untouched_id]
+
+    edits = charedit.spread_changes(ids, {"rank": 5}, auto_exp=False)
+    plan = charedit.plan_pal_batch(
+        [(i, o, edits[i]) for i, o in
+         charedit._index_pals(load_gvas(level), set(ids)).items()]
+    )
+    assert plan["ok"], plan["problems"]
+
+    result = charedit.apply_pal_batch(
+        edits, label="test bulk", expected_plan_hash=plan["planHash"]
+    )
+    assert result["ok"] and result["verified"]
+    assert result["palsChanged"] == len(plan["pals"])
+
+    after = _pal_view(level, ids + [untouched_id])
+    for instance_id in ids:
+        assert after[instance_id]["rank"] == 5
+    assert after[untouched_id] == before_untouched
+
+
+@pytest.mark.slow
+def test_bulk_level_change_carries_exp_with_it(palsav_available, sandbox):
+    """
+    The failure this guards against is invisible: setting a level without moving
+    EXP writes fine, verifies fine, and is undone by the game on load because it
+    recomputes the level from EXP.
+    """
+    import charedit
+    import gamedata
+    from parser import extract_characters, load_gvas
+
+    level = os.path.join(sandbox["world"], "Level.sav")
+    _players, pals = extract_characters(load_gvas(level))
+
+    ids = [p["instanceId"] for p in pals if p.get("level", 1) < 30][:5]
+    assert ids, "reference world should have low-level Pals"
+
+    edits = charedit.spread_changes(ids, {"level": 45}, auto_exp=True)
+    plan = charedit.plan_pal_batch(
+        [(i, o, edits[i]) for i, o in
+         charedit._index_pals(load_gvas(level), set(ids)).items()]
+    )
+    assert plan["ok"], plan["problems"]
+
+    charedit.apply_pal_batch(edits, label="test level", expected_plan_hash=plan["planHash"])
+
+    expected_exp = int(gamedata.load()["palExpTable"]["45"]["PalTotalEXP"])
+    after = _pal_view(level, ids)
+    for instance_id in ids:
+        assert after[instance_id]["level"] == 45
+        assert after[instance_id]["exp"] == expected_exp
+
+
+@pytest.mark.slow
+def test_bulk_edit_is_all_or_nothing(palsav_available, sandbox):
+    """
+    One bad Pal in the selection must leave the world byte-identical. A batch
+    that half-applies leaves no record of where it stopped.
+    """
+    import charedit
+    from parser import extract_characters, load_gvas
+
+    level = os.path.join(sandbox["world"], "Level.sav")
+    before_bytes = open(level, "rb").read()
+
+    _players, pals = extract_characters(load_gvas(level))
+    ids = [p["instanceId"] for p in pals[:5]]
+
+    edits = charedit.spread_changes(ids, {"rank": 3}, auto_exp=False)
+    edits[ids[-1]] = {"rank": 99}   # outside 1-5
+
+    with pytest.raises(charedit.EditError, match="nothing applied"):
+        charedit.apply_pal_batch(edits, label="test partial")
+
+    assert open(level, "rb").read() == before_bytes
+
+
+@pytest.mark.slow
+def test_bulk_edit_refuses_a_missing_pal_rather_than_writing_the_rest(
+    palsav_available, sandbox
+):
+    import charedit
+    from parser import extract_characters, load_gvas
+
+    level = os.path.join(sandbox["world"], "Level.sav")
+    before_bytes = open(level, "rb").read()
+
+    _players, pals = extract_characters(load_gvas(level))
+    ids = [p["instanceId"] for p in pals[:3]] + ["00000000-0000-0000-0000-00000000dead"]
+
+    with pytest.raises(charedit.EditError, match="not in this world"):
+        charedit.apply_pal_batch(
+            charedit.spread_changes(ids, {"rank": 3}, auto_exp=False), label="test missing"
+        )
+
+    assert open(level, "rb").read() == before_bytes
+
+
+# ─── Illegal-Pal detection ───────────────────────────────────────
+
+
+def test_the_reference_world_has_no_illegal_pals(palsav_available, level_sav):
+    """
+    A real, unmodified 1.0 world must scan clean.
+
+    This is the strongest available check that the bounds are right rather than
+    merely self-consistent: 1,905 Pals played legitimately, and any false
+    positive here means the schema is claiming the game cannot produce something
+    it demonstrably did.
+    """
+    import palcheck
+    from parser import extract_characters, load_gvas
+
+    _players, pals = extract_characters(load_gvas(level_sav))
+    report = palcheck.scan(pals)
+
+    assert report["palsScanned"] > 1000
+    assert report["palsFlagged"] == 0, report["byCode"]
+
+    # The advisories are the honest part: 13 characters carry ids the bundled
+    # tables do not list — ordinary NPCs like `Male_Soldier`, not mods. They are
+    # reported and deliberately not counted as violations.
+    assert report["palsUnrecognised"] == 13, [a["speciesId"] for a in report["advisories"]]
+
+
+@pytest.mark.slow
+def test_repair_fixes_a_planted_illegal_pal_and_leaves_the_rest(
+    palsav_available, sandbox
+):
+    """
+    Plant an out-of-range IV on a real Pal, then repair it through the real
+    path: scan, plan, guarded write, verify.
+    """
+    import charedit
+    import editschema
+    import palcheck
+    from parser import extract_characters, load_gvas
+
+    level = os.path.join(sandbox["world"], "Level.sav")
+    _players, pals = extract_characters(load_gvas(level))
+
+    victim = next(p for p in pals if "hp" in (p.get("ivs") or {}))
+    neighbour = next(p for p in pals if p["instanceId"] != victim["instanceId"])
+    before_neighbour = _pal_view(level, [neighbour["instanceId"]])[neighbour["instanceId"]]
+
+    # Plant the illegal value using the batch writer with validation bypassed —
+    # the editor cannot write an illegal value, which is the point of it.
+    from palsav.core import compress_gvas_to_sav, decompress_sav_to_gvas
+    from palsav.gvas import GvasFile
+    from palsav.paltypes import PALWORLD_CUSTOM_PROPERTIES, PALWORLD_TYPE_HINTS
+    from savefiles import atomic_write
+
+    raw, save_type = decompress_sav_to_gvas(open(level, "rb").read())
+    tree = GvasFile.read(raw, PALWORLD_TYPE_HINTS, PALWORLD_CUSTOM_PROPERTIES)
+    obj = charedit._index_pals(tree, {victim["instanceId"]})[victim["instanceId"]]
+    charedit._write_property(obj, "Talent_HP", 255)
+    atomic_write(level, compress_gvas_to_sav(tree.write(PALWORLD_CUSTOM_PROPERTIES), save_type))
+
+    # Scan finds exactly the one we planted. The unrecognised-NPC advisories are
+    # counted separately and must not contaminate this.
+    _players, pals = extract_characters(load_gvas(level))
+    report = palcheck.scan(pals)
+    assert report["palsFlagged"] == 1
+    assert report["pals"][0]["instanceId"] == victim["instanceId"]
+    assert report["byCode"][palcheck.IV_OUT_OF_RANGE] == 1
+    assert report["palsUnrecognised"] == 13
+
+    plan = palcheck.plan_repair(report)
+    assert plan["edits"] == {victim["instanceId"]: {"ivs.hp": editschema.MAX_IV}}
+
+    batch = charedit.plan_pal_batch([
+        (victim["instanceId"],
+         charedit._index_pals(load_gvas(level), {victim["instanceId"]})[victim["instanceId"]],
+         plan["edits"][victim["instanceId"]])
+    ])
+    result = charedit.apply_pal_batch(
+        plan["edits"], label="repair", expected_plan_hash=batch["planHash"]
+    )
+    assert result["ok"] and result["verified"]
+
+    # Clean afterwards, and the neighbour never moved.
+    _players, pals = extract_characters(load_gvas(level))
+    assert palcheck.scan(pals)["palsFlagged"] == 0
+    assert _pal_view(level, [neighbour["instanceId"]])[neighbour["instanceId"]] == before_neighbour

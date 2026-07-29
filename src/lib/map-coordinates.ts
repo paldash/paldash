@@ -71,45 +71,55 @@ const PALPAGOS: RegionTransform = {
 };
 
 /*
- * World Tree — PROVISIONAL, and deliberately labelled as such.
+ * World Tree — derived from the game's own World Partition grid.
  *
- * There is no ground truth to fit against yet:
- *   - The reference save has zero placed objects on this landmass, so the save
- *     offers no known positions.
- *   - The 17 fast-travel points give world coordinates but no pixel positions.
- *   - Detecting land in the texture is too weak to optimise against: sampling
- *     the 157 *known-correct* Palpagos points found 36% of them "ocean-blue"
- *     versus 58% of random pixels. That signal cannot pin down four parameters
- *     from 17 points.
+ * WHAT CHANGED, AND WHY IT IS BETTER THAN WHAT WAS HERE BEFORE
+ * -----------------------------------------------------------
+ * The previous transform assumed the map framed the *fast-travel* bounding box
+ * at ~82% of each axis. Both halves of that were wrong, and the game files say
+ * so.
  *
- * So this is derived from one stated assumption: the World Tree map frames its
- * landmass the way the Palpagos map frames its own, with the fast-travel
- * bounding box centred and covering ~82% of each axis (measured on Palpagos).
- * Markers will be in roughly the right relative arrangement, but the absolute
- * placement is unverified and may be off by a noticeable margin.
+ * `Pal-LinuxServer.pak` is unencrypted, and its index lists 9,978 World
+ * Partition streaming cells for the main world, named
+ * `MainGrid_L0_X<col>_Y<row>`. Those names *are* coordinates. The cell size is
+ * measured, not guessed: at 25,600 world units, all **174 of 174** fast-travel
+ * points land inside an occupied cell — 157/157 Palpagos and 17/17 World Tree.
+ * 12,800 gets 66 and 51,200 gets 157, so the figure is unambiguous.
  *
- * TO FIX PROPERLY: the moment anybody builds a base or opens a chest on the
- * World Tree, the save yields real positions there and this can be fitted the
- * same way Palpagos was. Replace the four constants below and set
- * `calibrated: true`. Nothing else needs to change.
+ * That yields each landmass's true extent, which is the ground truth this
+ * region never had. Projecting Palpagos' occupied-cell bounding box through its
+ * own independently verified transform shows the map image frames the landmass
+ * essentially edge to edge — 97.8% of the image on X, 99.0% on Y — not 82%, and
+ * not the fast-travel box. Applying that same framing to the World Tree's cell
+ * bounds moves markers by a mean of 80px on X and 196px on Y (max 467px)
+ * against the old guess.
+ *
+ * STILL NOT `calibrated: true`, AND THAT IS DELIBERATE
+ * ----------------------------------------------------
+ * The extent is now real. One assumption remains: that the World Tree image
+ * uses the same axis orientation as Palpagos (image X from world Y, image Y
+ * from world X negated). Nothing has been checked against a known pixel
+ * position on this landmass, so a flip or a transpose would still go unnoticed.
+ * The moment anybody builds a base or opens a chest up there, the save yields
+ * real positions and this can be *fitted* rather than derived — replace the
+ * four constants and set the flag.
+ *
+ * Regenerate the bounds with `scripts/read-pak-index.py` after a game update;
+ * a new landmass will show up as a new cell cluster.
  */
-const WORLD_TREE_FT_BOUNDS = { x1: 405905, x2: 628792, y1: -757915, y2: -510663 };
-const FRAMING = 0.82;
+const WORLD_TREE_CELL_BOUNDS = { x1: 332800, x2: 691200, y1: -793600, y2: -486400 };
 
-function provisionalWorldTree(): RegionTransform {
-  const spanWorldX = WORLD_TREE_FT_BOUNDS.x2 - WORLD_TREE_FT_BOUNDS.x1;
-  const spanWorldY = WORLD_TREE_FT_BOUNDS.y2 - WORLD_TREE_FT_BOUNDS.y1;
-  const usable = MAP_SIZE * FRAMING;
-  const margin = (MAP_SIZE - usable) / 2;
+function worldTreeFromCellGrid(): RegionTransform {
+  const { x1, x2, y1, y2 } = WORLD_TREE_CELL_BOUNDS;
 
-  // world Y -> image X:  y1 -> margin,  y2 -> margin + usable
-  const imgXScale = usable / spanWorldY;
-  const imgXOffset = margin - WORLD_TREE_FT_BOUNDS.y1 * imgXScale;
+  // world Y -> image X:  y1 -> 0,  y2 -> MAP_SIZE
+  const imgXScale = MAP_SIZE / (y2 - y1);
+  const imgXOffset = -y1 * imgXScale;
 
   // world X -> image Y, negated to match Palpagos' orientation:
-  //   x1 -> margin + usable,  x2 -> margin
-  const imgYScale = -usable / spanWorldX;
-  const imgYOffset = margin + usable - WORLD_TREE_FT_BOUNDS.x1 * imgYScale;
+  //   x1 -> MAP_SIZE,  x2 -> 0
+  const imgYScale = -MAP_SIZE / (x2 - x1);
+  const imgYOffset = MAP_SIZE - x1 * imgYScale;
 
   return {
     id: 'worldtree',
@@ -122,13 +132,13 @@ function provisionalWorldTree(): RegionTransform {
     contains: (worldX) => worldX > WORLD_TREE_X_THRESHOLD,
     calibrated: false,
     note:
-      'Positions on the World Tree map are approximate. The transform is inferred ' +
-      'from the landmass extent, not fitted to known points — no save data exists ' +
-      'for this region yet.',
+      'World Tree positions are derived from the game’s streaming-cell grid, so the ' +
+      'landmass extent is exact — but the image orientation has never been checked ' +
+      'against a known point up here, so treat placement as close rather than certain.',
   };
 }
 
-const WORLD_TREE = provisionalWorldTree();
+const WORLD_TREE = worldTreeFromCellGrid();
 
 export const MAP_REGIONS: RegionTransform[] = [PALPAGOS, WORLD_TREE];
 

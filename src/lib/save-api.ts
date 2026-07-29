@@ -8,7 +8,14 @@ import type {
   PlayerSaveData,
   ContainerContents,
   BackupInfo,
-  SaveEditRequest,
+  BulkEditPlan,
+  BulkEditResult,
+  SlotPatch,
+  SlotEditPlan,
+  SlotEditResult,
+  PalCheckScan,
+  PalRepairPlan,
+  PalRepairResult,
   ServerState,
   CacheStatus,
   LifecycleStatus,
@@ -219,6 +226,77 @@ export async function applyPlayerEdit(
     `/edit/player/${encodeURIComponent(uid)}?planHash=${encodeURIComponent(planHash)}`,
     { method: 'POST', body: JSON.stringify({ changes }) }
   );
+}
+
+// ─── Bulk Pal editing ────────────────────────────────────
+
+export async function previewBulkPalEdit(
+  instanceIds: string[],
+  changes: Record<string, unknown>,
+  autoExp = true
+): Promise<BulkEditPlan> {
+  return saveFetch('/edit/pals/bulk/preview', {
+    method: 'POST',
+    body: JSON.stringify({ instanceIds, changes, autoExp }),
+  });
+}
+
+export async function applyBulkPalEdit(
+  instanceIds: string[],
+  changes: Record<string, unknown>,
+  planHash: string,
+  autoExp = true
+): Promise<BulkEditResult> {
+  return saveFetch(`/edit/pals/bulk?planHash=${encodeURIComponent(planHash)}`, {
+    method: 'POST',
+    body: JSON.stringify({ instanceIds, changes, autoExp }),
+  });
+}
+
+// ─── Inventory slot editing ──────────────────────────────
+
+export async function previewSlotEdit(
+  containerId: string,
+  patches: SlotPatch[]
+): Promise<SlotEditPlan> {
+  return saveFetch(`/edit/container/${encodeURIComponent(containerId)}/slots/preview`, {
+    method: 'POST',
+    body: JSON.stringify({ patches }),
+  });
+}
+
+export async function applySlotEdit(
+  containerId: string,
+  patches: SlotPatch[],
+  planHash: string
+): Promise<SlotEditResult> {
+  return saveFetch(
+    `/edit/container/${encodeURIComponent(containerId)}/slots?planHash=${encodeURIComponent(planHash)}`,
+    { method: 'POST', body: JSON.stringify({ patches }) }
+  );
+}
+
+// ─── Illegal-Pal detection ───────────────────────────────
+
+export async function scanIllegalPals(): Promise<PalCheckScan> {
+  return saveFetch('/palcheck/scan');
+}
+
+export async function previewPalRepair(instanceIds?: string[]): Promise<PalRepairPlan> {
+  return saveFetch('/palcheck/repair/preview', {
+    method: 'POST',
+    body: JSON.stringify({ instanceIds: instanceIds ?? null }),
+  });
+}
+
+export async function applyPalRepair(
+  planHash: string,
+  instanceIds?: string[]
+): Promise<PalRepairResult> {
+  return saveFetch(`/palcheck/repair?planHash=${encodeURIComponent(planHash)}`, {
+    method: 'POST',
+    body: JSON.stringify({ instanceIds: instanceIds ?? null }),
+  });
 }
 
 export type ExportKind = 'world' | 'player' | 'guild' | 'base' | 'container';
@@ -495,16 +573,6 @@ export async function setBackupSchedule(
     body: JSON.stringify(changes),
   });
 }
-
-// ─── Save Editing (Write Mode — server must be offline) ─
-
-export async function editSaveData(request: SaveEditRequest): Promise<{ success: boolean; diff: string }> {
-  return saveFetch('/edit', {
-    method: 'POST',
-    body: JSON.stringify(request),
-  });
-}
-
 
 // ─── Accounts ────────────────────────────────────────────
 

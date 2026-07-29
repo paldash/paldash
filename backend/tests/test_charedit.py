@@ -118,13 +118,29 @@ def test_out_of_range_values_are_refused():
     assert not charedit.plan_pal_edit(obj, {"level": 81})["ok"]
 
 
-def test_level_without_matching_exp_is_refused():
-    """The cross-field rule, reached through the editor rather than directly."""
+def test_exp_beyond_the_new_level_is_refused():
+    """
+    The cross-field rule, reached through the editor rather than directly.
+
+    Only the upper half fires: EXP past a level's band makes the game level the
+    Pal up on load, so the operator gets a level they did not ask for. Low EXP
+    is what a freshly caught Pal has and is left alone — see
+    `editschema._check_exp_matches_level`.
+    """
+    import gamedata
+
     obj = pal_object(level=1, exp=0)
-    plan = charedit.plan_pal_edit(obj, {"level": 50})
+    beyond = int(gamedata.load()["palExpTable"]["51"]["PalTotalEXP"])
+    plan = charedit.plan_pal_edit(obj, {"level": 50, "exp": beyond})
 
     assert not plan["ok"]
-    assert any("recalculate" in p["problem"] for p in plan["problems"])
+    assert any("beyond level 50" in p["problem"] for p in plan["problems"])
+
+
+def test_a_level_change_alone_is_allowed():
+    """Raising a level without touching EXP leaves the Pal below its band, which
+    is a state the game itself produces and keeps."""
+    assert charedit.plan_pal_edit(pal_object(level=1, exp=0), {"level": 50})["ok"]
 
 
 def test_level_with_matching_exp_is_accepted():
@@ -282,14 +298,19 @@ def test_player_exp_uses_the_player_curve():
     import gamedata
 
     level = 40
-    player_exp = int(gamedata.load()["palExpTable"][str(level)]["TotalEXP"])
-    pal_exp = int(gamedata.load()["palExpTable"][str(level)]["PalTotalEXP"])
+    table = gamedata.load()["palExpTable"]
+    player_exp = int(table[str(level)]["TotalEXP"])
 
     assert charedit.plan_player_edit(
         player_character(level=1, exp=0), {"level": level, "exp": player_exp}, player_save()
     )["ok"]
+
+    # The curves diverge, so the *next* player level's EXP is past this level's
+    # band — and would be accepted if the Pal curve were used by mistake.
+    beyond_player = int(table[str(level + 1)]["TotalEXP"])
+    assert beyond_player > int(table[str(level + 1)]["PalTotalEXP"])
     assert not charedit.plan_player_edit(
-        player_character(level=1, exp=0), {"level": level, "exp": pal_exp}, player_save()
+        player_character(level=1, exp=0), {"level": level, "exp": beyond_player}, player_save()
     )["ok"]
 
 
@@ -324,3 +345,127 @@ def test_writing_player_fields_hits_the_right_shapes():
     view = charedit.read_player(char, save)
     assert view["level"] == 55
     assert view["technologyPoints"] == 700
+
+
+# ─── Bulk editing ────────────────────────────────────────────────
+#
+# The property that matters is atomicity. A batch that half-applies leaves no
+# record of where it stopped, which is worse than one that refuses outright.
+
+
+def subjects(*specs):
+    """[(instance_id, object, changes), ...] from (id, kwargs, changes) triples."""
+    return [(i, pal_object(**kw), changes) for i, kw, changes in specs]
+
+
+def test_bulk_plans_every_pal():
+    plan = charedit.plan_pal_batch(subjects(
+        ("a", {"level": 10}, {"rank": 3}),
+        ("b", {"level": 20, "rank": 2}, {"rank": 3}),
+    ))
+
+    assert plan["ok"], plan["problems"]
+    assert plan["palsChanged"] == 2
+    assert plan["fieldsChanged"] == 2
+    assert plan["planHash"]
+
+
+def test_bulk_separates_unchanged_from_failed():
+    """
+    A Pal already at the target value is not an error — any real selection will
+    contain some — but it must not be counted as changed either.
+    """
+    plan = charedit.plan_pal_batch(subjects(
+        ("a", {"rank": 3}, {"rank": 3}),
+        ("b", {"rank": 1}, {"rank": 3}),
+    ))
+
+    assert plan["ok"]
+    assert plan["palsChanged"] == 1
+    assert plan["palsUnchanged"] == 1
+    assert plan["unchanged"] == ["a"]
+
+
+def test_one_bad_pal_refuses_the_whole_batch():
+    plan = charedit.plan_pal_batch(subjects(
+        ("a", {}, {"rank": 3}),
+        ("b", {}, {"rank": 99}),      # outside 1-5
+    ))
+
+    assert not plan["ok"]
+    assert plan["pals"] == []
+    assert plan["planHash"] == ""
+    assert plan["problems"][0]["instanceId"] == "b"
+
+
+def test_bulk_problems_name_the_pal():
+    """Without the instance id, a failure in a 200-Pal batch is unactionable."""
+    plan = charedit.plan_pal_batch(subjects(("only", {}, {"ivs.hp": 500})))
+    assert plan["problems"][0]["instanceId"] == "only"
+    assert "ivs.hp" == plan["problems"][0]["field"]
+
+
+def test_empty_selection_is_refused():
+    plan = charedit.plan_pal_batch([])
+    assert not plan["ok"]
+    assert "No Pals selected" in plan["problems"][0]["problem"]
+
+
+def test_batch_size_is_capped():
+    too_many = subjects(*[(str(i), {}, {"rank": 2}) for i in range(charedit.MAX_BULK + 1)])
+    plan = charedit.plan_pal_batch(too_many)
+    assert not plan["ok"]
+    assert "exceeds" in plan["problems"][0]["problem"]
+
+
+def test_plan_hash_covers_every_pal():
+    """
+    One Pal moving underneath the operator has to invalidate the batch. They
+    approved a specific set of before/after pairs, not a filter.
+    """
+    a = charedit.plan_pal_batch(subjects(
+        ("a", {"rank": 1}, {"rank": 3}), ("b", {"rank": 1}, {"rank": 3}),
+    ))
+    b = charedit.plan_pal_batch(subjects(
+        ("a", {"rank": 1}, {"rank": 3}), ("b", {"rank": 2}, {"rank": 3}),
+    ))
+    assert a["planHash"] != b["planHash"]
+
+
+# ─── auto-EXP ────────────────────────────────────────────────────
+
+
+def test_auto_exp_moves_exp_to_the_new_level():
+    """
+    A level change without it is accepted but leaves the Pal on its old EXP, so
+    the first battle it wins snaps it back down toward that level. Carrying EXP
+    along is what makes a bulk level change stick.
+    """
+    import gamedata
+
+    without = charedit.spread_changes(["a"], {"level": 40}, auto_exp=False)
+    assert "exp" not in without["a"]
+
+    with_exp = charedit.spread_changes(["a"], {"level": 40}, auto_exp=True)
+    assert with_exp["a"]["exp"] == int(gamedata.load()["palExpTable"]["40"]["PalTotalEXP"])
+    assert charedit.plan_pal_batch([("a", pal_object(level=10), with_exp["a"])])["ok"]
+
+
+def test_auto_exp_never_overrides_an_explicit_value():
+    import gamedata
+
+    exact = int(gamedata.load()["palExpTable"]["40"]["PalTotalEXP"]) + 5
+    spread = charedit.spread_changes(["a"], {"level": 40, "exp": exact}, auto_exp=True)
+    assert spread["a"]["exp"] == exact
+
+
+def test_auto_exp_does_nothing_without_a_level_change():
+    spread = charedit.spread_changes(["a"], {"rank": 4}, auto_exp=True)
+    assert spread["a"] == {"rank": 4}
+
+
+def test_spread_gives_each_pal_its_own_dict():
+    """Shared dicts would let one Pal's derived EXP leak into another's."""
+    spread = charedit.spread_changes(["a", "b"], {"level": 40}, auto_exp=True)
+    spread["a"]["rank"] = 5
+    assert "rank" not in spread["b"]

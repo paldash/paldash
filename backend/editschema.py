@@ -241,6 +241,20 @@ def describe(target: str) -> list[dict]:
     return [field.describe() for field in fields_for(target).values()]
 
 
+def exp_for_level(target: str, level: int) -> int:
+    """
+    The lowest EXP that sits at `level` — i.e. "just reached it".
+
+    Bulk edits need this. Setting 200 Pals to level 50 without also moving their
+    EXP means the game recomputes every one of them back to whatever their EXP
+    says, so a bulk level change that does not carry EXP with it does nothing at
+    all. Taking the band *minimum* is the conservative choice: it grants the
+    level and not a single point of progress towards the next.
+    """
+    key = "TotalEXP" if target == "player" else "PalTotalEXP"
+    return _exp_band(level, key)[0]
+
+
 def exp_bands(target: str) -> dict[str, list[Optional[int]]]:
     """
     `{level: [minimum, maximum]}` for every level up to the cap.
@@ -262,11 +276,27 @@ def exp_bands(target: str) -> dict[str, list[Optional[int]]]:
 
 def _check_exp_matches_level(target: str, merged: dict) -> list[dict]:
     """
-    EXP must belong to the level it is stored with.
+    EXP must not be *beyond* the level it is stored with.
 
-    The game derives level from total EXP on load. Setting level 50 while
-    leaving level-10 EXP in place means the character is level 10 again the next
-    time it loads — an edit that appears to work and does not.
+    THE RULE IS ONE-SIDED, AND THE MEASUREMENT IS WHY
+    -------------------------------------------------
+    This started as a symmetric rule — EXP had to sit inside its level's band —
+    on the reasoning that the game derives level from total EXP on load. Checked
+    against the reference world, that is only half true:
+
+        above the band:  0 of 1,905 Pals, 0 of 5 players
+        below the band:  8 Pals (levels 4-11, freshly caught)
+        inside:          1,897 Pals, 5 players
+
+    A caught Pal arrives at its wild level with almost no EXP, and the game
+    leaves it there. So low EXP is a state the game itself produces and keeps —
+    rejecting it would refuse an edit for being in a condition Palworld creates
+    on its own, and flag eight legitimate Pals on a clean world.
+
+    High EXP is the opposite: it never occurs naturally, and it is the direction
+    the game acts on. Writing it means the operator asks for level 20 and gets
+    something else on next load — an edit that appears to work and does not.
+    That half stays a hard rejection.
     """
     level = merged.get("level")
     exp = merged.get("exp")
@@ -274,13 +304,7 @@ def _check_exp_matches_level(target: str, merged: dict) -> list[dict]:
         return []
 
     key = "TotalEXP" if target == "player" else "PalTotalEXP"
-    low, high = _exp_band(level, key)
-    if exp < low:
-        return [{
-            "field": "exp",
-            "problem": f"level {level} needs at least {low:,} EXP; the game would "
-                       f"recalculate this character as a lower level",
-        }]
+    _low, high = _exp_band(level, key)
     if high is not None and exp > high:
         return [{
             "field": "exp",

@@ -214,6 +214,140 @@ export interface EditResult {
   verified: boolean;
 }
 
+/** One Pal's slice of a batch plan. */
+export interface BulkEditPal {
+  instanceId: string;
+  nickname: string;
+  changes: EditChange[];
+}
+
+export interface BulkEditPlan {
+  ok: boolean;
+  problems: { instanceId: string | null; field: string | null; problem: string }[];
+  pals: BulkEditPal[];
+  palsChanged?: number;
+  /** Already at the target values — not a failure, just nothing to do. */
+  palsUnchanged?: number;
+  fieldsChanged?: number;
+  planHash: string;
+  autoExp?: boolean;
+  applied?: boolean;
+}
+
+export interface BulkEditResult {
+  ok: boolean;
+  applied: boolean;
+  palsChanged: number;
+  palsUnchanged: number;
+  fieldsChanged: number;
+  pals: BulkEditPal[];
+  backupId: string;
+  verified: boolean;
+}
+
+/** An empty `itemId` or a zero `stackCount` clears the slot. */
+export interface SlotPatch {
+  slotIndex: number;
+  itemId: string;
+  stackCount: number;
+}
+
+export interface SlotChange {
+  slotIndex: number;
+  before: { itemId: string; itemName: string; stackCount: number };
+  after: { itemId: string; itemName: string; stackCount: number };
+  action: 'add' | 'clear' | 'replace' | 'increase' | 'decrease';
+}
+
+export interface SlotEditPlan {
+  ok: boolean;
+  containerId: string;
+  problems: { slotIndex: number | null; problem: string }[];
+  changes: SlotChange[];
+  slotsChanged?: number;
+  itemsBefore?: number;
+  itemsAfter?: number;
+  planHash: string;
+  summary?: string;
+}
+
+export interface SlotEditResult {
+  ok: boolean;
+  applied: boolean;
+  containerId: string;
+  slotsChanged: number;
+  itemsBefore: number;
+  itemsAfter: number;
+  backupId: string;
+  verified: boolean;
+}
+
+export interface PalIssue {
+  code: string;
+  field: string;
+  found: unknown;
+  detail: string;
+  /** False for passive-skill lists — reported, never written. */
+  repairable: boolean;
+  /**
+   * Informational rather than evidence of anything. An id the bundled tables do
+   * not list usually means our data is incomplete, not that someone cheated:
+   * 13 of the reference world's own characters are ordinary NPCs missing from
+   * them. Advisories are never counted in `palsFlagged`.
+   */
+  advisory: boolean;
+  fix: unknown;
+}
+
+export interface FlaggedPal {
+  instanceId: string;
+  speciesId: string;
+  speciesName: string;
+  nickname: string;
+  level: number;
+  ownerUid: string;
+  ownerName: string;
+  issues: PalIssue[];
+  repairable: boolean;
+}
+
+export interface PalCheckScan {
+  palsScanned: number;
+  palsFlagged: number;
+  palsRepairable: number;
+  issueCount: number;
+  byCode: Record<string, number>;
+  byOwner: Record<string, number>;
+  /** Stat violations only — the reliable signal. */
+  pals: FlaggedPal[];
+  /** Unrecognised ids. Reported, never counted as cheating. */
+  advisories: FlaggedPal[];
+  palsUnrecognised: number;
+  bounds: {
+    maxLevel: number;
+    maxIv: number;
+    rank: [number, number];
+    maxPassives: number;
+  };
+}
+
+export interface PalRepairPlan extends BulkEditPlan {
+  palsToRepair?: number;
+  /** Flagged Pals keeping a problem this build cannot fix by writing. */
+  palsWithUnfixableIssues: number;
+  unfixable: {
+    instanceId: string;
+    nickname: string;
+    speciesName: string;
+    issues: PalIssue[];
+  }[];
+}
+
+export interface PalRepairResult extends BulkEditResult {
+  palsWithUnfixableIssues: number;
+  unfixable: PalRepairPlan['unfixable'];
+}
+
 export interface ContainerContents {
   containerId: string;
   slots: InventorySlot[];
@@ -294,12 +428,6 @@ export interface BackupSchedule {
   lastResult: string | null;
   nextRun: string | null;
   frequencies: string[];
-}
-
-export interface SaveEditRequest {
-  targetType: 'player' | 'world' | 'pal';
-  targetId: string;
-  changes: Record<string, unknown>;
 }
 
 // ─── Dashboard State Types ──────────────────────────────

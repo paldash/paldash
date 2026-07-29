@@ -173,6 +173,25 @@ def plan_pal_edit(obj: dict, changes: dict) -> dict:
             "changes": [], "planHash": "",
         }
 
+    # Refuse fields whose property this particular Pal does not carry, the same
+    # way `plan_player_edit` does. `_write_property` refuses to invent one — an
+    # absent `Rank` on a never-condensed Pal reads as 1 through `_num`'s default,
+    # so nothing upstream notices until the write is already inside
+    # `guarded_save_write`. Catching it here means no pointless backup and, for a
+    # batch, no discovering it 140 Pals in.
+    missing = [f for f in changes if PAL_PROPERTY_MAP[f] not in obj]
+    if missing:
+        return {
+            "ok": False,
+            "problems": [{
+                "field": f,
+                "problem": f"This Pal has no {PAL_PROPERTY_MAP[f]!r} stored, so there is no "
+                           "shape to write into. It appears once the game itself sets the "
+                           "value — creating it would mean guessing its type.",
+            } for f in missing],
+            "changes": [], "planHash": "",
+        }
+
     report = editschema.validate("pal", changes, current=current)
     if not report["ok"]:
         return {"ok": False, "problems": report["problems"], "changes": [], "planHash": ""}
@@ -188,6 +207,256 @@ def plan_pal_edit(obj: dict, changes: dict) -> dict:
     }
     plan["planHash"] = saveexport.checksum(diff)
     return plan
+
+
+# ─── Bulk Pal editing ────────────────────────────────────
+#
+# One change set, many Pals, one backup, all-or-nothing.
+#
+# The batch is atomic on purpose. A partial bulk edit — 140 of 200 Pals moved,
+# the rest not — is materially worse than no edit at all, because there is no
+# record of where it stopped and no way to resume it. So every Pal is planned
+# and validated *before* anything is written, and a single failure refuses the
+# whole batch.
+
+# A ceiling on one request. The reference world has 1,905 Pals; anything past
+# this is a mistake or an attempt to make one write take minutes with the server
+# down, which is its own hazard.
+MAX_BULK = 2000
+
+
+def plan_pal_batch(subjects: list[tuple[str, dict, dict]]) -> dict:
+    """
+    Validate a **per-Pal** change set against many Pals. Pure — no writes.
+
+    `subjects` is `[(instance_id, save_parameter_object, changes), ...]`.
+
+    This is the core both batch callers share. A bulk edit sends the same
+    `changes` for every Pal; a repair sends a different one per Pal, because
+    clamping an out-of-range value depends on what that Pal's value is. Keeping
+    the per-Pal form as the primitive means there is one batch write path rather
+    than two that have to stay in step.
+    """
+    if not subjects:
+        return {
+            "ok": False,
+            "problems": [{"instanceId": None, "field": None,
+                          "problem": "No Pals selected"}],
+            "pals": [], "planHash": "",
+        }
+    if len(subjects) > MAX_BULK:
+        return {
+            "ok": False,
+            "problems": [{"instanceId": None, "field": None,
+                          "problem": f"{len(subjects)} Pals exceeds the {MAX_BULK} maximum "
+                                     "for one batch"}],
+            "pals": [], "planHash": "",
+        }
+
+    problems: list[dict] = []
+    planned: list[dict] = []
+    unchanged: list[str] = []
+
+    for instance_id, obj, per_pal in subjects:
+        plan = plan_pal_edit(obj, per_pal)
+        if not plan["ok"]:
+            problems.extend(
+                {"instanceId": instance_id, **p} for p in plan["problems"]
+            )
+            continue
+
+        if not plan["changes"]:
+            # Already at the target values. Not a failure — a bulk edit over a
+            # mixed selection will always contain some of these.
+            unchanged.append(instance_id)
+            continue
+
+        planned.append({
+            "instanceId": instance_id,
+            "nickname": plan["current"]["nickname"],
+            "changes": plan["changes"],
+        })
+
+    if problems:
+        return {"ok": False, "problems": problems, "pals": [], "planHash": ""}
+
+    result = {
+        "ok": True,
+        "problems": [],
+        "pals": planned,
+        "palsChanged": len(planned),
+        "palsUnchanged": len(unchanged),
+        "unchanged": unchanged,
+        "fieldsChanged": sum(len(p["changes"]) for p in planned),
+    }
+    # The hash covers every Pal's diff, so a single Pal moving underneath the
+    # operator invalidates the batch. That is the intent: they approved a
+    # specific set of before/after pairs, not a filter.
+    result["planHash"] = saveexport.checksum(result["pals"])
+    return result
+
+
+def spread_changes(
+    instance_ids: list[str], changes: dict, auto_exp: bool = False
+) -> dict[str, dict]:
+    """
+    One change set, repeated per Pal — the bulk-edit shape, as a per-Pal map.
+
+    `auto_exp` is what makes a bulk *level* change work at all. The game derives
+    level from total EXP on load, so setting level without EXP is silently
+    undone the next time the world loads. With `auto_exp`, EXP moves to the
+    minimum for the new level. It is ignored when the caller supplied `exp`
+    themselves — an explicit value is never second-guessed.
+    """
+    per_pal = dict(changes)
+    if auto_exp and "level" in changes and "exp" not in changes:
+        per_pal["exp"] = editschema.exp_for_level("pal", changes["level"])
+    return {i: dict(per_pal) for i in instance_ids}
+
+
+def apply_pal_batch(
+    edits: dict[str, dict],
+    label: str = "bulk edit",
+    expected_plan_hash: Optional[str] = None,
+) -> dict:
+    """
+    Apply per-Pal change sets to many Pals in a single guarded write.
+
+    One backup, one re-read, one verification pass covering every Pal. Any
+    failure — a Pal that moved, a value that did not read back — rolls the whole
+    world back, so the batch cannot land half-applied.
+    """
+    from backup import guarded_save_write, restore_backup
+    from palsav.core import compress_gvas_to_sav, decompress_sav_to_gvas
+    from palsav.gvas import GvasFile
+    from palsav.paltypes import PALWORLD_CUSTOM_PROPERTIES, PALWORLD_TYPE_HINTS
+    from savefiles import atomic_write, get_level_sav_path, read_sav_bytes
+
+    wanted = [i for i in dict.fromkeys(edits or {}) if i]
+    if not wanted:
+        raise EditError("No Pals selected")
+
+    level_path = get_level_sav_path()
+    if not level_path:
+        raise EditError("Level.sav not found")
+
+    world_dir = os.path.dirname(level_path)
+
+    with guarded_save_write(f"{label}: {len(wanted)} Pals", world_dir) as backup:
+        original = read_sav_bytes(level_path)
+        if original is None:
+            raise EditError("Could not read Level.sav")
+
+        raw_gvas, save_type = decompress_sav_to_gvas(original)
+        gvas = GvasFile.read(raw_gvas, PALWORLD_TYPE_HINTS, PALWORLD_CUSTOM_PROPERTIES)
+
+        found = _index_pals(gvas, set(wanted))
+        missing = [i for i in wanted if i not in found]
+        if missing:
+            raise EditError(
+                f"{len(missing)} of the selected Pals are not in this world "
+                f"(first: {missing[0]}). Refusing to apply a partial batch."
+            )
+
+        subjects = [(i, found[i], edits[i]) for i in wanted]
+        plan = plan_pal_batch(subjects)
+        if not plan["ok"]:
+            first = plan["problems"][0]
+            raise EditError(
+                f"{len(plan['problems'])} problem(s), nothing applied. First: "
+                f"{first['problem']}"
+                + (f" (Pal {first['instanceId']})" if first.get("instanceId") else "")
+            )
+        if expected_plan_hash and plan["planHash"] != expected_plan_hash:
+            raise EditError(
+                "One or more of these Pals changed since the batch was previewed — the "
+                "plan no longer matches what you approved. Preview it again."
+            )
+        if not plan["pals"]:
+            raise EditError("Nothing to change — every selected Pal already has those values")
+
+        for entry in plan["pals"]:
+            obj = found[entry["instanceId"]]
+            for change in entry["changes"]:
+                _write_property(obj, PAL_PROPERTY_MAP[change["field"]], change["after"])
+
+        encoded = compress_gvas_to_sav(gvas.write(PALWORLD_CUSTOM_PROPERTIES), save_type)
+        atomic_write(level_path, encoded)
+        logger.info(
+            "%s: %d Pals, %d fields", label, len(plan["pals"]), plan["fieldsChanged"]
+        )
+
+        try:
+            verify_gvas = GvasFile.read(
+                decompress_sav_to_gvas(read_sav_bytes(level_path))[0],
+                PALWORLD_TYPE_HINTS,
+                PALWORLD_CUSTOM_PROPERTIES,
+            )
+            written = _index_pals(verify_gvas, {e["instanceId"] for e in plan["pals"]})
+
+            for entry in plan["pals"]:
+                obj = written.get(entry["instanceId"])
+                if obj is None:
+                    raise EditError(f"Pal {entry['instanceId']} vanished from the written file")
+                after = editschema._flatten(read_pal(obj))
+                for change in entry["changes"]:
+                    actual = after.get(change["field"])
+                    if actual != change["after"]:
+                        raise EditError(
+                            f"Pal {entry['instanceId']}: {change['field']} reads back as "
+                            f"{actual!r} rather than {change['after']!r} — the write did not take"
+                        )
+        except Exception as e:  # noqa: BLE001
+            logger.error("%s verification failed, rolling back: %s", label, e)
+            try:
+                restore_backup(backup["id"], scope="world")
+            except Exception as rollback_error:  # noqa: BLE001
+                raise EditError(
+                    f"Verification FAILED and automatic rollback also failed "
+                    f"({rollback_error}). Restore backup {backup['id']} manually. "
+                    f"Original cause: {e}"
+                ) from e
+            raise EditError(
+                f"Verification failed and the world was rolled back to backup "
+                f"{backup['id']}. Nothing was lost. Cause: {e}"
+            ) from e
+
+        return {
+            "ok": True,
+            "applied": True,
+            "palsChanged": len(plan["pals"]),
+            "palsUnchanged": plan["palsUnchanged"],
+            "fieldsChanged": plan["fieldsChanged"],
+            "pals": plan["pals"],
+            "backupId": backup["id"],
+            "planHash": plan["planHash"],
+            "verified": True,
+        }
+
+
+def _index_pals(gvas: Any, wanted: set[str]) -> dict[str, dict]:
+    """
+    Instance id -> SaveParameter, for the requested Pals only.
+
+    One walk of `CharacterSaveParameterMap` rather than one per Pal: on the
+    reference world that map holds 1,905 entries, so the per-Pal scan a bulk
+    edit would otherwise do is quadratic.
+    """
+    out: dict[str, dict] = {}
+    for entry in _character_entries(gvas):
+        key = entry.get("key") if isinstance(entry, dict) else None
+        instance_id = str(_v(key, "InstanceId", "value", default="") or "")
+        if instance_id not in wanted or instance_id in out:
+            continue
+        obj = _save_parameter(entry)
+        if obj is None:
+            continue
+        if _prop(obj, "IsPlayer", False) is True:
+            raise EditError(
+                f"{instance_id} is a player character, not a Pal. Use the player editor."
+            )
+        out[instance_id] = obj
+    return out
 
 
 def read_player(char_obj: dict, player_save: Optional[dict] = None) -> dict:

@@ -221,6 +221,19 @@ def npc_name(npc_id: str) -> str:
     return entry["name"] if entry else humanize(npc_id)
 
 
+def character(character_id: str) -> Optional[dict]:
+    """
+    The record for anything in CharacterSaveParameterMap, Pal or human.
+
+    `pal()` alone answers "is this a known Pal", which is not the same question
+    as "is this a known character". On the reference world 100 of the 1,905
+    entries are NPCs — guards, merchants, villagers — so treating a Pal-table
+    miss as "unrecognised" flags a clean world as full of modded content.
+    """
+    species, _ = normalise_species(character_id)
+    return _lookup("pals", species) or _lookup("npcs", species)
+
+
 def character_name(character_id: str) -> str:
     """
     Name for anything in CharacterSaveParameterMap.

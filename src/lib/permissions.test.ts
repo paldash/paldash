@@ -66,7 +66,15 @@ describe('describeSavePath', () => {
     it.each([
       ['edit/sort/stackables', 'POST', CAPABILITIES.SAVE_SORT_STACKABLES],
       ['edit/sort/all', 'POST', CAPABILITIES.SAVE_SORT_ALL],
-      ['edit', 'POST', CAPABILITIES.SAVE_EDIT_FULL],
+      ['edit/pals/bulk', 'POST', CAPABILITIES.SAVE_EDIT_FULL],
+      ['edit/pals/bulk/preview', 'POST', CAPABILITIES.SAVE_EDIT_FULL],
+      ['edit/container/abc-123/slots', 'POST', CAPABILITIES.SAVE_EDIT_FULL],
+      ['edit/container/abc-123/slots/preview', 'POST', CAPABILITIES.SAVE_EDIT_FULL],
+      // Scanning for illegal Pals is how an admin finds out whether anyone has
+      // been cheating, so it must not require the write capability.
+      ['palcheck/scan', 'GET', CAPABILITIES.VIEW_DETAIL],
+      ['palcheck/repair', 'POST', CAPABILITIES.SAVE_EDIT_FULL],
+      ['palcheck/repair/preview', 'POST', CAPABILITIES.SAVE_EDIT_FULL],
       ['users', 'GET', CAPABILITIES.USERS_MANAGE],
       ['users/alice', 'PATCH', CAPABILITIES.USERS_MANAGE],
       ['audit', 'GET', CAPABILITIES.AUDIT_VIEW],
@@ -79,6 +87,22 @@ describe('describeSavePath', () => {
       const verdict = describeSavePath(path, method);
       expect(verdict.allowed).toBe(true);
       expect(verdict.capability).toBe(capability);
+    });
+
+    it('no longer exposes the retired general edit route', () => {
+      // `/api/edit` was a 501 placeholder. The specific routes replaced it, and
+      // an allowlist entry pointing at nothing is an invitation to re-add a
+      // catch-all write endpoint by accident.
+      expect(describeSavePath('edit', 'POST').allowed).toBe(false);
+    });
+
+    it('a Pal cannot be named "bulk" into the batch route', () => {
+      // The batch lives under `pals/`, not `pal/`, so a single-Pal edit can
+      // never be mistaken for it — nor the reverse.
+      expect(describeSavePath('edit/pal/bulk', 'POST').capability).toBe(
+        CAPABILITIES.SAVE_EDIT_FULL
+      );
+      expect(describeSavePath('edit/pals/anything-else', 'POST').allowed).toBe(false);
     });
 
     it('never lets a sort route fall through to the weaker capability', () => {

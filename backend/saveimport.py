@@ -230,7 +230,16 @@ def plan_container_import(document: dict, current_slots: list[dict]) -> dict:
         "itemsBefore": sum(
             int(s.get("stackCount") or 0) for s in current_slots if not s.get("isEmpty")
         ),
-        "itemsAfter": sum(s["stackCount"] for s in validation["slots"]),
+        # Derived from the diff rather than by summing the document, because a
+        # document may legitimately describe only *part* of a container — the
+        # slot editor sends exactly the slots being changed, and the loop above
+        # leaves any index it does not mention alone. Summing the document would
+        # then report the container as holding only the patched slots. For a
+        # whole-container import the two are identical, since the changes cover
+        # every slot that differs.
+        "itemsAfter": sum(
+            int(s.get("stackCount") or 0) for s in current_slots if not s.get("isEmpty")
+        ) + sum(c["after"]["stackCount"] - c["before"]["stackCount"] for c in changes),
         "sourceWorldGuid": report["worldGuid"],
         "exportedAt": report["exportedAt"],
     }

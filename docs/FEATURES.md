@@ -162,3 +162,54 @@ The handling follows from that:
 
 Verified: byte-identical output on re-run, no pair references an unnameable Pal, and the
 table cannot shrink below palcalc's original 44,850. 13 tests in `test_breeding.py`.
+
+---
+
+## Phase 7 additions (2026-07-29)
+
+### Bulk Pal editing
+One change set applied to many Pals in a single guarded write. Atomic: every Pal
+is validated before anything is written, and a verification failure on any one
+of them rolls the whole world back. `autoExp` carries EXP along with a level
+change — without it a level change leaves each Pal on its old EXP.
+
+### Inventory slot editing
+Set, change or clear individual container slots. Routed through the container
+import write path, so it inherits every guarantee that already has: unknown item
+ids refused, per-item stack ceilings enforced, durability slots refused (writing
+over one orphans its `DynamicItemSaveData` record), and after writing the target
+container must match while **every other container in the world is unchanged**.
+
+This is also how arbitrary items get added to a world — any id in the bundled
+2,466-item database is addressable.
+
+### Illegal-Pal detection and repair
+Scans every Pal against the same `editschema` bounds the editor enforces, and
+repairs by clamping. Reports **violations** and **advisories** separately:
+
+- **Violations** — IVs outside 0–100, condenser rank outside 1–5, level above the
+  cap, EXP beyond its level. The reference world has **zero**.
+- **Advisories** — an id the bundled tables do not list. Usually an NPC we simply
+  lack, not a mod: 13 of the reference world's own characters are like this, and
+  they carry IVs and passives exactly like a Pal, so there is no way to tell them
+  apart. Never counted as cheating.
+
+Repair only touches scalars. Passive-skill lists are an ArrayProperty and are
+reported untouched; changing a species is not a repair.
+
+---
+
+## Reading the game's own files
+
+`refs/palworld/` (a dedicated server install, gitignored) is now used for two
+things beyond reference data:
+
+- **`scripts/read-pak-index.py`** lists all 158,444 entries in
+  `Pal-LinuxServer.pak`. The pak is unencrypted, so no key is needed. This is how
+  the World Partition cell grid was found — cell names encode coordinates, the
+  cell size is 25,600 world units (174/174 fast-travel points land on an occupied
+  cell), and that gave the World Tree landmass its true extent.
+- **`DefaultPalWorldSettings.ini`** is the authoritative list of the 119 settings
+  a 1.0 server accepts. `test_settings_ini.py` checks the parser, the presets and
+  the highlight groups against it — which is how a highlight naming a setting
+  that does not exist was caught.

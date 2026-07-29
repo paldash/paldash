@@ -58,6 +58,22 @@ def level_sav(refworld: str) -> str:
 
 
 @pytest.fixture
+def reference_default_ini() -> str:
+    """
+    `DefaultPalWorldSettings.ini` shipped with the dedicated server, or skip.
+
+    This is the authoritative list of what a 1.0 server actually accepts — 119
+    settings — and checking against it is how a highlight group referencing a
+    key that does not exist gets caught. Lives under `refs/`, which is
+    gitignored, so this skips on a clean checkout like the other reference data.
+    """
+    path = os.path.join(PROJECT_ROOT, "refs", "palworld", "DefaultPalWorldSettings.ini")
+    if not os.path.exists(path):
+        pytest.skip("refs/palworld/ not present — needs a dedicated server install")
+    return path
+
+
+@pytest.fixture
 def palsav_available() -> None:
     """Skip unless the Oodle-capable parser is installed."""
     try:

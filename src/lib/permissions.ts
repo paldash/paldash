@@ -112,6 +112,17 @@ const ROUTES: RouteRule[] = [
   { pattern: /^edit\/pal\/[A-Za-z0-9-]+$/, methods: ['POST'], capability: CAPABILITIES.SAVE_EDIT_FULL, feature: null },
   { pattern: /^edit\/player\/[A-Za-z0-9-]+\/preview$/, methods: ['POST'], capability: CAPABILITIES.SAVE_EDIT_FULL, feature: null },
   { pattern: /^edit\/player\/[A-Za-z0-9-]+$/, methods: ['POST'], capability: CAPABILITIES.SAVE_EDIT_FULL, feature: null },
+  // Bulk: `pals/bulk` rather than `pal/{id}`, so it can never be reached by a
+  // request that looks like a single-Pal edit of a Pal called "bulk".
+  { pattern: /^edit\/pals\/bulk\/preview$/, methods: ['POST'], capability: CAPABILITIES.SAVE_EDIT_FULL, feature: null },
+  { pattern: /^edit\/pals\/bulk$/, methods: ['POST'], capability: CAPABILITIES.SAVE_EDIT_FULL, feature: null },
+  { pattern: /^edit\/container\/[A-Za-z0-9-]+\/slots\/preview$/, methods: ['POST'], capability: CAPABILITIES.SAVE_EDIT_FULL, feature: null },
+  { pattern: /^edit\/container\/[A-Za-z0-9-]+\/slots$/, methods: ['POST'], capability: CAPABILITIES.SAVE_EDIT_FULL, feature: null },
+  // Scanning for illegal Pals is a read — it is how an admin finds out whether
+  // anyone has been cheating, and that must not require the write capability.
+  { pattern: /^palcheck\/scan$/, methods: ['GET'], capability: CAPABILITIES.VIEW_DETAIL, feature: null },
+  { pattern: /^palcheck\/repair\/preview$/, methods: ['POST'], capability: CAPABILITIES.SAVE_EDIT_FULL, feature: null },
+  { pattern: /^palcheck\/repair$/, methods: ['POST'], capability: CAPABILITIES.SAVE_EDIT_FULL, feature: null },
   { pattern: /^export\/(world|player|guild|base|container)$/, methods: ['GET'], capability: CAPABILITIES.VIEW_DETAIL, feature: null },
   { pattern: /^reports$/, methods: ['GET'], capability: CAPABILITIES.VIEW_DETAIL, feature: FEATURES.ITEMS },
   { pattern: /^reports\/[a-z-]+$/, methods: ['GET'], capability: CAPABILITIES.VIEW_DETAIL, feature: FEATURES.ITEMS },
@@ -146,7 +157,6 @@ const ROUTES: RouteRule[] = [
 
   { pattern: /^edit\/sort\/stackables$/, methods: ['POST'], capability: CAPABILITIES.SAVE_SORT_STACKABLES, feature: null },
   { pattern: /^edit\/sort\/all$/, methods: ['POST'], capability: CAPABILITIES.SAVE_SORT_ALL, feature: null },
-  { pattern: /^edit$/, methods: ['POST'], capability: CAPABILITIES.SAVE_EDIT_FULL, feature: null },
 
   { pattern: /^server\/(note-shutdown|restart|start-container|stop-container)$/, methods: ['POST'], capability: CAPABILITIES.SERVER_CONTROL, feature: null },
 

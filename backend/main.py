@@ -31,6 +31,7 @@ import db
 import editschema
 import gamedata
 import lifecycle
+import palcheck
 import policy as policy_module
 import reports
 import roles as roles_module
@@ -38,6 +39,7 @@ import savecache
 import saveedit
 import saveexport
 import saveimport
+import slotedit
 import schedule as schedule_module
 import settings_ini
 import backup as backup_module
@@ -1570,32 +1572,279 @@ def edit_player(
     return result
 
 
-class EditRequest(BaseModel):
-    targetType: str
-    targetId: str
+# ─── Bulk Pal editing ────────────────────────────────────
+
+
+class BulkPalEditRequest(BaseModel):
+    instanceIds: list[str]
     changes: dict
+    # Move each Pal's EXP to match a new level. Without it, a bulk level change
+    # is silently undone the next time the world loads.
+    autoExp: bool = True
 
 
-@app.post("/api/edit")
-def edit_save(req: EditRequest) -> dict:
-    """
-    General-purpose editing (player stats, Pals, arbitrary slots).
+def _bulk_subjects(instance_ids: list[str], changes: dict, auto_exp: bool):
+    """(subjects for the batch planner, the per-Pal edit map) from a request."""
+    from savefiles import get_level_sav_path
 
-    Still unimplemented. The write path is proven — sorting uses it and verifies
-    byte-level conservation — but a general editor has far more ways to produce
-    a world the game refuses to load, so it stays off until each field is
-    validated individually.
-    """
+    wanted = [i for i in dict.fromkeys(instance_ids or []) if i]
+    if not wanted:
+        raise HTTPException(400, "No Pals selected")
+
+    level_path = get_level_sav_path()
+    if not level_path:
+        raise HTTPException(503, "Level.sav not found")
+    gvas = load_gvas(level_path)
+    if gvas is None:
+        raise HTTPException(503, "Could not parse Level.sav")
+
+    edits = charedit.spread_changes(wanted, changes, auto_exp=auto_exp)
     try:
-        assert_writable()
-    except ServerRunningError as e:
-        raise HTTPException(423, str(e))
+        found = charedit._index_pals(gvas, set(wanted))
+    except charedit.EditError as e:
+        raise HTTPException(400, str(e))
 
-    raise HTTPException(
-        501,
-        "The general save editor is not implemented yet. Container sorting is "
-        "available at /api/edit/sort/stackables and /api/edit/sort/all.",
+    missing = [i for i in wanted if i not in found]
+    if missing:
+        raise HTTPException(
+            404,
+            f"{len(missing)} of the selected Pals are not in this world "
+            f"(first: {missing[0]})",
+        )
+    return [(i, found[i], edits[i]) for i in wanted], edits
+
+
+@app.post("/api/edit/pals/bulk/preview")
+def preview_bulk_pal_edit(req: BulkPalEditRequest, request: Request) -> dict:
+    """Dry-run one change set across many Pals. Read-only."""
+    authz.require(request, roles_module.SAVE_EDIT_FULL)
+    subjects, _ = _bulk_subjects(req.instanceIds, req.changes, req.autoExp)
+    plan = charedit.plan_pal_batch(subjects)
+    return {**plan, "autoExp": req.autoExp, "applied": False}
+
+
+@app.post("/api/edit/pals/bulk")
+def bulk_pal_edit(
+    req: BulkPalEditRequest, request: Request, planHash: str = Query(...)
+) -> dict:
+    """
+    Apply one change set across many Pals in a single guarded write.
+
+    All-or-nothing: every Pal is validated before anything is written, and a
+    verification failure on any one of them rolls the whole world back. A
+    half-applied batch is worse than none, because nothing records where it
+    stopped.
+    """
+    user = authz.require_user(request, roles_module.SAVE_EDIT_FULL)
+    ip = authz.client_ip(request)
+    edits = charedit.spread_changes(
+        [i for i in dict.fromkeys(req.instanceIds or []) if i], req.changes, req.autoExp
     )
+
+    def failed(message: str, status: int):
+        audit.record(
+            audit.SAVE_EDIT, username=user["username"], role=user["role"],
+            target=f"pals:bulk({len(edits)})", detail=message, ip=ip,
+            result=audit.RESULT_FAILED,
+        )
+        return HTTPException(status, message)
+
+    try:
+        result = charedit.apply_pal_batch(
+            edits, label="bulk Pal edit", expected_plan_hash=planHash
+        )
+    except ServerRunningError as e:
+        raise failed(str(e), 423)
+    except charedit.EditError as e:
+        raise failed(str(e), 409)
+    except Exception as e:  # noqa: BLE001
+        logger.exception("Bulk Pal edit failed")
+        raise failed(f"Bulk Pal edit failed: {e}", 500)
+
+    audit.record(
+        audit.SAVE_EDIT, username=user["username"], role=user["role"],
+        target=f"pals:bulk({result['palsChanged']})",
+        detail={
+            "changes": req.changes,
+            "autoExp": req.autoExp,
+            "palsChanged": result["palsChanged"],
+            "fieldsChanged": result["fieldsChanged"],
+            "backupId": result["backupId"],
+        },
+        ip=ip,
+    )
+    return result
+
+
+# ─── Inventory slot editing ──────────────────────────────
+
+
+class SlotEditRequest(BaseModel):
+    # [{"slotIndex": 3, "itemId": "Wood", "stackCount": 50}]. An empty itemId or
+    # a zero count clears the slot.
+    patches: list[dict]
+
+
+def _container_slots(container_id: str) -> list[dict]:
+    """The container's slots from the current parse, or a 404."""
+    data = savecache.get_data()
+    containers = (data or {}).get("containers")
+    containers = containers if isinstance(containers, dict) else {}
+    slots = containers.get(container_id)
+    if slots is None:
+        raise HTTPException(
+            404,
+            "Container not found. Item containers are only decoded when the world "
+            "has been parsed with items included.",
+        )
+    return slots
+
+
+@app.post("/api/edit/container/{container_id}/slots/preview")
+def preview_slot_edit(container_id: str, req: SlotEditRequest, request: Request) -> dict:
+    """Dry-run a slot edit. Read-only; returns the diff and a plan hash."""
+    authz.require(request, roles_module.SAVE_EDIT_FULL)
+    try:
+        plan = slotedit.plan_slot_edit(container_id, req.patches, _container_slots(container_id))
+    except slotedit.SlotEditError as e:
+        raise HTTPException(400, str(e))
+    except saveimport.ImportError_ as e:
+        raise HTTPException(409, str(e))
+    return {**plan, "summary": slotedit.summarise(plan)}
+
+
+@app.post("/api/edit/container/{container_id}/slots")
+def apply_slot_edit(
+    container_id: str, req: SlotEditRequest, request: Request, planHash: str = Query(...)
+) -> dict:
+    """
+    Apply a previewed slot edit.
+
+    Goes through the import write path, so the world is verified afterwards to
+    contain exactly the planned change in this container and **nothing** in any
+    other, or it rolls back.
+    """
+    user = authz.require_user(request, roles_module.SAVE_EDIT_FULL)
+    ip = authz.client_ip(request)
+
+    def failed(message: str, status: int):
+        audit.record(
+            audit.SAVE_EDIT, username=user["username"], role=user["role"],
+            target=f"container:{container_id}", detail=message, ip=ip,
+            result=audit.RESULT_FAILED,
+        )
+        return HTTPException(status, message)
+
+    try:
+        result = slotedit.apply_slot_edit(
+            container_id, req.patches, _container_slots(container_id),
+            expected_plan_hash=planHash,
+        )
+    except ServerRunningError as e:
+        raise failed(str(e), 423)
+    except slotedit.SlotEditError as e:
+        raise failed(str(e), 400)
+    except saveimport.ImportError_ as e:
+        raise failed(str(e), 409)
+    except Exception as e:  # noqa: BLE001
+        logger.exception("Slot edit failed")
+        raise failed(f"Slot edit failed: {e}", 500)
+
+    audit.record(
+        audit.SAVE_EDIT, username=user["username"], role=user["role"],
+        target=f"container:{container_id}",
+        detail={
+            "slotsChanged": result["slotsChanged"],
+            "itemsBefore": result["itemsBefore"],
+            "itemsAfter": result["itemsAfter"],
+            "backupId": result["backupId"],
+        },
+        ip=ip,
+    )
+    return result
+
+
+# ─── Illegal-Pal detection and repair ────────────────────
+
+
+class RepairRequest(BaseModel):
+    # Omitted or empty means every repairable Pal the scan found.
+    instanceIds: Optional[list[str]] = None
+
+
+@app.get("/api/palcheck/scan")
+def palcheck_scan(request: Request) -> dict:
+    """
+    Every Pal whose stats are outside what the game can produce. Read-only.
+
+    A view, not an edit — it is how an admin finds out whether anyone has been
+    cheating, so it sits behind VIEW_DETAIL rather than the editing capability.
+    """
+    authz.require(request, roles_module.VIEW_DETAIL)
+    try:
+        return palcheck.scan_current()
+    except charedit.EditError as e:
+        raise HTTPException(503, str(e))
+
+
+@app.post("/api/palcheck/repair/preview")
+def preview_palcheck_repair(req: RepairRequest, request: Request) -> dict:
+    """
+    Dry-run a repair. Read-only.
+
+    The scan is re-run server-side; the caller chooses *which* Pals, never what
+    their new values are.
+    """
+    authz.require(request, roles_module.SAVE_EDIT_FULL)
+    try:
+        return palcheck.preview_repair(req.instanceIds)
+    except charedit.EditError as e:
+        raise HTTPException(409, str(e))
+
+
+@app.post("/api/palcheck/repair")
+def palcheck_repair(
+    req: RepairRequest, request: Request, planHash: str = Query(...)
+) -> dict:
+    """
+    Clamp out-of-range Pal stats back into legal range.
+
+    This makes Pals weaker, deliberately, which is why it never runs on its own.
+    Issues that cannot be fixed by writing a scalar — passive skill lists,
+    unknown species — are reported back untouched rather than counted as fixed.
+    """
+    user = authz.require_user(request, roles_module.SAVE_EDIT_FULL)
+    ip = authz.client_ip(request)
+
+    def failed(message: str, status: int):
+        audit.record(
+            audit.SAVE_EDIT, username=user["username"], role=user["role"],
+            target="palcheck:repair", detail=message, ip=ip, result=audit.RESULT_FAILED,
+        )
+        return HTTPException(status, message)
+
+    try:
+        result = palcheck.apply_repair(req.instanceIds, expected_plan_hash=planHash)
+    except ServerRunningError as e:
+        raise failed(str(e), 423)
+    except charedit.EditError as e:
+        raise failed(str(e), 409)
+    except Exception as e:  # noqa: BLE001
+        logger.exception("Pal repair failed")
+        raise failed(f"Pal repair failed: {e}", 500)
+
+    audit.record(
+        audit.SAVE_EDIT, username=user["username"], role=user["role"],
+        target=f"palcheck:repair({result['palsChanged']})",
+        detail={
+            "palsChanged": result["palsChanged"],
+            "fieldsChanged": result["fieldsChanged"],
+            "palsWithUnfixableIssues": result["palsWithUnfixableIssues"],
+            "backupId": result["backupId"],
+        },
+        ip=ip,
+    )
+    return result
 
 
 # ─── Entry point ─────────────────────────────────────────

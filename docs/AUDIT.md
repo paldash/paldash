@@ -66,19 +66,19 @@ than attempting all of it.
 | Save parsing engine | 95% | ✅ Phase 5: per-base container linkage, exact rather than spatial |
 | Corruption safety | 85% | Fail-closed, atomic, verified; no audit trail |
 | Backup & restore | 90% | ✅ Phase 4: verified archives, retention, schedule, preview, browser. No cloud targets |
-| Save editing | 70% | ✅ P5 sorting, ✅ P6 import, ✅ P7 Pal + player editors with UI. Inventory/bulk still 501 |
-| Live map | 70% | ✅ Phase 2: both maps ship, 174 fast-travel POIs, layers/search. World Tree transform provisional |
+| Save editing | 90% | ✅ P5 sorting, ✅ P6 import, ✅ P7 complete: Pal, player, bulk and slot editors + illegal-Pal repair, all with UI. Pal cloning and skill lists remain |
+| Live map | 80% | ✅ Phase 2: both maps ship, 174 fast-travel POIs, layers/search. ✅ World Tree extent now derived from the game's World Partition grid; orientation still unverified |
 | Reference data | 90% | ✅ Phase 1: full 1.0 DB bundled at 215 KB; icons still not shipped |
 | Auth & accounts | 85% | ✅ Phase 3: accounts, scrypt, revocable sessions, throttling, audit log. No 2FA/reset flow |
 | Permissions | 90% | ✅ Phase 3: 7 role presets, two-gate model, route allowlist |
 | Server dashboard | 30% | REST status; no metrics history, no admin commands |
 | Docker | 80% | Genuinely good; needs multi-image validation |
-| Import / export | 80% | ✅ Export complete; container import writes, verifies and rolls back. Player/Pal imports need Phase 7 |
+| Import / export | 85% | ✅ Export complete; container import writes, verifies and rolls back. Slot editing reuses it. Player/Pal *file* imports still refused |
 | Migration tools | 0% | Not started |
-| Testing | 90% | ✅ 521 backend + 50 frontend tests |
+| Testing | 92% | ✅ 594 backend + 58 frontend tests |
 | Documentation | 70% | ✅ Phase 0: `.gitignore` fixed, AGENTS.md written |
 | Reports / export | 60% | ✅ Phase 5: 4 reports × CSV/JSON/TXT. Save import/export is Phase 6 |
-| **Weighted total** | **~92%** | 32% → 36% (P0) → 43% (P1) → 50% (P2) → 62% (P3) → 70% (P4) → 76% (P5) → 79% (P6 export) → 82% (P6 import gate) → 85% (P6 complete) → 87% (P7 schema) → 89% (P7 Pal editor) → 90% (P7 UI) → 92% (P7 player editor) |
+| **Weighted total** | **~94%** | 32% → 36% (P0) → 43% (P1) → 50% (P2) → 62% (P3) → 70% (P4) → 76% (P5) → 79% (P6 export) → 82% (P6 import gate) → 85% (P6 complete) → 87% (P7 schema) → 89% (P7 Pal editor) → 90% (P7 UI) → 92% (P7 player editor) → 94% (P7 complete) |
 
 ---
 
@@ -627,7 +627,7 @@ Empty-slot structure was read off the reference world rather than assumed: `stat
 **Still to build:** import kinds beyond `container`. Player, Pal and technology imports stay
 refused with a reason. **Depends on Phase 7's per-field validation schema.**
 
-### Phase 7 — General save editor · 🟡 **SCHEMA + PAL & PLAYER EDITORS + UI** (2026-07-29)
+### Phase 7 — General save editor · ✅ **COMPLETE** (2026-07-29)
 
 Started with the validation schema rather than an editor, because "which values are legal"
 has never existed in this codebase and everything else depends on it.
@@ -637,7 +637,7 @@ than invented:
 
 | Bound | Source |
 |---|---|
-| Max level 100 | `palExpTable` has exactly 100 entries |
+| Max level 80 | Palworld 1.0's cap. **Not** the 100 entries in `palExpTable`, which carries headroom — deriving it from the table gave the wrong answer |
 | EXP bands per level | `TotalEXP` / `PalTotalEXP` from that table |
 | Technology points 1,413 / ancient 185 | `gamedata.totals()` |
 | Known passives (1,905), species (753) | bundled database |
@@ -649,11 +649,21 @@ Two findings that changed the schema:
   on **zero** of the 1,905 Pals in the reference world — the game stores HP, Shot and
   Defense only. It is deliberately not editable; writing it would look like a working edit
   and do nothing.
-- **EXP must match level, and this is the rule that matters.** The game derives level from
-  total EXP on load, so setting level 50 while leaving level-1 EXP produces a character
-  that is level 1 again the next time the world loads. The cross-field rule catches it, and
-  it is curve-aware: players and Pals use different columns, and using the wrong one is
-  itself a caught error.
+- **EXP must not exceed its level — and the rule is one-sided, which measurement decided.**
+  It began symmetric, on the reasoning that the game derives level from total EXP. Checked
+  against the reference world, only half of that holds:
+
+  | | count |
+  |---|---:|
+  | above the band | **0** of 1,905 Pals, 0 of 5 players |
+  | below the band | 8 Pals (levels 4–11) |
+  | inside | 1,897 Pals, 5 players |
+
+  A freshly caught Pal arrives at its wild level with almost no EXP and the game leaves it
+  there, so low EXP is a state Palworld produces itself — rejecting it would refuse edits
+  for being in a legal condition and flag eight real Pals on a clean world. High EXP never
+  occurs naturally and *is* acted on, so that half stays a hard rejection. The rule is
+  curve-aware either way: players and Pals use different columns.
 
 Cross-field rules are **skipped rather than guessed** when the caller supplies no current
 state, and the report says `crossFieldChecked: false` so nothing silently claims more
@@ -712,10 +722,59 @@ The UI became a single **character editor** with a Pals/Players toggle
 list and one schema-driven form serve both. It warns in the confirm dialog when an edit
 spans both files, and reports which files were written.
 
-**Still to build:** inventory slot editing, bulk edits across many Pals, and illegal-Pal
-detection and repair.
+**The last three landed together (2026-07-29), and none of them opened a new write path.**
+
+**Inventory slot editing** (`backend/slotedit.py`). A slot edit *is* an import of a
+container that differs by those slots, so it builds a document and hands it to
+`saveimport`. Every guarantee comes along unchanged — unknown ids refused, stack ceilings
+enforced, durability slots refused, and after writing the target container must match while
+every other container in the world is untouched. The document carries **only the patched
+slots**, which matters twice: a modded item elsewhere in the chest cannot block an edit
+that never went near it, and a stale view of the rest cannot revert someone else's change.
+`saveimport` now derives `itemsAfter` from the diff rather than by summing the document, so
+a partial document reports the container honestly.
+
+**Bulk Pal edits** (`charedit.plan_pal_batch` / `apply_pal_batch`). One change set, many
+Pals, one backup, all-or-nothing — a batch that half-applies leaves no record of where it
+stopped. The per-Pal change map is the primitive rather than the shared one, because the
+repair path below needs different values per Pal; `spread_changes` produces the bulk shape
+from it. `auto_exp` carries EXP along with a level change, since without it a level change
+leaves each Pal on its old EXP.
+
+Two gaps this exposed and closed:
+- **`plan_pal_edit` did not check whether the property exists.** An absent `Rank` reads as
+  1 through `_num`'s default, so a never-condensed Pal validated fine and then failed
+  inside `guarded_save_write`. It now refuses up front, as the player planner already did.
+- **`_index_pals` walks the map once** for a whole batch. Per-Pal scanning over 1,905
+  entries is quadratic.
+
+**Illegal-Pal detection and repair** (`backend/palcheck.py`). Scans every Pal against
+`editschema` — not a second opinion about what Palworld allows — and repairs by clamping
+through `apply_pal_batch`. Only scalars are repairable: passive lists are an ArrayProperty,
+and changing a species is not a repair.
+
+**The finding that shaped it: `unknown_species` is not evidence of anything.** A first pass
+flagged **108 of 1,905** Pals on a clean reference world. All of them were false positives,
+in two layers:
+
+| cause | count | fix |
+|---|---:|---|
+| NPCs looked up in the Pal table only | 87 | `gamedata.character()` — the map holds humans too |
+| NPCs missing from the bundled tables entirely | 13 | reclassified as **advisory**, never counted |
+| EXP below its level band | 8 | the one-sided rule above |
+
+The 13 have no structural tell — they carry IVs and passive skills exactly like a Pal. So
+an unrecognised id means "our data is incomplete", which is a different claim from "someone
+cheated", and mixing the two would put a dozen false accusations on every clean world.
+Advisories are reported separately and never inflate `palsFlagged`. Passives had no such
+problem: 124/124 distinct passives on the reference world are known, max 4, no duplicates.
+
+**The reference world now scans clean: 0 violations across 1,905 Pals**, which is the
+strongest available evidence the bounds describe the game rather than merely agreeing with
+themselves.
+
 **Risk: high.** **Depends on: Phases 0, 3, 4, 6.**
-*This is where corruption risk actually lives. It must not be rushed.*
+*This is where corruption risk actually lives. It was not rushed.*
 
 ### Phase 8 — Server dashboard & admin commands (3–4 days)
 CPU/RAM/disk/network sampling with history; player/entity counts; broadcast, kick, ban,

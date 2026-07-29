@@ -11,6 +11,9 @@ import {
 } from 'lucide-react';
 import { CAPABILITIES } from '@/lib/permissions';
 import CharacterEditor from './character-editor';
+import BulkPalEditor from './bulk-pal-editor';
+import SlotEditor from './slot-editor';
+import PalCheck from './pal-check';
 
 /**
  * Save Tools.
@@ -211,8 +214,17 @@ docker compose start palworld    # bring it back`}
         />
       </div>
 
+      {/* The illegal-Pal scan is a read, so it sits outside the SAVE_EDIT_FULL
+          gate below — finding out whether anyone has been cheating must not
+          require the capability to rewrite the world. */}
+      {has(CAPABILITIES.VIEW_DETAIL) && <PalCheck canEdit={canEdit && has(CAPABILITIES.SAVE_EDIT_FULL)} />}
+
       {has(CAPABILITIES.SAVE_EDIT_FULL) ? (
-        <CharacterEditor canEdit={canEdit} />
+        <>
+          <CharacterEditor canEdit={canEdit} />
+          <BulkPalEditor canEdit={canEdit} />
+          <SlotEditor canEdit={canEdit} />
+        </>
       ) : (
         <div className="glass-card" style={{ padding: 16, opacity: 0.75 }}>
           <div className="section-title" style={{ marginBottom: 8 }}>
@@ -230,18 +242,6 @@ docker compose start palworld    # bring it back`}
           </p>
         </div>
       )}
-
-      <OperationCard
-        icon={<PenLine size={14} />}
-        title="Inventory and bulk editing"
-        description="Individual inventory slots and bulk operations across many Pals at once. Illegal-Pal detection and repair also lands here."
-        badge="Not implemented"
-        allowed={has(CAPABILITIES.SAVE_EDIT_FULL)}
-        canEdit={canEdit}
-        busy={false}
-        disabledReason="Coming later — the character editor above uses the same verified write path."
-        onRun={() => undefined}
-      />
 
       {lastResult && (
         <div className="notice">

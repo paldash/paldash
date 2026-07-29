@@ -160,18 +160,30 @@ def test_unknown_species_are_refused():
 # ─── Cross-field: EXP must match level ───────────────────────────
 
 
-def test_exp_below_the_level_band_is_refused():
+def test_exp_below_the_level_band_is_allowed():
     """
-    The rule that matters most. The game derives level from total EXP on load,
-    so setting level 50 with level-1 EXP produces a character that is level 1
-    again the moment the world loads — an edit that appears to work.
-    """
-    current = {"level": 1, "exp": 0}
-    report = editschema.validate("pal", {"level": 50}, current=current)
+    The rule is one-sided, and this is the half that measurement removed.
 
-    assert not report["ok"]
-    assert report["problems"][0]["field"] == "exp"
-    assert "recalculate" in report["problems"][0]["problem"]
+    A symmetric band check looked obviously right and was wrong: on the
+    reference world 8 Pals sit *below* their level's band because that is
+    exactly what a freshly caught Pal looks like — it arrives at its wild level
+    with almost no EXP and the game leaves it there. Rejecting low EXP would
+    refuse an edit for producing a state Palworld creates on its own.
+    """
+    report = editschema.validate("pal", {"level": 50}, current={"level": 1, "exp": 0})
+    assert report["ok"], report["problems"]
+
+
+def test_the_asymmetry_is_the_measured_one():
+    """
+    Above the band: 0 of 1,905 Pals and 0 of 5 players on the reference world.
+    Below it: 8 Pals. The rule follows the data in both directions.
+    """
+    above = editschema.validate("pal", {"exp": _pal_total_exp(51)}, current={"level": 50, "exp": 0})
+    below = editschema.validate("pal", {"exp": 0}, current={"level": 50, "exp": _pal_total_exp(50)})
+
+    assert not above["ok"]
+    assert below["ok"], below["problems"]
 
 
 def test_exp_above_the_level_band_is_refused():

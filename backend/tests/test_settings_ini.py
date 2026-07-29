@@ -105,7 +105,9 @@ def test_read_preserves_commas_inside_quoted_values(ini):
     opts = settings_ini.read_ini(ini)["options"]
     assert opts["ServerName"]["value"] == "Nirb's server, with a comma"
     assert opts["ServerDescription"]["value"] == "Line (with parens), and a comma"
-    assert opts["AdminPassword"]["value"] == "p@ss,word"
+    # reveal=True: the point of this assertion is that the comma inside the
+    # quoted value survived the split, and the masked read cannot show that.
+    assert settings_ini.read_ini(ini, reveal=True)["options"]["AdminPassword"]["value"] == "p@ss,word"
 
 
 def test_read_missing_file_raises(tmp_path):
@@ -143,7 +145,9 @@ def test_write_survives_quoted_commas(ini):
 
     assert opts["bIsPvP"]["value"] is True
     assert opts["ServerName"]["value"] == "Nirb's server, with a comma"
-    assert opts["AdminPassword"]["value"] == "p@ss,word"
+    # reveal=True: the point of this assertion is that the comma inside the
+    # quoted value survived the split, and the masked read cannot show that.
+    assert settings_ini.read_ini(ini, reveal=True)["options"]["AdminPassword"]["value"] == "p@ss,word"
     assert len(opts) == 13, "no option may be lost or invented"
 
 
@@ -218,3 +222,129 @@ def test_presets_are_well_formed():
 def test_apply_unknown_preset_raises(ini):
     with pytest.raises(SettingsError):
         settings_ini.apply_preset("no_such_preset", ini)
+
+
+# ─── Against a real dedicated server install ─────────────────────
+#
+# `refs/palworld/DefaultPalWorldSettings.ini` is what the 1.0 dedicated server
+# ships with: the authoritative list of every setting it accepts. Checking
+# against it rather than against memory is what caught `EggDefaultHatchingTime`,
+# a highlight-group key that does not exist — the real one is
+# `PalEggDefaultHatchingTime`, so that highlight silently matched nothing.
+
+import shutil
+
+
+@pytest.fixture
+def real_ini(reference_default_ini, tmp_path, monkeypatch):
+    path = tmp_path / "PalWorldSettings.ini"
+    shutil.copy(reference_default_ini, path)
+    # write_ini backs the file up first, and BACKUP_DIR defaults to /palworld.
+    monkeypatch.setattr(settings_ini, "BACKUP_DIR", str(tmp_path / "backups"))
+    return str(path)
+
+
+def test_parses_every_setting_a_real_1_0_server_ships_with(real_ini):
+    data = settings_ini.read_ini(real_ini)
+    assert data["count"] == 119, "the 1.0 default set changed — re-check the presets too"
+
+
+def test_the_awkward_value_shapes_all_classify(real_ini):
+    """
+    The four shapes that a naive comma-split gets wrong: a nested parenthesised
+    list, an empty value, a negative integer, and a bare unquoted enum.
+    """
+    options = settings_ini.read_ini(real_ini)["options"]
+
+    assert options["CrossplayPlatforms"]["value"] == "(Steam,Xbox,PS5,Mac)"
+    assert options["DenyTechnologyList"]["value"] == ""
+    assert options["PhysicsActiveDropItemMaxNum"]["value"] == -1
+    assert options["LogFormatType"]["value"] == "Text"
+    assert options["PublicIP"]["type"] == "string"
+    assert options["AutoSaveSpan"]["value"] == 30.0
+    assert options["RESTAPIEnabled"]["value"] is False
+
+
+def test_rewriting_a_value_as_itself_is_byte_identical(real_ini):
+    """
+    119 settings on one line: a rewrite that reformats anything is a rewrite
+    that can lose a setting. The file must come back out exactly as it went in.
+    """
+    before = open(real_ini, encoding="utf-8").read()
+    current = settings_ini.read_ini(real_ini)["options"]["AutoSaveSpan"]["value"]
+    settings_ini.write_ini({"AutoSaveSpan": current}, real_ini)
+
+    assert open(real_ini, encoding="utf-8").read() == before
+
+
+def test_every_highlighted_key_actually_exists(real_ini):
+    options = settings_ini.read_ini(real_ini)["options"]
+    for group in settings_ini.HIGHLIGHT_GROUPS:
+        unknown = [k for k in group["keys"] if k not in options]
+        assert not unknown, f"{group['label']} highlights non-existent settings: {unknown}"
+
+
+def test_every_preset_writes_only_real_keys(real_ini):
+    """A preset naming a key the server does not have would write a dead setting."""
+    options = settings_ini.read_ini(real_ini)["options"]
+    for preset in settings_ini.PRESETS:
+        unknown = [k for k in preset["changes"] if k not in options]
+        assert not unknown, f"preset {preset['id']} writes non-existent settings: {unknown}"
+
+
+# ─── Secrets ─────────────────────────────────────────────────────
+#
+# `OptionSettings` is one line and the reader returns all of it, so the server's
+# admin and join passwords were being handed to every caller of the settings
+# endpoint in cleartext — and into the audit log on every change.
+
+
+def test_passwords_are_masked_on_read(real_ini):
+    options = settings_ini.read_ini(real_ini)["options"]
+    for key in settings_ini.SECRET_KEYS:
+        assert options[key]["value"] == "", f"{key} leaked"
+        assert options[key]["raw"] == ""
+        assert options[key]["secret"] is True
+
+
+def test_masking_still_says_whether_one_is_set(real_ini):
+    """An admin needs to know an empty admin password is empty."""
+    options = settings_ini.read_ini(real_ini)["options"]
+    assert options["AdminPassword"]["isSet"] is False  # the shipped default is blank
+
+    settings_ini.write_ini({"AdminPassword": "hunter2"}, real_ini)
+    assert settings_ini.read_ini(real_ini)["options"]["AdminPassword"]["isSet"] is True
+
+
+def test_the_write_path_can_still_see_the_real_value(real_ini):
+    settings_ini.write_ini({"ServerPassword": "letmein"}, real_ini)
+    revealed = settings_ini.read_ini(real_ini, reveal=True)["options"]
+    assert revealed["ServerPassword"]["value"] == "letmein"
+
+
+def test_submitting_the_mask_back_does_not_blank_the_password(real_ini):
+    """
+    The failure this prevents: a settings form loads masked values, the user
+    changes something unrelated, and saving writes the empty mask over the real
+    password — locking every admin out of their own server.
+    """
+    settings_ini.write_ini({"ServerPassword": "keepme"}, real_ini)
+
+    result = settings_ini.write_ini(
+        {"ServerPassword": "", "AutoSaveSpan": 45.0}, real_ini
+    )
+
+    revealed = settings_ini.read_ini(real_ini, reveal=True)["options"]
+    assert revealed["ServerPassword"]["value"] == "keepme"
+    assert revealed["AutoSaveSpan"]["value"] == 45.0
+    assert [a["key"] for a in result["applied"]] == ["AutoSaveSpan"]
+
+
+def test_a_password_change_does_not_land_in_the_audit_detail(real_ini):
+    """`applied` goes straight into audit.record, which is permanent."""
+    result = settings_ini.write_ini({"AdminPassword": "s3cret"}, real_ini)
+
+    entry = next(a for a in result["applied"] if a["key"] == "AdminPassword")
+    assert entry["from"] == "(hidden)"
+    assert entry["to"] == "(hidden)"
+    assert "s3cret" not in repr(result)
