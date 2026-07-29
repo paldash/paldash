@@ -82,6 +82,18 @@ describe('describeSavePath', () => {
       ['palcheck/scan', 'GET', CAPABILITIES.VIEW_DETAIL],
       ['palcheck/repair', 'POST', CAPABILITIES.SAVE_EDIT_FULL],
       ['palcheck/repair/preview', 'POST', CAPABILITIES.SAVE_EDIT_FULL],
+      // Moderation is its own capability: taking the server down and banning a
+      // player are different trusts and must be grantable separately.
+      ['moderate/kick', 'POST', CAPABILITIES.PLAYERS_MODERATE],
+      ['moderate/ban', 'POST', CAPABILITIES.PLAYERS_MODERATE],
+      ['moderate/unban', 'POST', CAPABILITIES.PLAYERS_MODERATE],
+      ['moderate/announce', 'POST', CAPABILITIES.PLAYERS_MODERATE],
+      ['moderate/bans', 'GET', CAPABILITIES.PLAYERS_MODERATE],
+      ['server/shutdown', 'POST', CAPABILITIES.SERVER_CONTROL],
+      ['server/force-stop', 'POST', CAPABILITIES.SERVER_CONTROL],
+      ['server/save', 'POST', CAPABILITIES.SERVER_CONTROL],
+      ['metrics/history', 'GET', CAPABILITIES.VIEW_BASIC],
+      ['metrics/summary', 'GET', CAPABILITIES.VIEW_BASIC],
       ['users', 'GET', CAPABILITIES.USERS_MANAGE],
       ['users/alice', 'PATCH', CAPABILITIES.USERS_MANAGE],
       ['audit', 'GET', CAPABILITIES.AUDIT_VIEW],
@@ -275,6 +287,27 @@ describe('describeSavePath', () => {
       expect(describeSavePath('bases//storage', 'GET').allowed).toBe(false);
       expect(describeSavePath('reports/../backups', 'GET').allowed).toBe(false);
       expect(describeSavePath('reports/Base_Items', 'GET').allowed).toBe(false);
+    });
+
+    it('refuses malformed moderation paths', () => {
+      expect(describeSavePath('moderate', 'POST').allowed).toBe(false);
+      expect(describeSavePath('moderate/../users', 'POST').allowed).toBe(false);
+      expect(describeSavePath('moderate/kick/extra', 'POST').allowed).toBe(false);
+      // Reads and writes are not interchangeable here.
+      expect(describeSavePath('moderate/kick', 'GET').allowed).toBe(false);
+      expect(describeSavePath('moderate/bans', 'POST').allowed).toBe(false);
+    });
+
+    it('keeps moderation and server control as separate capabilities', () => {
+      // The whole point of the split: granting one must not imply the other.
+      expect(describeSavePath('moderate/ban', 'POST').capability).not.toBe(
+        describeSavePath('server/shutdown', 'POST').capability
+      );
+    });
+
+    it('never exposes moderation to guests', () => {
+      expect(describeSavePath('moderate/kick', 'POST').feature).toBeNull();
+      expect(describeSavePath('moderate/bans', 'GET').feature).toBeNull();
     });
   });
 });

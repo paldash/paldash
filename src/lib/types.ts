@@ -32,6 +32,63 @@ export interface ServerSettings {
   [key: string]: string | number | boolean;
 }
 
+/**
+ * The game's own ban list, read from its file.
+ *
+ * `found: false` with a `note` rather than an empty array, because an empty list
+ * and "we could not find the file" look identical to a reader and mean very
+ * different things.
+ */
+export interface BanList {
+  found: boolean;
+  path: string;
+  bans: string[];
+  note: string;
+}
+
+/** One bucket of history. Nulls are real: they mean nothing was recorded. */
+export interface MetricsPoint {
+  ts: number;
+  samples: number;
+  serverFps: number | null;
+  frameTime: number | null;
+  playersPeak: number | null;
+  playersAvg: number | null;
+  cpuPercent: number | null;
+  memUsedMb: number | null;
+  memTotalMb: number | null;
+  diskFreeMb: number | null;
+  worldSizeMb: number | null;
+  palCount: number | null;
+  baseCount: number | null;
+  /**
+   * Fraction of the bucket the game answered in, 0..1 — not a boolean.
+   * Anything below 1 is a partial outage, which is what an intermittently
+   * crashing server looks like and would be invisible as a flag.
+   */
+  reachable: number | null;
+}
+
+export interface MetricsHistory {
+  hours: number;
+  bucketSeconds: number;
+  retentionDays: number;
+  intervalSeconds: number;
+  enabled: boolean;
+  points: MetricsPoint[];
+}
+
+export interface MetricsSummary {
+  enabled: boolean;
+  intervalSeconds: number;
+  retentionDays: number;
+  samples: number;
+  oldest: number | null;
+  newest: number | null;
+  /** Over the retained window only. Never present this as an all-time figure. */
+  uptimeFraction: number | null;
+}
+
 // ─── Save Data Types ────────────────────────────────────
 
 export interface BaseCamp {

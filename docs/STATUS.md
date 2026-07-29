@@ -1,10 +1,10 @@
 # Status & Phase 8 preparation
 
-Snapshot: **2026-07-29**. Phases 0–7 complete; Phase 8 not started.
+Snapshot: **2026-07-29**. Phases 0–8 complete.
 
-`743 backend + 64 frontend tests, 0 failures. 0 lint errors (15 pre-existing
-warnings).` Integration tests run against a real 1.0 world and include every
-write path.
+`789 backend + 77 frontend tests, 0 failures. 0 lint errors (17 warnings, all the
+same data-fetch-on-mount pattern the codebase already uses).` Integration tests
+run against a real 1.0 world and include every write path.
 
 ---
 
@@ -164,36 +164,65 @@ Worth reading before trusting any number that is not in the table above.
 
 ---
 
-## 4. Phase 8 — server dashboard & admin commands
+## 4. Phase 8 — server dashboard & admin commands · ✅ **COMPLETE**
 
-**Not started. Nothing below is built.**
+Nothing in this phase writes to a save file, so for the first time since Phase 4
+the corruption rule was not the dominant constraint. The dominant finding was a
+different one.
 
-Scope as previously agreed:
+### The finding: commands were reachable and unaudited
+Kick, ban, announce, force-save and shutdown were **already reachable** through
+the Next.js game-REST proxy, gated on `server.control` — and left **no audit
+record**. The proxy has no `audit.record` call and cannot sensibly have one,
+because SQLite is owned exclusively by the Python process.
 
-1. **Metrics with history** — CPU, RAM, disk, network; player and entity counts
-   over time. Needs a storage decision: SQLite is already there and owned by the
-   backend, so a `metrics` table with retention is the obvious answer rather
-   than a new dependency.
-2. **Admin commands** — broadcast, kick, ban, teleport, force-save, scheduled
-   announcements. **REST is enough; RCON is not required** and is currently
-   disabled on this server. Every one of these is a mutating action and needs an
-   `audit.record` call.
-3. **Load-aware throttling** — pause dashboard parsing when the game server is
-   under pressure. Explicitly requested: gameplay wins over dashboard
-   responsiveness. The parse worker already has a min-interval; this adds a
-   back-off driven by observed server load.
+So the work was not "build kick/ban", it was "move them somewhere they can be
+recorded":
 
-**Risk: low.** Nothing in Phase 8 writes to a save file. That is worth stating
-plainly — it is the first phase since 4 where the corruption rule is not the
-dominant design constraint.
+- `backend/gameapi.py` — the backend's own client for the game's REST API.
+- `backend/moderate.py` — issues commands and audits them, including **failures**.
+  An attempt that did not land still says who tried.
+- The proxy now serves **reads only** and returns 405 with a message naming the
+  right route. A 404 would read as "feature removed".
 
-**Depends on:** Phase 3 (accounts and audit) only.
+The target's display name is captured at the time of the action, because a uid is
+unreadable and players rename themselves.
 
-### Decisions to make before starting
-- Metrics retention: how long, and sampled how often?
-- Should admin commands be a separate capability from `server.control`, or reuse
-  it? (Kick and ban are meaningfully different from restart.)
-- Does throttling pause the parse worker, or only lengthen its interval?
+### The capability split
+`server.control` bundled an operations decision (restart) with a social one (ban).
+Now two: `server.control` and `players.moderate`. Moderator and above get both, so
+**no existing account changed what it can do** — the point is that either can now
+be withdrawn without the other.
+
+### Metrics with history
+`backend/metrics.py` + a `metrics` table. Sampled every 60s, kept 30 days, stored
+**raw** — 43,000 rows, which SQLite answers instantly and which cannot disagree
+with itself the way downsampled tables can. Bucketing happens at query time.
+
+The design decision worth keeping: **a gap is data.** A sample is written even when
+the game is unreachable, and `reachable` is averaged into a *fraction* per bucket
+rather than a flag — so a bucket at 0.5 is an intermittently crashing server,
+which is exactly what an operator is hunting and what a boolean would erase.
+`players` is never coerced to 0 when the server is down.
+
+### Load-aware throttling
+`savecache.load_verdict`. **Fails open**, unlike everything else in this project,
+and the asymmetry is deliberate: writing to a live save destroys a world, so
+`safety.py` fails closed; refusing to parse forever over a missing signal merely
+breaks the dashboard. No data, a stale sample, an unreachable server and a missing
+table all read as "fine to parse".
+
+It gates the *start* of a parse and never interrupts one in flight, and it runs
+before any filesystem access — a test pins that ordering, because the first
+version had the comment and not the behaviour.
+
+An explicit Refresh gets a lower floor (12 fps vs 20): the operator asked and is
+watching.
+
+### Decisions taken
+- **Retention:** 60s sampling, 30 days raw, no rollup. Configurable.
+- **Capability:** split, as above.
+- **Throttling:** gates the start; never kills a running parse.
 
 ---
 
@@ -218,6 +247,9 @@ dominant design constraint.
 - Pal import (#27) — `pal` export kind, `palimport.py`, UI, 33 tests
 - `docs/DEPLOYMENT.md` (#29), including working stop/start commands
 - Password rotation closed out (#22) — see below
+- **Phase 8 in full**: `gameapi.py`, `moderate.py`, `metrics.py`, load-aware
+  throttling, the `players.moderate` capability split, the metrics-history and
+  moderation UI, and closing the unaudited POST path through the game-REST proxy
 
 ### Open — needs you
 | # | Item |
@@ -235,6 +267,8 @@ The only outstanding action was rotation, which is done.
 | # | Item | Size |
 |---|---|---|
 | 25 | Privacy UI: self-service control on the account page | small |
+| — | Scheduled announcements (Phase 8 scope, deferred — `schedule.py` already has a timer to hang it on) | small |
+| — | Teleport (Phase 8 scope, deferred — the game's REST API has no teleport command; it would need RCON) | blocked |
 | 21 | Game-update resilience: build-id detection, re-derive on update, stale-data banner, **and re-check extracted positions** (ore/chest/effigy coordinates are static per build, so a new build must re-run the extractors and diff) | medium |
 | 30 | Map layer for the 35,687 extracted world objects (needs viewport culling) | medium |
 | 28 | Per-base map visibility | medium |

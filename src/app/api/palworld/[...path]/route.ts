@@ -52,15 +52,34 @@ export async function GET(
   return handle(request, path, 'GET');
 }
 
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ path: string[] }> }
-) {
-  const { path } = await params;
-  return handle(request, path, 'POST');
+/**
+ * Deliberately refuses everything.
+ *
+ * This proxy used to forward POSTs — kick, ban, announce, save, shutdown — to the
+ * game server, gated on `server.control`. They worked, and they left **no audit
+ * record**, because the audit log lives in SQLite and only the Python backend
+ * opens that file. An unaudited ban is precisely the action an operator later
+ * needs to look up.
+ *
+ * Those commands now live on the backend (`/api/save/moderate/*`,
+ * `/api/save/server/*`), which issues them itself and records the actor, the
+ * target, the reason and the outcome. This handler stays, rather than being
+ * deleted, so that a stale caller gets a clear 405 pointing at the right route
+ * instead of a 404 that looks like the feature was removed.
+ */
+export async function POST() {
+  return NextResponse.json(
+    {
+      error:
+        'Commands are not sent through this proxy. Use the backend moderation and ' +
+        'server routes, which audit the action.',
+    },
+    { status: 405 }
+  );
 }
 
-async function handle(request: NextRequest, path: string[], method: 'GET' | 'POST') {
+/** Reads only. Commands go to the backend so they can be audited — see POST above. */
+async function handle(request: NextRequest, path: string[], method: 'GET') {
   const endpoint = path[0] ?? '';
   if (!/^[a-z0-9_-]+$/i.test(endpoint) || path.length > 2) {
     return NextResponse.json({ error: 'Unknown endpoint' }, { status: 404 });
@@ -70,9 +89,8 @@ async function handle(request: NextRequest, path: string[], method: 'GET' | 'POS
   const signedIn = session.user !== null;
 
   if (!signedIn) {
-    // Every POST here is a privileged action (kick/ban/announce/save/shutdown).
     const feature = REST_GUEST_FEATURES[endpoint];
-    if (method !== 'GET' || !feature) {
+    if (!feature) {
       return NextResponse.json({ error: 'Sign in to do this.' }, { status: 401 });
     }
     if (!guestMaySee(feature)) {
@@ -81,12 +99,6 @@ async function handle(request: NextRequest, path: string[], method: 'GET' | 'POS
         { status: 403 }
       );
     }
-  } else if (method === 'POST' && !session.capabilities.includes(CAPABILITIES.SERVER_CONTROL)) {
-    // Kick, ban, announce, save, shutdown: Moderator and above.
-    return NextResponse.json(
-      { error: 'Your role does not allow controlling the server.' },
-      { status: 403 }
-    );
   } else if (!session.capabilities.includes(CAPABILITIES.VIEW_BASIC)) {
     return NextResponse.json({ error: 'Your role does not allow this.' }, { status: 403 });
   }
@@ -97,22 +109,18 @@ async function handle(request: NextRequest, path: string[], method: 'GET' | 'POS
 async function proxyRequest(
   apiPath: string,
   request: NextRequest,
-  method: 'GET' | 'POST',
+  method: 'GET',
   signedIn: boolean,
   endpoint: string
 ) {
   try {
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-      Authorization: `Basic ${Buffer.from(`admin:${PALWORLD_ADMIN_PASSWORD}`).toString('base64')}`,
+    const init: RequestInit = {
+      method,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Basic ${Buffer.from(`admin:${PALWORLD_ADMIN_PASSWORD}`).toString('base64')}`,
+      },
     };
-
-    const init: RequestInit = { method, headers };
-
-    if (method === 'POST') {
-      const body = await request.text().catch(() => '');
-      if (body) init.body = body;
-    }
 
     // The privacy lookup does not depend on the game's answer, so it is started
     // alongside rather than after it. Sequentially it added ~1 ms of loopback to

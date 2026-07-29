@@ -29,8 +29,11 @@ import breeding
 import charedit
 import db
 import editschema
+import gameapi
 import gamedata
 import lifecycle
+import metrics
+import moderate
 import palcheck
 import palclone
 import palimport
@@ -76,6 +79,8 @@ def _startup() -> None:
     schedule_module.init()
     accounts.purge_expired()
     schedule_module.start()
+    # After db.init(), because the first sample writes a row.
+    metrics.start()
     created = accounts.bootstrap_from_env()
     if created:
         audit.record(
@@ -2182,6 +2187,206 @@ def palcheck_repair(
         ip=ip,
     )
     return result
+
+
+# ─── Metrics history (Phase 8) ───────────────────────────
+
+
+@app.get("/api/metrics/history")
+def get_metrics_history(
+    request: Request,
+    hours: int = Query(24, ge=1, le=24 * 365),
+    buckets: int = Query(120, ge=1, le=1000),
+) -> dict[str, Any]:
+    """
+    Bucketed server history: FPS, frame time, players, CPU, memory, disk, world size.
+
+    A gap in the data is a period the server did not answer, and is reported as
+    such — `reachable` is the *fraction* of each bucket the game responded in, so
+    an intermittently crashing server looks different from a cleanly stopped one.
+    """
+    authz.require(request, roles_module.VIEW_BASIC)
+    return metrics.series(hours=hours, buckets=buckets)
+
+
+@app.get("/api/metrics/summary")
+def get_metrics_summary(request: Request) -> dict[str, Any]:
+    """How much history exists, and what fraction of it the server was up for."""
+    authz.require(request, roles_module.VIEW_BASIC)
+    return metrics.summary()
+
+
+# ─── Moderation (Phase 8) ────────────────────────────────
+
+
+class AnnounceRequest(BaseModel):
+    message: str
+
+
+class ModerateRequest(BaseModel):
+    userid: str
+    reason: str = ""
+
+
+def _moderator(request: Request) -> dict:
+    return authz.require_user(request, roles_module.PLAYERS_MODERATE)
+
+
+def _moderation(request: Request, call) -> dict:
+    """
+    Run a moderation command, mapping its failures to status codes.
+
+    The audit record is written inside `moderate`, not here, so that a command
+    which fails on the way to the game server is still recorded. Auditing at the
+    endpoint would only capture what the endpoint managed to attempt.
+    """
+    try:
+        return call()
+    except moderate.ModerationError as e:
+        raise HTTPException(502 if "reach" in str(e).lower() else 400, str(e))
+
+
+@app.post("/api/moderate/announce")
+def post_announce(req: AnnounceRequest, request: Request) -> dict:
+    """Broadcast a message to everyone on the server."""
+    user = _moderator(request)
+    ip = authz.client_ip(request)
+    return _moderation(request, lambda: moderate.announce(req.message, actor=user, ip=ip))
+
+
+@app.post("/api/moderate/kick")
+def post_kick(req: ModerateRequest, request: Request) -> dict:
+    """Disconnect a player. They can rejoin immediately."""
+    user = _moderator(request)
+    ip = authz.client_ip(request)
+    return _moderation(
+        request, lambda: moderate.kick(req.userid, req.reason, actor=user, ip=ip)
+    )
+
+
+@app.post("/api/moderate/ban")
+def post_ban(req: ModerateRequest, request: Request) -> dict:
+    """Ban a player. The game owns the ban list; nothing is mirrored here."""
+    user = _moderator(request)
+    ip = authz.client_ip(request)
+    return _moderation(
+        request, lambda: moderate.ban(req.userid, req.reason, actor=user, ip=ip)
+    )
+
+
+@app.post("/api/moderate/unban")
+def post_unban(req: ModerateRequest, request: Request) -> dict:
+    user = _moderator(request)
+    ip = authz.client_ip(request)
+    return _moderation(request, lambda: moderate.unban(req.userid, actor=user, ip=ip))
+
+
+@app.get("/api/moderate/bans")
+def get_bans(request: Request) -> dict:
+    """
+    The server's own ban list, read from its file.
+
+    Deliberately not mirrored into SQLite: a local copy drifts the moment someone
+    edits the server's file by hand, and a ban list that disagrees with the game's
+    is worse than none.
+    """
+    authz.require(request, roles_module.PLAYERS_MODERATE)
+    return moderate.list_bans()
+
+
+class ShutdownRequest(BaseModel):
+    seconds: int = 60
+    message: str = "Server shutting down"
+
+
+@app.post("/api/server/shutdown")
+def shutdown_server(req: ShutdownRequest, request: Request) -> dict:
+    """
+    Announce a countdown and stop the game process.
+
+    Stops the *process*, not the container — the game cannot start itself again,
+    which is why `lifecycle.note_shutdown` starts watching for its return and the
+    UI can say "it has not come back" instead of leaving you guessing.
+
+    This is the one server action that works with no container control at all, so
+    it is the useful half of stop/start on a default install.
+    """
+    user = authz.require_user(request, roles_module.SERVER_CONTROL)
+    ip = authz.client_ip(request)
+    seconds = max(0, min(int(req.seconds), 3600))
+    message = moderate.clean_message(req.message)
+
+    try:
+        result = gameapi.shutdown(seconds, message)
+    except gameapi.GameApiError as e:
+        audit.record(
+            audit.SERVER_STOP, username=user["username"], role=user["role"],
+            detail={"error": str(e), "seconds": seconds}, ip=ip,
+            result=audit.RESULT_FAILED,
+        )
+        raise HTTPException(502, str(e))
+
+    lifecycle.note_shutdown(f"{user['username']}: {message}" if message else user["username"])
+    audit.record(
+        audit.SERVER_STOP, username=user["username"], role=user["role"],
+        detail={"seconds": seconds, "message": message}, ip=ip,
+    )
+    return {"ok": True, "response": result, "lifecycle": lifecycle.status()}
+
+
+@app.post("/api/server/force-stop")
+def force_stop_server(request: Request) -> dict:
+    """
+    Stop the game process immediately, with no countdown.
+
+    Loses everything since the last autosave, which is why it is a separate route
+    from `shutdown` rather than `shutdown` with `seconds=0` — the two deserve
+    different confirmations and different audit entries.
+    """
+    user = authz.require_user(request, roles_module.SERVER_CONTROL)
+    ip = authz.client_ip(request)
+
+    try:
+        result = gameapi.stop()
+    except gameapi.GameApiError as e:
+        audit.record(
+            audit.SERVER_STOP, username=user["username"], role=user["role"],
+            target="force-stop", detail={"error": str(e)}, ip=ip,
+            result=audit.RESULT_FAILED,
+        )
+        raise HTTPException(502, str(e))
+
+    lifecycle.note_shutdown(f"{user['username']}: force stop")
+    audit.record(
+        audit.SERVER_STOP, username=user["username"], role=user["role"],
+        target="force-stop", detail={"warning": "no countdown"}, ip=ip,
+    )
+    return {"ok": True, "response": result, "lifecycle": lifecycle.status()}
+
+
+@app.post("/api/server/save")
+def force_save(request: Request) -> dict:
+    """
+    Ask the game to write the world to disk now.
+
+    Sits under `server.control` rather than moderation: it is an operations
+    action, and it is the one command here that touches the save files.
+    """
+    user = authz.require_user(request, roles_module.SERVER_CONTROL)
+    ip = authz.client_ip(request)
+    try:
+        result = gameapi.save()
+    except gameapi.GameApiError as e:
+        audit.record(
+            audit.SERVER_SAVE, username=user["username"], role=user["role"],
+            detail=str(e), ip=ip, result=audit.RESULT_FAILED,
+        )
+        raise HTTPException(502, str(e))
+
+    audit.record(
+        audit.SERVER_SAVE, username=user["username"], role=user["role"], ip=ip,
+    )
+    return {"ok": True, "response": result}
 
 
 # ─── Pal import ──────────────────────────────────────────

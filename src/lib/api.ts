@@ -4,6 +4,9 @@ import type {
   ServerMetrics,
   Player,
   ServerSettings,
+  BanList,
+  MetricsHistory,
+  MetricsSummary,
 } from './types';
 
 const BASE = '/api/palworld';
@@ -91,47 +94,72 @@ export async function getServerSettings(): Promise<ServerSettings> {
   return apiFetch<ServerSettings>('/settings');
 }
 
-// ─── POST endpoints ─────────────────────────────────────
+// ─── Commands ───────────────────────────────────────────
+//
+// These go to the **backend** (`/api/save/...`), not to the game-REST proxy above.
+// The proxy forwards reads only and returns 405 for anything else, because it
+// cannot write an audit record — the audit log is in SQLite and only the Python
+// process opens that file. Every command below is recorded with the actor, the
+// target, the reason and the outcome.
 
-export async function kickPlayer(userId: string, message = 'Kicked by admin') {
-  return apiFetch('/kick', {
+async function commandFetch<T>(path: string, body?: unknown): Promise<T> {
+  const res = await fetch(`/api/save${path}`, {
     method: 'POST',
-    body: JSON.stringify({ userid: userId, message }),
+    headers: { 'Content-Type': 'application/json' },
+    body: body === undefined ? undefined : JSON.stringify(body),
   });
+  if (!res.ok) {
+    const text = await res.text().catch(() => res.statusText);
+    throw new Error(`API ${res.status}: ${text}`);
+  }
+  return res.json();
 }
 
-export async function banPlayer(userId: string, message = 'Banned by admin') {
-  return apiFetch('/ban', {
-    method: 'POST',
-    body: JSON.stringify({ userid: userId, message }),
-  });
+export async function kickPlayer(userId: string, reason = '') {
+  return commandFetch('/moderate/kick', { userid: userId, reason });
+}
+
+export async function banPlayer(userId: string, reason = '') {
+  return commandFetch('/moderate/ban', { userid: userId, reason });
 }
 
 export async function unbanPlayer(userId: string) {
-  return apiFetch('/unban', {
-    method: 'POST',
-    body: JSON.stringify({ userid: userId }),
-  });
+  return commandFetch('/moderate/unban', { userid: userId });
 }
 
 export async function announce(message: string) {
-  return apiFetch('/announce', {
-    method: 'POST',
-    body: JSON.stringify({ message }),
-  });
+  return commandFetch('/moderate/announce', { message });
+}
+
+export async function getBanList(): Promise<BanList> {
+  const res = await fetch('/api/save/moderate/bans');
+  if (!res.ok) throw new Error(`API ${res.status}`);
+  return res.json();
 }
 
 export async function forceSave() {
-  return apiFetch('/save', { method: 'POST' });
+  return commandFetch('/server/save');
 }
 
-export async function shutdownServer(waittime = 60, message = 'Server shutting down') {
-  return apiFetch('/shutdown', {
-    method: 'POST',
-    body: JSON.stringify({ waittime, message }),
-  });
+export async function shutdownServer(seconds = 60, message = 'Server shutting down') {
+  return commandFetch('/server/shutdown', { seconds, message });
 }
 
+/** No countdown, no announcement. Loses everything since the last autosave. */
 export async function stopServer() {
-  return apiFetch('/stop', { method: 'POST' });
+  return commandFetch('/server/force-stop');
+}
+
+// ─── Metrics history ────────────────────────────────────
+
+export async function getMetricsHistory(hours = 24, buckets = 120): Promise<MetricsHistory> {
+  const res = await fetch(`/api/save/metrics/history?hours=${hours}&buckets=${buckets}`);
+  if (!res.ok) throw new Error(`API ${res.status}`);
+  return res.json();
+}
+
+export async function getMetricsSummary(): Promise<MetricsSummary> {
+  const res = await fetch('/api/save/metrics/summary');
+  if (!res.ok) throw new Error(`API ${res.status}`);
+  return res.json();
 }

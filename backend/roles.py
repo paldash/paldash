@@ -24,20 +24,32 @@ from __future__ import annotations
 VIEW_BASIC = "view.basic"          # server status, map, bases
 VIEW_DETAIL = "view.detail"        # inventories, item totals, all players
 VIEW_SELF = "view.self"            # one's own player data only
-SERVER_CONTROL = "server.control"  # kick/ban/announce/restart
 SETTINGS_WRITE = "settings.write"  # PalWorldSettings.ini
 BACKUP_MANAGE = "backup.manage"    # create/restore/delete backups
 POLICY_MANAGE = "policy.manage"    # change the access policy
 USERS_MANAGE = "users.manage"      # create/edit/remove accounts
 AUDIT_VIEW = "audit.view"          # read the audit log
 
+# Two capabilities where there used to be one.
+#
+# `server.control` was documented as "kick/ban/announce/restart", which bundled
+# two different kinds of trust. Taking the server down is an operations decision;
+# banning a player is a social one. An operator who wants a moderator who can
+# remove a griefer but cannot shut the world down had no way to express that, and
+# neither did the reverse.
+#
+# Both are granted to Moderator and above, so no existing account changes what it
+# can do — but they are now separable by editing one set below.
+SERVER_CONTROL = "server.control"      # restart/stop/start the server, force-save
+PLAYERS_MODERATE = "players.moderate"  # kick, ban, unban, announce
+
 SAVE_SORT_STACKABLES = "save.sort.stackables"
 SAVE_SORT_ALL = "save.sort.all"
 SAVE_EDIT_FULL = "save.edit.full"
 
 ALL_CAPABILITIES = (
-    VIEW_BASIC, VIEW_DETAIL, VIEW_SELF, SERVER_CONTROL, SETTINGS_WRITE,
-    BACKUP_MANAGE, POLICY_MANAGE, USERS_MANAGE, AUDIT_VIEW,
+    VIEW_BASIC, VIEW_DETAIL, VIEW_SELF, SERVER_CONTROL, PLAYERS_MODERATE,
+    SETTINGS_WRITE, BACKUP_MANAGE, POLICY_MANAGE, USERS_MANAGE, AUDIT_VIEW,
     SAVE_SORT_STACKABLES, SAVE_SORT_ALL, SAVE_EDIT_FULL,
 )
 
@@ -90,11 +102,13 @@ ROLES: dict[str, dict] = {
         "rank": 4,
         "description": (
             "Full visibility plus day-to-day operation: kick, ban, announce, "
-            "restart the server, and take backups. Cannot edit saves or accounts."
+            "restart the server, and take backups. Cannot edit saves or accounts. "
+            "Moderating players and controlling the server are separate "
+            "capabilities, so either can be withdrawn without the other."
         ),
         "capabilities": {
             VIEW_BASIC, VIEW_SELF, VIEW_DETAIL,
-            SERVER_CONTROL, BACKUP_MANAGE, AUDIT_VIEW,
+            SERVER_CONTROL, PLAYERS_MODERATE, BACKUP_MANAGE, AUDIT_VIEW,
         },
     },
     "admin": {
@@ -106,7 +120,8 @@ ROLES: dict[str, dict] = {
         ),
         "capabilities": {
             VIEW_BASIC, VIEW_SELF, VIEW_DETAIL,
-            SERVER_CONTROL, BACKUP_MANAGE, AUDIT_VIEW, SETTINGS_WRITE,
+            SERVER_CONTROL, PLAYERS_MODERATE, BACKUP_MANAGE, AUDIT_VIEW,
+            SETTINGS_WRITE,
             SAVE_SORT_STACKABLES, SAVE_SORT_ALL, SAVE_EDIT_FULL,
         },
     },

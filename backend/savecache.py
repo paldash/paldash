@@ -45,6 +45,27 @@ PARSE_INCLUDE_ITEMS = os.environ.get("PARSE_INCLUDE_ITEMS", "true").lower() == "
 # Refuse to parse absurdly large saves unless explicitly raised.
 PARSE_MAX_SIZE_MB = int(os.environ.get("PARSE_MAX_SIZE_MB", "1024"))
 
+# ─── Load-aware throttling ───────────────────────────────
+#
+# Gameplay wins over dashboard responsiveness, so a parse gives way to a server
+# that is already struggling.
+#
+# This gates the *start* of a parse and never interrupts one in flight. A parse
+# that is already running has paid most of its cost, runs niced, and killing it
+# wastes that work while freeing capacity only briefly — then the next request
+# starts it again from nothing. Refusing to begin is the cheap, effective end.
+#
+# `false` disables the check rather than the parse, so an operator who does not
+# want their parses deferred keeps everything else.
+PARSE_LOAD_AWARE = os.environ.get("PARSE_LOAD_AWARE", "true").lower() != "false"
+# Below this server FPS the game is visibly stuttering for players. Palworld's own
+# target is 30; sustained figures under 20 are what players report as lag.
+PARSE_MIN_SERVER_FPS = float(os.environ.get("PARSE_MIN_SERVER_FPS", "20"))
+# A forced parse (someone pressed Refresh) is deferred only below this, lower
+# bound. They asked explicitly and are watching; overriding them needs the server
+# to be in real trouble, not merely busy.
+PARSE_FORCE_MIN_SERVER_FPS = float(os.environ.get("PARSE_FORCE_MIN_SERVER_FPS", "12"))
+
 _CACHE_FILE = os.path.join(CACHE_DIR, "level_cache.json")
 
 _lock = threading.Lock()
@@ -114,6 +135,10 @@ def status() -> dict[str, Any]:
         "lastDurationSec": _state["lastDurationSec"],
         "minIntervalSeconds": PARSE_MIN_INTERVAL,
         "auto": PARSE_AUTO,
+        # So the UI can say "deferred because the server is busy" rather than
+        # leaving Refresh looking like it silently did nothing.
+        "loadAware": PARSE_LOAD_AWARE,
+        "load": load_verdict(),
         "levelSizeMb": data.get("levelSizeMb"),
         "counts": data.get("counts", {}),
     }
@@ -192,6 +217,61 @@ def _run_worker() -> None:
             pass
 
 
+def load_verdict(force: bool = False) -> dict[str, Any]:
+    """
+    Whether the game server is currently too busy to start a parse.
+
+    Reads the most recent metrics sample rather than probing the game itself: a
+    probe on the request path adds latency to the very thing being protected, and
+    a sample from up to a minute ago is a better signal anyway — one bad frame is
+    noise, a bad minute is load.
+
+    Fails **open**. An unreachable server, no samples yet, or a metrics table that
+    does not exist all read as "fine to parse". The stakes here are the opposite
+    way round from the corruption guard: refusing to parse forever because a
+    signal is missing breaks the dashboard, while parsing during load costs some
+    frames. Only positive evidence of a struggling server defers anything.
+    """
+    if not PARSE_LOAD_AWARE:
+        return {"busy": False, "reason": "load-aware throttling is off"}
+
+    floor = PARSE_FORCE_MIN_SERVER_FPS if force else PARSE_MIN_SERVER_FPS
+
+    try:
+        import db
+
+        row = db.connect().execute(
+            "SELECT ts, server_fps, reachable FROM metrics "
+            "WHERE reachable = 1 AND server_fps IS NOT NULL ORDER BY ts DESC LIMIT 1"
+        ).fetchone()
+    except Exception:  # noqa: BLE001 - no table, no db, no opinion
+        return {"busy": False, "reason": "no load data"}
+
+    if row is None:
+        return {"busy": False, "reason": "no load data"}
+
+    # A stale sample says nothing about now. Two intervals of slack so a single
+    # missed tick does not disable throttling.
+    import metrics as metrics_module
+
+    age = time.time() - float(row["ts"])
+    if age > max(120, metrics_module.INTERVAL * 2):
+        return {"busy": False, "reason": f"load data is {int(age)}s old"}
+
+    fps = float(row["server_fps"])
+    if fps >= floor:
+        return {"busy": False, "reason": f"server at {fps:.0f} fps", "serverFps": fps}
+
+    return {
+        "busy": True,
+        "serverFps": fps,
+        "reason": (
+            f"The server is at {fps:.0f} fps, below the {floor:.0f} fps floor. "
+            "Parsing is deferred so it does not make the lag worse."
+        ),
+    }
+
+
 def request_parse(force: bool = False) -> dict[str, Any]:
     """
     Kick off a background parse if one is warranted.
@@ -202,11 +282,25 @@ def request_parse(force: bool = False) -> dict[str, Any]:
     if not PARSE_ENABLED:
         return {"started": False, "reason": "Save parsing is disabled (PARSE_ENABLED=false)"}
 
+    # Before touching the filesystem. If the server is struggling the cheapest
+    # possible response is to do nothing at all, and a save directory on a slow or
+    # unmounted network volume can make even a stat cost real time.
+    load = load_verdict(force=force)
+    if load["busy"]:
+        return {"started": False, "reason": load["reason"], "deferredForLoad": True,
+                "serverFps": load.get("serverFps")}
+
     level_path = get_level_sav_path()
     if not level_path:
         return {"started": False, "reason": "Level.sav not found"}
 
-    size_mb = os.path.getsize(level_path) / 1024 / 1024
+    try:
+        size_mb = os.path.getsize(level_path) / 1024 / 1024
+    except OSError as e:
+        # The path resolved a moment ago and is gone now — a restore, an unmounted
+        # volume. Reporting it beats raising out of a status call.
+        return {"started": False, "reason": f"Could not read Level.sav ({e.strerror})"}
+
     if size_mb > PARSE_MAX_SIZE_MB:
         return {
             "started": False,

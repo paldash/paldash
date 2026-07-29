@@ -19,9 +19,14 @@ Legend: ✅ works · 🟡 works with a caveat · 🔴 not built
 | Player count / online list | ✅ | via Palworld REST API |
 | Server settings viewer & editor | ✅ | `PalWorldSettings.ini`, CRLF-preserving |
 | Settings presets | 🟡 | Applies presets; the full preset library is Phase 9 |
-| Start / stop / restart container | 🟡 | Backend logic works, but the `docker` binary is **not in the runtime image**, so `STOP_COMMAND` fails. Manual `docker compose stop` works and is documented in the UI |
-| CPU / RAM / disk history | 🔴 | Phase 8 |
-| Broadcast / kick / ban / teleport | 🔴 | Phase 8 |
+| Announce & graceful shutdown | ✅ | **Phase 8**, audited. Needs no container control — the game stops its own process |
+| Start / stop / restart container | 🟡 | Backend logic works. The `docker` binary is **not in the runtime image**, so a `docker …` command fails; `docs/DEPLOYMENT.md` §4 has working `node`-based commands. Left unconfigured by choice — manual `docker compose stop` works and the UI says so |
+| CPU / RAM / disk history | ✅ | **Phase 8**, 60s samples kept 30 days; outages drawn as gaps, not zeroes |
+| Broadcast / kick / ban / unban | ✅ | **Phase 8**, through the backend so every action is audited, failures included |
+| Force save | ✅ | **Phase 8**, audited |
+| Load-aware parse throttling | ✅ | **Phase 8**, defers a parse when server FPS is below the floor |
+| Teleport | 🔴 | **Blocked, not deferred.** Palworld's REST API has no teleport command — it is RCON-only, and RCON is not used here |
+| Scheduled announcements | 🔴 | Deferred from Phase 8; `schedule.py` already has the timer to hang it on |
 
 ## 2. Map
 

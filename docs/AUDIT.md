@@ -819,12 +819,27 @@ anywhere" mode.
 **Risk: high.** **Depends on: Phases 0, 3, 4, 6.**
 *This is where corruption risk actually lives. It was not rushed.*
 
-### Phase 8 — Server dashboard & admin commands (3–4 days)
-CPU/RAM/disk/network sampling with history; player/entity counts; broadcast, kick, ban,
-teleport, force-save, scheduled announcements via REST; **load-aware throttling that pauses
-dashboard work when the game server is under pressure** (explicitly requested — gameplay
-wins over dashboard responsiveness).
-**Risk: low.** **Depends on: Phase 3.**
+### Phase 8 — Server dashboard & admin commands · ✅ **COMPLETE** (2026-07-29)
+CPU/RAM/disk sampling with history (`metrics.py`, 60s samples kept 30 days raw);
+world-size and entity counts; broadcast, kick, ban, unban, force-save and graceful
+shutdown (`gameapi.py` + `moderate.py`); **load-aware throttling** that defers a parse
+when server FPS is below a floor.
+
+**The finding that reshaped the phase:** the commands were already reachable through the
+Next.js game-REST proxy and left **no audit record**, because the audit log is in SQLite
+and only the Python process opens it. So the work was moving them behind the backend, not
+building them. That proxy now serves reads only and returns 405 for anything else.
+
+`server.control` was split into `server.control` + `players.moderate` — taking the server
+down and banning a player are different trusts. Moderator and above get both, so no
+existing account changed what it can do.
+
+**Not delivered:** *teleport* is **blocked, not deferred** — Palworld's REST API has no
+teleport command and it is RCON-only. *Scheduled announcements* were deferred; `schedule.py`
+already has the timer.
+
+**Risk: low, as predicted.** Nothing here writes to a save file.
+**Depended on: Phase 3.**
 
 ### Phase 9 — Migration, presets, polish (4–6 days)
 Steam ↔ dedicated ↔ Game Pass ↔ co-op migration (port PST's proven implementations);

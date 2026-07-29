@@ -309,6 +309,17 @@ Seven role presets, least to most privileged:
 | **Administrator** | Server settings and save editing as well. |
 | **Owner** | Everything, including accounts and the security policy. |
 
+**Moderating players and controlling the server are separate capabilities**
+(`players.moderate` and `server.control`). Both go to Moderator and above by
+default, but banning a griefer and shutting the world down are different kinds of
+trust, so either can be withdrawn without the other.
+
+**Every command is audited, including the ones that fail.** Kick, ban, unban,
+announce, force-save and shutdown all go through the backend rather than straight
+to the game, precisely so there is a record: who did it, to whom, why, and whether
+it worked. The target's name is captured at the time — a Steam ID is unreadable six
+months later.
+
 **Two gates, both must agree.** A role grants a capability; the security level
 withholds it. An Owner on a `readonly` server still cannot write — that dial is
 about protecting the world from mistakes, not about trust. Nobody can grant a
@@ -543,8 +554,8 @@ types, per-item totals identical, zero mismatches.
 
 ```bash
 ./scripts/setup-dev.sh          # builds .venv, compiles palsav from refs/
-.venv/bin/python -m pytest      # backend: 743 tests, ~140s
-npm test                        # frontend: 64 tests, <1s
+.venv/bin/python -m pytest      # backend: 789 tests, ~140s
+npm test                        # frontend: 77 tests, <1s
 ```
 
 The suite is in tiers:

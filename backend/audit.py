@@ -60,6 +60,15 @@ SAVE_IMPORT = "save.import"
 SERVER_RESTART = "server.restart"
 SERVER_STOP = "server.stop"
 SERVER_START = "server.start"
+SERVER_SAVE = "server.save"
+SERVER_ANNOUNCE = "server.announce"
+
+# Moderation. Separate action names from the server ones on purpose: "who has been
+# banned on this server" is a question an operator asks, and it should be one
+# filter on the audit log rather than a scan through restarts.
+PLAYER_KICK = "player.kick"
+PLAYER_BAN = "player.ban"
+PLAYER_UNBAN = "player.unban"
 
 DENIED = "access.denied"
 

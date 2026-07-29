@@ -598,3 +598,106 @@ payload per request gives back most of what the cache saves. Endpoints that
 narrow a cached list (`?owner=`, `?category=`) filter into a new list and never
 edit an element in place. Filtering happens *after* the cached build for the same
 reason: keying on the query would mean the shared work is never shared.
+
+## Commands go through the backend, because the proxy cannot audit
+
+Phase 8's real finding: kick, ban, announce, save and shutdown were already
+reachable through the Next.js game-REST proxy, gated on `server.control` — and
+they left **no audit record at all**. The proxy has no `audit.record` call and
+cannot sensibly have one, because SQLite is owned exclusively by the Python
+process.
+
+So `backend/gameapi.py` is the backend's own client for the game's REST API, and
+`backend/moderate.py` issues commands through it and records them. The proxy
+(`src/app/api/palworld/[...path]/route.ts`) now serves **reads only** and returns
+405 for anything else, with a message naming the right route — a 404 would read
+as "feature removed".
+
+Do not add a POST path back to that proxy. If a new command is needed, it goes in
+`moderate.py` or beside the other `/api/server/*` endpoints, with an
+`audit.record` call.
+
+**A failed command is audited too.** `moderate._run` writes the record on both
+paths, because an attempt that did not land still says who tried — and auditing
+only successes hides exactly the case being investigated.
+
+**The target's display name is captured at the time of the action.** A uid is
+unreadable and players rename themselves, so "who was `22b22b02`?" has no answer
+later unless it was written down when it was still knowable. The name lookup is
+best-effort: an offline server means an unnamed record, never a refused command.
+
+**`gameapi` is not a replacement for `safety.py`.** That module keeps its own
+probe, timeout and fail-closed logic because it answers "is it safe to write to a
+save file" and must not depend on anything that could be made to say "stopped"
+more easily.
+
+## Two capabilities, because two kinds of trust
+
+`server.control` was documented as "kick/ban/announce/restart", which bundled an
+operations decision with a social one. It is now split:
+
+- `server.control` — restart, stop, start, force-save, shutdown
+- `players.moderate` — kick, ban, unban, announce
+
+Moderator and above get both, so no existing account changed what it can do. The
+point is that an operator can now withdraw one without the other.
+
+## The ban list is not mirrored
+
+`moderate.list_bans` reads the server's own `banlist.txt`. Do not copy it into
+SQLite: a local copy drifts the moment someone edits the file by hand, and a ban
+list that disagrees with the game's is worse than not having one.
+
+**"Not found" and "empty" are different answers.** An empty array says nobody is
+banned; a missing file says we do not know. The reader returns `found: false` with
+a note so the UI cannot present the second as the first.
+
+## Metrics: raw rows, and a gap is data
+
+`backend/metrics.py`, stored in the `metrics` table. At the default 60s interval a
+30-day window is ~43,000 rows — SQLite answers that instantly, and it is cheaper
+than downsampled tables that can disagree with the raw ones. Bucketing happens at
+query time in `series()`, so changing a chart needs no migration.
+
+**A sample is written even when the game is unreachable**, with `reachable = 0`
+and NULL game fields. Skipping it would let a chart interpolate a smooth line
+straight through an outage. For the same reason `players` is never coerced to 0
+when the server is down: "nobody was playing" and "we could not ask" must not
+share a representation.
+
+**`reachable` is averaged into a fraction, not a flag.** A bucket at 0.5 is an
+intermittently crashing server — precisely what an operator is hunting — and a
+boolean would round that away in one direction or the other.
+
+`ts` is epoch seconds, unlike the ISO text the older tables use, because charts
+bucket on it arithmetically.
+
+Host CPU and memory come from cgroup v2 files where present, so under Docker they
+describe **this container's** limits rather than the machine's. That is the useful
+reading given `cpus: 1.0` in compose. Disk is the filesystem holding the save
+directory — the one whose filling up stops the game saving.
+
+**The first `cpu_percent()` call returns None.** A rate needs two samples; one
+sample is not a slow rate, it is no rate.
+
+## Parse throttling fails OPEN, unlike everything else here
+
+`savecache.load_verdict`. Gameplay wins over dashboard responsiveness, so a parse
+defers when the server is already struggling — but the direction of failure is the
+opposite of `safety.py`'s, and deliberately so. Writing to a live save destroys a
+world, hence fail closed. Refusing to parse forever because a signal is missing
+merely breaks the dashboard, so no data, a stale sample, an unreachable server and
+a missing table all read as "fine to parse". Only positive evidence defers.
+
+**It gates the start of a parse and never interrupts one in flight.** A running
+parse has already paid most of its cost and runs niced; killing it wastes that and
+frees capacity only until the next request starts it from scratch.
+
+**The check runs before any filesystem access**, including the `getsize`. A save
+directory on a slow or unmounted volume makes even a stat cost real time, and the
+cheapest response to a struggling server is to do nothing at all. A test pins the
+ordering, because the first version had the comment and not the behaviour.
+
+An explicit Refresh gets a lower floor (`PARSE_FORCE_MIN_SERVER_FPS`, 12 fps vs
+20): the operator asked and is watching, so overriding them needs real trouble
+rather than mere load.

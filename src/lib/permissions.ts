@@ -16,8 +16,16 @@ export const CAPABILITIES = {
   VIEW_DETAIL: 'view.detail',
   /** Read one's own character only. */
   VIEW_SELF: 'view.self',
-  /** Kick/ban/announce/restart through the game's REST API. */
+  /**
+   * Restart / stop / start the server, and force a world save.
+   *
+   * Split from moderation on purpose: taking the server down is an operations
+   * decision, banning a player is a social one, and an operator should be able to
+   * grant either without the other.
+   */
   SERVER_CONTROL: 'server.control',
+  /** Kick, ban, unban, broadcast. */
+  PLAYERS_MODERATE: 'players.moderate',
   /** Read and write PalWorldSettings.ini. */
   SETTINGS_WRITE: 'settings.write',
   /** Create, restore and delete save backups. */
@@ -177,7 +185,14 @@ const ROUTES: RouteRule[] = [
   { pattern: /^edit\/sort\/stackables$/, methods: ['POST'], capability: CAPABILITIES.SAVE_SORT_STACKABLES, feature: null },
   { pattern: /^edit\/sort\/all$/, methods: ['POST'], capability: CAPABILITIES.SAVE_SORT_ALL, feature: null },
 
-  { pattern: /^server\/(note-shutdown|restart|start-container|stop-container)$/, methods: ['POST'], capability: CAPABILITIES.SERVER_CONTROL, feature: null },
+  { pattern: /^server\/(note-shutdown|restart|start-container|stop-container|save|shutdown|force-stop)$/, methods: ['POST'], capability: CAPABILITIES.SERVER_CONTROL, feature: null },
+  // Moderation goes through the backend rather than the game-REST proxy, because
+  // the backend owns the audit log and these are exactly the actions an operator
+  // needs a record of. See backend/moderate.py.
+  { pattern: /^moderate\/(announce|kick|ban|unban)$/, methods: ['POST'], capability: CAPABILITIES.PLAYERS_MODERATE, feature: null },
+  { pattern: /^moderate\/bans$/, methods: ['GET'], capability: CAPABILITIES.PLAYERS_MODERATE, feature: null },
+  // History is a read at the same gate as the live server status it extends.
+  { pattern: /^metrics\/(history|summary)$/, methods: ['GET'], capability: CAPABILITIES.VIEW_BASIC, feature: FEATURES.SERVER_STATUS },
 
   // ─── Accounts & audit ───
   { pattern: /^users$/, methods: ['GET', 'POST'], capability: CAPABILITIES.USERS_MANAGE, feature: null },

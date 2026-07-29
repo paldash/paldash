@@ -93,6 +93,39 @@ CREATE TABLE IF NOT EXISTS audit_log (
 );
 CREATE INDEX IF NOT EXISTS idx_audit_ts ON audit_log(ts);
 CREATE INDEX IF NOT EXISTS idx_audit_action ON audit_log(action);
+
+-- Time series for the server dashboard. One row per sample, stored raw with no
+-- rollup: at the default 60s interval a 30-day window is ~43,000 rows, which
+-- SQLite answers instantly and which is far cheaper than maintaining downsampled
+-- tables that can disagree with the raw ones.
+--
+-- `ts` is epoch seconds rather than the ISO text the older tables use. Charts
+-- filter and bucket on it arithmetically, and doing that on text means either
+-- parsing every row or comparing strings and hoping.
+CREATE TABLE IF NOT EXISTS metrics (
+    ts            INTEGER PRIMARY KEY,
+    -- From the game's own /v1/api/metrics. NULL when it was unreachable, which
+    -- is itself information: a gap in the chart is a period the server was down.
+    server_fps    REAL,
+    frame_time    REAL,
+    players       INTEGER,
+    max_players   INTEGER,
+    uptime        INTEGER,
+    -- Host-side, measured by this container.
+    cpu_percent   REAL,
+    mem_used_mb   REAL,
+    mem_total_mb  REAL,
+    disk_used_mb  REAL,
+    disk_free_mb  REAL,
+    -- From the last completed parse, so it moves in steps rather than smoothly.
+    world_size_mb REAL,
+    pal_count     INTEGER,
+    base_count    INTEGER,
+    -- Whether the game answered at all. Kept explicit so "0 players" and
+    -- "we could not ask" are never confused.
+    reachable     INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_metrics_ts ON metrics(ts);
 """
 
 

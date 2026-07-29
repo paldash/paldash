@@ -3,7 +3,8 @@
 import { useDashboardStore } from '@/lib/store';
 import { CAPABILITIES } from '@/lib/permissions';
 import { announce, forceSave, shutdownServer, stopServer } from '@/lib/api';
-import { noteShutdown } from '@/lib/save-api';
+import MetricsHistoryPanel from './metrics-history';
+import Moderation from './moderation';
 import {
   Activity, Clock, Users, Cpu, TrendingUp,
   Megaphone, Save, Power, AlertTriangle,
@@ -63,8 +64,10 @@ export default function ServerOverview() {
       'This stops the game process. It only comes back if your server container restarts it.'
     )) return;
     try {
+      // No separate noteShutdown call: the backend route records the shutdown and
+      // starts watching for the server's return itself, so doing it here as well
+      // would reset that watch with a second, less accurate timestamp.
       await shutdownServer(shutdownWait, 'Server shutting down for maintenance');
-      await noteShutdown('manual shutdown').catch(() => undefined);
       showFeedback(`Shutdown initiated (${shutdownWait}s)`);
     } catch (e) {
       showFeedback(`Error: ${e instanceof Error ? e.message : 'Failed'}`);
@@ -75,7 +78,6 @@ export default function ServerOverview() {
     if (!confirm('Force stop the server immediately? Unsaved progress since the last autosave is lost.')) return;
     try {
       await stopServer();
-      await noteShutdown('force stop').catch(() => undefined);
       showFeedback('Server stopped.');
     } catch (e) {
       showFeedback(`Error: ${e instanceof Error ? e.message : 'Failed'}`);
@@ -330,6 +332,13 @@ export default function ServerOverview() {
           </div>
         </div>
       )}
+
+      {/* History is a read at the same gate as the live figures above it. */}
+      <MetricsHistoryPanel />
+
+      {/* Moderation is its own capability, separate from server control: banning a
+          player and shutting the server down are different trusts. */}
+      {capabilities.includes(CAPABILITIES.PLAYERS_MODERATE) && <Moderation />}
     </div>
   );
 }
