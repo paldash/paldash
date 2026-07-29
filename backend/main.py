@@ -29,6 +29,7 @@ import db
 import gamedata
 import lifecycle
 import policy as policy_module
+import reports
 import roles as roles_module
 import savecache
 import saveedit
@@ -481,6 +482,26 @@ def get_pals(owner: Optional[str] = None) -> list[dict]:
             }
         )
     return enriched
+
+
+@app.get("/api/bases/storage")
+def get_base_storage() -> list[dict]:
+    """
+    Per-base storage: containers owned, slots used, and what is in them.
+
+    Computed during the parse (see parse_worker) rather than per request — the
+    join is over every placed object in the world and has no business running on
+    the request path.
+    """
+    return savecache.get_section("baseStorage")
+
+
+@app.get("/api/bases/{base_id}/storage")
+def get_one_base_storage(base_id: str) -> dict:
+    for summary in savecache.get_section("baseStorage"):
+        if summary["baseId"] == base_id:
+            return summary
+    raise HTTPException(404, f"No base {base_id}, or the world has not been parsed yet")
 
 
 @app.get("/api/mapobjects")
@@ -1021,14 +1042,79 @@ def set_backup_schedule(req: ScheduleUpdate, request: Request) -> dict:
     return updated
 
 
+# ─── Reports ─────────────────────────────────────────────
+
+
+@app.get("/api/reports")
+def list_reports() -> dict:
+    """What can be exported, and in which formats."""
+    return {
+        "formats": list(reports.FORMATS),
+        "reports": [
+            {"id": key, "title": title} for key, (title, _fn, _sec) in sorted(reports.REPORTS.items())
+        ],
+    }
+
+
+@app.get("/api/reports/{report}")
+def get_report(report: str, request: Request, format: str = Query("csv"), baseId: Optional[str] = None):
+    """
+    Render an inventory report.
+
+    Read-only, but still capability-gated: a full item export is exactly the
+    inventory detail VIEW_DETAIL exists to control, and it is easier to walk off
+    with than the same data read a screen at a time.
+    """
+    from fastapi.responses import Response
+
+    authz.require(request, roles_module.VIEW_DETAIL)
+
+    try:
+        section = reports.section_for(report)
+    except reports.ReportError as e:
+        raise HTTPException(404, str(e))
+
+    data = savecache.get_section(section)
+    meta: dict[str, Any] = {"generatedAt": _now_iso()}
+
+    if baseId and section == "baseStorage":
+        data = [b for b in data if b["baseId"] == baseId]
+        if not data:
+            raise HTTPException(404, f"No base {baseId} in the current parse")
+        meta["base"] = data[0]["baseName"]
+
+    try:
+        body = reports.render(report, format, data, meta)
+    except reports.ReportError as e:
+        raise HTTPException(400, str(e))
+
+    stamp = meta["generatedAt"][:10]
+    suffix = f"-{baseId[:8]}" if baseId else ""
+    return Response(
+        content=body,
+        media_type=reports.MEDIA_TYPES[format],
+        headers={
+            "Content-Disposition":
+                f'attachment; filename="palworld-{report}{suffix}-{stamp}.{format}"'
+        },
+    )
+
+
+def _now_iso() -> str:
+    from datetime import datetime, timezone
+
+    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+
 # ─── Save editing ────────────────────────────────────────
 
 
 class SortRequest(BaseModel):
     merge: bool = True
+    baseId: Optional[str] = None
 
 
-def _run_sort(mode: str, merge: bool, request: Request) -> dict:
+def _run_sort(mode: str, merge: bool, request: Request, base_id: Optional[str] = None) -> dict:
     """
     Authorization and auditing for a container sort.
 
@@ -1051,7 +1137,7 @@ def _run_sort(mode: str, merge: bool, request: Request) -> dict:
         return HTTPException(status, message)
 
     try:
-        result = saveedit.sort_containers(mode=mode, merge=merge)
+        result = saveedit.sort_containers(mode=mode, merge=merge, base_id=base_id)
     except ServerRunningError as e:
         raise failed(str(e), 423)
     except saveedit.SaveEditError as e:
@@ -1062,12 +1148,14 @@ def _run_sort(mode: str, merge: bool, request: Request) -> dict:
 
     audit.record(
         audit.SAVE_SORT, username=user["username"], role=user["role"],
-        target=mode,
+        target=f"{mode} ({result.get('scope', 'world')})",
         detail={
             "containersTouched": result.get("containersTouched"),
+            "containersInScope": result.get("containersInScope"),
             "slotsChanged": result.get("slotsChanged"),
             "backupId": result.get("backupId"),
             "merged": merge,
+            "baseId": base_id or "",
         },
         ip=ip,
     )
@@ -1081,14 +1169,16 @@ def sort_stackables(req: SortRequest, request: Request) -> dict:
 
     Anything with a dynamic_id (weapons, armour, tools) is left exactly where it
     is, so durability records cannot be orphaned.
+
+    Pass `baseId` to scope the sort to one base's storage.
     """
-    return _run_sort("stackables", req.merge, request)
+    return _run_sort("stackables", req.merge, request, req.baseId)
 
 
 @app.post("/api/edit/sort/all")
 def sort_all(req: SortRequest, request: Request) -> dict:
     """Tidy containers including equipment, carrying dynamic_id links along."""
-    return _run_sort("all", req.merge, request)
+    return _run_sort("all", req.merge, request, req.baseId)
 
 
 class EditRequest(BaseModel):

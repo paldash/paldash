@@ -59,11 +59,13 @@ def main() -> int:
     from parser import (
         extract_base_camps,
         extract_characters,
+        extract_container_ownership,
         extract_containers,
         extract_guilds,
         extract_map_objects,
         guild_name_map,
         load_gvas,
+        summarise_base_storage,
     )
     from savefiles import get_default_world_dir, get_level_sav_path
 
@@ -93,9 +95,21 @@ def main() -> int:
     containers = extract_containers(gvas) if args.items else {}
     map_objects = extract_map_objects(gvas)
 
+    # Which placed object owns which container, and therefore which base. Cheap
+    # (it re-walks an already-decoded MapObjectSaveData) and it is what turns a
+    # single undifferentiated item pile into per-base storage.
+    ownership = extract_container_ownership(gvas)
+    base_storage = summarise_base_storage(containers, ownership, bases) if args.items else []
+    storage_by_base = {s["baseId"]: s for s in base_storage}
+
     for base in bases:
         base["palCount"] = sum(1 for p in pals if p.get("guildId") == base.get("guildId"))
         base["objectCount"] = sum(1 for o in map_objects if o.get("baseCampId") == base["id"])
+        summary = storage_by_base.get(base["id"])
+        base["containerIds"] = [c["containerId"] for c in summary["containers"]] if summary else []
+        base["storedItemCount"] = summary["itemCount"] if summary else 0
+        base["usedSlots"] = summary["usedSlots"] if summary else 0
+        base["totalSlots"] = summary["totalSlots"] if summary else 0
 
     # Server-wide item totals — the "item retrieval unit" view. Aggregating here
     # rather than in the API keeps it out of the request path entirely.
@@ -124,6 +138,8 @@ def main() -> int:
         "players": players,
         "pals": pals,
         "containers": containers,
+        "containerOwnership": ownership,
+        "baseStorage": base_storage,
         "mapObjects": map_objects,
         "items": items,
         "counts": {
@@ -132,6 +148,7 @@ def main() -> int:
             "players": len(players),
             "pals": len(pals),
             "containers": len(containers),
+            "ownedContainers": len(ownership),
             "mapObjects": len(map_objects),
             "itemTypes": len(items),
         },

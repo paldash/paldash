@@ -37,6 +37,8 @@ export interface ServerSettings {
 export interface BaseCamp {
   id: string;
   name: string;
+  /** False when `name` is our positional fallback for the game's placeholder. */
+  playerNamed?: boolean;
   guildId: string;
   guildName: string;
   x: number;
@@ -45,6 +47,35 @@ export interface BaseCamp {
   radius: number;
   palCount: number;
   containerIds: string[];
+  storedItemCount?: number;
+  usedSlots?: number;
+  totalSlots?: number;
+}
+
+/** One container owned by a base, as summarised during the parse. */
+export interface BaseContainer {
+  containerId: string;
+  kind: string;
+  kindName: string;
+  category: string | null;
+  usedSlots: number;
+  totalSlots: number;
+  itemCount: number;
+}
+
+export interface BaseStorage {
+  baseId: string;
+  baseName: string;
+  guildId: string;
+  guildName: string;
+  containerCount: number;
+  usedSlots: number;
+  totalSlots: number;
+  fillPercent: number;
+  itemCount: number;
+  uniqueItems: number;
+  items: { itemId: string; itemName: string; count: number }[];
+  containers: BaseContainer[];
 }
 
 export interface GuildInfo {

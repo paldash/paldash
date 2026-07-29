@@ -63,10 +63,10 @@ than attempting all of it.
 
 | Area | Complete | Notes |
 |---|---:|---|
-| Save parsing engine | 90% | 1.0/Oodle proven; missing per-base container linkage |
+| Save parsing engine | 95% | ✅ Phase 5: per-base container linkage, exact rather than spatial |
 | Corruption safety | 85% | Fail-closed, atomic, verified; no audit trail |
 | Backup & restore | 90% | ✅ Phase 4: verified archives, retention, schedule, preview, browser. No cloud targets |
-| Save editing | 12% | Two sort modes work; everything else 501 |
+| Save editing | 25% | ✅ Phase 5: base-scoped sorting, real stack limits. General editor still 501 |
 | Live map | 70% | ✅ Phase 2: both maps ship, 174 fast-travel POIs, layers/search. World Tree transform provisional |
 | Reference data | 90% | ✅ Phase 1: full 1.0 DB bundled at 215 KB; icons still not shipped |
 | Auth & accounts | 85% | ✅ Phase 3: accounts, scrypt, revocable sessions, throttling, audit log. No 2FA/reset flow |
@@ -75,9 +75,10 @@ than attempting all of it.
 | Docker | 80% | Genuinely good; needs multi-image validation |
 | Import / export | 0% | Not started |
 | Migration tools | 0% | Not started |
-| Testing | 70% | ✅ 340 backend + 34 frontend tests |
+| Testing | 75% | ✅ 379 backend + 39 frontend tests |
 | Documentation | 70% | ✅ Phase 0: `.gitignore` fixed, AGENTS.md written |
-| **Weighted total** | **~70%** | 32% → 36% (P0) → 43% (P1) → 50% (P2) → 62% (P3) → 70% (P4) |
+| Reports / export | 60% | ✅ Phase 5: 4 reports × CSV/JSON/TXT. Save import/export is Phase 6 |
+| **Weighted total** | **~76%** | 32% → 36% (P0) → 43% (P1) → 50% (P2) → 62% (P3) → 70% (P4) → 76% (P5) |
 
 ---
 
@@ -175,13 +176,16 @@ Good discipline: manual-refresh default, niced subprocess, CPU/memory limits in 
 Unbounded: no adaptive throttle when the game server is loaded, whole parse result held in
 memory, no incremental parsing.
 
-### 2.9 Docker — ✅ 80%
+### 2.9 Docker — ✅ 85%
 
 Genuinely good. Shared bind mount, service-name DNS (`http://palworld:8212` — yes, this
 works), REST port unpublished, backend port unpublished, `docker-socket-proxy` sidecar for
 container control without giving the dashboard root or the raw socket, `cpus`/`mem_limit`
-caps, paste-one-service-into-your-existing-compose documented. Only validated against
-`thijsvanloef/palworld-server-docker`.
+caps, paste-one-service-into-your-existing-compose documented, and (2026-07-28) a non-root
+`USER`. Only validated against `thijsvanloef/palworld-server-docker`.
+
+Two things still open: multi-image validation, and the `docker` binary missing from the
+runtime image, which makes `STOP_COMMAND`/`START_COMMAND` non-functional (see §10).
 
 ### 2.10 Testing — 🟡 45% (was 🔴 0%) — **Phase 0 complete**
 
@@ -353,7 +357,7 @@ detour. No further files are needed from PST beyond what `refs/` already contain
 | S9 | Medium | No upload validation. | 🔴 Open — uploads do not exist yet. Must be addressed **in Phase 6** before import ships. |
 | S10 | ~~Low~~ | Backend had no auth of its own. | ✅ **Largely fixed** (P3). It now resolves sessions itself and enforces capabilities; loopback binding is defence in depth rather than the only control. |
 | S11 | Low | No dependency scanning. | 🔴 Open. `npm audit` + `pip-audit` in CI. |
-| S12 | Low | Container runs as root unless the image says otherwise. | 🔴 Open. Explicit `USER` in Dockerfile. |
+| S12 | ~~Low~~ | Container ran as root over a bind mount of the world files. | ✅ **Fixed** (2026-07-28). `USER 1000:1000` via `APP_UID`/`APP_GID` build args, defaulting to the Palworld image's own PUID/PGID. Reuses the base image's `node` user when the id is taken, creates one otherwise; both paths verified by building and running. Volume mount points are chowned in the image so a fresh named volume inherits the right owner. |
 
 Not vulnerable: SQL injection (no SQL), XSS (React escapes; no `dangerouslySetInnerHTML`),
 command injection (no shell), path traversal into the save dir (`savefiles.py` resolves and
@@ -520,10 +524,34 @@ maintaining two.
 
 Verified: 340 backend + 34 frontend tests pass · lint 0 errors · build succeeds.
 
-### Phase 5 — Per-base inventory & advanced sorting (3–4 days)
-Wire `ModuleMap → target_container_id`; per-base breakdown; base-scoped sorting; category
-rules, priorities, custom profiles, overflow handling; CSV/JSON/TXT reports.
-**Risk: low-medium.** **Depends on: Phase 1, Phase 4.**
+### Phase 5 — Per-base inventory & advanced sorting · ✅ **COMPLETE** (2026-07-28)
+
+- **The join, and it is exact.** `extract_container_ownership` walks
+  `MapObjectSaveData → ConcreteModel.ModuleMap[ItemContainer].target_container_id`, and
+  attributes each container through `Model.RawData.base_camp_id_belong_to`. No radius
+  guessing. Validated on the reference world: 3,370 objects carry a container id, 3 dangle,
+  all 11 bases resolve, no container is claimed by two objects.
+- **The plan's stated approach was wrong and was corrected.** `BaseCampSaveData.ModuleMap`
+  has an `ItemStorages` module that looks like the link; it is **empty** on a real world.
+  The real path runs through the map object, not the base camp.
+- **Per-base breakdown** — containers, slots used, fill %, item totals, per-container
+  detail. Computed in `parse_worker` so it never runs on the request path.
+- **Base-scoped sorting** — `sort_containers(base_id=…)`. Scoping narrows what is written,
+  never what is checked: the conservation fingerprint still covers every container in the
+  world. A slow integration test asserts that a scoped sort changes containers *only*
+  inside its scope, at slot level rather than by totals.
+- **`maxStack` wired in** (bundled in Phase 1, deliberately unused until now). Ceiling is
+  `max(authoritative, observed)` so it can never demand more slots than a container already
+  uses; an oversized stack is preserved rather than split.
+- **Reports** — `backend/reports.py`, four reports × CSV/JSON/TXT, capability-gated behind
+  `VIEW_DETAIL`. The proxy now streams anything carrying `Content-Disposition`, so a JSON
+  report downloads instead of rendering.
+- **Unnamed bases** no longer all show the same Japanese placeholder.
+
+Not built, deliberately: category rules, priorities, custom sort profiles and overflow
+handling. Each changes *where an item ends up* rather than how tidily it is packed, which
+makes them save-editor semantics (Phase 7) rather than sorting. Deferred rather than
+half-built. **Tests: 379 backend + 39 frontend.**
 
 ### Phase 6 — Import / export (4–5 days)
 Export whole save, player, guild, base, palbox, container as JSON/archive. Import with
@@ -553,8 +581,9 @@ remaining server presets; mod detection; version compatibility matrix; multi-ima
 validation.
 **Risk: medium** (Game Pass paths are Windows-specific and hard to test from Linux).
 
-**Total: 40–55 engineer-days.** Phases 0–4 (~19–24 days) produce a genuinely good,
-safe-to-run product. Phases 5–9 are the long tail.
+**Total: 40–55 engineer-days.** Phases 0–5 are done and produce a genuinely good,
+safe-to-run product with no Critical blockers. Phases 6–9 (~19–27 days) are the long tail,
+and Phase 7 is over half of it.
 
 ---
 
@@ -617,8 +646,9 @@ because the data is already parsed:
 
 ## 10. Deployment blockers
 
-**Critical** — no `USER` in Dockerfile (S12).
-~~zero tests~~ ✅ P0 · ~~S1 rate limiting~~ ✅ P3 · ~~S2 audit log~~ ✅ P3.
+**Critical** — none remaining.
+~~no `USER` in Dockerfile (S12)~~ ✅ 2026-07-28 · ~~zero tests~~ ✅ P0 · ~~S1 rate
+limiting~~ ✅ P3 · ~~S2 audit log~~ ✅ P3.
 **High** — S9 upload validation before import ships (Phase 6).
 ~~backup verification before any editor expansion~~ ✅ P4.
 ~~`.gitignore` excluding docs~~ ✅ P0 · ~~S3/S4 accounts & revocation~~ ✅ P3 · ~~S5 route
@@ -629,10 +659,19 @@ validation.
 **Low** — S11 dependency scanning, API versioning.
 ~~S10 backend auth~~ ✅ P3.
 
-**Verdict: no longer blocked on authentication.** With Phase 3 done the remaining
-deployment blockers are operational (`USER` in the Dockerfile, dependency scanning) rather
-than architectural. Exposing this beyond a trusted LAN is now a reasonable proposition once
-S12 is closed and Phase 4 gives backups you can verify.
+**Verdict: deployable for personal / trusted-LAN use.** No Critical blockers remain. What
+is left is either a feature gap (import/export, the general editor) or a hardening item
+that does not gate a LAN deployment (S11 dependency scanning, S7 CSRF tokens — mitigated
+by `SameSite=Lax` but not eliminated). Exposing this to untrusted users still wants S7 and
+S9 closed first.
+
+**Known defect, unrelated to S12:** the documented `STOP_COMMAND` / `START_COMMAND`
+container controls invoke `docker`, which is **not installed in the runtime image**.
+`lifecycle._run_configured` raises `FileNotFoundError` → "STOP_COMMAND not found: docker".
+The feature has never worked as documented; the manual `docker compose stop palworld` path
+in the UI does. Fixing it means adding `docker-cli` (~35 MB) to the runtime stage — worth
+doing deliberately rather than as a drive-by, since it is image size and attack surface for
+a feature not everyone enables.
 
 **Licensing decision (not a blocker for private use):** `palsav` is GPL-3.0-or-later, so
 publishing this dashboard means licensing it GPL-3.0. The alternatives are to accept that,

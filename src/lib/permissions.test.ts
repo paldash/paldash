@@ -118,4 +118,42 @@ describe('describeSavePath', () => {
       expect(describeSavePath('restore/', 'POST').allowed).toBe(false);
     });
   });
+
+  describe('per-base storage and reports (Phase 5)', () => {
+    it('allows the storage routes as detail reads', () => {
+      expect(describeSavePath('bases/storage', 'GET')).toMatchObject({
+        allowed: true,
+        capability: CAPABILITIES.VIEW_DETAIL,
+      });
+      expect(describeSavePath('bases/abcd-1234/storage', 'GET')).toMatchObject({
+        allowed: true,
+        capability: CAPABILITIES.VIEW_DETAIL,
+      });
+    });
+
+    it('treats base storage as more sensitive than the base list', () => {
+      // `bases` is a map pin; `bases/storage` is a full inventory readout.
+      expect(describeSavePath('bases', 'GET').capability).toBe(CAPABILITIES.VIEW_BASIC);
+      expect(describeSavePath('bases/storage', 'GET').capability).toBe(CAPABILITIES.VIEW_DETAIL);
+    });
+
+    it('allows report listing and rendering', () => {
+      expect(describeSavePath('reports', 'GET').allowed).toBe(true);
+      expect(describeSavePath('reports/base-items', 'GET').allowed).toBe(true);
+      expect(describeSavePath('reports/world-items', 'GET').allowed).toBe(true);
+    });
+
+    it('refuses writes to read-only report and storage routes', () => {
+      expect(describeSavePath('reports/base-items', 'POST').allowed).toBe(false);
+      expect(describeSavePath('bases/storage', 'DELETE').allowed).toBe(false);
+      expect(describeSavePath('bases/abcd/storage', 'POST').allowed).toBe(false);
+    });
+
+    it('refuses malformed storage and report paths', () => {
+      expect(describeSavePath('bases/abcd/storage/extra', 'GET').allowed).toBe(false);
+      expect(describeSavePath('bases//storage', 'GET').allowed).toBe(false);
+      expect(describeSavePath('reports/../backups', 'GET').allowed).toBe(false);
+      expect(describeSavePath('reports/Base_Items', 'GET').allowed).toBe(false);
+    });
+  });
 });

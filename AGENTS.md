@@ -135,9 +135,45 @@ unknown IDs fall back to `humanize()` rather than failing.
 `character_name()` for anything out of it — `pal_name()` alone leaves merchants
 and guards showing internal IDs.
 
-Bundled `maxStack` values are authoritative but **deliberately unused by the
-sorter** so far: swapping them in changes what a sort writes to a save, which is
-a decision with tests attached, not a drive-by.
+Bundled `maxStack` values are wired into the sorter as of Phase 5. The merge
+ceiling is `max(authoritative, observed)`, and the `max()` is the point: raising
+a ceiling only ever packs items into fewer slots, while lowering one could
+require *more* slots than a container already uses. So a stack larger than the
+game's own cap — modded, or from an older version — is preserved rather than
+split. `test_saveedit.py` pins all three cases.
+
+## Bases own containers — via the object, not the guild
+
+Per-base inventory rests on one join, and it is exact rather than spatial:
+
+```
+BaseCampSaveData[].RawData.id
+  <- MapObjectSaveData[].Model.RawData.base_camp_id_belong_to
+     MapObjectSaveData[]
+  -> .ConcreteModel.ModuleMap["…::ItemContainer"].RawData.target_container_id
+  -> ItemContainerSaveData[].key.ID
+```
+
+`parser.extract_container_ownership` walks it; `summarise_base_storage` folds
+container contents up into per-base totals.
+
+**`group_id_belong_to` is the guild, not the base.** Both are GUIDs sitting
+beside each other in the same `RawData`, and substituting one for the other
+still produces a plausible-looking grouping — it just silently merges every base
+in a guild into one pile. On the reference world none of its six values match a
+base camp id. `test_base_storage.py` pins this specifically.
+
+`BaseCampModuleMap::ItemStorages` looks like the obvious link and is **empty**
+on a real world. Don't reach for it.
+
+Reference-world figures, useful as a regression signal: 3,370 objects carry a
+container id, 3 dangle, 262 attribute to the 11 bases, 3,105 are world-placed.
+The remaining ~8,000 containers are player inventories and palboxes, which come
+from elsewhere.
+
+Unnamed bases keep the game's placeholder (`新規生成拠点テンプレート名0(仮)`)
+rather than an empty string, so `_base_name` swaps in positional numbering and
+flags `playerNamed: false`. Every base on the reference world hits this.
 
 ## Security boundary
 

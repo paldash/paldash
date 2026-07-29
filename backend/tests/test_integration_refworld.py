@@ -216,6 +216,139 @@ def test_sort_conserves_every_item_end_to_end(palsav_available, sandbox):
     assert grand_before == grand_after
 
 
+def test_container_ownership_resolves_against_real_bases(palsav_available, level_sav):
+    """
+    The base<-object->container join, against the world it was derived from.
+
+    Every base id an object claims must be a base that exists. If this drifts,
+    per-base inventory silently files chests under bases nobody has.
+    """
+    from parser import (
+        extract_base_camps, extract_container_ownership, extract_containers, load_gvas,
+    )
+
+    gvas = load_gvas(level_sav, include_items=True)
+    bases = extract_base_camps(gvas)
+    ownership = extract_container_ownership(gvas)
+    containers = extract_containers(gvas)
+
+    assert ownership, "no container ownership extracted"
+
+    base_ids = {b["id"] for b in bases}
+    claimed = {o["baseCampId"] for o in ownership.values() if o["baseCampId"]}
+    assert claimed, "no container attributed to any base"
+    assert claimed <= base_ids, f"containers claim unknown bases: {claimed - base_ids}"
+
+    # The relationship is one container to one object; two objects pointing at
+    # the same storage would double-count every item in it.
+    assert len(ownership) == len({o["objectId"] for o in ownership.values()})
+
+    # Nearly every referenced container should really exist. A handful dangle on
+    # a live world (the object outlived its storage), but not many.
+    dangling = [cid for cid in ownership if cid not in containers]
+    assert len(dangling) < 0.01 * len(ownership), (
+        f"{len(dangling)} of {len(ownership)} container references dangle"
+    )
+
+
+def test_base_storage_totals_stay_within_the_world_total(palsav_available, level_sav):
+    """Per-base sums are a partition of a subset — they cannot exceed the whole."""
+    from parser import (
+        extract_base_camps, extract_container_ownership, extract_containers,
+        extract_guilds, guild_name_map, load_gvas, summarise_base_storage,
+    )
+
+    gvas = load_gvas(level_sav, include_items=True)
+    containers = extract_containers(gvas)
+    bases = extract_base_camps(gvas, guild_name_map(extract_guilds(gvas)))
+    summaries = summarise_base_storage(containers, extract_container_ownership(gvas), bases)
+
+    assert len(summaries) == len(bases), "every base must get a row, even an empty one"
+
+    world_total = sum(
+        s["stackCount"] for slots in containers.values() for s in slots if not s["isEmpty"]
+    )
+    assert sum(s["itemCount"] for s in summaries) <= world_total
+
+    for summary in summaries:
+        assert summary["usedSlots"] <= summary["totalSlots"]
+        assert sum(i["count"] for i in summary["items"]) == summary["itemCount"]
+
+
+@pytest.mark.slow
+def test_base_scoped_sort_leaves_other_bases_untouched(palsav_available, sandbox):
+    """
+    The point of scoping: one guild tidies its own base without reorganising
+    everyone else's chests. Slot-level equality outside the scope is the check —
+    conservation alone would pass even if every other container were reshuffled.
+    """
+    import saveedit
+    from parser import extract_container_ownership, load_gvas
+
+    level = os.path.join(sandbox["world"], "Level.sav")
+
+    gvas = load_gvas(level, include_items=True)
+    ownership = extract_container_ownership(gvas)
+    per_base: dict[str, set] = {}
+    for cid, owner in ownership.items():
+        if owner["baseCampId"]:
+            per_base.setdefault(owner["baseCampId"], set()).add(cid)
+
+    target = max(per_base, key=lambda b: len(per_base[b]))
+    in_scope = per_base[target]
+
+    def slot_snapshot():
+        from palsav.core import decompress_sav_to_gvas
+        from palsav.gvas import GvasFile
+        from palsav.paltypes import PALWORLD_CUSTOM_PROPERTIES, PALWORLD_TYPE_HINTS
+
+        raw, _ = decompress_sav_to_gvas(open(level, "rb").read())
+        tree = GvasFile.read(raw, PALWORLD_TYPE_HINTS, PALWORLD_CUSTOM_PROPERTIES)
+        entries = tree.properties["worldSaveData"]["value"]["ItemContainerSaveData"]["value"]
+        snapshot = {}
+        for entry in entries:
+            cid = saveedit._container_id_of(entry)
+            slots = ((entry.get("value") or {}).get("Slots") or {}).get("value", {}).get("values", [])
+            snapshot[cid] = [
+                (saveedit._static_id(r), saveedit._count(r))
+                for r in (saveedit._slot_raw(s) for s in slots)
+                if r is not None
+            ]
+        return snapshot
+
+    before = slot_snapshot()
+    result = saveedit.sort_containers(mode="stackables", merge=True, base_id=target)
+
+    assert result["scope"] == "base"
+    assert result["baseId"] == target
+    assert result["containersInScope"] == len(in_scope)
+    assert result["verified"] is True
+
+    after = slot_snapshot()
+    changed = {cid for cid in before if before[cid] != after.get(cid)}
+
+    assert changed, "the scoped sort changed nothing at all"
+    assert changed <= in_scope, (
+        f"sort escaped its scope and modified {len(changed - in_scope)} containers "
+        "belonging to other bases or the world"
+    )
+
+
+@pytest.mark.slow
+def test_sorting_an_unknown_base_writes_nothing(palsav_available, sandbox):
+    import saveedit
+    from backup import list_backups
+
+    level = os.path.join(sandbox["world"], "Level.sav")
+    original = open(level, "rb").read()
+
+    with pytest.raises(saveedit.SaveEditError, match="owns no item containers"):
+        saveedit.sort_containers(mode="stackables", base_id="not-a-real-base")
+
+    assert open(level, "rb").read() == original
+    assert list_backups(), "the guard should still have taken its pre-edit backup"
+
+
 @pytest.mark.slow
 def test_sort_takes_a_backup_before_writing(palsav_available, sandbox):
     import backup as backup_module

@@ -89,12 +89,30 @@ def _totals(containers: list) -> dict[str, dict[str, int]]:
 
 def _max_stacks(containers: list) -> dict[str, int]:
     """
-    Largest stack observed per item across the whole world.
+    The merge ceiling per item: the larger of what the game allows and what the
+    save already contains.
 
-    Used as the merge ceiling. The game's real per-item stack limits are not in
-    the save, so rather than guessing we never build a stack larger than one the
-    save already contains — if 9999 Wood exists somewhere, 9999 is achievable.
+    Two sources, and taking the max of them is deliberate rather than lazy:
+
+    - **Observed** — the largest stack of that item anywhere in the world. This
+      was the only source before, on the reasoning that a stack size the save
+      already contains is certainly achievable.
+    - **Authoritative** — `maxStack` from the bundled game database. Bundled in
+      Phase 1 but deliberately left unwired, because changing the ceiling
+      changes what a sort *writes*.
+
+    Taking `max()` cannot make a sort need more slots than it already needed,
+    which is the property that matters. Raising the ceiling only ever merges
+    more items into fewer slots. Lowering it is what would force a container to
+    grow, and that cannot happen here: when the real cap is *below* something
+    the save already holds — an older cap, or a modded stack — the observed
+    value wins and that stack is preserved as-is rather than being split up.
+
+    Items absent from the database (mod content, renamed assets) simply fall
+    back to observed, which is exactly the previous behaviour.
     """
+    import gamedata
+
     limits: dict[str, int] = defaultdict(int)
     for entry in containers:
         for slot in ((entry.get("value") or {}).get("Slots") or {}).get("value", {}).get("values", []):
@@ -102,6 +120,12 @@ def _max_stacks(containers: list) -> dict[str, int]:
             if raw and not _is_empty(raw):
                 item = _static_id(raw)
                 limits[item] = max(limits[item], _count(raw))
+
+    for item_id in list(limits):
+        authoritative = gamedata.max_stack(item_id)
+        if authoritative > 0:
+            limits[item_id] = max(limits[item_id], authoritative)
+
     return dict(limits)
 
 
@@ -206,13 +230,31 @@ def _copy_item(source: dict) -> dict:
 # ─── Public entry point ──────────────────────────────────
 
 
-def sort_containers(mode: str = "stackables", merge: bool = True) -> dict[str, Any]:
+def _container_id_of(entry: dict) -> str:
+    return str((((entry.get("key") or {}).get("ID") or {}).get("value")) or "")
+
+
+def sort_containers(
+    mode: str = "stackables",
+    merge: bool = True,
+    base_id: Optional[str] = None,
+) -> dict[str, Any]:
     """
-    Sort and optionally merge every item container in the world.
+    Sort and optionally merge item containers.
 
     mode:
       "stackables" — skip anything with a dynamic_id (weapons, armour, tools)
       "all"        — also relocate durability items, carrying their links along
+
+    base_id scopes the sort to the containers a single base owns. Everything
+    else in the world is left untouched, which is what makes this usable on a
+    shared server: one guild can tidy its own base without reorganising
+    everyone else's chests.
+
+    Scoping narrows what is *written*, never what is *checked*. The conservation
+    fingerprint is still taken over every container in the world, so an
+    out-of-scope container that changed would fail the check just as loudly as
+    an in-scope one.
     """
     if mode not in ("stackables", "all"):
         raise SaveEditError(f"Unknown sort mode: {mode}")
@@ -229,7 +271,8 @@ def sort_containers(mode: str = "stackables", merge: bool = True) -> dict[str, A
     from savefiles import read_sav_bytes
 
     # assert_writable + full backup; raises unless provably safe.
-    with guarded_save_write(f"sort containers ({mode})", world_dir) as backup:
+    scope_note = f", base {base_id}" if base_id else ""
+    with guarded_save_write(f"sort containers ({mode}{scope_note})", world_dir) as backup:
         original = read_sav_bytes(level_path)
         if original is None:
             raise SaveEditError("Could not read Level.sav")
@@ -241,16 +284,36 @@ def sort_containers(mode: str = "stackables", merge: bool = True) -> dict[str, A
         before = _totals(containers)
         max_stacks = _max_stacks(containers)
 
+        # Resolve the scope from the same parse tree we are about to mutate, so
+        # the ownership map cannot be stale relative to the containers.
+        in_scope: Optional[set[str]] = None
+        base_label = ""
+        if base_id:
+            import parser as save_parser
+
+            ownership = save_parser.extract_container_ownership(gvas)
+            in_scope = {
+                cid for cid, owner in ownership.items() if owner["baseCampId"] == base_id
+            }
+            if not in_scope:
+                raise SaveEditError(
+                    f"Base {base_id} owns no item containers — nothing to sort. "
+                    "(A base with only production and defences has no storage.)"
+                )
+            base_label = f" for base {base_id}"
+
         changed_slots = 0
         touched = 0
         for entry in containers:
+            if in_scope is not None and _container_id_of(entry) not in in_scope:
+                continue
             delta = _sort_container(entry, mode, merge, max_stacks)
             if delta:
                 touched += 1
                 changed_slots += delta
 
         if not changed_slots:
-            raise SaveEditError("Nothing to sort — containers are already tidy")
+            raise SaveEditError(f"Nothing to sort{base_label} — containers are already tidy")
 
         # Conservation, in memory.
         after = _totals(containers)
@@ -292,6 +355,9 @@ def sort_containers(mode: str = "stackables", merge: bool = True) -> dict[str, A
             "ok": True,
             "mode": mode,
             "merged": merge,
+            "baseId": base_id or "",
+            "scope": "base" if base_id else "world",
+            "containersInScope": len(in_scope) if in_scope is not None else len(containers),
             "containersTouched": touched,
             "slotsChanged": changed_slots,
             "backupId": backup["id"],

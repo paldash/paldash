@@ -91,12 +91,34 @@ def test_totals_ignore_empty_slots():
     assert _totals(entries) == {"c1": {"Wood": 10}}
 
 
-def test_max_stacks_is_the_largest_observed():
+def test_max_stacks_prefers_the_authoritative_cap_over_the_observed_one():
+    """
+    Phase 5 wired in the bundled `maxStack` values. A lone stack of 7 Stone no
+    longer caps merging at 7 — the game allows 9999, so that is the ceiling.
+    """
     entries = [
         container("c1", [slot("Wood", 50), slot("Wood", 9999)]),
         container("c2", [slot("Wood", 100), slot("Stone", 7)]),
     ]
-    assert _max_stacks(entries) == {"Wood": 9999, "Stone": 7}
+    assert _max_stacks(entries) == {"Wood": 9999, "Stone": 9999}
+
+
+def test_max_stacks_keeps_an_oversized_stack_the_game_would_not_allow():
+    """
+    The ceiling is max(authoritative, observed), and this is the case that
+    proves why. A 50,000 stack (modded, or from an older cap) must not become
+    the merge ceiling's *upper* bound — lowering it to the real cap would need
+    more slots than the container already uses, which is the one thing a sort
+    must never require.
+    """
+    entries = [container("c1", [slot("Stone", 50000), slot("Stone", 5)])]
+    assert _max_stacks(entries)["Stone"] == 50000
+
+
+def test_max_stacks_falls_back_to_observed_for_unknown_items():
+    """Mod content is not in the database; behaviour there is exactly as before."""
+    entries = [container("c1", [slot("NotARealModItem", 42), slot("NotARealModItem", 11)])]
+    assert _max_stacks(entries) == {"NotARealModItem": 42}
 
 
 # ─── Sorting ─────────────────────────────────────────────────────

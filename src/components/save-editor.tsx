@@ -7,7 +7,7 @@ import {
   type SortResult,
 } from '@/lib/save-api';
 import {
-  Lock, Unlock, ShieldCheck, Play, Square, ArrowUpDown, PenLine,
+  Lock, Unlock, ShieldCheck, Play, Square, ArrowUpDown, PenLine, Target,
 } from 'lucide-react';
 import { CAPABILITIES } from '@/lib/permissions';
 
@@ -21,12 +21,16 @@ import { CAPABILITIES } from '@/lib/permissions';
  */
 export default function SaveEditor() {
   const {
-    serverProcessRunning, backendOnline, serverState, capabilities,
+    serverProcessRunning, backendOnline, serverState, capabilities, bases,
   } = useDashboardStore();
 
   const [feedback, setFeedback] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [lastResult, setLastResult] = useState<SortResult | null>(null);
+  // "" means the whole world. Scoping to one base is the safer default habit on
+  // a shared server, but the world-wide sort is what most single-guild servers
+  // actually want, so neither is forced.
+  const [scope, setScope] = useState('');
 
   const has = (capability: string) => capabilities.includes(capability);
   const flash = (msg: string) => {
@@ -36,8 +40,12 @@ export default function SaveEditor() {
 
   const runSort = async (mode: 'stackables' | 'all') => {
     const label = mode === 'stackables' ? 'stackable items' : 'ALL items including equipment';
+    const target = scope
+      ? `the containers belonging to ${bases.find((b) => b.id === scope)?.name ?? 'that base'}`
+      : 'every container in the world';
+
     if (!confirm(
-      `Sort every container, affecting ${label}?\n\n` +
+      `Sort ${target}, affecting ${label}?\n\n` +
       'A full backup is taken first, and the result is verified against the original ' +
       'item totals. If anything does not add up, the world is rolled back automatically.'
     )) return;
@@ -45,10 +53,12 @@ export default function SaveEditor() {
     setBusy(mode);
     setLastResult(null);
     try {
-      const result = await sortContainers(mode, true);
+      const result = await sortContainers(mode, true, scope || undefined);
       setLastResult(result);
       flash(
-        `Sorted ${result.slotsChanged} slots across ${result.containersTouched} containers. ` +
+        `Sorted ${result.slotsChanged} slots across ${result.containersTouched} of ` +
+        `${result.containersInScope} containers ` +
+        `(${result.scope === 'base' ? 'this base only' : 'whole world'}). ` +
         `Verified. Rollback point: ${result.backupId}.`
       );
     } catch (e) {
@@ -146,6 +156,33 @@ export default function SaveEditor() {
 docker compose start palworld    # bring it back`}
           </pre>
         </details>
+      </div>
+
+      {/* ─── Sort scope ─── */}
+      <div className="glass-card" style={{ padding: 16 }}>
+        <div className="section-title" style={{ marginBottom: 10 }}>
+          <Target size={14} /> What to sort
+        </div>
+        <select
+          className="input"
+          value={scope}
+          onChange={(e) => setScope(e.target.value)}
+          disabled={busy !== null}
+          style={{ maxWidth: 420 }}
+        >
+          <option value="">Every container in the world</option>
+          {bases.map((base) => (
+            <option key={base.id} value={base.id}>
+              {base.name} — {base.guildName}
+              {base.containerIds.length ? ` (${base.containerIds.length} containers)` : ''}
+            </option>
+          ))}
+        </select>
+        <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 8, lineHeight: 1.6 }}>
+          {scope
+            ? 'Only this base’s storage is rewritten. Every other chest in the world is left byte-for-byte alone — though the conservation check still covers all of them.'
+            : 'Every container on the server, including other guilds’ bases and world chests. On a shared server, pick a single base instead.'}
+        </p>
       </div>
 
       {/* ─── Container sorting ─── */}

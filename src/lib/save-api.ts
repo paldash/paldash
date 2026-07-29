@@ -1,5 +1,6 @@
 import type {
   BaseCamp,
+  BaseStorage,
   GuildInfo,
   PlayerSaveData,
   ContainerContents,
@@ -112,6 +113,9 @@ export interface SortResult {
   ok: boolean;
   mode: string;
   merged: boolean;
+  baseId: string;
+  scope: 'world' | 'base';
+  containersInScope: number;
   containersTouched: number;
   slotsChanged: number;
   backupId: string;
@@ -124,12 +128,68 @@ export interface SortResult {
  */
 export async function sortContainers(
   mode: 'stackables' | 'all',
-  merge = true
+  merge = true,
+  baseId?: string
 ): Promise<SortResult> {
   return saveFetch(`/edit/sort/${mode}`, {
     method: 'POST',
-    body: JSON.stringify({ merge }),
+    body: JSON.stringify({ merge, baseId: baseId ?? null }),
   });
+}
+
+// ─── Per-base storage & reports ─────────────────────────
+
+export async function getBaseStorage(): Promise<BaseStorage[]> {
+  return saveFetch('/bases/storage');
+}
+
+export async function getOneBaseStorage(baseId: string): Promise<BaseStorage> {
+  return saveFetch(`/bases/${encodeURIComponent(baseId)}/storage`);
+}
+
+export type ReportFormat = 'csv' | 'json' | 'txt';
+
+export async function listReports(): Promise<{
+  formats: ReportFormat[];
+  reports: { id: string; title: string }[];
+}> {
+  return saveFetch('/reports');
+}
+
+/**
+ * Download a report.
+ *
+ * Goes through fetch rather than a plain link so an auth failure surfaces as an
+ * error instead of silently saving the JSON error body as a .csv, and so the
+ * filename the backend chose is preserved.
+ */
+export async function downloadReport(
+  report: string,
+  format: ReportFormat,
+  baseId?: string
+): Promise<void> {
+  const params = new URLSearchParams({ format });
+  if (baseId) params.set('baseId', baseId);
+
+  const res = await fetch(`${BASE}/reports/${report}?${params}`);
+  if (!res.ok) {
+    const detail = await res.json().catch(() => ({}));
+    throw new Error(detail.error || detail.detail || `Export failed (${res.status})`);
+  }
+
+  const disposition = res.headers.get('content-disposition') ?? '';
+  const named = /filename="([^"]+)"/.exec(disposition);
+
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  try {
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = named?.[1] ?? `${report}.${format}`;
+    link.click();
+  } finally {
+    URL.revokeObjectURL(url);
+  }
 }
 
 export async function requestRefresh(): Promise<{ started: boolean; reason: string }> {

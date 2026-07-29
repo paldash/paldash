@@ -39,6 +39,21 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         python3 python3-pip \
     && rm -rf /var/lib/apt/lists/*
 
+# Run as a normal user, not root (audit S12). The container has your save
+# directory bind-mounted, so root here is root over your world files.
+#
+# These must match the ownership of that bind mount, which is why they default
+# to 1000:1000 — the same PUID/PGID the Palworld server image defaults to. If
+# yours differ, build with --build-arg APP_UID=... rather than reverting to
+# root. The base image already ships a `node` user at 1000, so reuse whatever
+# is there instead of failing on a duplicate id.
+ARG APP_UID=1000
+ARG APP_GID=1000
+RUN set -eux; \
+    getent group "${APP_GID}" >/dev/null || groupadd -g "${APP_GID}" app; \
+    getent passwd "${APP_UID}" >/dev/null || \
+        useradd -u "${APP_UID}" -g "${APP_GID}" -M -d /app -s /usr/sbin/nologin app
+
 WORKDIR /app
 
 ENV NODE_ENV=production \
@@ -51,16 +66,23 @@ COPY --from=pybuilder /wheels /wheels
 RUN pip3 install --no-cache-dir --break-system-packages /wheels/*.whl && rm -rf /wheels
 
 # Next.js standalone output
-COPY --from=webbuilder /app/.next/standalone ./
-COPY --from=webbuilder /app/.next/static ./.next/static
-COPY --from=webbuilder /app/public ./public
+COPY --from=webbuilder --chown=${APP_UID}:${APP_GID} /app/.next/standalone ./
+COPY --from=webbuilder --chown=${APP_UID}:${APP_GID} /app/.next/static ./.next/static
+COPY --from=webbuilder --chown=${APP_UID}:${APP_GID} /app/public ./public
 
 # Python backend
-COPY backend/ ./backend/
+COPY --chown=${APP_UID}:${APP_GID} backend/ ./backend/
 
 COPY docker-entrypoint.sh /docker-entrypoint.sh
+# Both of these are named-volume mount points. Docker seeds a fresh volume's
+# ownership from the directory as it exists in the image, so they have to be
+# created and chowned *here* — a non-root process cannot chown them later, and
+# the backend would fail to open its SQLite database on first run.
 RUN chmod +x /docker-entrypoint.sh \
-    && mkdir -p /app/cache
+    && mkdir -p /app/cache /app/backups \
+    && chown "${APP_UID}:${APP_GID}" /app /app/cache /app/backups
+
+USER ${APP_UID}:${APP_GID}
 
 # Only the dashboard is published. The save backend stays on loopback.
 EXPOSE 3000

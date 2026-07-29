@@ -169,6 +169,23 @@ def _enum(obj: dict, name: str, default: str = "") -> str:
 # ─── Bases ───────────────────────────────────────────────────────
 
 
+# An unnamed base keeps the game's own placeholder rather than an empty string:
+# 新規生成拠点テンプレート名0(仮) — "newly generated base template name 0
+# (provisional)". Every base on the reference world carries one, so passing it
+# through leaves eleven identically-named bases in the UI. The trailing digits
+# are the only thing distinguishing them, and they are not stable base numbers,
+# so we fall back to positional naming instead.
+_PLACEHOLDER_BASE_NAME = re.compile(r"新規生成拠点テンプレート名|NewlyCreatedBaseCamp|BaseCampTemplateName")
+
+
+def _base_name(raw_name: str, index: int) -> tuple[str, bool]:
+    """(display name, whether the player actually named it)."""
+    name = (raw_name or "").strip()
+    if not name or _PLACEHOLDER_BASE_NAME.search(name):
+        return f"Base Camp {index + 1}", False
+    return name, True
+
+
 def extract_base_camps(gvas: Any, guild_names: Optional[dict] = None) -> list[dict]:
     """Base camps with world coordinates, from BaseCampSaveData."""
     guild_names = guild_names or {}
@@ -182,11 +199,13 @@ def extract_base_camps(gvas: Any, guild_names: Optional[dict] = None) -> list[di
 
         translation = _v(raw, "transform", "translation", default={}) or {}
         guild_id = str(raw.get("group_id_belong_to") or "")
+        name, player_named = _base_name(str(raw.get("name") or ""), i)
 
         bases.append(
             {
                 "id": str(raw.get("id") or _v(entry, "key") or f"base_{i}"),
-                "name": str(raw.get("name") or "") or f"Base Camp {i + 1}",
+                "name": name,
+                "playerNamed": player_named,
                 "guildId": guild_id,
                 "guildName": guild_names.get(guild_id, "Unknown Guild"),
                 "x": float(translation.get("x") or 0.0),
@@ -470,6 +489,164 @@ def extract_map_objects(gvas: Any) -> list[dict]:
         )
 
     return objects
+
+
+# ─── Container ownership ─────────────────────────────────
+
+# The module on a placed object that points at its storage.
+_ITEM_CONTAINER_MODULE = "ItemContainer"
+
+
+def _target_container_id(entry: dict) -> str:
+    """The container a placed object stores into, or "" if it has none."""
+    modules = _v(entry, "ConcreteModel", "value", "ModuleMap", "value", default=[]) or []
+    for module in modules if isinstance(modules, list) else []:
+        if _ITEM_CONTAINER_MODULE not in str(module.get("key") or ""):
+            continue
+        target = _v(module, "value", "RawData", "value", "target_container_id")
+        return str(target or "")
+    return ""
+
+
+def extract_container_ownership(gvas: Any) -> dict[str, dict]:
+    """
+    container GUID -> the object and base that owns it.
+
+    This is the join that makes per-base inventory possible, and it is exact
+    rather than spatial: the game itself records which base a placed object
+    belongs to, so there is no radius guessing.
+
+        BaseCamp.id
+          <- Model.RawData.base_camp_id_belong_to
+             MapObjectSaveData entry
+          -> ConcreteModel.ModuleMap[ItemContainer].RawData.target_container_id
+          -> ItemContainerSaveData key
+
+    Do NOT substitute `group_id_belong_to` for the base id. It is the *guild*,
+    and on the reference world none of its six values match a base camp id — a
+    naive swap silently collapses every base in a guild into one pile.
+
+    Measured on the reference world: 3,370 objects carry a container id, 3 of
+    them dangle (the container is already gone), 262 attribute to the 11 real
+    bases and 3,105 are world-placed chests and drops. No container is ever
+    referenced by two objects.
+    """
+    import gamedata
+
+    ownership: dict[str, dict] = {}
+
+    entries = _v(_world_save_data(gvas), "MapObjectSaveData", "value", "values", default=[]) or []
+    for entry in entries if isinstance(entries, list) else []:
+        container_id = _target_container_id(entry)
+        if not container_id:
+            continue
+
+        raw = _v(entry, "Model", "value", "RawData", "value")
+        if not isinstance(raw, dict):
+            continue
+
+        base_camp = str(raw.get("base_camp_id_belong_to") or "")
+        world_placed = base_camp in ("", "None", ZERO_GUID)
+        kind = str(_v(entry, "MapObjectId", "value", default="") or "")
+
+        ownership[container_id] = {
+            "objectId": str(raw.get("instance_id") or ""),
+            "kind": kind,
+            # The bundled database already names these properly — ItemChest_02
+            # is "Metal Chest", PalFoodBox is "Feed Box". Unknown ids fall back
+            # to humanize() rather than failing.
+            "kindName": gamedata.structure_name(kind),
+            "category": _categorise(kind),
+            "baseCampId": "" if world_placed else base_camp,
+            "guildId": str(raw.get("group_id_belong_to") or ""),
+            "builderUid": str(raw.get("build_player_uid") or ""),
+            "worldPlaced": world_placed,
+        }
+
+    return ownership
+
+
+def summarise_base_storage(
+    containers: dict[str, list[dict]],
+    ownership: dict[str, dict],
+    bases: list[dict],
+) -> list[dict]:
+    """
+    Per-base storage: which containers a base owns, how full they are, and what
+    is in them.
+
+    Bases with no storage still come back (with zeroes) — "this base has no
+    chests" is a real answer and silently dropping it looks like a bug.
+    """
+    from collections import defaultdict
+
+    by_base: dict[str, list[str]] = defaultdict(list)
+    for container_id, owner in ownership.items():
+        if owner["baseCampId"] and container_id in containers:
+            by_base[owner["baseCampId"]].append(container_id)
+
+    summaries: list[dict] = []
+    for base in bases:
+        base_id = base.get("id", "")
+        container_ids = by_base.get(base_id, [])
+
+        totals: dict[str, int] = defaultdict(int)
+        used_slots = 0
+        total_slots = 0
+        breakdown: list[dict] = []
+
+        for container_id in container_ids:
+            slots = containers.get(container_id, [])
+            occupied = [s for s in slots if not s["isEmpty"]]
+            used_slots += len(occupied)
+            total_slots += len(slots)
+            for slot in occupied:
+                totals[slot["itemId"]] += slot["stackCount"]
+
+            owner = ownership[container_id]
+            breakdown.append(
+                {
+                    "containerId": container_id,
+                    "kind": owner["kind"],
+                    "kindName": owner["kindName"],
+                    "category": owner["category"],
+                    "usedSlots": len(occupied),
+                    "totalSlots": len(slots),
+                    "itemCount": sum(s["stackCount"] for s in occupied),
+                }
+            )
+
+        breakdown.sort(key=lambda c: (-c["itemCount"], c["kindName"]))
+
+        summaries.append(
+            {
+                "baseId": base_id,
+                "baseName": base.get("name", ""),
+                "guildId": base.get("guildId", ""),
+                "guildName": base.get("guildName", ""),
+                "containerCount": len(container_ids),
+                "usedSlots": used_slots,
+                "totalSlots": total_slots,
+                "fillPercent": round(100 * used_slots / total_slots, 1) if total_slots else 0.0,
+                "itemCount": sum(totals.values()),
+                "uniqueItems": len(totals),
+                "items": _rank_items(totals),
+                "containers": breakdown,
+            }
+        )
+
+    summaries.sort(key=lambda b: -b["itemCount"])
+    return summaries
+
+
+def _rank_items(totals: dict[str, int]) -> list[dict]:
+    """Item totals as a sorted, name-resolved list."""
+    import gamedata
+
+    return [
+        {"itemId": item_id, "itemName": gamedata.item_name(item_id), "count": count}
+        for item_id, count in sorted(totals.items(), key=lambda kv: (-kv[1], kv[0]))
+    ]
 
 
 # ─── Player progression ──────────────────────────────────

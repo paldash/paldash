@@ -40,6 +40,12 @@ services:
   # ─── The dashboard ──────────────────────────────────────
   dashboard:
     build: .
+    # The container runs as uid/gid 1000, matching PUID/PGID on the server above
+    # so it can read the shared bind mount without running as root. If your
+    # server uses different ids, match them here rather than reverting to root:
+    #   build:
+    #     context: .
+    #     args: { APP_UID: "1001", APP_GID: "1001" }
     # image: palworld-dashboard:latest   # if you build/push it yourself
     container_name: palworld-dashboard
     restart: unless-stopped

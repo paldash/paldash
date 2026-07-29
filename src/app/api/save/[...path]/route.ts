@@ -121,10 +121,13 @@ async function proxyToBackend(
 
     const res = await fetch(`${PYTHON_BACKEND_URL}${apiPath}`, init);
 
-    // Backup downloads are gzip, not JSON. Stream them straight through rather
-    // than trying to parse them — this is the one binary route.
+    // Downloads stream straight through instead of being parsed and re-encoded:
+    // backup archives (gzip) and report exports (CSV/TXT/JSON). Content-Disposition
+    // is the test rather than the content type, because a JSON *report* is still a
+    // download and would otherwise lose its filename and render in the browser.
     const contentType = res.headers.get('content-type') ?? '';
-    if (!contentType.includes('application/json')) {
+    const isDownload = (res.headers.get('content-disposition') ?? '').includes('attachment');
+    if (isDownload || !contentType.includes('application/json')) {
       const headers = new Headers();
       for (const header of ['content-type', 'content-length', 'content-disposition']) {
         const value = res.headers.get(header);
