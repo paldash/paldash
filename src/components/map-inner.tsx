@@ -11,13 +11,15 @@ import {
   MAP_SIZE,
   type MapRegion,
 } from '@/lib/map-coordinates';
-import type { Player, BaseCamp, MapObject, FastTravelPoint } from '@/lib/types';
+import type {
+  Discoveries, Player, BaseCamp, MapObject, FastTravelPoint } from '@/lib/types';
 
 interface Props {
   players: Player[];
   bases: BaseCamp[];
   mapObjects: MapObject[];
   fastTravel: FastTravelPoint[];
+  discoveries: Discoveries | null;
   layers: Record<string, boolean>;
   region: MapRegion;
   /** World coordinates to pan to, bumped by the search box. */
@@ -65,6 +67,7 @@ export default function MapInner({
   bases,
   mapObjects,
   fastTravel,
+  discoveries,
   layers,
   region,
   flyTo,
@@ -77,6 +80,7 @@ export default function MapInner({
 
   const poiLayer = useRef<L.LayerGroup>(L.layerGroup());
   const travelLayer = useRef<L.LayerGroup>(L.layerGroup());
+  const effigyLayer = useRef<L.LayerGroup>(L.layerGroup());
   const baseLayer = useRef<L.LayerGroup>(L.layerGroup());
   const playerLayer = useRef<L.LayerGroup>(L.layerGroup());
 
@@ -118,6 +122,7 @@ export default function MapInner({
 
     poiLayer.current.addTo(map);
     travelLayer.current.addTo(map);
+    effigyLayer.current.addTo(map);
     baseLayer.current.addTo(map);
     playerLayer.current.addTo(map);
 
@@ -205,34 +210,77 @@ export default function MapInner({
   }, [mapObjects, layers, region]);
 
   // ─── Fast travel (bundled game data, not from the save) ──
+  //
+  // When discovery data is available it supersedes the plain list, because it
+  // carries the same points *plus* whether each has been found. Undiscovered
+  // ones are dimmed rather than hidden — the server already decided whether to
+  // send them at all, so anything that arrives here is meant to be seen.
   useEffect(() => {
     const group = travelLayer.current;
     group.clearLayers();
     if (!layers.fastTravel) return;
 
     const transform = getRegion(region);
-    for (const point of fastTravel.filter((p) => transform.contains(p.x, p.y))) {
+    const points = discoveries
+      ? discoveries.fastTravel.points
+      : fastTravel.map((p) => ({ ...p, discovered: true }));
+
+    for (const point of points.filter((p) => transform.contains(p.x, p.y))) {
       const coords = worldToGameMap(point.x, point.y);
+      const found = point.discovered;
 
       L.marker(worldToMap(point.x, point.y, region), {
         icon: L.divIcon({
           className: 'fasttravel-marker',
-          html: '<div class="fasttravel-marker-icon"></div>',
+          html: `<div class="fasttravel-marker-icon"${found ? '' : ' style="opacity:.35;filter:grayscale(1)"'}></div>`,
           iconSize: [12, 12],
           iconAnchor: [6, 6],
         }),
-        zIndexOffset: 500,
+        zIndexOffset: found ? 500 : 400,
       })
         .bindPopup(
           `<div style="min-width:160px">
-             <div style="font-weight:600;margin-bottom:3px">${escapeHtml(point.name)}</div>
-             <div style="font-size:12px;color:#a1a7b0">Fast travel</div>
+             <div style="font-weight:600;margin-bottom:3px">${escapeHtml(point.name ?? '')}</div>
+             <div style="font-size:12px;color:${found ? '#4d9e75' : '#a1a7b0'}">
+               ${found ? 'Fast travel — unlocked' : 'Fast travel — not yet found'}
+             </div>
              <div style="font-size:11px;color:#6d747e;margin-top:4px">${coords.x}, ${coords.y}</div>
            </div>`
         )
         .addTo(group);
     }
-  }, [fastTravel, layers.fastTravel, region]);
+  }, [fastTravel, discoveries, layers.fastTravel, region]);
+
+  // ─── Effigies ───────────────────────────────────────────
+  useEffect(() => {
+    const group = effigyLayer.current;
+    group.clearLayers();
+    if (!layers.effigies || !discoveries) return;
+
+    const transform = getRegion(region);
+    for (const point of discoveries.effigies.points.filter((p) => transform.contains(p.x, p.y))) {
+      const coords = worldToGameMap(point.x, point.y);
+      const found = point.discovered;
+
+      L.circleMarker(worldToMap(point.x, point.y, region), {
+        radius: 4,
+        color: found ? '#4d9e75' : '#8d84c7',
+        weight: 1,
+        fillColor: found ? '#4d9e75' : '#8d84c7',
+        fillOpacity: found ? 0.85 : 0.25,
+      })
+        .bindPopup(
+          `<div style="min-width:150px">
+             <div style="font-weight:600;margin-bottom:3px">Effigy</div>
+             <div style="font-size:12px;color:${found ? '#4d9e75' : '#a1a7b0'}">
+               ${found ? 'Collected' : 'Not collected'}
+             </div>
+             <div style="font-size:11px;color:#6d747e;margin-top:4px">${coords.x}, ${coords.y}</div>
+           </div>`
+        )
+        .addTo(group);
+    }
+  }, [discoveries, layers.effigies, region]);
 
   // ─── Bases ──────────────────────────────────────────────
   useEffect(() => {

@@ -36,7 +36,13 @@ DATA_PATH = os.environ.get(
 # species is the same, so strip them before looking a Pal up.
 _SPECIES_PREFIXES = ("BOSS_", "PREDATOR_", "SUMMON_", "RAID_")
 
+EFFIGY_PATH = os.environ.get(
+    "EFFIGY_DATA_PATH",
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "effigies.json.gz"),
+)
+
 _data: Optional[dict[str, Any]] = None
+_effigies: Optional[list[dict[str, Any]]] = None
 _indexes: dict[str, dict[str, Any]] = {}
 
 
@@ -292,6 +298,34 @@ def structure_name(structure_id: str) -> str:
 
 
 # ─── World data ──────────────────────────────────────────────────
+
+
+def effigies() -> list[dict[str, Any]]:
+    """
+    All 396 effigies, each with world coordinates **and its instance GUID**.
+
+    The GUID is the useful part. A save's `RelicObtainForInstanceFlag` keys on
+    exactly these values, so a player's collected set joins directly against
+    this list — which is what makes "show me the ones I have not found" possible
+    rather than just "here are all of them".
+
+    Extracted from the game pak by `scripts/extract-effigies.py`; every position
+    is verified to land in a streaming cell the game ships content for, and
+    every effigy the reference world's players had collected (37 of 37) appears
+    here. Returns an empty list rather than raising if the bundle is absent, so
+    a missing file degrades the map instead of breaking it.
+    """
+    global _effigies
+    if _effigies is not None:
+        return _effigies
+
+    try:
+        with gzip.open(EFFIGY_PATH, "rt", encoding="utf-8") as f:
+            _effigies = json.load(f).get("effigies") or []
+    except (OSError, json.JSONDecodeError) as e:
+        logger.warning("Effigy data unavailable (%s); the map will omit them", e)
+        _effigies = []
+    return _effigies
 
 
 def fast_travel_points() -> list[dict[str, Any]]:

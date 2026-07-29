@@ -1064,3 +1064,162 @@ def test_repair_fixes_a_planted_illegal_pal_and_leaves_the_rest(
     _players, pals = extract_characters(load_gvas(level))
     assert palcheck.scan(pals)["palsFlagged"] == 0
     assert _pal_view(level, [neighbour["instanceId"]])[neighbour["instanceId"]] == before_neighbour
+
+
+# ─── Skill editing ───────────────────────────────────────────────
+
+
+@pytest.mark.slow
+def test_skill_edit_writes_lists_and_keeps_the_array_type(palsav_available, sandbox):
+    """
+    Lists write a different shape from scalars, and `array_type` must survive.
+    A PassiveSkillList rewritten as an EnumProperty still serialises and is
+    silently wrong.
+    """
+    import charedit
+    from parser import extract_characters, load_gvas
+
+    level = os.path.join(sandbox["world"], "Level.sav")
+    _players, pals = extract_characters(load_gvas(level))
+
+    victim = next(p for p in pals if p.get("passiveSkills"))
+    target = ["PowerShot", "AirCanon"]
+
+    obj = charedit._index_pals(load_gvas(level), {victim["instanceId"]})[victim["instanceId"]]
+    plan = charedit.plan_pal_edit(obj, {"activeSkills": target, "passiveSkills": ["Legend"]})
+    assert plan["ok"], plan["problems"]
+
+    charedit.apply_pal_edit(
+        victim["instanceId"], {"activeSkills": target, "passiveSkills": ["Legend"]},
+        expected_plan_hash=plan["planHash"],
+    )
+
+    written = charedit._index_pals(
+        load_gvas(level), {victim["instanceId"]}
+    )[victim["instanceId"]]
+    view = charedit.read_pal(written)
+    assert view["activeSkills"] == target
+    assert view["passiveSkills"] == ["Legend"]
+
+    # The prefix is restored on disk, and the array types are untouched.
+    assert written["EquipWaza"]["value"]["values"] == [
+        "EPalWazaID::PowerShot", "EPalWazaID::AirCanon",
+    ]
+    assert written["EquipWaza"]["array_type"] == "EnumProperty"
+    assert written["PassiveSkillList"]["array_type"] == "NameProperty"
+
+
+# ─── Pal duplication ─────────────────────────────────────────────
+
+
+@pytest.mark.slow
+def test_clone_creates_both_records_and_touches_nothing_else(palsav_available, sandbox):
+    """
+    The only operation that *adds* records. Both halves must land: a character
+    map entry and a container slot that agree, with every other container
+    unchanged in length.
+    """
+    import charedit
+    import palclone
+    from parser import load_gvas
+
+    level = os.path.join(sandbox["world"], "Level.sav")
+
+    def tree():
+        return load_gvas(level, include_items=True)
+
+    gvas = tree()
+    containers = palclone.describe_containers(gvas)
+    target = max(containers, key=lambda c: c["free"])
+    assert target["free"] > 2, "reference world should have a palbox with room"
+
+    # A Pal that already lives in that container, so the clone is a plain copy.
+    source = next(
+        s for s in palclone._container_slots(
+            next(c for c in palclone._containers(gvas)
+                 if palclone._container_id(c) == target["containerId"])
+        )
+    )
+    source_id = palclone._slot_instance(source)
+
+    chars_before = len(charedit._character_entries(gvas))
+    lengths_before = {c["containerId"]: c["used"] for c in containers}
+
+    plan = palclone.plan_clone(gvas, source_id, target["containerId"], 2)
+    assert plan["ok"], plan["problems"]
+
+    result = palclone.apply_clone(
+        source_id, target["containerId"], 2, expected_plan_hash=plan["planHash"]
+    )
+    assert result["ok"] and result["verified"]
+    assert len(result["newInstanceIds"]) == 2
+    assert len(set(result["newInstanceIds"])) == 2, "clones must have distinct ids"
+
+    after = tree()
+    assert len(charedit._character_entries(after)) == chars_before + 2
+
+    lengths_after = {c["containerId"]: c["used"] for c in palclone.describe_containers(after)}
+    for cid, before in lengths_before.items():
+        expected = before + 2 if cid == target["containerId"] else before
+        assert lengths_after[cid] == expected, f"container {cid} changed unexpectedly"
+
+    # Each clone resolves to its slot, and carries the source's stats.
+    original = charedit.read_pal(
+        charedit._index_pals(after, {source_id})[source_id]
+    )
+    for new_id in result["newInstanceIds"]:
+        clone = charedit._index_pals(after, {new_id})[new_id]
+        assert charedit.read_pal(clone) == original
+
+
+@pytest.mark.slow
+def test_clone_refuses_a_stale_plan_and_writes_nothing(palsav_available, sandbox):
+    import palclone
+    from parser import load_gvas
+
+    level = os.path.join(sandbox["world"], "Level.sav")
+    before_bytes = open(level, "rb").read()
+
+    gvas = load_gvas(level, include_items=True)
+    target = max(palclone.describe_containers(gvas), key=lambda c: c["free"])
+    container = next(
+        c for c in palclone._containers(gvas)
+        if palclone._container_id(c) == target["containerId"]
+    )
+    source_id = palclone._slot_instance(palclone._container_slots(container)[0])
+
+    with pytest.raises(palclone.CloneError, match="no longer matches"):
+        palclone.apply_clone(
+            source_id, target["containerId"], 1, expected_plan_hash="not-the-real-hash"
+        )
+
+    assert open(level, "rb").read() == before_bytes
+
+
+@pytest.mark.slow
+def test_clone_refuses_while_the_server_is_up(palsav_available, sandbox, monkeypatch):
+    import palclone
+    import safety
+    from parser import load_gvas
+
+    level = os.path.join(sandbox["world"], "Level.sav")
+    before_bytes = open(level, "rb").read()
+
+    gvas = load_gvas(level, include_items=True)
+    target = max(palclone.describe_containers(gvas), key=lambda c: c["free"])
+    container = next(
+        c for c in palclone._containers(gvas)
+        if palclone._container_id(c) == target["containerId"]
+    )
+    source_id = palclone._slot_instance(palclone._container_slots(container)[0])
+    plan = palclone.plan_clone(gvas, source_id, target["containerId"], 1)
+
+    monkeypatch.setattr(
+        safety, "_probe_tcp", lambda: safety.Signal("tcp_port", "running", "test")
+    )
+    with pytest.raises(safety.ServerRunningError):
+        palclone.apply_clone(
+            source_id, target["containerId"], 1, expected_plan_hash=plan["planHash"]
+        )
+
+    assert open(level, "rb").read() == before_bytes

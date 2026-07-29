@@ -104,7 +104,7 @@ const PALPAGOS: RegionTransform = {
  * real positions and this can be *fitted* rather than derived — replace the
  * four constants and set the flag.
  *
- * Regenerate the bounds with `scripts/read-pak-index.py` after a game update;
+ * Regenerate the bounds with `scripts/palpak.py` after a game update;
  * a new landmass will show up as a new cell cluster.
  */
 const WORLD_TREE_CELL_BOUNDS = { x1: 332800, x2: 691200, y1: -793600, y2: -486400 };

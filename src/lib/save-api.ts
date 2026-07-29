@@ -10,6 +10,9 @@ import type {
   BackupInfo,
   BulkEditPlan,
   BulkEditResult,
+  PalContainer,
+  ClonePlan,
+  CloneResult,
   SlotPatch,
   SlotEditPlan,
   SlotEditResult,
@@ -21,6 +24,7 @@ import type {
   LifecycleStatus,
   MapObject,
   FastTravelPoint,
+  Discoveries,
   ManagedUser,
   RolePreset,
   AuditPage,
@@ -172,6 +176,9 @@ export interface PalRecord {
   ivs: Record<string, number>;
   passiveSkills: string[];
   passiveSkillNames?: string[];
+  /** Equipped moves, prefix stripped. Null when the Pal stores no EquipWaza. */
+  activeSkills?: string[] | null;
+  activeSkillNames?: string[];
 }
 
 export async function getPals(owner?: string): Promise<PalRecord[]> {
@@ -226,6 +233,37 @@ export async function applyPlayerEdit(
     `/edit/player/${encodeURIComponent(uid)}?planHash=${encodeURIComponent(planHash)}`,
     { method: 'POST', body: JSON.stringify({ changes }) }
   );
+}
+
+// ─── Pal duplication ─────────────────────────────────────
+
+export async function getPalContainers(): Promise<{ containers: PalContainer[] }> {
+  return saveFetch('/edit/pal-containers');
+}
+
+export async function previewClone(
+  instanceId: string,
+  containerId: string,
+  count: number,
+  changes?: Record<string, unknown>
+): Promise<ClonePlan> {
+  return saveFetch('/edit/pal/clone/preview', {
+    method: 'POST',
+    body: JSON.stringify({ instanceId, containerId, count, changes: changes ?? null }),
+  });
+}
+
+export async function applyClone(
+  instanceId: string,
+  containerId: string,
+  count: number,
+  planHash: string,
+  changes?: Record<string, unknown>
+): Promise<CloneResult> {
+  return saveFetch(`/edit/pal/clone?planHash=${encodeURIComponent(planHash)}`, {
+    method: 'POST',
+    body: JSON.stringify({ instanceId, containerId, count, changes: changes ?? null }),
+  });
 }
 
 // ─── Bulk Pal editing ────────────────────────────────────
@@ -414,6 +452,18 @@ export async function getMapObjects(category?: string): Promise<MapObject[]> {
 export async function getFastTravelPoints(): Promise<FastTravelPoint[]> {
   const data = await saveFetch<{ points: FastTravelPoint[] }>('/world/fasttravel');
   return data.points ?? [];
+}
+
+/**
+ * Fast-travel points and effigies, marked found/not-found.
+ *
+ * `uid` narrows to one player; omitted, an admin gets everyone's discoveries
+ * folded together and a Player gets their own. Whether undiscovered locations
+ * are included at all is decided server-side by the discovery policy — this
+ * call cannot ask for more than the caller's role allows.
+ */
+export async function getDiscoveries(uid?: string): Promise<Discoveries> {
+  return saveFetch(`/world/discoveries${uid ? `?uid=${encodeURIComponent(uid)}` : ''}`);
 }
 
 export async function getItemTotals(): Promise<ItemTotals> {

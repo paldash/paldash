@@ -1,9 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useDashboardStore } from '@/lib/store';
 import {
-  sortContainers, stopContainer, startContainer,
+  sortContainers, stopContainer, startContainer, getBackendHealth,
   type SortResult,
 } from '@/lib/save-api';
 import {
@@ -35,6 +35,22 @@ export default function SaveEditor() {
   // a shared server, but the world-wide sort is what most single-guild servers
   // actually want, so neither is forced.
   const [scope, setScope] = useState('');
+  // Whether the operator configured STOP_COMMAND / START_COMMAND. Both are off
+  // by default, so the container buttons stay hidden unless they would work.
+  const [canStopContainer, setCanStopContainer] = useState(false);
+  const [canStartContainer, setCanStartContainer] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    getBackendHealth()
+      .then((h) => {
+        if (cancelled) return;
+        setCanStopContainer(Boolean(h.lifecycle?.stopSupported));
+        setCanStartContainer(Boolean(h.lifecycle?.startSupported));
+      })
+      .catch(() => undefined);   // the offline notice below already covers this
+    return () => { cancelled = true; };
+  }, []);
 
   const has = (capability: string) => capabilities.includes(capability);
   const flash = (msg: string) => {
@@ -121,34 +137,48 @@ export default function SaveEditor() {
           </p>
         )}
 
-        <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
-          <button
-            className="btn btn-warning"
-            disabled={busy !== null || !serverProcessRunning}
-            onClick={() => containerAction('stop')}
-            title={!serverProcessRunning ? 'The server is already stopped' : undefined}
-          >
-            <Square size={13} /> Stop server container
-          </button>
-          <button
-            className="btn"
-            disabled={busy !== null || serverProcessRunning}
-            onClick={() => containerAction('start')}
-            title={serverProcessRunning ? 'The server is already running' : undefined}
-          >
-            <Play size={13} /> Start server container
-          </button>
-        </div>
+        {/* Shown only when the operator actually configured the commands.
+            They need a `docker` binary the runtime image deliberately does not
+            ship — see the README — so rendering them unconditionally meant two
+            buttons that always failed. Nothing is lost by hiding them: stopping
+            the container by hand is identical, and the safety check detects it
+            either way. */}
+        {(canStopContainer || canStartContainer) && (
+          <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
+            {canStopContainer && (
+              <button
+                className="btn btn-warning"
+                disabled={busy !== null || !serverProcessRunning}
+                onClick={() => containerAction('stop')}
+                title={!serverProcessRunning ? 'The server is already stopped' : undefined}
+              >
+                <Square size={13} /> Stop server container
+              </button>
+            )}
+            {canStartContainer && (
+              <button
+                className="btn"
+                disabled={busy !== null || serverProcessRunning}
+                onClick={() => containerAction('start')}
+                title={serverProcessRunning ? 'The server is already running' : undefined}
+              >
+                <Play size={13} /> Start server container
+              </button>
+            )}
+          </div>
+        )}
 
-        <details style={{ marginTop: 12 }}>
+        <details style={{ marginTop: 12 }} open={!canStopContainer}>
           <summary style={{ fontSize: 12, color: 'var(--text-muted)', cursor: 'pointer' }}>
-            No container controls configured? Do it manually
+            {canStopContainer
+              ? 'Prefer to do it yourself?'
+              : 'How to stop the server for editing'}
           </summary>
           <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 8, lineHeight: 1.7 }}>
-            The buttons above need <span className="mono">STOP_COMMAND</span> /{' '}
-            <span className="mono">START_COMMAND</span> (see the README). Without
-            them, run these yourself — the dashboard stays up either way, since it
-            is a separate container:
+            {canStopContainer
+              ? 'The same thing the buttons above do:'
+              : 'Run these yourself — the dashboard stays up either way, since it is a ' +
+                'separate container, and it notices the server going down on its own:'}
           </p>
           <pre className="mono" style={{
             fontSize: 12, marginTop: 8, padding: 10, lineHeight: 1.6,

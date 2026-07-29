@@ -214,6 +214,71 @@ export interface EditResult {
   verified: boolean;
 }
 
+export interface DiscoveryPoint {
+  x: number;
+  y: number;
+  z?: number;
+  /** True when the selected player(s) have already found this one. */
+  discovered: boolean;
+  /** Fast travel only. */
+  name?: string;
+  key?: string;
+  /** Effigies only — the instance GUID the save keys on. */
+  guid?: string;
+  kind?: string;
+  landmass?: string;
+}
+
+export interface Discoveries {
+  scope: string;
+  /** False when the account has no linked character, so nothing reads as found. */
+  linkedToPlayer: boolean;
+  discoveryVisibility: string;
+  /** Whether the server sent the undiscovered half at all. */
+  showsUndiscovered: boolean;
+  fastTravel: { total: number; found: number; points: DiscoveryPoint[] };
+  effigies: { total: number; found: number; points: DiscoveryPoint[] };
+}
+
+export interface PalContainer {
+  containerId: string;
+  capacity: number;
+  used: number;
+  /**
+   * `capacity - used`, not a count of empty entries — there are none. The slot
+   * array holds only occupied slots, so a clone appends rather than fills.
+   */
+  free: number;
+}
+
+export interface ClonePlan {
+  ok: boolean;
+  problems: { field: string | null; problem: string }[];
+  instanceId?: string;
+  containerId?: string;
+  count?: number;
+  source?: { speciesName: string; nickname: string; level: number };
+  slotIndices?: number[];
+  capacity?: number;
+  usedBefore?: number;
+  freeAfter?: number;
+  changes?: EditChange[];
+  planHash: string;
+  applied?: boolean;
+}
+
+export interface CloneResult {
+  ok: boolean;
+  applied: boolean;
+  sourceInstanceId: string;
+  containerId: string;
+  count: number;
+  newInstanceIds: string[];
+  slotIndices: number[];
+  backupId: string;
+  verified: boolean;
+}
+
 /** One Pal's slice of a batch plan. */
 export interface BulkEditPal {
   instanceId: string;
@@ -605,8 +670,16 @@ export interface LifecycleStatus {
   watching: boolean;
   secondsSinceShutdown: number | null;
   restartSupported: boolean;
-  /** Whether the operator configured a way to stop the whole container. */
+  /**
+   * Whether the operator configured STOP_COMMAND / START_COMMAND.
+   *
+   * Both are off by default and need a `docker` binary the runtime image does
+   * not ship, so the buttons are hidden rather than shown broken — nothing is
+   * lost, because stopping the container by hand works identically and the
+   * dashboard detects it either way.
+   */
   stopSupported: boolean;
+  startSupported: boolean;
   returnWatchSeconds: number;
 }
 
@@ -616,6 +689,16 @@ export interface IniOption {
   value: string | number | boolean;
   type: 'bool' | 'int' | 'float' | 'string' | 'enum';
   raw: string;
+  /** Masked on read. Submit an empty string to leave it unchanged. */
+  secret?: boolean;
+  /** Whether a secret is configured at all — safe to show, unlike its value. */
+  isSet?: boolean;
+  /**
+   * The environment variable the common server images regenerate this key from
+   * on every container start. If the image sets it, an edit here is reverted on
+   * the next restart, so the `.env` file is the real place to change it.
+   */
+  envManaged?: string;
 }
 
 export interface IniSettings {

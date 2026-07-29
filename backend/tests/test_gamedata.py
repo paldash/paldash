@@ -257,3 +257,43 @@ def test_fast_travel_names_are_localized_not_internal():
     names = [p["name"] for p in gamedata.fast_travel_points()]
     assert "Hill of Beginnings" in names
     assert not any(n.startswith("WorldTree_") for n in names)
+
+
+# ─── Effigies ────────────────────────────────────────────────────
+#
+# Extracted from the game pak rather than published anywhere. The GUID is the
+# part that matters: it is what a save's RelicObtainForInstanceFlag keys on, so
+# it is what makes "which have I not found" answerable.
+
+
+def test_effigies_load():
+    points = gamedata.effigies()
+    assert len(points) == 396, "the bundled effigy set changed — re-run the extractor"
+
+
+def test_every_effigy_has_a_position_and_a_guid():
+    for effigy in gamedata.effigies():
+        assert len(effigy["guid"]) == 32, effigy
+        assert effigy["guid"] != "0" * 32
+        assert isinstance(effigy["x"], (int, float))
+        assert isinstance(effigy["y"], (int, float))
+
+
+def test_effigy_guids_are_unique():
+    """A duplicate would make one effigy permanently unfindable in the join."""
+    guids = [e["guid"] for e in gamedata.effigies()]
+    assert len(set(guids)) == len(guids)
+
+
+def test_effigies_split_across_both_landmasses():
+    by_land: dict[str, int] = {}
+    for effigy in gamedata.effigies():
+        by_land[effigy["landmass"]] = by_land.get(effigy["landmass"], 0) + 1
+    assert by_land == {"palpagos": 351, "worldtree": 45}
+
+
+def test_missing_effigy_data_degrades_rather_than_raises(monkeypatch):
+    """A missing bundle should cost the map a layer, not break the backend."""
+    monkeypatch.setattr(gamedata, "EFFIGY_PATH", "/nonexistent/effigies.json.gz")
+    monkeypatch.setattr(gamedata, "_effigies", None)
+    assert gamedata.effigies() == []

@@ -72,6 +72,9 @@ describe('describeSavePath', () => {
       ['edit/container/abc-123/slots/preview', 'POST', CAPABILITIES.SAVE_EDIT_FULL],
       // Scanning for illegal Pals is how an admin finds out whether anyone has
       // been cheating, so it must not require the write capability.
+      ['edit/pal-containers', 'GET', CAPABILITIES.SAVE_EDIT_FULL],
+      ['edit/pal/clone', 'POST', CAPABILITIES.SAVE_EDIT_FULL],
+      ['edit/pal/clone/preview', 'POST', CAPABILITIES.SAVE_EDIT_FULL],
       ['palcheck/scan', 'GET', CAPABILITIES.VIEW_DETAIL],
       ['palcheck/repair', 'POST', CAPABILITIES.SAVE_EDIT_FULL],
       ['palcheck/repair/preview', 'POST', CAPABILITIES.SAVE_EDIT_FULL],

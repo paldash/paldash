@@ -348,3 +348,34 @@ def test_a_password_change_does_not_land_in_the_audit_detail(real_ini):
     assert entry["from"] == "(hidden)"
     assert entry["to"] == "(hidden)"
     assert "s3cret" not in repr(result)
+
+
+def test_env_managed_keys_are_flagged(real_ini):
+    """
+    The common server images rewrite the INI from env vars on every start, so a
+    change to one of these lasts until the next restart and is then silently
+    reverted. Flagging them is the difference between an edit that fails and one
+    that appears to work.
+    """
+    options = settings_ini.read_ini(real_ini)["options"]
+
+    assert options["AdminPassword"]["envManaged"] == "ADMIN_PASSWORD"
+    assert options["ServerName"]["envManaged"] == "SERVER_NAME"
+    assert options["RESTAPIPort"]["envManaged"] == "REST_API_PORT"
+    # A pure gameplay setting has no container equivalent and must not be flagged.
+    assert "envManaged" not in options["ExpRate"]
+
+
+def test_masking_does_not_drop_the_env_flag(real_ini):
+    """AdminPassword is both secret and env-managed; it needs to carry both."""
+    admin = settings_ini.read_ini(real_ini)["options"]["AdminPassword"]
+    assert admin["secret"] is True
+    assert admin["envManaged"] == "ADMIN_PASSWORD"
+    assert admin["type"] == "string"
+
+
+def test_every_env_managed_key_exists_in_a_real_server_config(real_ini):
+    """A flag on a key that does not exist would never be shown to anyone."""
+    options = settings_ini.read_ini(real_ini)["options"]
+    missing = [k for k in settings_ini.ENV_MANAGED if k not in options]
+    assert not missing, f"ENV_MANAGED names settings a 1.0 server does not have: {missing}"

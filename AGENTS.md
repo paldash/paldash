@@ -333,7 +333,7 @@ reported 108 of 1,905 Pals as illegal on a completely clean world.
 
 - **`Pal-LinuxServer.pak` is unencrypted** (zero key GUID, `bEncryptedIndex=0`),
   v11, Oodle-compressed — and this project already ships an Oodle decompressor
-  for saves. `scripts/read-pak-index.py` lists all 158,444 entries without
+  for saves. `scripts/palpak.py` lists all 158,444 entries without
   extracting anything.
 
   The main world is **World Partition**: 9,978 streaming cells named
@@ -352,3 +352,154 @@ reported 108 of 1,905 Pals as illegal on a completely clean world.
 `PalWorldSettings.ini` holds live server passwords. `settings_ini.SECRET_KEYS`
 masks those on read and in the audit log; `read_ini(reveal=True)` is for the
 write path only.
+
+## Lists write a different shape from scalars
+
+`PassiveSkillList` and `EquipWaza` are ArrayProperties: the values live at
+`node["value"]["values"]`, and `array_type` must survive untouched. A
+`PassiveSkillList` rewritten as an EnumProperty still serialises and is silently
+wrong — the same class of failure as the ByteProperty depth bug.
+
+`charedit._write_list_property` handles them, and `_apply_pal_change` is the one
+place that routes scalar vs list. Both the single and the batch writer go through
+it, because a batch that forgot lists would skip every skill edit in it.
+
+**`EquipWaza` values carry an `EPalWazaID::` prefix; the bundled `activeSkills`
+table does not.** The API speaks bare ids everywhere — parser, editor, validation
+— and the prefix is re-attached only on write. Bounds are measured: at most
+**3** equipped moves (never more across 1,905 Pals), at most 4 passives.
+
+**`MasteredWaza` is deliberately not editable.** It is absent on 1,563 of the
+reference world's 1,905 Pals, and inventing an ArrayProperty means guessing its
+`array_type`. Equipped moves are editable; the learned-move pool is not.
+
+## Cloning creates records — everything else overwrites fields
+
+`palclone.py` is separate for the same reason `saveimport` is separate from
+`saveexport`: it is the only code here that *adds* to a save.
+
+A Pal is **two records that must agree** — a `CharacterSaveParameterMap` entry
+whose `SaveParameter.SlotId` names a container and index, and a
+`CharacterContainerSaveData` slot whose `RawData.instance_id` names the Pal. Miss
+either half and you get a ghost.
+
+**There are no empty slots to fill.** Across the reference world's 23 character
+containers there are 1,905 slot entries and 1,905 Pals. `SlotNum` is the
+*capacity* (960 for a palbox); the array holds only occupied slots, so free space
+is `SlotNum - len(slots)` and adding a Pal means **appending**.
+
+New slots and characters are **deep-copied from existing ones**, never
+constructed: the slot carries `CustomVersionData` and a `permission_tribe_id`
+whose right values are whatever this save already uses. Verification counts
+records rather than comparing values — both arrays must grow by exactly `count`,
+every new id must resolve to its slot, and **no other container may change
+length**.
+
+Character-container slots only decode with the item custom-property set. Without
+it `RawData` is an opaque 38-byte blob and `_new_slot` refuses rather than
+hand-writing binary.
+
+## The INI is not the source of truth on a containerised server
+
+`thijsvanloef/palworld-server-docker` and `jammsen/docker-palworld-dedicated-server`
+**regenerate PalWorldSettings.ini from environment variables on every start.** A
+setting the dashboard writes survives until the next restart and is then
+silently reverted — worse than a refusal, because the operator watched it work.
+
+`settings_ini.ENV_MANAGED` lists the keys commonly backed that way and the
+variable for each; the settings UI names them and points at `.env`. This cannot
+be a *detection* — the dashboard container cannot read the game container's
+environment — so it is worded as a warning, not a fact about the user's setup.
+
+## Reading cooked UE5 packages: structure yes, properties no
+
+`scripts/upackage.py` parses `.umap`/`.uasset` **headers**. It is not a general
+asset reader and should not become one.
+
+Palworld's packages are cooked with **unversioned properties** —
+`FileVersionUE4` and `FileVersionUE5` are both 0, so property *names* are absent
+from the stream and implied by a per-class schema we do not have. Decoding a
+property list is off the table.
+
+What is plainly serialised is the **name table and export map**, and that turns
+out to be enough, because it provides *attribution*: for every object, its name,
+its parent, and the exact byte range of its data in the `.uexp`. Scanning one
+object's own bytes for a shape is a different proposition from scanning 740 KB
+and guessing whose bytes you found.
+
+Offsets are **measured, not looked up** — the export record layout varies by
+engine version and there is no version number here to branch on. 96-byte stride;
+name index at 16, SerialSize at 28, SerialOffset at 36. Three assertions guard
+them: the name table must end exactly at `import_offset`, the first export must
+start at `total_header_size`, and name indices must be in range. A game update
+that changes the layout raises instead of returning plausible nonsense.
+
+**`FPackageIndex` reads the opposite way to how it looks:** positive is an
+**export** (`value - 1`), negative an import (`-value - 1`), 0 is null. Getting
+it backwards produces no error — every parent lookup simply misses and the
+package appears to have no hierarchy at all.
+
+## Effigies: 396, and the GUID is the point
+
+`backend/data/effigies.json.gz` holds all 396 with world positions **and the
+instance GUID that saves key on**. Positions alone would only ever show every
+effigy; the GUID is what lets the map show which ones a given player still needs,
+because `RelicObtainForInstanceFlag` uses exactly these values.
+
+The pairing: the relic actor export carries its GUID at **byte 252**; its
+`DefaultSceneRoot` child carries the position. All of them live in one World
+Partition cell (`MainGrid_L15_X0_Y0`, the always-loaded layer), and that cell
+contains nothing but relics.
+
+GUID byte order is **`u32le`** — four little-endian uint32s printed big-endian.
+
+**Do not trust an actor count taken from the package name table.** That table
+holds unique strings and many exports share one, so counting distinct
+`_UAID_` names gave 149 when the real figure is 396. The export map is the
+authority. The previously shipped figure of 313 came from a community tracker
+and was never verified.
+
+## Undiscovered content is the operator's call
+
+`policy.DISCOVERY_LEVELS` — `everyone`, `detail` (the default: Trusted and
+above), `nobody`. Whether a Player sees effigies they have not found is a taste
+question about how the server is run, not a security one, so it is configurable
+rather than hardcoded.
+
+What is *not* negotiable is where the filtering happens: `/api/world/discoveries`
+drops undiscovered entries **server-side**. A UI that received everything and
+hid some of it would be handing out the answers in the network tab.
+
+Accounts link to characters via `users.steam_uid`. An account without one has no
+"own" progress — every location simply reads as undiscovered, which is not an
+error.
+
+## Per-player privacy applies to peers and below, never upward
+
+`backend/privacy.py`. The whole rule is `hidden ⟺ viewer_rank <= hider_rank`,
+and that single comparison is load-bearing:
+
+- **A player can never hide from staff**, so moderation works without anyone
+  maintaining an exemption list.
+- Equal rank *is* concealed — peers are exactly who a privacy setting is for.
+
+**The default is the most private mode**, not the least. Nobody should have to
+discover a privacy setting exists before they stop being exposed. It costs
+little because staff see everyone regardless.
+
+Four modes, because bases belong to **guilds** rather than individuals and "hide
+me" therefore has more than one honest meaning: `off`, `player`, `player_bases`
+(solo guilds only), `guild` (the whole guild — the one mode with a social cost).
+
+**Normalise uids on both sides.** `accounts` stores `steam_uid` dash-stripped and
+lowercased; `Level.sav` stores dashed lowercase GUIDs. Comparing them raw matches
+nothing and fails *silently* — privacy hides nobody while every setting still
+reads as enabled. Use `privacy.normalise_uid`.
+
+**Filter in two places.** Save-derived data goes through the backend endpoints;
+**live positions come from the game's REST API through the Next.js proxy**. A
+filter in only one leaves a hidden player gone from the map and still showing as
+a live dot on the same screen.
+
+Privacy governs map and roster visibility only. The audit log, account management
+and save editing all work on real identities regardless.

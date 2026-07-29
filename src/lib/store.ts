@@ -157,6 +157,7 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
     players: true,
     bases: true,
     fastTravel: true,
+    effigies: false,
     palbox: true,
     breeding: true,
     statue: true,

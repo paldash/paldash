@@ -177,3 +177,76 @@ def test_describe_exposes_the_ceiling(policy_file, monkeypatch):
     assert described["envCeiling"] == "safe"
     assert {lvl["id"] for lvl in described["levels"]} == set(policy.SECURITY_LEVELS)
     assert described["visibilityKeys"] == list(policy.GUEST_VISIBILITY_KEYS)
+
+
+# ─── Discovery visibility ────────────────────────────────────────
+#
+# Whether a Player sees the effigies they have NOT found is a taste question,
+# not a security one — which is exactly why it is the operator's choice rather
+# than a constant. What must not be configurable is *where* the filtering
+# happens: server-side, or the answers leak in the network tab.
+
+
+def test_discovery_visibility_defaults_to_trusted_and_above(monkeypatch):
+    monkeypatch.delenv("DISCOVERY_VISIBILITY", raising=False)
+    assert policy.default_policy()["discoveryVisibility"] == "trusted"
+
+
+def test_the_threshold_can_be_any_role_not_just_a_capability():
+    """
+    Finer-grained than a capability check on purpose: a casual server may want
+    Players to see everything, a competitive one may want Moderator only, and
+    neither maps onto an existing capability.
+    """
+    assert policy.discovery_choices() == (
+        "everyone", "readonly", "player", "trusted", "moderator", "admin", "owner",
+        "nobody",
+    )
+
+
+@pytest.mark.parametrize("role,level,expected", [
+    # everyone / nobody ignore rank entirely
+    ("guest", "everyone", True), ("owner", "nobody", False),
+    # a role threshold means "this rank and above"
+    ("player", "trusted", False), ("trusted", "trusted", True),
+    ("moderator", "trusted", True), ("readonly", "player", False),
+    ("player", "player", True), ("guest", "readonly", False),
+    ("admin", "moderator", True), ("trusted", "moderator", False),
+])
+def test_role_thresholds(role, level, expected):
+    assert policy.may_see_undiscovered(role, level) is expected
+
+
+def test_an_unknown_role_never_clears_the_threshold():
+    """Fail closed: an unrecognised role must not be handed the map."""
+    assert policy.may_see_undiscovered("wizard", "readonly") is False
+
+
+@pytest.mark.parametrize("level", ("everyone", "player", "trusted", "owner", "nobody"))
+def test_every_level_round_trips(level, tmp_path, monkeypatch):
+    monkeypatch.setattr(policy, "POLICY_FILE", str(tmp_path / "policy.json"))
+    policy._cache = None
+
+    saved = policy.save_policy({"discoveryVisibility": level})
+    assert saved["discoveryVisibility"] == level
+
+    policy._cache = None
+    assert policy.load_policy()["discoveryVisibility"] == level
+
+
+def test_an_unknown_level_is_refused(tmp_path, monkeypatch):
+    monkeypatch.setattr(policy, "POLICY_FILE", str(tmp_path / "policy.json"))
+    policy._cache = None
+    with pytest.raises(ValueError, match="Unknown discovery visibility"):
+        policy.save_policy({"discoveryVisibility": "sometimes"})
+
+
+def test_a_bad_environment_value_falls_back_rather_than_crashing(monkeypatch):
+    monkeypatch.setenv("DISCOVERY_VISIBILITY", "yes-please")
+    assert policy.default_policy()["discoveryVisibility"] == policy.DEFAULT_DISCOVERY
+
+
+def test_the_levels_are_described_for_the_ui():
+    described = policy.describe()["discoveryLevels"]
+    assert [d["id"] for d in described] == list(policy.discovery_choices())
+    assert all(d["label"] and d["description"] for d in described)

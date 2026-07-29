@@ -202,8 +202,47 @@ export default function ServerSettings() {
         when it starts, so nothing here takes effect live. Edits are written
         immediately and are safe while the server runs — this is the config
         directory, not the save directory.
-        {settings.serverRunning && ' If your server image regenerates the INI from environment variables on boot, edit those instead or your changes will be overwritten.'}
       </div>
+
+      {/* The restart that applies a change is the same restart that can undo it.
+          Naming the affected keys matters: a setting silently reverted after the
+          operator watched the save succeed is worse than one that refused. */}
+      {(() => {
+        const envKeys = Object.entries(settings.options)
+          .filter(([, o]) => o.envManaged)
+          .map(([k, o]) => [k, o.envManaged as string] as const);
+        if (!envKeys.length) return null;
+        return (
+          <div className="notice notice-warn">
+            <strong>Some of these are probably set by your container, not this file.</strong>{' '}
+            The common server images —{' '}
+            <span className="mono">thijsvanloef/palworld-server-docker</span> and{' '}
+            <span className="mono">jammsen/docker-palworld-dedicated-server</span> — rewrite
+            PalWorldSettings.ini from environment variables every time they start. For those
+            keys, a change saved here lasts until the next restart and is then reverted.
+            Change them in your <span className="mono">.env</span> file instead.
+            <details style={{ marginTop: 8 }}>
+              <summary style={{ cursor: 'pointer', fontSize: 12 }}>
+                Which settings, and the variable to use
+              </summary>
+              <div style={{ marginTop: 8, fontSize: 12, lineHeight: 1.9 }}>
+                {envKeys.map(([key, env]) => (
+                  <div key={key}>
+                    <span className="mono">{key}</span>
+                    {' → '}
+                    <span className="mono" style={{ color: 'var(--accent-amber)' }}>{env}</span>
+                  </div>
+                ))}
+              </div>
+              <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 8, lineHeight: 1.6 }}>
+                The dashboard cannot read the game container’s environment, so it cannot tell
+                which of these your setup actually sets — this is the list that is commonly
+                managed that way, not a detection.
+              </p>
+            </details>
+          </div>
+        );
+      })()}
 
       {/* Presets */}
       <div className="glass-card" style={{ padding: 16 }}>
@@ -337,7 +376,20 @@ function SettingRow({
         <div className="mono" style={{ fontSize: 12, color: changed ? 'var(--accent)' : 'var(--text-secondary)' }}>
           {name}
           {changed && <Check size={11} style={{ marginLeft: 6, verticalAlign: '-1px' }} />}
+          {option.envManaged && (
+            <span
+              style={{ marginLeft: 6, fontSize: 10, color: 'var(--accent-amber)' }}
+              title={`Commonly set by the server container from ${option.envManaged}. If yours does, a change here is reverted on the next restart — edit .env instead.`}
+            >
+              ${option.envManaged}
+            </span>
+          )}
         </div>
+        {option.secret && (
+          <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>
+            {option.isSet ? 'Set. Leave blank to keep it.' : 'Not set.'}
+          </div>
+        )}
       </div>
 
       {option.type === 'bool' ? (

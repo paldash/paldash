@@ -3,10 +3,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useDashboardStore } from '@/lib/store';
 import { formatCoords, getRegion, MAP_REGIONS, type MapRegion } from '@/lib/map-coordinates';
-import { getMapObjects, getFastTravelPoints } from '@/lib/save-api';
+import { getMapObjects, getFastTravelPoints, getDiscoveries } from '@/lib/save-api';
 import { Layers, Crosshair, RefreshCw, Search, Info } from 'lucide-react';
 import dynamic from 'next/dynamic';
-import type { MapObject, FastTravelPoint } from '@/lib/types';
+import type { MapObject, FastTravelPoint, Discoveries } from '@/lib/types';
 
 const MapComponent = dynamic(() => import('./map-inner'), { ssr: false });
 
@@ -22,6 +22,7 @@ const LAYERS: { id: string; label: string; color: string; group: 'live' | 'world
   { id: 'bases', label: 'Bases', color: '#c9973f', group: 'live' },
 
   { id: 'fastTravel', label: 'Fast travel', color: '#e0c060', group: 'world' },
+  { id: 'effigies', label: 'Effigies', color: '#8d84c7', group: 'world' },
   { id: 'chest', label: 'Chests', color: '#c9973f', group: 'world' },
   { id: 'oreNode', label: 'Ore nodes', color: '#8a8378', group: 'world' },
   { id: 'oilrigChest', label: 'Oil rig', color: '#d97757', group: 'world' },
@@ -42,6 +43,7 @@ export default function InteractiveMap() {
   const [mouseCoords, setMouseCoords] = useState<{ x: number; y: number } | null>(null);
   const [mapObjects, setMapObjects] = useState<MapObject[]>([]);
   const [fastTravel, setFastTravel] = useState<FastTravelPoint[]>([]);
+  const [discoveries, setDiscoveries] = useState<Discoveries | null>(null);
   const [region, setRegion] = useState<MapRegion>('palpagos');
   const [query, setQuery] = useState('');
   const [flyTo, setFlyTo] = useState<{ x: number; y: number; nonce: number } | null>(null);
@@ -50,12 +52,17 @@ export default function InteractiveMap() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [objects, points] = await Promise.allSettled([
+    const [objects, points, found] = await Promise.allSettled([
       getMapObjects(),
       getFastTravelPoints(),
+      // Discoveries may legitimately fail — a guest has no character, and the
+      // policy may forbid the undiscovered half entirely. The map falls back to
+      // the plain point list rather than losing the layer.
+      getDiscoveries(),
     ]);
     setMapObjects(objects.status === 'fulfilled' ? objects.value : []);
     setFastTravel(points.status === 'fulfilled' ? points.value : []);
+    setDiscoveries(found.status === 'fulfilled' ? found.value : null);
     setLoading(false);
   }, []);
 
@@ -74,12 +81,13 @@ export default function InteractiveMap() {
       acc[object.category] = (acc[object.category] ?? 0) + 1;
     }
     acc.fastTravel = fastTravel.filter((p) => transform.contains(p.x, p.y)).length;
+    acc.effigies = (discoveries?.effigies.points ?? []).filter((p) => transform.contains(p.x, p.y)).length;
     acc.players = onlinePlayers.filter((p) =>
       transform.contains(p.location_x, p.location_y)
     ).length;
     acc.bases = bases.filter((b) => transform.contains(b.x, b.y)).length;
     return acc;
-  }, [mapObjects, fastTravel, onlinePlayers, bases, transform]);
+  }, [mapObjects, fastTravel, discoveries, onlinePlayers, bases, transform]);
 
   // Search across fast-travel names and base/guild names.
   const results = useMemo(() => {
@@ -281,6 +289,7 @@ export default function InteractiveMap() {
           bases={bases}
           mapObjects={mapObjects}
           fastTravel={fastTravel}
+          discoveries={discoveries}
           layers={mapLayers}
           region={region}
           flyTo={flyTo}

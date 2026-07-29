@@ -229,7 +229,16 @@ docker compose stop palworld     # dashboard stays up, unlocks editing
 docker compose start palworld    # bring it back
 ```
 
-Configure `STOP_COMMAND` / `START_COMMAND` to get buttons for the same thing.
+The two container buttons appear **only if you configure `STOP_COMMAND` /
+`START_COMMAND`**. They are off by default and the runtime image deliberately
+does not ship a `docker` binary, so showing them unconditionally would mean two
+buttons that always fail. You lose nothing by leaving them off — the commands
+above do exactly the same thing, and the dashboard notices the server going down
+on its own either way.
+
+If you do want them, point them at a **socket proxy** rather than mounting
+`/var/run/docker.sock`; access to the raw socket is equivalent to root on the
+host. See the commented-out block in `docker-compose.yml`.
 
 ---
 
@@ -344,9 +353,25 @@ directory, not the save directory) but take effect on restart. The tab has an
 server to shut down — pair it with `restart: unless-stopped` so it comes back.
 
 Unknown keys are rejected rather than appended: a typo'd key silently added to
-`OptionSettings` is how you end up with a server that won't boot. If your server
-image regenerates the INI from environment variables at startup, edit those
-instead or your changes will be overwritten on the next restart.
+`OptionSettings` is how you end up with a server that won't boot.
+
+**Your container probably owns some of these settings, not this file.** Both
+`thijsvanloef/palworld-server-docker` and `jammsen/docker-palworld-dedicated-server`
+rewrite `PalWorldSettings.ini` from environment variables *on every start*, so a
+change saved here survives until the next restart and is then silently reverted —
+worse than a refusal, because you watched it succeed. The settings tab now flags
+those keys with the variable that overrides them (`SERVER_NAME`,
+`ADMIN_PASSWORD`, `PLAYERS`, `RCON_*`, `REST_API_*`, and others) and points at
+your `.env`. It cannot *detect* which ones your setup actually sets — one
+container cannot read another's environment — so treat it as a warning, not a
+verdict.
+
+**Passwords are never returned by the API.** `AdminPassword` and `ServerPassword`
+read back as empty with a "set / not set" marker, and a password change is
+recorded in the audit log as `(hidden)` rather than storing the old and new
+values permanently. Submit an empty value to leave one unchanged. To rotate the
+admin password on a containerised server, change it in `.env` and recreate the
+container — not here.
 
 ---
 
@@ -437,14 +462,24 @@ computed during the parse, so opening the tab costs nothing.
 
 ## Save editing
 
-Container sorting is implemented and verified. Everything else is not — see the
-gaps below.
+All of it is implemented and verified against a real world:
+
+| What | Notes |
+|---|---|
+| Container sorting | Stackables-only or everything, world-wide or one base |
+| Import / export | Versioned, checksummed documents; container import writes |
+| Inventory slots | Set, change or clear any slot — including key items |
+| Pal editor | Name, level, EXP, condenser rank, IVs, passive and active skills |
+| Bulk Pal edits | One change set across many Pals, all-or-nothing |
+| Pal duplication | Copy a Pal into a chosen palbox slot |
+| Player editor | Name, level, EXP, technology and ancient points |
+| Illegal-Pal check | Scan for out-of-range stats, repair by clamping |
 
 **Permissions are capabilities, not roles.** `save.sort.stackables`,
 `save.sort.all` and `save.edit.full` are separate grants, enforced in the API
-proxy. Today they all map to the admin role; introducing per-user permissions
-later means changing the capability map in `src/lib/permissions.ts` and nothing
-else.
+proxy *and* re-checked in the backend. `save.edit.full` additionally exists only
+at `SECURITY_LEVEL=full`, so on a default install the editor is hidden even from
+an Owner until someone deliberately raises the ceiling.
 
 **Every write follows the same pipeline:**
 
@@ -507,26 +542,64 @@ actually prove the save is safe.
 
 ---
 
+## Reading the game's own files
+
+`refs/palworld/` (a dedicated server install — gitignored, not shipped) unlocks
+things the save files cannot answer, because the save only records what players
+have *done*, never what exists.
+
+`Pal-LinuxServer.pak` is **not encrypted**, and its entries use Oodle — which
+this project already decompresses for saves. `scripts/palpak.py` lists and
+extracts any of its 158,444 files.
+
+Two results so far:
+
+- **The World Partition cell grid.** Cells are named `MainGrid_L0_X<col>_Y<row>`,
+  and those names are coordinates. Cell size is 25,600 world units — measured,
+  not guessed: at that value all 174 fast-travel points land inside an occupied
+  cell. Connected components give one cluster per landmass, which is what finally
+  pinned down the World Tree map's extent.
+- **All 396 effigies**, each with its world position *and* the instance GUID
+  that save files key on. That GUID is what makes "which have I not found yet"
+  answerable rather than just "here they all are". `scripts/upackage.py` reads
+  the package export map to pair each relic actor with its position;
+  `scripts/extract-effigies.py` drives it. Bundled at 14 KB.
+
+`DefaultPalWorldSettings.ini` from the same install is the authoritative list of
+the 119 settings a 1.0 server accepts, and the test suite checks the parser and
+presets against it.
+
+---
+
+## Licensing
+
+**GPL-3.0-or-later**, and not by choice: `palsav` is GPL-3.0-or-later and is the
+only thing that reads Palworld 1.0's Oodle-compressed saves.
+
+**Private and LAN use requires nothing of you.** The obligations attach to
+distribution, not to running it — and note that hosting it on the internet is
+*not* distribution under GPL-3.0. See `docs/LICENSING.md`, which also covers the
+likelier issue for any public release: the bundled game data and icons are
+Pocketpair's.
+
+---
+
 ## Known gaps
 
 Being straight about what is not done:
 
-- **The general save editor** (`/api/edit`) still returns 501 — player stats,
-  Pal IVs and individual slot edits are not exposed. The write path is proven
-  (sorting uses it), but a general editor has far more ways to produce a world
-  the game refuses to load, so each field needs validating first.
-- **Tower bosses, dungeons and effigies** are not on the map. Fast-travel
-  statues now are — all 174, from bundled game data — but those three have no
-  published coordinates in any dataset we have. Dungeons are *partially*
-  available: the save records 170 markers and their state, but by spawn-area
-  name, not position.
-- **The World Tree map transform is provisional.** See "Map & items" above.
-- **Per-player logins** are not built. The data exists —
-  `UnlockedWorldMapFlags` (fog of war), `FastTravelPointUnlockFlag`,
-  `PaldeckUnlockFlag`, boss-defeat flags — so per-player fog-of-war views are
-  feasible.
-- **Per-base item breakdown**: items are totalled server-wide. Objects carry
-  `base_camp_id_belong_to`, so grouping chest contents per base is a small step
-  from here.
+- **The World Tree map is not calibrated, only measured.** Its extent now comes
+  from the cell grid and is exact, but the image *orientation* has never been
+  checked against a known point up there.
+- **Tower bosses are not on the map**, and dungeons only partially — the save
+  has 170 markers with state but no position. Both are extractable from the pak
+  with the same technique the effigies used; nobody has done it yet.
+- **The discoveries API has no map layer yet.** `/api/world/discoveries` returns
+  everything the map needs, marked found/not-found and filtered by policy, but
+  the map does not render it. That is the remaining piece of per-player fog of
+  war — the data and the permission model are done.
+- **Server metrics and admin commands** (Phase 8) are not started.
+- **`docker` is not in the runtime image**, so the container Stop/Start buttons
+  stay hidden unless you configure them. Deliberate — see "Maintenance mode".
 
 [pst]: https://github.com/deafdudecomputers/PalworldSaveTools

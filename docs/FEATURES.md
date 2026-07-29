@@ -204,7 +204,7 @@ reported untouched; changing a species is not a repair.
 `refs/palworld/` (a dedicated server install, gitignored) is now used for two
 things beyond reference data:
 
-- **`scripts/read-pak-index.py`** lists all 158,444 entries in
+- **`scripts/palpak.py`** lists all 158,444 entries in
   `Pal-LinuxServer.pak`. The pak is unencrypted, so no key is needed. This is how
   the World Partition cell grid was found — cell names encode coordinates, the
   cell size is 25,600 world units (174/174 fast-travel points land on an occupied
@@ -213,3 +213,49 @@ things beyond reference data:
   a 1.0 server accepts. `test_settings_ini.py` checks the parser, the presets and
   the highlight groups against it — which is how a highlight naming a setting
   that does not exist was caught.
+
+### Skill editing
+Passive skills and equipped active moves, on the existing Pal editor — they are
+ordinary fields now, not a separate feature. At most 4 passives and 3 equipped
+moves, no duplicates, every id checked against the bundled tables (1,905
+passives, 375 moves). The learned-move pool (`MasteredWaza`) is not editable:
+it is absent on most Pals, and creating an ArrayProperty means guessing its type.
+
+### Pal duplication
+Copy a Pal into a chosen palbox or party slot, optionally with an edit applied to
+each copy (validated exactly like any other edit — a clone is not a way around
+the bounds). Up to 50 at a time.
+
+The destination is always explicit. There is no "find room anywhere" mode,
+because quietly putting Pals into someone else's palbox is worse than an error.
+Cloning a player character is refused outright.
+
+Verification is stricter than an edit's, because this changes the shape of the
+save rather than values in it: the character list and the target container must
+each grow by exactly the requested count, every new Pal must resolve to its slot,
+and no other container may change length.
+
+---
+
+## Discoveries (fast travel + effigies)
+
+`GET /api/world/discoveries` returns all 174 fast-travel points and all 396
+effigies, each marked `discovered` or not, folding in the save's per-player
+flags. Both datasets are bundled, so the dashboard knows where everything is
+regardless of what anyone has found.
+
+Who sees the *undiscovered* half is set by `discoveryVisibility` on the Access
+tab (or `DISCOVERY_VISIBILITY` in the environment):
+
+| Level | Effect |
+|---|---|
+| `everyone` | Anyone who can see the map sees undiscovered markers too |
+| `detail` *(default)* | Players see only their own finds; Trusted and above see all |
+| `nobody` | Undiscovered markers are never sent to any session |
+
+Filtering is server-side. A Player without `VIEW_DETAIL` can only ask about
+their own character, and accounts link to characters through `users.steam_uid`.
+
+Effigy data comes from the game pak via `scripts/extract-effigies.py` — 396,
+each with the instance GUID that `RelicObtainForInstanceFlag` uses, which is what
+makes the per-player join possible at all.

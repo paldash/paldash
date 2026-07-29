@@ -91,6 +91,16 @@ const ROUTES: RouteRule[] = [
   { pattern: /^mapobjects$/, methods: ['GET'], capability: CAPABILITIES.VIEW_BASIC, feature: FEATURES.MAP_OBJECTS },
   { pattern: /^world\/fasttravel$/, methods: ['GET'], capability: CAPABILITIES.VIEW_BASIC, feature: FEATURES.MAP_OBJECTS },
   { pattern: /^world\/reference$/, methods: ['GET'], capability: CAPABILITIES.VIEW_BASIC, feature: FEATURES.SERVER_STATUS },
+  // Discoveries are VIEW_BASIC because a Player must be able to see their OWN
+  // progress. The backend decides what a given role may see of the undiscovered
+  // half — the proxy cannot, since that depends on the discoveryVisibility
+  // policy and on which character the account is linked to.
+  { pattern: /^world\/discoveries$/, methods: ['GET'], capability: CAPABILITIES.VIEW_BASIC, feature: FEATURES.MAP_OBJECTS },
+  // A player's own privacy setting. VIEW_BASIC because it is about themselves —
+  // gating it higher would mean only staff could choose to hide, which is
+  // backwards.
+  { pattern: /^privacy\/me$/, methods: ['GET', 'POST'], capability: CAPABILITIES.VIEW_BASIC, feature: null },
+  { pattern: /^privacy\/hidden$/, methods: ['GET'], capability: CAPABILITIES.VIEW_BASIC, feature: null },
   { pattern: /^roles$/, methods: ['GET'], capability: CAPABILITIES.VIEW_BASIC, feature: FEATURES.SERVER_STATUS },
 
   // Storage is VIEW_DETAIL, unlike plain `bases` above — the base list is a map
@@ -118,6 +128,13 @@ const ROUTES: RouteRule[] = [
   { pattern: /^edit\/pals\/bulk$/, methods: ['POST'], capability: CAPABILITIES.SAVE_EDIT_FULL, feature: null },
   { pattern: /^edit\/container\/[A-Za-z0-9-]+\/slots\/preview$/, methods: ['POST'], capability: CAPABILITIES.SAVE_EDIT_FULL, feature: null },
   { pattern: /^edit\/container\/[A-Za-z0-9-]+\/slots$/, methods: ['POST'], capability: CAPABILITIES.SAVE_EDIT_FULL, feature: null },
+  // Clone routes are literal, and they come BEFORE the `edit/pal/{id}` patterns
+  // above would ever be consulted for them — `clone` is not a GUID, so it cannot
+  // match `[A-Za-z0-9-]+` ambiguously in a way that matters, but keeping them
+  // explicit means a Pal can never be addressed as if it were the clone verb.
+  { pattern: /^edit\/pal-containers$/, methods: ['GET'], capability: CAPABILITIES.SAVE_EDIT_FULL, feature: null },
+  { pattern: /^edit\/pal\/clone\/preview$/, methods: ['POST'], capability: CAPABILITIES.SAVE_EDIT_FULL, feature: null },
+  { pattern: /^edit\/pal\/clone$/, methods: ['POST'], capability: CAPABILITIES.SAVE_EDIT_FULL, feature: null },
   // Scanning for illegal Pals is a read — it is how an admin finds out whether
   // anyone has been cheating, and that must not require the write capability.
   { pattern: /^palcheck\/scan$/, methods: ['GET'], capability: CAPABILITIES.VIEW_DETAIL, feature: null },

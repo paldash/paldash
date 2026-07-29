@@ -1,21 +1,27 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { PenLine, Search, ShieldCheck, AlertTriangle, Wand2, Undo2 } from 'lucide-react';
+import { PenLine, Search, ShieldCheck, AlertTriangle, Wand2, Undo2, X, Copy } from 'lucide-react';
 import {
   getEditSchema, previewPalEdit, applyPalEdit, getPals,
-  previewPlayerEdit, applyPlayerEdit, getSavePlayers, type PalRecord,
+  previewPlayerEdit, applyPlayerEdit, getSavePlayers,
+  getPalContainers, previewClone, applyClone, type PalRecord,
 } from '@/lib/save-api';
-import type { EditSchema, EditPlan, PlayerSaveData } from '@/lib/types';
+import type {
+  EditSchema, EditPlan, PlayerSaveData, PalContainer, ClonePlan,
+} from '@/lib/types';
 
 type Mode = 'pal' | 'player';
+
+/** Skill lists are string arrays; everything else is a scalar. */
+type FieldValue = string | number | string[];
 
 /** The two subject types share enough shape to drive one editor. */
 interface Subject {
   id: string;
   title: string;
   subtitle: string;
-  seed: Record<string, string | number>;
+  seed: Record<string, FieldValue>;
 }
 
 /**
@@ -36,7 +42,7 @@ export default function CharacterEditor({ canEdit }: { canEdit: boolean }) {
   const [players, setPlayers] = useState<PlayerSaveData[]>([]);
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<Subject | null>(null);
-  const [draft, setDraft] = useState<Record<string, string | number>>({});
+  const [draft, setDraft] = useState<Record<string, FieldValue>>({});
   const [plan, setPlan] = useState<EditPlan | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -76,13 +82,18 @@ export default function CharacterEditor({ canEdit }: { canEdit: boolean }) {
   const subjects: Subject[] = useMemo(() => {
     if (mode === 'pal') {
       return pals.map((p) => {
-        const seed: Record<string, string | number> = {
+        const seed: Record<string, FieldValue> = {
           nickname: p.nickname ?? '',
           level: p.level ?? 1,
           exp: p.exp ?? 0,
           rank: p.rank ?? 1,
         };
         for (const [iv, value] of Object.entries(p.ivs ?? {})) seed[`ivs.${iv}`] = value;
+        // Skill lists are seeded only when the Pal actually stores them — the
+        // backend refuses to create an absent ArrayProperty, so offering an
+        // editor for one would be a dead end.
+        if (p.passiveSkills) seed.passiveSkills = [...p.passiveSkills];
+        if (p.activeSkills) seed.activeSkills = [...p.activeSkills];
         return {
           id: p.instanceId,
           title: p.nickname || p.speciesName || p.speciesId,
@@ -92,7 +103,7 @@ export default function CharacterEditor({ canEdit }: { canEdit: boolean }) {
       });
     }
     return players.map((p) => {
-      const seed: Record<string, string | number> = {
+      const seed: Record<string, FieldValue> = {
         nickname: p.name ?? '',
         level: p.level ?? 1,
         exp: p.exp ?? 0,
@@ -121,7 +132,7 @@ export default function CharacterEditor({ canEdit }: { canEdit: boolean }) {
     setDraft({ ...subject.seed });
   }, []);
 
-  const set = (field: string, value: string | number) => {
+  const set = (field: string, value: FieldValue) => {
     setDraft((d) => ({ ...d, [field]: value }));
     setPlan(null);
   };
@@ -142,7 +153,9 @@ export default function CharacterEditor({ canEdit }: { canEdit: boolean }) {
     for (const [key, value] of Object.entries(draft)) {
       const field = editable.find((f) => f.name === key);
       if (!field) continue;
-      out[key] = field.kind === 'int' ? Number(value) : value;
+      if (field.kind === 'int') out[key] = Number(value);
+      else if (field.kind === 'list') out[key] = Array.isArray(value) ? value : [];
+      else out[key] = value;
     }
     return out;
   }, [draft, editable, selected]);
@@ -315,17 +328,25 @@ export default function CharacterEditor({ canEdit }: { canEdit: boolean }) {
                         </button>
                       )}
                     </label>
-                    <input
-                      className="input"
-                      style={{ width: '100%' }}
-                      type={field.kind === 'int' ? 'number' : 'text'}
-                      min={field.min ?? undefined}
-                      max={field.max ?? undefined}
-                      value={String(draft[field.name] ?? '')}
-                      onChange={(e) =>
-                        set(field.name, field.kind === 'int' ? e.target.valueAsNumber : e.target.value)
-                      }
-                    />
+                    {field.kind === 'list' ? (
+                      <SkillList
+                        values={Array.isArray(draft[field.name]) ? (draft[field.name] as string[]) : []}
+                        max={field.name === 'activeSkills' ? 3 : 4}
+                        onChange={(next) => set(field.name, next)}
+                      />
+                    ) : (
+                      <input
+                        className="input"
+                        style={{ width: '100%' }}
+                        type={field.kind === 'int' ? 'number' : 'text'}
+                        min={field.min ?? undefined}
+                        max={field.max ?? undefined}
+                        value={String(draft[field.name] ?? '')}
+                        onChange={(e) =>
+                          set(field.name, field.kind === 'int' ? e.target.valueAsNumber : e.target.value)
+                        }
+                      />
+                    )}
                     {field.note && (
                       <p style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>
                         {field.note}
@@ -350,6 +371,17 @@ export default function CharacterEditor({ canEdit }: { canEdit: boolean }) {
               </div>
 
               {plan && <PlanView plan={plan} canEdit={canEdit} busy={busy} onApply={apply} />}
+
+              {/* Keyed by the Pal: selecting a different one must remount this
+                  rather than carry a plan built for the previous Pal across. */}
+              {mode === 'pal' && (
+                <ClonePanel
+                  key={selected.id}
+                  subjectId={selected.id}
+                  title={selected.title}
+                  canEdit={canEdit}
+                />
+              )}
             </>
           )}
         </div>
@@ -418,6 +450,268 @@ function PlanView({
       >
         {busy ? 'Writing…' : 'Apply and verify'}
       </button>
+    </div>
+  );
+}
+
+/**
+ * A skill list, as removable chips plus a free-text add box.
+ *
+ * Deliberately free text rather than a dropdown of all 375 moves and 1,905
+ * passives: the backend validates against the bundled tables and returns a
+ * readable rejection naming the bad id, so a wrong entry costs one preview.
+ * Shipping the whole catalogue to the browser to prevent that is not worth it.
+ */
+function SkillList({
+  values, max, onChange,
+}: {
+  values: string[];
+  max: number;
+  onChange: (next: string[]) => void;
+}) {
+  const [entry, setEntry] = useState('');
+
+  const add = () => {
+    const id = entry.trim();
+    if (!id || values.includes(id) || values.length >= max) return;
+    onChange([...values, id]);
+    setEntry('');
+  };
+
+  return (
+    <div>
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 6 }}>
+        {values.map((id) => (
+          <span
+            key={id}
+            className="mono"
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 4,
+              fontSize: 11, padding: '2px 6px', borderRadius: 4,
+              background: 'var(--bg-input)', border: '1px solid var(--border-primary)',
+            }}
+          >
+            {id}
+            <button
+              onClick={() => onChange(values.filter((v) => v !== id))}
+              style={{
+                background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+                display: 'flex', color: 'var(--text-muted)',
+              }}
+              title={`Remove ${id}`}
+            >
+              <X size={10} />
+            </button>
+          </span>
+        ))}
+        {values.length === 0 && (
+          <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>none</span>
+        )}
+      </div>
+
+      <div style={{ display: 'flex', gap: 6 }}>
+        <input
+          className="input"
+          style={{ flex: 1, fontSize: 12, padding: '3px 6px' }}
+          placeholder={values.length >= max ? `${max} is the maximum` : 'Add by id…'}
+          value={entry}
+          disabled={values.length >= max}
+          onChange={(e) => setEntry(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') { e.preventDefault(); add(); }
+          }}
+        />
+        <button
+          className="btn btn-ghost"
+          style={{ padding: '2px 10px', fontSize: 11 }}
+          disabled={!entry.trim() || values.length >= max}
+          onClick={add}
+        >
+          Add
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Duplicate the selected Pal into a chosen container.
+ *
+ * The only operation in the dashboard that *creates* save records, so it is
+ * kept visually separate from the field editor above and states plainly where
+ * the copies will land. There is no "put it anywhere with room" option: silently
+ * dropping Pals into someone else's palbox is worse than an error.
+ */
+function ClonePanel({
+  subjectId, title, canEdit,
+}: {
+  subjectId: string;
+  title: string;
+  canEdit: boolean;
+}) {
+  const [containers, setContainers] = useState<PalContainer[]>([]);
+  const [containerId, setContainerId] = useState('');
+  const [count, setCount] = useState(1);
+  const [plan, setPlan] = useState<ClonePlan | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [done, setDone] = useState<string | null>(null);
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (!open || containers.length) return;
+    getPalContainers()
+      .then((r) => setContainers(r.containers))
+      .catch((e: unknown) =>
+        setError(e instanceof Error ? e.message : 'Could not list containers')
+      );
+  }, [open, containers.length]);
+
+  const preview = async () => {
+    setBusy(true); setError(null); setDone(null);
+    try {
+      setPlan(await previewClone(subjectId, containerId, count));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Preview failed');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const apply = async () => {
+    if (!plan?.ok || !plan.planHash) return;
+    if (!confirm(
+      `Create ${count} copy/copies of ${title}?\n\n` +
+      'This adds new Pals to the world rather than changing existing ones. A full ' +
+      'backup is taken first, and afterwards the save is re-read and checked: both ' +
+      'the character list and the target container must have grown by exactly this ' +
+      'many, and no other container may have changed. Anything else rolls back.'
+    )) return;
+
+    setBusy(true); setError(null);
+    try {
+      const result = await applyClone(subjectId, containerId, count, plan.planHash);
+      setDone(
+        `Created ${result.count} copy/copies in slots ${result.slotIndices.join(', ')} ` +
+        `and verified. Rollback point: ${result.backupId}.`
+      );
+      setPlan(null);
+      setContainers([]);   // capacities moved
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Clone failed');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (!open) {
+    return (
+      <button
+        className="btn btn-ghost"
+        style={{ marginTop: 12, fontSize: 11, padding: '3px 10px' }}
+        onClick={() => setOpen(true)}
+      >
+        <Copy size={12} /> Duplicate this Pal
+      </button>
+    );
+  }
+
+  return (
+    <div style={{
+      marginTop: 12, padding: 12,
+      border: '1px solid var(--border-primary)', borderRadius: 6,
+    }}>
+      <div className="section-title" style={{ marginBottom: 8, fontSize: 12 }}>
+        <Copy size={12} /> Duplicate {title}
+        <button
+          className="btn btn-ghost"
+          style={{ marginLeft: 'auto', padding: '1px 8px', fontSize: 10 }}
+          onClick={() => { setOpen(false); setPlan(null); }}
+        >
+          Close
+        </button>
+      </div>
+
+      {error && <div className="notice notice-warn" style={{ marginBottom: 8 }}>{error}</div>}
+      {done && (
+        <div className="notice" style={{ marginBottom: 8 }}>
+          <ShieldCheck size={12} style={{ display: 'inline', verticalAlign: '-2px', marginRight: 5 }} />
+          {done}
+        </div>
+      )}
+
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+        <div style={{ flex: '1 1 260px' }}>
+          <label style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)', marginBottom: 3 }}>
+            Destination
+          </label>
+          <select
+            className="input"
+            style={{ width: '100%' }}
+            value={containerId}
+            onChange={(e) => { setContainerId(e.target.value); setPlan(null); }}
+          >
+            <option value="">Pick a container…</option>
+            {containers.map((c) => (
+              <option key={c.containerId} value={c.containerId} disabled={c.free === 0}>
+                {c.containerId.slice(0, 8)}… — {c.used}/{c.capacity} used, {c.free} free
+              </option>
+            ))}
+          </select>
+        </div>
+        <div style={{ width: 90 }}>
+          <label style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)', marginBottom: 3 }}>
+            How many
+          </label>
+          <input
+            className="input"
+            type="number"
+            min={1}
+            max={50}
+            style={{ width: '100%' }}
+            value={count}
+            onChange={(e) => { setCount(e.target.valueAsNumber || 1); setPlan(null); }}
+          />
+        </div>
+        <button
+          className="btn"
+          disabled={busy || !containerId}
+          onClick={preview}
+          title={!containerId ? 'Pick a destination first' : undefined}
+        >
+          {busy ? 'Working…' : 'Preview'}
+        </button>
+      </div>
+
+      {plan && (
+        <div style={{ marginTop: 10 }}>
+          {!plan.ok ? (
+            <div className="notice notice-warn">
+              {plan.problems.map((p, i) => <div key={i}>{p.problem}</div>)}
+            </div>
+          ) : (
+            <div style={{
+              padding: 10, borderRadius: 6, background: 'var(--bg-input)',
+              border: '1px solid var(--border-primary)',
+            }}>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                {plan.count} copy/copies into slot{plan.slotIndices!.length === 1 ? '' : 's'}{' '}
+                <span className="mono">{plan.slotIndices!.join(', ')}</span>, leaving{' '}
+                {plan.freeAfter} free of {plan.capacity}.
+              </div>
+              <button
+                className="btn btn-primary"
+                style={{ marginTop: 8 }}
+                disabled={!canEdit || busy}
+                onClick={apply}
+                title={!canEdit ? 'The server must be stopped first' : undefined}
+              >
+                {busy ? 'Writing…' : `Create ${plan.count}`}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

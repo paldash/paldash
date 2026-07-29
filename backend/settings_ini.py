@@ -121,6 +121,37 @@ def _format(value: Any, value_type: str, original_raw: str) -> str:
 # blank the real one.
 SECRET_KEYS = ("AdminPassword", "ServerPassword")
 
+# INI keys that the popular server images regenerate from environment variables
+# on every container start.
+#
+# This is not a detail — it decides whether editing a setting here does anything
+# at all. `thijsvanloef/palworld-server-docker` (what the bundled compose file
+# uses) and `jammsen/docker-palworld-dedicated-server` both rewrite
+# PalWorldSettings.ini at boot from whichever of these env vars are set. A change
+# written here survives until the next restart and is then silently reverted,
+# which is worse than a refusal because the operator watched it succeed.
+#
+# We cannot see the game container's environment from inside this one, so this
+# cannot be a *detection* — only a warning attached to the keys that are
+# commonly env-backed. The UI says "if your image sets this, your change will be
+# reverted", and points at the `.env` file instead.
+ENV_MANAGED = {
+    "ServerName": "SERVER_NAME",
+    "ServerDescription": "SERVER_DESCRIPTION",
+    "AdminPassword": "ADMIN_PASSWORD",
+    "ServerPassword": "SERVER_PASSWORD",
+    "PublicPort": "PORT",
+    "PublicIP": "PUBLIC_IP",
+    "ServerPlayerMaxNum": "PLAYERS",
+    "RCONEnabled": "RCON_ENABLED",
+    "RCONPort": "RCON_PORT",
+    "RESTAPIEnabled": "REST_API_ENABLED",
+    "RESTAPIPort": "REST_API_PORT",
+    "Region": "REGION",
+    "bUseAuth": "USE_AUTH",
+    "BanListURL": "BAN_LIST_URL",
+}
+
 
 def read_ini(path: Optional[str] = None, reveal: bool = False) -> dict[str, Any]:
     """
@@ -156,10 +187,12 @@ def read_ini(path: Optional[str] = None, reveal: bool = False) -> dict[str, Any]
             key = key.strip()
             value_type, value = _classify(raw)
             entry = {"value": value, "type": value_type, "raw": raw.strip()}
+            if key in ENV_MANAGED:
+                entry["envManaged"] = ENV_MANAGED[key]
             if key in SECRET_KEYS and not reveal:
                 entry = {
+                    **entry,
                     "value": "",
-                    "type": value_type,
                     "raw": "",
                     "secret": True,
                     # Whether one is configured at all is safe to say, and an

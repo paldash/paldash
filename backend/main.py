@@ -32,7 +32,9 @@ import editschema
 import gamedata
 import lifecycle
 import palcheck
+import palclone
 import policy as policy_module
+import privacy
 import reports
 import roles as roles_module
 import savecache
@@ -459,17 +461,118 @@ def refresh(force: bool = Query(True)) -> dict[str, Any]:
     return savecache.request_parse(force=force)
 
 
+# ─── Map privacy (each player, about themselves) ─────────
+
+
+class PrivacyRequest(BaseModel):
+    mode: str
+
+
+@app.get("/api/privacy/hidden")
+def get_hidden_uids(request: Request) -> dict[str, list[str]]:
+    """
+    Player uids this session must not be shown, by category.
+
+    Exists for the Next.js proxy: live positions come from the game's REST API
+    rather than from a save, so the proxy has to apply the same rules or a hidden
+    player would vanish from the map and keep showing as a live dot on it.
+
+    Returning ids the caller may not see is safe — they are already known to
+    anyone who can read the roster, and the alternative is the proxy shipping
+    every player's position and filtering in the browser.
+    """
+    authz.require(request, roles_module.VIEW_BASIC)
+    hidden = privacy.hidden_uids(*_viewer(request))
+    return {key: sorted(value) for key, value in hidden.items()}
+
+
+@app.get("/api/privacy/me")
+def get_my_privacy(request: Request) -> dict[str, Any]:
+    """This account's own map-privacy setting, and what the choices mean."""
+    user = authz.require_user(request, roles_module.VIEW_BASIC)
+    return {
+        "mode": privacy.get_mode(user["username"]),
+        "modes": privacy.describe_modes(),
+        "role": user["role"],
+        # Without a linked character there is nothing on the map to hide, so the
+        # UI can say that rather than offering a setting with no effect.
+        "linkedToPlayer": bool(user.get("steam_uid")),
+        "hidesFrom": [
+            name for name in roles_module.ROLES
+            if privacy.conceals(name, user["role"], "player")
+        ],
+    }
+
+
+@app.post("/api/privacy/me")
+def set_my_privacy(req: PrivacyRequest, request: Request) -> dict[str, Any]:
+    """
+    Change this account's own setting. Nobody can set anyone else's.
+
+    Deliberately not behind a management capability: it is the player's own
+    visibility, and an Owner overriding it would defeat the point. Owners can
+    still see everyone below them, which is what oversight actually needs.
+    """
+    user = authz.require_user(request, roles_module.VIEW_BASIC)
+    try:
+        mode = privacy.set_mode(user["username"], req.mode)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+    audit.record(
+        audit.USER_UPDATE, username=user["username"], role=user["role"],
+        target=f"privacy:{user['username']}", detail={"mode": mode},
+        ip=authz.client_ip(request),
+    )
+    return {"mode": mode, "ok": True}
+
+
 # ─── Save data (read-only) ───────────────────────────────
 
 
+def _viewer(request: Request) -> tuple[str, str]:
+    """(role, username) for privacy filtering. A guest has no username."""
+    user = authz.current_user(request)
+    if not user:
+        return "guest", ""
+    return str(user.get("role") or "guest"), str(user.get("username") or "")
+
+
 @app.get("/api/bases")
-def get_bases() -> list[dict]:
-    return savecache.get_section("bases")
+def get_bases(request: Request) -> list[dict]:
+    """
+    Base camps, minus any a player has chosen to hide from this viewer.
+
+    Bases belong to guilds, so the filter needs the guild roster to decide
+    whether a hidden player is alone in theirs — see `privacy.filter_bases`.
+    """
+    bases = savecache.get_section("bases")
+    hidden = privacy.hidden_uids(*_viewer(request))
+    if not hidden["bases"] and not hidden["guilds"]:
+        return bases
+    return privacy.filter_bases(
+        bases, savecache.get_section("guilds"), hidden["bases"], hidden["guilds"]
+    )
 
 
 @app.get("/api/guilds")
-def get_guilds() -> list[dict]:
-    return savecache.get_section("guilds")
+def get_guilds(request: Request) -> list[dict]:
+    """Guilds, with hidden members removed and fully hidden guilds dropped."""
+    guilds = savecache.get_section("guilds")
+    hidden = privacy.hidden_uids(*_viewer(request))
+    if not hidden["players"] and not hidden["guilds"]:
+        return guilds
+
+    out = []
+    for guild in guilds:
+        members = guild.get("members") or []
+        if any(privacy.normalise_uid(m.get("uid")) in hidden["guilds"] for m in members):
+            continue          # guild-wide privacy: the whole guild is concealed
+        out.append({
+            **guild,
+            "members": privacy.filter_players(members, hidden["players"]),
+        })
+    return out
 
 
 @app.get("/api/pals")
@@ -491,6 +594,9 @@ def get_pals(owner: Optional[str] = None) -> list[dict]:
                 "paldeckNumber": details["paldeckNumber"],
                 "passiveSkillNames": [
                     gamedata.passive_name(p) for p in (pal.get("passiveSkills") or [])
+                ],
+                "activeSkillNames": [
+                    gamedata.skill_name(w) for w in (pal.get("activeSkills") or [])
                 ],
             }
         )
@@ -547,6 +653,94 @@ def get_fast_travel_points() -> dict[str, Any]:
         raise HTTPException(503, str(e))
 
 
+@app.get("/api/world/discoveries")
+def get_discoveries(request: Request, uid: str = Query("")) -> dict[str, Any]:
+    """
+    Fast-travel points and effigies, each marked found or not found.
+
+    Both lists come from bundled game data, so the dashboard knows where all 174
+    points and all 396 effigies are regardless of what anyone has discovered. The
+    save contributes only the *found* half, keyed by the same ids — fast-travel
+    by its hex key, effigies by the instance GUID in
+    `RelicObtainForInstanceFlag`.
+
+    Whether undiscovered locations are actually sent is the operator's call
+    (`discoveryVisibility` — a role threshold, or `everyone`/`nobody`).
+    Filtering happens **here, server-side**: a UI that received everything and
+    hid some of it would be handing out the answers in the network tab.
+    """
+    user = authz.require_user(request, roles_module.VIEW_BASIC)
+    visibility = policy_module.load_policy().get(
+        "discoveryVisibility", policy_module.DEFAULT_DISCOVERY
+    )
+    may_see_undiscovered = policy_module.may_see_undiscovered(user["role"], visibility)
+
+    # Whose discoveries to fold in. A caller without VIEW_DETAIL may only ask
+    # about themselves, so a Player cannot enumerate someone else's progress.
+    #
+    # `steam_uid` on the account is what links a login to a character. An account
+    # without one has no "own" progress to show — it is not an error, it just
+    # means every location reads as undiscovered for them.
+    players = get_players()
+    own_uid = str(user.get("steam_uid") or "")
+    can_see_others = roles_module.VIEW_DETAIL in roles_module.capabilities_for(user["role"])
+
+    if uid and not can_see_others and uid != own_uid:
+        raise HTTPException(403, "You can only view your own discoveries")
+
+    if uid:
+        chosen = [p for p in players if str(p.get("uid") or "") == uid]
+        if not chosen:
+            raise HTTPException(404, f"No player {uid}")
+    else:
+        chosen = players if can_see_others else [
+            p for p in players if str(p.get("uid") or "") == own_uid
+        ]
+
+    found_travel: set[str] = set()
+    found_effigies: set[str] = set()
+    for player in chosen:
+        progress = player.get("progress") or {}
+        found_travel.update(
+            str(k).upper() for k in ((progress.get("fastTravel") or {}).get("keys") or [])
+        )
+        found_effigies.update(
+            str(k).upper() for k in ((progress.get("effigies") or {}).get("keys") or [])
+        )
+
+    def mark(entries: list[dict], key_field: str, found: set[str]) -> list[dict]:
+        out = []
+        for entry in entries:
+            discovered = str(entry.get(key_field, "")).upper() in found
+            if not discovered and not may_see_undiscovered:
+                continue
+            out.append({**entry, "discovered": discovered})
+        return out
+
+    try:
+        travel = mark(gamedata.fast_travel_points(), "key", found_travel)
+        effigies = mark(gamedata.effigies(), "guid", found_effigies)
+    except gamedata.GameDataUnavailable as e:
+        raise HTTPException(503, str(e))
+
+    return {
+        "scope": uid or ("all" if can_see_others else "self"),
+        "linkedToPlayer": bool(own_uid) or can_see_others,
+        "discoveryVisibility": visibility,
+        "showsUndiscovered": may_see_undiscovered,
+        "fastTravel": {
+            "total": len(gamedata.fast_travel_points()),
+            "found": len(found_travel),
+            "points": travel,
+        },
+        "effigies": {
+            "total": len(gamedata.effigies()),
+            "found": len(found_effigies),
+            "points": effigies,
+        },
+    }
+
+
 @app.get("/api/world/reference")
 def get_reference_data() -> dict[str, Any]:
     """Exact Palworld 1.0 totals, computed from the game's own data tables."""
@@ -589,6 +783,19 @@ def get_item_totals(limit: int = Query(500, ge=1, le=5000)) -> dict[str, Any]:
 
 
 @app.get("/api/players")
+def list_players(request: Request) -> list[dict]:
+    """
+    The player roster, minus anyone hiding from this viewer.
+
+    `get_players` stays unfiltered because other endpoints aggregate over it —
+    progress totals and discovery denominators must count everyone, and both are
+    gated above the ranks privacy can conceal from anyway.
+    """
+    return privacy.filter_players(
+        get_players(), privacy.hidden_uids(*_viewer(request))["players"]
+    )
+
+
 def get_players() -> list[dict]:
     """
     Players from Level.sav, enriched with their own .sav where available.
@@ -1757,6 +1964,102 @@ def apply_slot_edit(
             "slotsChanged": result["slotsChanged"],
             "itemsBefore": result["itemsBefore"],
             "itemsAfter": result["itemsAfter"],
+            "backupId": result["backupId"],
+        },
+        ip=ip,
+    )
+    return result
+
+
+# ─── Pal duplication ─────────────────────────────────────
+
+
+class CloneRequest(BaseModel):
+    instanceId: str
+    containerId: str
+    count: int = 1
+    # An optional edit applied to each clone, validated exactly like any other.
+    changes: Optional[dict] = None
+
+
+def _clone_gvas():
+    """
+    Level.sav parsed with character-container slots decoded.
+
+    The clone needs `CharacterContainerSaveData.Slots`, which only the item
+    property set decodes — without it there is nothing to append a slot to.
+    """
+    from savefiles import get_level_sav_path
+
+    level_path = get_level_sav_path()
+    if not level_path:
+        raise HTTPException(503, "Level.sav not found")
+    gvas = load_gvas(level_path, include_items=True)
+    if gvas is None:
+        raise HTTPException(503, "Could not parse Level.sav")
+    return gvas
+
+
+@app.get("/api/edit/pal-containers")
+def list_pal_containers(request: Request) -> dict:
+    """Character containers with capacity and free space — where a clone can go."""
+    authz.require(request, roles_module.SAVE_EDIT_FULL)
+    return {"containers": palclone.describe_containers(_clone_gvas())}
+
+
+@app.post("/api/edit/pal/clone/preview")
+def preview_clone(req: CloneRequest, request: Request) -> dict:
+    """Dry-run a clone. Read-only; returns the plan and a hash."""
+    authz.require(request, roles_module.SAVE_EDIT_FULL)
+    return {
+        **palclone.plan_clone(
+            _clone_gvas(), req.instanceId, req.containerId, req.count, req.changes
+        ),
+        "applied": False,
+    }
+
+
+@app.post("/api/edit/pal/clone")
+def clone_pal(req: CloneRequest, request: Request, planHash: str = Query(...)) -> dict:
+    """
+    Create clones of a Pal in a chosen container.
+
+    The only operation here that *adds* records rather than overwriting fields,
+    so its verification counts records: the character map and the target
+    container must each grow by exactly `count`, every new id must resolve to its
+    slot, and no other container may change length.
+    """
+    user = authz.require_user(request, roles_module.SAVE_EDIT_FULL)
+    ip = authz.client_ip(request)
+
+    def failed(message: str, status: int):
+        audit.record(
+            audit.SAVE_EDIT, username=user["username"], role=user["role"],
+            target=f"clone:{req.instanceId}", detail=message, ip=ip,
+            result=audit.RESULT_FAILED,
+        )
+        return HTTPException(status, message)
+
+    try:
+        result = palclone.apply_clone(
+            req.instanceId, req.containerId, req.count, req.changes,
+            expected_plan_hash=planHash,
+        )
+    except ServerRunningError as e:
+        raise failed(str(e), 423)
+    except palclone.CloneError as e:
+        raise failed(str(e), 409)
+    except Exception as e:  # noqa: BLE001
+        logger.exception("Pal clone failed")
+        raise failed(f"Pal clone failed: {e}", 500)
+
+    audit.record(
+        audit.SAVE_EDIT, username=user["username"], role=user["role"],
+        target=f"clone:{req.instanceId}",
+        detail={
+            "containerId": result["containerId"],
+            "count": result["count"],
+            "newInstanceIds": result["newInstanceIds"],
             "backupId": result["backupId"],
         },
         ip=ip,

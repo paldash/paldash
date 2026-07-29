@@ -54,10 +54,31 @@ PAL_PROPERTY_MAP = {
     "ivs.defense": "Talent_Defense",
 }
 
+# Schema field name -> the ArrayProperty in the save.
+#
+# These write a different shape from the scalars above: the values live at
+# `node["value"]["values"]` and the property carries an `array_type` that must
+# not change. `PassiveSkillList` is a NameProperty of bare ids; `EquipWaza` is an
+# EnumProperty whose values all carry the `EPalWazaID::` prefix. The API speaks
+# bare ids for both, because that is how the bundled tables are keyed, and the
+# prefix is re-attached here on the way in.
+PAL_LIST_PROPERTY_MAP = {
+    "passiveSkills": "PassiveSkillList",
+    "activeSkills": "EquipWaza",
+}
+
+# Properties whose stored values carry an enum prefix the API strips.
+LIST_PREFIXES = {"EquipWaza": editschema.WAZA_PREFIX}
+
 # Fields the editor refuses to touch even though the schema can describe them.
 # Species and gender rewrite what a Pal *is*, which cascades into the Paldeck,
 # breeding eligibility and the palbox UI. Out of scope until there is a reason.
-PAL_READ_ONLY = ("speciesId", "gender", "passiveSkills")
+#
+# `MasteredWaza` is not offered at all: it is absent on 1,563 of the reference
+# world's 1,905 Pals, and `_write_list_property` refuses to invent a property
+# rather than guess its array_type. Equipped moves are editable; the learned-move
+# pool is not.
+PAL_READ_ONLY = ("speciesId", "gender")
 
 # A player is stored across TWO files, which is the whole complication:
 #
@@ -101,6 +122,17 @@ def _save_parameter(entry: dict) -> Optional[dict]:
     return obj if isinstance(obj, dict) else None
 
 
+def _read_list(obj: dict, prop: str) -> list[str]:
+    """An ArrayProperty's values, with any enum prefix stripped."""
+    values = _v(obj, prop, "value", "values", default=[]) or []
+    prefix = LIST_PREFIXES.get(prop, "")
+    out = []
+    for value in values:
+        text = str(value)
+        out.append(text[len(prefix):] if prefix and text.startswith(prefix) else text)
+    return out
+
+
 def read_pal(obj: dict) -> dict:
     """The editable view of one Pal, in schema field names."""
     ivs = {}
@@ -108,13 +140,19 @@ def read_pal(obj: dict) -> dict:
         if field.startswith("ivs.") and prop in obj:
             ivs[field.split(".", 1)[1]] = _num(obj, prop, 0)
 
-    return {
+    view = {
         "nickname": str(_prop(obj, "NickName", "") or ""),
         "level": _num(obj, "Level", 1),
         "exp": _num(obj, "Exp", 0),
         "rank": _num(obj, "Rank", 1) or 1,
         "ivs": ivs,
     }
+    # Absent means absent, matching the scalar rule: a list this save does not
+    # carry cannot be written, so it must not appear editable.
+    for field, prop in PAL_LIST_PROPERTY_MAP.items():
+        if prop in obj:
+            view[field] = _read_list(obj, prop)
+    return view
 
 
 def _write_property(obj: dict, prop: str, value: Any) -> None:
@@ -143,6 +181,49 @@ def _write_property(obj: dict, prop: str, value: Any) -> None:
         node["value"] = value       # IntProperty / StrProperty
 
 
+def _write_list_property(obj: dict, prop: str, values: list) -> None:
+    """
+    Replace an ArrayProperty's values in place.
+
+    Same principle as `_write_property`: write into the shape that is already
+    there. `array_type` is left exactly as found — a `PassiveSkillList` rewritten
+    as an EnumProperty, or an `EquipWaza` as a NameProperty, still serialises and
+    is still wrong.
+    """
+    if prop not in obj:
+        raise EditError(
+            f"This save has no {prop!r} stored, so there is no shape to write into. "
+            "Creating the property would mean guessing its array type, which is how "
+            "a save stops loading."
+        )
+
+    node = obj[prop]
+    container = node.get("value") if isinstance(node, dict) else None
+    if not isinstance(container, dict) or "values" not in container:
+        raise EditError(f"{prop!r} is not in the expected array-property shape")
+
+    prefix = LIST_PREFIXES.get(prop, "")
+    container["values"] = [
+        f"{prefix}{v}" if prefix and not str(v).startswith(prefix) else str(v)
+        for v in values
+    ]
+
+
+def _apply_pal_change(obj: dict, change: dict) -> None:
+    """
+    Write one planned Pal change into the save tree.
+
+    Both the single and the batch writer go through here so the scalar/list
+    routing exists once — a batch that forgot lists would silently skip every
+    skill edit in it.
+    """
+    field = change["field"]
+    if field in PAL_LIST_PROPERTY_MAP:
+        _write_list_property(obj, PAL_LIST_PROPERTY_MAP[field], change["after"])
+    else:
+        _write_property(obj, PAL_PROPERTY_MAP[field], change["after"])
+
+
 def plan_pal_edit(obj: dict, changes: dict) -> dict:
     """
     Validate and diff a proposed Pal edit. Pure — no writes.
@@ -164,7 +245,8 @@ def plan_pal_edit(obj: dict, changes: dict) -> dict:
             "changes": [], "planHash": "",
         }
 
-    unmapped = [f for f in changes if f not in PAL_PROPERTY_MAP]
+    writable = {**PAL_PROPERTY_MAP, **PAL_LIST_PROPERTY_MAP}
+    unmapped = [f for f in changes if f not in writable]
     if unmapped:
         return {
             "ok": False,
@@ -179,13 +261,13 @@ def plan_pal_edit(obj: dict, changes: dict) -> dict:
     # so nothing upstream notices until the write is already inside
     # `guarded_save_write`. Catching it here means no pointless backup and, for a
     # batch, no discovering it 140 Pals in.
-    missing = [f for f in changes if PAL_PROPERTY_MAP[f] not in obj]
+    missing = [f for f in changes if writable[f] not in obj]
     if missing:
         return {
             "ok": False,
             "problems": [{
                 "field": f,
-                "problem": f"This Pal has no {PAL_PROPERTY_MAP[f]!r} stored, so there is no "
+                "problem": f"This Pal has no {writable[f]!r} stored, so there is no "
                            "shape to write into. It appears once the game itself sets the "
                            "value — creating it would mean guessing its type.",
             } for f in missing],
@@ -378,7 +460,7 @@ def apply_pal_batch(
         for entry in plan["pals"]:
             obj = found[entry["instanceId"]]
             for change in entry["changes"]:
-                _write_property(obj, PAL_PROPERTY_MAP[change["field"]], change["after"])
+                _apply_pal_change(obj, change)
 
         encoded = compress_gvas_to_sav(gvas.write(PALWORLD_CUSTOM_PROPERTIES), save_type)
         atomic_write(level_path, encoded)
@@ -594,7 +676,7 @@ def apply_pal_edit(
             )
 
         for change in plan["changes"]:
-            _write_property(obj, PAL_PROPERTY_MAP[change["field"]], change["after"])
+            _apply_pal_change(obj, change)
 
         encoded = compress_gvas_to_sav(gvas.write(PALWORLD_CUSTOM_PROPERTIES), save_type)
         atomic_write(level_path, encoded)

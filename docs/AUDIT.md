@@ -66,19 +66,19 @@ than attempting all of it.
 | Save parsing engine | 95% | ✅ Phase 5: per-base container linkage, exact rather than spatial |
 | Corruption safety | 85% | Fail-closed, atomic, verified; no audit trail |
 | Backup & restore | 90% | ✅ Phase 4: verified archives, retention, schedule, preview, browser. No cloud targets |
-| Save editing | 90% | ✅ P5 sorting, ✅ P6 import, ✅ P7 complete: Pal, player, bulk and slot editors + illegal-Pal repair, all with UI. Pal cloning and skill lists remain |
-| Live map | 80% | ✅ Phase 2: both maps ship, 174 fast-travel POIs, layers/search. ✅ World Tree extent now derived from the game's World Partition grid; orientation still unverified |
-| Reference data | 90% | ✅ Phase 1: full 1.0 DB bundled at 215 KB; icons still not shipped |
+| Save editing | 95% | ✅ P5 sorting, ✅ P6 import, ✅ P7 complete: Pal, player, bulk and slot editors, illegal-Pal repair, skill lists and Pal cloning, all with UI |
+| Live map | 85% | ✅ Both maps, 174 fast-travel POIs, 396 effigies with GUIDs, layers/search. ✅ World Tree extent derived from the streaming grid. Discoveries API done; map layer for it not wired |
+| Reference data | 95% | ✅ Full 1.0 DB at 215 KB + 396 effigies at 14 KB, extracted from the pak. Icons still not shipped |
 | Auth & accounts | 85% | ✅ Phase 3: accounts, scrypt, revocable sessions, throttling, audit log. No 2FA/reset flow |
-| Permissions | 90% | ✅ Phase 3: 7 role presets, two-gate model, route allowlist |
+| Permissions | 92% | ✅ 7 role presets, two-gate model, route allowlist, configurable discovery visibility |
 | Server dashboard | 30% | REST status; no metrics history, no admin commands |
 | Docker | 80% | Genuinely good; needs multi-image validation |
 | Import / export | 85% | ✅ Export complete; container import writes, verifies and rolls back. Slot editing reuses it. Player/Pal *file* imports still refused |
 | Migration tools | 0% | Not started |
-| Testing | 92% | ✅ 594 backend + 58 frontend tests |
-| Documentation | 70% | ✅ Phase 0: `.gitignore` fixed, AGENTS.md written |
+| Testing | 95% | ✅ 660 backend + 61 frontend tests |
+| Documentation | 85% | ✅ README rewritten, AGENTS.md, FEATURES.md, LICENSING.md, GPL-3.0 LICENSE |
 | Reports / export | 60% | ✅ Phase 5: 4 reports × CSV/JSON/TXT. Save import/export is Phase 6 |
-| **Weighted total** | **~94%** | 32% → 36% (P0) → 43% (P1) → 50% (P2) → 62% (P3) → 70% (P4) → 76% (P5) → 79% (P6 export) → 82% (P6 import gate) → 85% (P6 complete) → 87% (P7 schema) → 89% (P7 Pal editor) → 90% (P7 UI) → 92% (P7 player editor) → 94% (P7 complete) |
+| **Weighted total** | **~96%** | 32% → 36% (P0) → 43% (P1) → 50% (P2) → 62% (P3) → 70% (P4) → 76% (P5) → 79% (P6 export) → 82% (P6 import gate) → 85% (P6 complete) → 87% (P7 schema) → 89% (P7 Pal editor) → 90% (P7 UI) → 92% (P7 player editor) → 94% (P7 bulk/slot/repair) → 95% (P7 skills + cloning) → 96% (pak extraction, effigies, discoveries) |
 
 ---
 
@@ -772,6 +772,44 @@ problem: 124/124 distinct passives on the reference world are known, max 4, no d
 **The reference world now scans clean: 0 violations across 1,905 Pals**, which is the
 strongest available evidence the bounds describe the game rather than merely agreeing with
 themselves.
+
+**Skill editing and Pal cloning closed it out (2026-07-29).**
+
+**Skills are ordinary fields now**, not a separate feature — `passiveSkills` came
+out of `PAL_READ_ONLY` and `activeSkills` joined it, so the existing Pal editor,
+the bulk editor and the batch writer all handle them without new endpoints. What
+they needed was a second *write shape*: ArrayProperties keep their values at
+`node["value"]["values"]` and carry an `array_type` that must not change.
+`_apply_pal_change` is the single place that routes scalar vs list, so a batch
+cannot silently skip skill edits.
+
+Bounds are measured, as everywhere else: **at most 3 equipped moves** (never more
+across 1,905 Pals) and 4 passives, every id checked against the bundled tables.
+`EquipWaza` stores an `EPalWazaID::` prefix the tables do not use, so the API
+speaks bare ids and the prefix is re-attached only on write. `MasteredWaza` is
+not offered — absent on 1,563 of 1,905 Pals, and inventing an ArrayProperty means
+guessing its type.
+
+**Cloning got its own module** (`backend/palclone.py`), because it is the only
+code in the project that *creates* save records rather than overwriting fields —
+the same separation principle as `saveimport` vs `saveexport`.
+
+A Pal is two records that must agree: a `CharacterSaveParameterMap` entry whose
+`SaveParameter.SlotId` names a container and index, and a
+`CharacterContainerSaveData` slot whose `RawData.instance_id` names the Pal. Miss
+either and the result is a ghost.
+
+The finding that shaped it: **there are no empty slots to fill.** 23 character
+containers, 1,905 slot entries, 1,905 Pals. `SlotNum` is capacity (960 for a
+palbox) while the array holds only occupied slots, so adding a Pal *appends*.
+New entries are deep-copied from existing ones rather than constructed, because
+the slot carries `CustomVersionData` and a `permission_tribe_id` whose right
+values are whatever this save already uses.
+
+Verification counts records rather than comparing values: both arrays must grow
+by exactly `count`, every new id must resolve to its slot, and no other container
+may change length. Cloning a player is refused, and there is no "find room
+anywhere" mode.
 
 **Risk: high.** **Depends on: Phases 0, 3, 4, 6.**
 *This is where corruption risk actually lives. It was not rushed.*

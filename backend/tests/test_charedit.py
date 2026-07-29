@@ -469,3 +469,153 @@ def test_spread_gives_each_pal_its_own_dict():
     spread = charedit.spread_changes(["a", "b"], {"level": 40}, auto_exp=True)
     spread["a"]["rank"] = 5
     assert "rank" not in spread["b"]
+
+
+# ─── Skill editing ───────────────────────────────────────────────
+#
+# Lists write a different shape from scalars: values live at
+# `node["value"]["values"]`, and `array_type` must survive untouched. A
+# PassiveSkillList rewritten as an EnumProperty still serialises and is wrong.
+
+
+def name_array(values):
+    return {"array_type": "NameProperty", "id": None,
+            "value": {"values": list(values)}, "type": "ArrayProperty"}
+
+
+def enum_array(values):
+    return {"array_type": "EnumProperty", "id": None,
+            "value": {"values": list(values)}, "type": "ArrayProperty"}
+
+
+def skilled_pal(passives=("Legend",), waza=("PowerShot", "MudShot"), **kw):
+    obj = pal_object(**kw)
+    obj["PassiveSkillList"] = name_array(passives)
+    obj["EquipWaza"] = enum_array(f"EPalWazaID::{w}" for w in waza)
+    return obj
+
+
+def test_reads_skills_with_the_enum_prefix_stripped():
+    """
+    The save stores `EPalWazaID::PowerShot`; the bundled activeSkills table is
+    keyed by `PowerShot`. The API speaks the table's language.
+    """
+    view = charedit.read_pal(skilled_pal(waza=("PowerShot", "AirCanon")))
+    assert view["activeSkills"] == ["PowerShot", "AirCanon"]
+    assert view["passiveSkills"] == ["Legend"]
+
+
+def test_absent_skill_lists_are_absent_from_the_view():
+    obj = pal_object()
+    view = charedit.read_pal(obj)
+    assert "passiveSkills" not in view and "activeSkills" not in view
+
+
+def test_writing_active_skills_restores_the_prefix():
+    obj = skilled_pal()
+    charedit._write_list_property(obj, "EquipWaza", ["IceMissile", "Thunderbolt"])
+
+    assert obj["EquipWaza"]["value"]["values"] == [
+        "EPalWazaID::IceMissile", "EPalWazaID::Thunderbolt",
+    ]
+    assert obj["EquipWaza"]["array_type"] == "EnumProperty", "array_type must not change"
+
+
+def test_writing_an_already_prefixed_value_does_not_double_it():
+    obj = skilled_pal()
+    charedit._write_list_property(obj, "EquipWaza", ["EPalWazaID::IceMissile"])
+    assert obj["EquipWaza"]["value"]["values"] == ["EPalWazaID::IceMissile"]
+
+
+def test_passives_are_written_without_a_prefix():
+    obj = skilled_pal()
+    charedit._write_list_property(obj, "PassiveSkillList", ["Swift", "Runner"])
+
+    assert obj["PassiveSkillList"]["value"]["values"] == ["Swift", "Runner"]
+    assert obj["PassiveSkillList"]["array_type"] == "NameProperty"
+
+
+def test_an_absent_list_property_is_refused_not_invented():
+    obj = pal_object()
+    with pytest.raises(charedit.EditError, match="no 'EquipWaza' stored"):
+        charedit._write_list_property(obj, "EquipWaza", ["PowerShot"])
+
+
+def test_mastered_waza_is_not_offered():
+    """
+    Absent on 1,563 of the reference world's 1,905 Pals, so it cannot be written
+    without inventing the property. Equipped moves are editable; the learned pool
+    is not.
+    """
+    assert "MasteredWaza" not in charedit.PAL_LIST_PROPERTY_MAP.values()
+
+
+def test_passive_skills_are_no_longer_read_only():
+    assert "passiveSkills" not in charedit.PAL_READ_ONLY
+    assert set(charedit.PAL_READ_ONLY) == {"speciesId", "gender"}
+
+
+# ─── Skills through the planner ──────────────────────────────────
+
+
+def test_planning_a_skill_change_produces_a_diff():
+    plan = charedit.plan_pal_edit(skilled_pal(), {"activeSkills": ["IceMissile"]})
+
+    assert plan["ok"], plan["problems"]
+    assert plan["changes"][0]["field"] == "activeSkills"
+    assert plan["changes"][0]["before"] == ["PowerShot", "MudShot"]
+    assert plan["changes"][0]["after"] == ["IceMissile"]
+
+
+def test_too_many_equipped_skills_is_refused():
+    """Measured: across 1,905 Pals, EquipWaza never holds more than 3."""
+    plan = charedit.plan_pal_edit(
+        skilled_pal(), {"activeSkills": ["PowerShot", "MudShot", "AirCanon", "IceMissile"]}
+    )
+    assert not plan["ok"]
+    assert "at most 3" in plan["problems"][0]["problem"]
+
+
+def test_unknown_active_skill_is_refused():
+    plan = charedit.plan_pal_edit(skilled_pal(), {"activeSkills": ["SuperMegaCheatBeam"]})
+    assert not plan["ok"]
+    assert "unknown active skill" in plan["problems"][0]["problem"]
+
+
+def test_duplicate_active_skills_are_refused():
+    plan = charedit.plan_pal_edit(skilled_pal(), {"activeSkills": ["PowerShot", "PowerShot"]})
+    assert not plan["ok"]
+    assert "duplicate" in plan["problems"][0]["problem"]
+
+
+def test_too_many_passives_is_refused():
+    plan = charedit.plan_pal_edit(
+        skilled_pal(), {"passiveSkills": ["Legend", "Swift", "Runner", "Nimble", "Lucky"]}
+    )
+    assert not plan["ok"]
+
+
+def test_clearing_a_skill_list_is_allowed():
+    plan = charedit.plan_pal_edit(skilled_pal(), {"activeSkills": []})
+    assert plan["ok"], plan["problems"]
+    assert plan["changes"][0]["after"] == []
+
+
+def test_a_skill_edit_on_a_pal_without_the_property_is_refused_at_plan_time():
+    """No pointless backup, and in a batch no discovering it 140 Pals in."""
+    plan = charedit.plan_pal_edit(pal_object(), {"activeSkills": ["PowerShot"]})
+    assert not plan["ok"]
+    assert "no 'EquipWaza' stored" in plan["problems"][0]["problem"]
+
+
+def test_skills_route_through_the_shared_change_applier():
+    """
+    Both the single and the batch writer go through `_apply_pal_change`. A batch
+    that forgot lists would silently skip every skill edit in it.
+    """
+    obj = skilled_pal()
+    charedit._apply_pal_change(obj, {"field": "activeSkills", "after": ["AirCanon"]})
+    charedit._apply_pal_change(obj, {"field": "level", "after": 33})
+
+    assert obj["EquipWaza"]["value"]["values"] == ["EPalWazaID::AirCanon"]
+    assert obj["Level"] == {"value": {"type": "None", "value": 33}}

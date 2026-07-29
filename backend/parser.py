@@ -328,6 +328,12 @@ def extract_characters(gvas: Any) -> tuple[list[dict], list[dict]]:
         gender = "Female" if gender_raw.endswith("Female") else "Male" if gender_raw else "Unknown"
 
         passives = _v(obj, "PassiveSkillList", "value", "values", default=[]) or []
+        # `EquipWaza` is an EnumProperty whose values all carry an `EPalWazaID::`
+        # prefix; the bundled activeSkills table is keyed without it. Strip here
+        # so everything downstream — names, the editor, validation — speaks one
+        # language. `MasteredWaza` is deliberately not read: it is absent on
+        # 1,563 of the reference world's 1,905 Pals.
+        equipped = _v(obj, "EquipWaza", "value", "values", default=[]) or []
 
         pals.append(
             {
@@ -346,6 +352,9 @@ def extract_characters(gvas: Any) -> tuple[list[dict], list[dict]]:
                     label: _num(obj, prop, 0) for label, prop in _TALENTS if prop in obj
                 },
                 "passiveSkills": [str(p) for p in passives],
+                "activeSkills": [
+                    str(w).split("::", 1)[-1] for w in equipped
+                ] if "EquipWaza" in obj else None,
                 "containerId": str(_slot(obj, "ContainerId", "value", "ID", "value") or ""),
                 "slotIndex": int(_slot(obj, "SlotIndex", "value") or 0),
                 "guildId": str(raw.get("group_id") or ""),

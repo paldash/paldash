@@ -45,6 +45,10 @@ CREATE TABLE IF NOT EXISTS users (
     steam_uid           TEXT,
     display_name        TEXT,
     disabled            INTEGER NOT NULL DEFAULT 0,
+    -- Per-player map privacy, set by the player about themselves. Defaults to
+    -- the most private option so nobody is exposed before they know the setting
+    -- exists. See privacy.py.
+    map_privacy         TEXT    NOT NULL DEFAULT 'guild',
     must_change_password INTEGER NOT NULL DEFAULT 0,
     created_at          TEXT    NOT NULL,
     last_login          TEXT
@@ -126,10 +130,28 @@ def transaction() -> Iterator[sqlite3.Connection]:
         raise
 
 
+# Columns added after the first release. SQLite has no "ADD COLUMN IF NOT
+# EXISTS", and re-running a plain ALTER raises, so each is applied only when
+# absent. Keeping this as data rather than a migration framework is deliberate:
+# the whole schema is one file and a handful of columns.
+_ADDED_COLUMNS: tuple[tuple[str, str, str], ...] = (
+    ("users", "map_privacy", "TEXT NOT NULL DEFAULT 'guild'"),
+)
+
+
+def _apply_column_migrations(conn: sqlite3.Connection) -> None:
+    for table, column, definition in _ADDED_COLUMNS:
+        existing = {row["name"] for row in conn.execute(f"PRAGMA table_info({table})")}
+        if column not in existing:
+            conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
+            logger.info("Added column %s.%s", table, column)
+
+
 def init() -> None:
     """Create the schema. Safe to call repeatedly."""
     with transaction() as conn:
         conn.executescript(SCHEMA)
+        _apply_column_migrations(conn)
     logger.info("Database ready at %s", DB_PATH)
 
 

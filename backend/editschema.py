@@ -52,6 +52,16 @@ MAX_RANK = 5
 MAX_PASSIVES = 4
 MAX_NICKNAME = 32
 
+# Equipped active moves. Measured, not assumed: across 1,905 Pals the
+# `EquipWaza` list holds 3 at most (1,221 Pals), and never more.
+MAX_EQUIPPED_SKILLS = 3
+
+# `EquipWaza` stores moves as an EnumProperty with this prefix — every one of
+# the 216 distinct values on the reference world carries it. The API speaks bare
+# ids, because that is what the bundled `activeSkills` table is keyed by, and
+# `charedit` re-attaches the prefix on write.
+WAZA_PREFIX = "EPalWazaID::"
+
 # The IVs Palworld 1.0 actually stores. See the module docstring.
 IV_FIELDS = ("hp", "shot", "defense")
 
@@ -182,6 +192,30 @@ def _passives_problem(value: Any) -> Optional[str]:
     return None
 
 
+def strip_waza_prefix(value: str) -> str:
+    """`EPalWazaID::PowerShot` -> `PowerShot`. Idempotent."""
+    text = str(value)
+    return text[len(WAZA_PREFIX):] if text.startswith(WAZA_PREFIX) else text
+
+
+def _active_skills_problem(value: Any) -> Optional[str]:
+    if not isinstance(value, list):
+        return "must be a list"
+    if len(value) > MAX_EQUIPPED_SKILLS:
+        return f"a Pal can equip at most {MAX_EQUIPPED_SKILLS} active skills"
+
+    bare = [strip_waza_prefix(v) for v in value if isinstance(v, str)]
+    if len(bare) != len(value):
+        return "every active skill must be text"
+    if len(set(bare)) != len(bare):
+        return "duplicate active skills"
+
+    unknown = [b for b in bare if not gamedata._lookup("activeSkills", b)]
+    if unknown:
+        return f"unknown active skill(s): {', '.join(unknown[:3])}"
+    return None
+
+
 def _species_problem(value: Any) -> Optional[str]:
     if not isinstance(value, str) or not value:
         return "must be a species id"
@@ -218,6 +252,11 @@ PAL_FIELDS: dict[str, Field] = {
     "passiveSkills": Field(
         "passiveSkills", "list", label="Passive skills", validator=_passives_problem,
         note=f"At most {MAX_PASSIVES}, no duplicates, each must be a known skill.",
+    ),
+    "activeSkills": Field(
+        "activeSkills", "list", label="Active skills", validator=_active_skills_problem,
+        note=f"The moves this Pal has equipped. At most {MAX_EQUIPPED_SKILLS}, "
+             "no duplicates. Moves it has learned but not equipped are not editable.",
     ),
     **{
         f"ivs.{iv}": Field(

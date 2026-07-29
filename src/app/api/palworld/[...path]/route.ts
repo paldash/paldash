@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSession } from '@/lib/auth';
+import { getSession, getSessionToken } from '@/lib/auth';
 import { CAPABILITIES, REST_GUEST_FEATURES } from '@/lib/permissions';
 import { guestMaySee } from '@/lib/permissions-server';
 
@@ -8,6 +8,41 @@ const PALWORLD_ADMIN_PASSWORD = process.env.PALWORLD_ADMIN_PASSWORD || '';
 
 /** Fields that must never reach a guest. */
 const PLAYER_PII = ['ip', 'userId', 'playerId', 'accountName', 'odlerlookup'];
+
+const BACKEND = process.env.PYTHON_BACKEND_URL || 'http://127.0.0.1:8400';
+
+/**
+ * Player uids this session must not see, from the backend's privacy rules.
+ *
+ * Live positions come from the game's REST API through this proxy, not from the
+ * save backend — so per-player privacy has to be applied here as well, or a
+ * hidden player would vanish from the save-derived map and still show up as a
+ * live dot on it.
+ *
+ * A failure returns an empty set, which shows everyone. That is the wrong way to
+ * fail for a privacy feature, so it is deliberately paired with the backend
+ * being on the same loopback interface as this process: if it is unreachable,
+ * the map has no data to draw anyway.
+ */
+async function hiddenPlayerUids(token: string | undefined): Promise<Set<string>> {
+  if (!token) return new Set();
+  try {
+    const res = await fetch(`${BACKEND}/api/privacy/hidden`, {
+      headers: { 'X-Session-Token': token },
+      cache: 'no-store',
+    });
+    if (!res.ok) return new Set();
+    const data = await res.json();
+    return new Set<string>((data.players ?? []).map((u: string) => u.toLowerCase()));
+  } catch {
+    return new Set();
+  }
+}
+
+/** The proxy sees dashed or undashed ids depending on the field; normalise. */
+function normaliseUid(value: unknown): string {
+  return String(value ?? '').replace(/-/g, '').toLowerCase();
+}
 
 export async function GET(
   request: NextRequest,
@@ -90,16 +125,29 @@ async function proxyRequest(
 
     let data = await res.json().catch(() => ({}));
 
-    // Guests get to see who is online and where, but not their IPs or IDs.
-    if (!signedIn && endpoint === 'players' && data && Array.isArray(data.players)) {
-      data = {
-        ...data,
-        players: data.players.map((player: Record<string, unknown>) => {
+    if (endpoint === 'players' && data && Array.isArray(data.players)) {
+      let players = data.players as Record<string, unknown>[];
+
+      // Per-player privacy applies to live positions too. Without this a player
+      // who hid themselves would disappear from the save-derived map and keep
+      // showing as a live dot on the same screen.
+      const hidden = await hiddenPlayerUids(getSessionToken(request));
+      if (hidden.size) {
+        players = players.filter(
+          (p) => !hidden.has(normaliseUid(p.userId ?? p.playerId))
+        );
+      }
+
+      // Guests get to see who is online and where, but not their IPs or IDs.
+      if (!signedIn) {
+        players = players.map((player) => {
           const safe = { ...player };
           for (const field of PLAYER_PII) delete safe[field];
           return safe;
-        }),
-      };
+        });
+      }
+
+      data = { ...data, players };
     }
 
     return NextResponse.json(data);
