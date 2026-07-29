@@ -12,7 +12,14 @@ RUN npm run build
 # Palworld 1.0 compresses saves with Oodle Kraken. `palooz` is a C++ extension
 # around the open-source `ooz` decoder and lives in a git submodule, so it has
 # to be cloned with submodules and built — pip cannot fetch it directly.
-FROM python:3.12-slim-bookworm AS pybuilder
+#
+# The Python minor version here MUST match the runtime stage's. `palooz` and
+# `orjson` are compiled extensions, so their wheels are ABI-tagged (cp311 vs
+# cp312) and pip refuses to install a mismatched one:
+#   ERROR: orjson-...-cp312-...whl is not a supported wheel on this platform.
+# The runtime installs Debian bookworm's `python3`, which is 3.11 — so this is
+# 3.11 too. Bumping one without the other breaks the build outright.
+FROM python:3.11-slim-bookworm AS pybuilder
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
         git build-essential \

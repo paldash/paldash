@@ -1,7 +1,11 @@
-#!/bin/sh
+#!/bin/bash
 # Supervise both processes. If either dies the container exits so Docker's
 # restart policy can do its job, instead of leaving a half-dead dashboard up
 # (the old version exec'd Next.js and never noticed if the backend died).
+#
+# bash, NOT sh. `wait -n` below is a bashism and Debian's /bin/sh is dash, which
+# fails with "wait: Illegal option -n" — and because of `set -e` that killed the
+# container a second after boot, every time. Do not "simplify" this back to sh.
 set -e
 
 echo "Palworld Dashboard starting..."

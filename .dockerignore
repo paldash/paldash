@@ -1,8 +1,46 @@
+# Build context exclusions.
+#
+# The first stage does `COPY . .`, so anything not listed here is shipped to the
+# daemon and cached in the builder layers — even though the runtime stage copies
+# only `.next/standalone`, `.next/static`, `public/` and `backend/`.
+#
+# Keep this in step with `.gitignore`. The two entries that matter most are
+# `refworld/` and `refs/`: the first is a real world save containing real Steam
+# IDs and player names, and neither has any business in a build context.
+
+# ─── Never build-context these ───
+refworld/
+refs/
+# Exported conversation transcripts (see .gitignore).
+[0-9][0-9][0-9][0-9]-[0-9][0-9]-*.txt
+
+# ─── Secrets ───
+.env
+.env.*
+!.env.example
+
+# ─── Rebuilt inside the image ───
 node_modules
 .next
+.venv
+__pycache__/
+**/__pycache__/
+*.pyc
+
+# ─── Not needed at runtime ───
 .git
+.github
+.gitignore
 *.md
-.env
-.env.local
-backend/__pycache__
-backend/*.pyc
+docs/
+backend/tests/
+pytest.ini
+vitest.config.ts
+eslint.config.mjs
+scripts/setup-dev.sh
+
+# ─── Local state ───
+cache/
+backups/
+*.db
+*.sqlite3

@@ -14,6 +14,7 @@ stopped.
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 from typing import Any, Optional
@@ -33,6 +34,7 @@ import reports
 import roles as roles_module
 import savecache
 import saveedit
+import saveexport
 import schedule as schedule_module
 import settings_ini
 import backup as backup_module
@@ -50,6 +52,12 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(me
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Palworld Save Backend", version="3.0.0")
+
+# Ceiling on anything the dashboard accepts as an upload (audit S9). A world
+# export of a large server is a few MB; 64 is generous. The point is that an
+# unbounded read into memory is a denial-of-service against the machine running
+# the game server, which is the thing this dashboard exists not to disturb.
+MAX_UPLOAD_BYTES = int(os.environ.get("MAX_UPLOAD_MB", "64")) * 1024 * 1024
 
 
 @app.on_event("startup")
@@ -1104,6 +1112,95 @@ def _now_iso() -> str:
     from datetime import datetime, timezone
 
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+
+# ─── Structured exports (Phase 6, export half) ───────────
+
+
+def _export_sections() -> dict:
+    """
+    Everything the builders may need, from one cache read.
+
+    Deliberately NOT `savecache.get_section`: that returns `[]` for anything
+    that is not a list, which would silently empty `containers`, `counts` and
+    `containerOwnership` — all dicts — and produce an export that verifies
+    cleanly while containing nothing.
+    """
+    data = savecache.get_data() or {}
+
+    lists = ("guilds", "bases", "baseStorage", "items", "players", "pals")
+    dicts = ("counts", "containers", "containerOwnership")
+
+    sections: dict[str, Any] = {
+        name: data.get(name) if isinstance(data.get(name), list) else [] for name in lists
+    }
+    sections.update(
+        {name: data.get(name) if isinstance(data.get(name), dict) else {} for name in dicts}
+    )
+
+    # The world directory is named after the world's GUID, which is what makes
+    # an export identifiable as belonging to this server.
+    sections["worldGuid"] = os.path.basename((data.get("worldDir") or "").rstrip("/"))
+    return sections
+
+
+@app.get("/api/export/{kind}")
+def export_save(kind: str, request: Request, id: Optional[str] = None):
+    """
+    Export world / player / guild / base / container as a verifiable JSON document.
+
+    Read-only. Gated on VIEW_DETAIL and audited, because an export is the whole
+    inventory (and real Steam IDs) in one file.
+    """
+    from fastapi.responses import Response
+
+    user = authz.require_user(request, roles_module.VIEW_DETAIL)
+
+    try:
+        document = saveexport.build(kind, _export_sections(), id)
+    except saveexport.ExportError as e:
+        raise HTTPException(404 if id else 400, str(e))
+
+    audit.record(
+        audit.EXPORT, username=user["username"], role=user["role"],
+        target=f"{kind}:{id}" if id else kind,
+        detail={"checksum": document["checksum"][:16], "schemaVersion": document["schemaVersion"]},
+        ip=authz.client_ip(request),
+    )
+
+    return Response(
+        content=json.dumps(document, indent=2, ensure_ascii=False),
+        media_type="application/json",
+        headers={
+            "Content-Disposition": f'attachment; filename="{saveexport.filename_for(document)}"'
+        },
+    )
+
+
+@app.post("/api/export/verify")
+async def verify_export(request: Request) -> dict:
+    """
+    Check an export document without importing it.
+
+    This is the read-only half of what the importer will need, and it exists now
+    so people can confirm a file survived a round trip before any import path
+    is capable of writing anything.
+    """
+    authz.require(request, roles_module.VIEW_DETAIL)
+
+    raw = await request.body()
+    if len(raw) > MAX_UPLOAD_BYTES:
+        raise HTTPException(
+            413,
+            f"Document is larger than the {MAX_UPLOAD_BYTES // (1024 * 1024)} MB limit",
+        )
+
+    try:
+        document = json.loads(raw)
+    except (json.JSONDecodeError, UnicodeDecodeError) as e:
+        return {"ok": False, "problems": [f"Not valid JSON: {e}"], "kind": None}
+
+    return saveexport.verify(document)
 
 
 # ─── Save editing ────────────────────────────────────────

@@ -16,6 +16,9 @@ shared bind mount.
   boundary".
 - `docs/AUDIT.md` — current state, gap analysis, and the phased roadmap. Read
   this before planning work.
+- `docs/FEATURES.md` — what already exists. The roadmap tracks *gaps*, so
+  finished work (breeding, the map, backups) does not appear there and reads as
+  missing. Check this before concluding something is unbuilt.
 - `refs/` — third-party reference archives (gitignored, ~66 MB). Contains the
   authoritative Palworld 1.0 game database; see "Reference data" below.
 - `refworld/` — a real world save used for integration tests (gitignored,
@@ -174,6 +177,30 @@ from elsewhere.
 Unnamed bases keep the game's placeholder (`新規生成拠点テンプレート名0(仮)`)
 rather than an empty string, so `_base_name` swaps in positional numbering and
 flags `playerNamed: false`. Every base on the reference world hits this.
+
+## The container: three things that will bite
+
+All three were invisible to the test suite and only showed up on a real build
+and run. If you touch the Dockerfile or the entrypoint, build and run it.
+
+- **The builder and runtime Python minor versions must match.** The runtime
+  installs Debian bookworm's `python3` (**3.11**). `orjson` and `palooz` are
+  compiled extensions, so a `python:3.12` builder produces cp312 wheels that pip
+  refuses outright and the image does not build.
+- **`docker-entrypoint.sh` is `#!/bin/bash`, not `sh`.** It uses `wait -n`, a
+  bashism; Debian's `/bin/sh` is dash, which errors, and `set -e` then killed
+  the container about a second after boot — every time, silently.
+- **`.dockerignore` must exclude `refworld/` and `refs/`.** The first stage does
+  `COPY . .`, so without it 132 MB including a real world save with real Steam
+  IDs goes into the build context and cache.
+
+Runs as uid/gid 1000 (`APP_UID`/`APP_GID`), matching the Palworld server image's
+PUID/PGID so the shared bind mount is readable without root. `/app/cache` and
+`/app/backups` are chowned *in the image* because Docker seeds a named volume's
+ownership from it, and a non-root process cannot fix it afterwards.
+
+Still broken: `STOP_COMMAND`/`START_COMMAND` invoke `docker`, which is not
+installed in the runtime image.
 
 ## Security boundary
 

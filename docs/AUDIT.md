@@ -73,12 +73,12 @@ than attempting all of it.
 | Permissions | 90% | ✅ Phase 3: 7 role presets, two-gate model, route allowlist |
 | Server dashboard | 30% | REST status; no metrics history, no admin commands |
 | Docker | 80% | Genuinely good; needs multi-image validation |
-| Import / export | 0% | Not started |
+| Import / export | 45% | ✅ Phase 6 export half: versioned, checksummed, verifiable. Import not started |
 | Migration tools | 0% | Not started |
-| Testing | 75% | ✅ 379 backend + 39 frontend tests |
+| Testing | 78% | ✅ 399 backend + 42 frontend tests |
 | Documentation | 70% | ✅ Phase 0: `.gitignore` fixed, AGENTS.md written |
 | Reports / export | 60% | ✅ Phase 5: 4 reports × CSV/JSON/TXT. Save import/export is Phase 6 |
-| **Weighted total** | **~76%** | 32% → 36% (P0) → 43% (P1) → 50% (P2) → 62% (P3) → 70% (P4) → 76% (P5) |
+| **Weighted total** | **~79%** | 32% → 36% (P0) → 43% (P1) → 50% (P2) → 62% (P3) → 70% (P4) → 76% (P5) → 79% (P6 export) |
 
 ---
 
@@ -354,8 +354,8 @@ detour. No further files are needed from PST beyond what `refs/` already contain
 | S6 | ~~Medium~~ | Lifecycle commands runnable by any admin session. | ✅ **Fixed** (P3). Bound to `server.control` (Moderator+) and audited. |
 | S7 | Medium | No CSRF tokens. | 🟡 **Mitigated.** `SameSite=Lax` blocks cross-site POST cookies, and state-changing routes are POST/PATCH/DELETE only. Tokens still worth adding. |
 | S8 | ~~Medium~~ | `COOKIE_SECURE` defaulted false. | ✅ **Fixed** (P3). Inferred from `X-Forwarded-Proto`/request scheme, overridable. |
-| S9 | Medium | No upload validation. | 🔴 Open — uploads do not exist yet. Must be addressed **in Phase 6** before import ships. |
 | S10 | ~~Low~~ | Backend had no auth of its own. | ✅ **Largely fixed** (P3). It now resolves sessions itself and enforces capabilities; loopback binding is defence in depth rather than the only control. |
+| S9 | Medium | No upload validation. | 🟡 **Partly fixed** (2026-07-28). `MAX_UPLOAD_BYTES` caps request bodies; `export/verify` checksums a document before anything trusts it. Per-field validation lands with the import half. |
 | S11 | Low | No dependency scanning. | 🔴 Open. `npm audit` + `pip-audit` in CI. |
 | S12 | ~~Low~~ | Container ran as root over a bind mount of the world files. | ✅ **Fixed** (2026-07-28). `USER 1000:1000` via `APP_UID`/`APP_GID` build args, defaulting to the Palworld image's own PUID/PGID. Reuses the base image's `node` user when the id is taken, creates one otherwise; both paths verified by building and running. Volume mount points are chowned in the image so a fresh named volume inherits the right owner. |
 
@@ -553,12 +553,34 @@ handling. Each changes *where an item ends up* rather than how tidily it is pack
 makes them save-editor semantics (Phase 7) rather than sorting. Deferred rather than
 half-built. **Tests: 379 backend + 39 frontend.**
 
-### Phase 6 — Import / export (4–5 days)
-Export whole save, player, guild, base, palbox, container as JSON/archive. Import with
-validation, dry-run diff preview, mandatory pre-import backup.
-**Risk: high** — import is the most dangerous surface in the product. Every import must be
-dry-run-previewed and backed up first, no exceptions.
-**Depends on: Phase 4.**
+### Phase 6 — Import / export · 🟡 **EXPORT HALF COMPLETE** (2026-07-28)
+
+Split deliberately: export is read-only and shippable on its own, import is the most
+dangerous surface in the product. `backend/saveexport.py` contains no write path at all,
+and should stay that way — the importer belongs in its own module so the dangerous code is
+never one typo from the safe code.
+
+**Done:**
+- Export `world` / `player` / `guild` / `base` / `container` as a versioned JSON envelope
+  carrying `schemaVersion`, `kind`, `worldGuid`, `exportedAt` and a SHA-256 `checksum`.
+- The checksum covers the **payload only**, so pretty-printing or key reordering cannot
+  invalidate a good file — pinned by a round-trip test.
+- `POST /api/export/verify` validates a document without importing it, and returns a
+  problem list rather than raising, because "what is wrong with this file" is the useful
+  answer.
+- Gated on `VIEW_DETAIL`, never visible to guests (`feature: null`), and audited under a
+  new `save.export` action — an export is the whole inventory plus real Steam IDs in one
+  file.
+- **S9 partially closed**: `MAX_UPLOAD_BYTES` (default 64 MB, `MAX_UPLOAD_MB`) caps
+  anything the backend accepts. An unbounded read is a denial of service against the
+  machine running the game server.
+- World exports deliberately omit raw container slots — that is hundreds of MB on a mature
+  world. Container detail is a separate targeted export.
+
+**Remaining (the risky half):** import with a dry-run diff preview, mandatory pre-import
+backup, and per-field validation. Every import must be previewed and backed up first, no
+exceptions. **Depends on: Phase 4, and on Phase 7's validation schema for anything beyond
+a whole-container replace.**
 
 ### Phase 7 — General save editor (8–12 days) · **the big one**
 Per-field validation schema (type, range, enum, cross-field) covering player fields, Pal
@@ -649,7 +671,8 @@ because the data is already parsed:
 **Critical** — none remaining.
 ~~no `USER` in Dockerfile (S12)~~ ✅ 2026-07-28 · ~~zero tests~~ ✅ P0 · ~~S1 rate
 limiting~~ ✅ P3 · ~~S2 audit log~~ ✅ P3.
-**High** — S9 upload validation before import ships (Phase 6).
+**High** — ~~S9 upload validation~~ 🟡 size cap landed with the export half; per-field
+import validation still required before the import half ships (Phase 6).
 ~~backup verification before any editor expansion~~ ✅ P4.
 ~~`.gitignore` excluding docs~~ ✅ P0 · ~~S3/S4 accounts & revocation~~ ✅ P3 · ~~S5 route
 allowlist~~ ✅ P3.
@@ -665,8 +688,23 @@ that does not gate a LAN deployment (S11 dependency scanning, S7 CSRF tokens —
 by `SameSite=Lax` but not eliminated). Exposing this to untrusted users still wants S7 and
 S9 closed first.
 
-**Known defect, unrelated to S12:** the documented `STOP_COMMAND` / `START_COMMAND`
-container controls invoke `docker`, which is **not installed in the runtime image**.
+**The container was verified by actually building and running it (2026-07-28), which found
+three defects that no amount of unit testing would have caught:**
+
+| # | Defect | Fix |
+|---|---|---|
+| D1 | **The image did not build.** The wheel-builder stage was `python:3.12`, the runtime installs Debian bookworm's `python3` = **3.11**. `orjson` and `palooz` are compiled extensions, so their cp312 wheels were rejected outright. | Builder pinned to `python:3.11-slim-bookworm`, with a comment that the minor versions must match |
+| D2 | **The container died ~1s after boot, every time.** `docker-entrypoint.sh` used `wait -n` under `#!/bin/sh`, which is dash: `wait: Illegal option -n`, and `set -e` then killed the script. Both processes were started and immediately torn down. | Shebang changed to `#!/bin/bash` (present in the image), with a comment not to "simplify" it back |
+| D3 | **`.dockerignore` did not exclude `refworld/` or `refs/`** — 132 MB of build context, including a real world save with real Steam IDs and player names. Not in the runtime layers, but in the daemon and the build cache, and shipped by anyone targeting the builder stage. | `.dockerignore` rewritten to mirror `.gitignore` |
+
+Verified after fixing: image builds, container stays up, runs as `uid=1000(node)`,
+dashboard answers `HTTP 200`, the backend is reachable on loopback **inside** the container
+and refused from the host, sign-in works, a short password is refused with a clear log line,
+and the safety guard correctly reports `editable: false` / "assuming running to protect the
+save" when it cannot prove otherwise.
+
+**Known defect, still open:** the documented `STOP_COMMAND` / `START_COMMAND` container
+controls invoke `docker`, which is **not installed in the runtime image**.
 `lifecycle._run_configured` raises `FileNotFoundError` → "STOP_COMMAND not found: docker".
 The feature has never worked as documented; the manual `docker compose stop palworld` path
 in the UI does. Fixing it means adding `docker-cli` (~35 MB) to the runtime stage — worth

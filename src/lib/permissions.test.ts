@@ -149,6 +149,30 @@ describe('describeSavePath', () => {
       expect(describeSavePath('bases/abcd/storage', 'POST').allowed).toBe(false);
     });
 
+    it('allows the structured export routes', () => {
+      for (const kind of ['world', 'player', 'guild', 'base', 'container']) {
+        expect(describeSavePath(`export/${kind}`, 'GET')).toMatchObject({
+          allowed: true,
+          capability: CAPABILITIES.VIEW_DETAIL,
+        });
+      }
+      expect(describeSavePath('export/verify', 'POST').allowed).toBe(true);
+    });
+
+    it('refuses unknown export kinds and wrong methods', () => {
+      expect(describeSavePath('export/everything', 'GET').allowed).toBe(false);
+      expect(describeSavePath('export/world', 'POST').allowed).toBe(false);
+      // `verify` is a POST endpoint, not a kind that can be exported.
+      expect(describeSavePath('export/verify', 'GET').allowed).toBe(false);
+    });
+
+    it('never exposes exports to guests', () => {
+      // feature: null means a signed-out caller is refused outright, regardless
+      // of the guest visibility policy. Exports carry real Steam IDs.
+      expect(describeSavePath('export/world', 'GET').feature).toBeNull();
+      expect(describeSavePath('export/player', 'GET').feature).toBeNull();
+    });
+
     it('refuses malformed storage and report paths', () => {
       expect(describeSavePath('bases/abcd/storage/extra', 'GET').allowed).toBe(false);
       expect(describeSavePath('bases//storage', 'GET').allowed).toBe(false);

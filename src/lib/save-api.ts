@@ -139,6 +139,47 @@ export async function sortContainers(
 
 // ─── Per-base storage & reports ─────────────────────────
 
+export type ExportKind = 'world' | 'player' | 'guild' | 'base' | 'container';
+
+/**
+ * Download a structured export. Same download-via-fetch approach as reports, so
+ * a 403 surfaces as an error rather than saving the error body as a .json.
+ */
+export async function downloadExport(kind: ExportKind, id?: string): Promise<void> {
+  const query = id ? `?id=${encodeURIComponent(id)}` : '';
+  const res = await fetch(`${BASE}/export/${kind}${query}`);
+  if (!res.ok) {
+    const detail = await res.json().catch(() => ({}));
+    throw new Error(detail.error || detail.detail || `Export failed (${res.status})`);
+  }
+
+  const disposition = res.headers.get('content-disposition') ?? '';
+  const named = /filename="([^"]+)"/.exec(disposition);
+
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  try {
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = named?.[1] ?? `palworld-${kind}.json`;
+    link.click();
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+/** Check an export file without importing it. */
+export async function verifyExport(file: File): Promise<{
+  ok: boolean;
+  problems: string[];
+  kind: string | null;
+  schemaVersion?: number;
+  worldGuid?: string;
+  exportedAt?: string;
+}> {
+  return saveFetch('/export/verify', { method: 'POST', body: await file.text() });
+}
+
 export async function getBaseStorage(): Promise<BaseStorage[]> {
   return saveFetch('/bases/storage');
 }

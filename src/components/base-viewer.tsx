@@ -7,7 +7,7 @@ import {
   Download, Boxes, AlertTriangle,
 } from 'lucide-react';
 import { formatCoords } from '@/lib/map-coordinates';
-import { getBaseStorage, downloadReport, type ReportFormat } from '@/lib/save-api';
+import { getBaseStorage, downloadReport, downloadExport, type ReportFormat } from '@/lib/save-api';
 import type { BaseStorage } from '@/lib/types';
 import { CAPABILITIES } from '@/lib/permissions';
 
@@ -37,17 +37,23 @@ export default function BaseViewer() {
     return () => { cancelled = true; };
   }, [backendOnline, maySeeDetail]);
 
-  const exportReport = useCallback(async (report: string, format: ReportFormat, baseId?: string) => {
+  const runExport = useCallback(async (download: () => Promise<void>) => {
     setBusy(true);
     setError(null);
     try {
-      await downloadReport(report, format, baseId);
+      await download();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Export failed');
     } finally {
       setBusy(false);
     }
   }, []);
+
+  const exportReport = useCallback(
+    (report: string, format: ReportFormat, baseId?: string) =>
+      runExport(() => downloadReport(report, format, baseId)),
+    [runExport]
+  );
 
   if (!backendOnline) {
     return (
@@ -140,6 +146,21 @@ export default function BaseViewer() {
               ))}
             </div>
           ))}
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+              Full world (checksummed)
+            </span>
+            <button
+              className="btn btn-ghost"
+              style={{ padding: '2px 6px', fontSize: 10, textTransform: 'uppercase' }}
+              disabled={busy}
+              onClick={() => runExport(() => downloadExport('world'))}
+              title="Structured JSON export with a checksum, for archiving or transfer"
+            >
+              json
+            </button>
+          </div>
         </div>
       )}
 
