@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Monitor, Map, Users, Building2, Wrench, LogIn, LogOut,
   Server, Shield, Eye, Lock, Unlock, Sliders, Egg, RefreshCw, Package, ShieldCheck,
-  UserCog, ScrollText,
+  UserCog, ScrollText, Archive,
 } from 'lucide-react';
 import { useDashboardStore } from '@/lib/store';
 import {
@@ -15,6 +15,7 @@ import { getBackendHealth, getBases, getGuilds, requestRefresh } from '@/lib/sav
 import ItemsView from '@/components/items-view';
 import AccessSettings from '@/components/access-settings';
 import UserManager from '@/components/user-manager';
+import BackupManager from '@/components/backup-manager';
 import AuditLog from '@/components/audit-log';
 import ServerOverview from '@/components/server-overview';
 import InteractiveMap from '@/components/interactive-map';
@@ -46,6 +47,7 @@ const TABS: {
   { id: 'breeding', label: 'Breeding', icon: <Egg size={15} />, requires: CAPABILITIES.VIEW_DETAIL },
   { id: 'settings', label: 'Settings', icon: <Sliders size={15} />, requires: CAPABILITIES.SETTINGS_WRITE },
   { id: 'access', label: 'Access', icon: <ShieldCheck size={15} />, requires: CAPABILITIES.POLICY_MANAGE },
+  { id: 'backups', label: 'Backups', icon: <Archive size={15} />, requires: CAPABILITIES.BACKUP_MANAGE },
   { id: 'users', label: 'Users', icon: <UserCog size={15} />, requires: CAPABILITIES.USERS_MANAGE },
   { id: 'audit', label: 'Audit log', icon: <ScrollText size={15} />, requires: CAPABILITIES.AUDIT_VIEW },
   { id: 'editor', label: 'Save Tools', icon: <Wrench size={15} />, requires: CAPABILITIES.SAVE_SORT_STACKABLES },
@@ -366,6 +368,7 @@ export default function Home() {
           {activeTab === 'breeding' && <BreedingPlanner />}
           {activeTab === 'settings' && <ServerSettings />}
           {activeTab === 'access' && <AccessSettings />}
+          {activeTab === 'backups' && <BackupManager />}
           {activeTab === 'users' && <UserManager />}
           {activeTab === 'audit' && <AuditLog />}
           {activeTab === 'editor' && <SaveEditor />}

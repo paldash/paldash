@@ -134,9 +134,76 @@ export interface ContainerContents {
 export interface BackupInfo {
   id: string;
   timestamp: string;
-  sizeBytes: number;
   description: string;
-  path: string;
+  /** manual | pre-edit | pre-restore | schedule:<frequency> */
+  trigger: string;
+  createdBy: string | null;
+  sizeBytes: number;
+  uncompressedBytes: number;
+  fileCount: number;
+  worldGuid: string;
+  /** Backups taken on a live server are best-effort snapshots. */
+  serverWasRunning: boolean;
+  compressionRatio: number | null;
+}
+
+export interface BackupListing {
+  backups: BackupInfo[];
+  usage: {
+    count: number;
+    totalBytes: number;
+    oldest: string | null;
+    newest: string | null;
+    directory: string;
+  };
+  scopes: Record<string, string>;
+  retention: Record<string, number>;
+}
+
+export interface BackupDetail extends BackupInfo {
+  files: { path: string; size: number; sha256: string }[];
+}
+
+export interface BackupVerification {
+  ok: boolean;
+  problems: string[];
+  checkedFiles: number;
+  expectedFiles?: number;
+}
+
+export interface RestorePreview {
+  backupId: string;
+  scope: string;
+  scopeDescription: string;
+  timestamp: string;
+  serverWasRunning: boolean;
+  changes: {
+    path: string;
+    action: 'replace' | 'create' | 'identical';
+    size: number;
+    currentSize?: number;
+  }[];
+  summary: { replace: number; create: number; identical: number };
+  /** Files on disk the backup does not contain. A restore leaves these alone. */
+  keptUntouched: { path: string; size: number }[];
+}
+
+export interface PruneResult {
+  kept: number;
+  removed: { id: string; timestamp: string; sizeBytes: number }[];
+  freedBytes: number;
+  rules: Record<string, number>;
+  dryRun: boolean;
+}
+
+export interface BackupSchedule {
+  enabled: boolean;
+  frequency: string;
+  pruneAfter: boolean;
+  lastRun: string | null;
+  lastResult: string | null;
+  nextRun: string | null;
+  frequencies: string[];
 }
 
 export interface SaveEditRequest {
@@ -165,6 +232,7 @@ export type DashboardTab =
   | 'breeding'
   | 'settings'
   | 'access'
+  | 'backups'
   | 'users'
   | 'audit'
   | 'editor';

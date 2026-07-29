@@ -65,7 +65,7 @@ than attempting all of it.
 |---|---:|---|
 | Save parsing engine | 90% | 1.0/Oodle proven; missing per-base container linkage |
 | Corruption safety | 85% | Fail-closed, atomic, verified; no audit trail |
-| Backup & restore | 30% | Directory copy only; no archive/verify/schedule/browse |
+| Backup & restore | 90% | ✅ Phase 4: verified archives, retention, schedule, preview, browser. No cloud targets |
 | Save editing | 12% | Two sort modes work; everything else 501 |
 | Live map | 70% | ✅ Phase 2: both maps ship, 174 fast-travel POIs, layers/search. World Tree transform provisional |
 | Reference data | 90% | ✅ Phase 1: full 1.0 DB bundled at 215 KB; icons still not shipped |
@@ -75,9 +75,9 @@ than attempting all of it.
 | Docker | 80% | Genuinely good; needs multi-image validation |
 | Import / export | 0% | Not started |
 | Migration tools | 0% | Not started |
-| Testing | 65% | ✅ 293 backend + 34 frontend tests |
+| Testing | 70% | ✅ 340 backend + 34 frontend tests |
 | Documentation | 70% | ✅ Phase 0: `.gitignore` fixed, AGENTS.md written |
-| **Weighted total** | **~62%** | 32% → 36% (P0) → 43% (P1) → 50% (P2) → 62% (P3) |
+| **Weighted total** | **~70%** | 32% → 36% (P0) → 43% (P1) → 50% (P2) → 62% (P3) → 70% (P4) |
 
 ---
 
@@ -479,12 +479,46 @@ stayed green against yesterday's build.
 
 Verified: 293 backend + 34 frontend tests pass · lint 0 errors · build succeeds.
 
-### Phase 4 — Backup & restore, properly (4–5 days)
-Compressed archives with manifest + checksums; integrity verify; retention; scheduling
-(manual/hourly/daily/pre-edit/pre-restart); backup browser; restore preview; granular
-restore; automatic rollback points. Storage behind an interface so cloud backends slot in
-later without redesign.
-**Risk: low.** **Depends on: Phase 0, Phase 3 (audit log).**
+### Phase 4 — Backup & restore, properly · ✅ **COMPLETE** (2026-07-28)
+
+Backups are now single `.tar.gz` archives with a manifest carrying a SHA-256 per file plus
+one for the archive itself. Verification re-hashes everything; a restore verifies *before*
+touching anything and leaves its own rollback point. New **Backups** tab: browse, verify,
+preview, rename, download, delete, retention, and a schedule.
+
+**A real bug, found by measuring rather than assuming.** The old `create_backup` did
+`shutil.copytree` on the world directory — which on a real server also swept in the
+server's own rotating snapshots living in `<world>/backup/`. On the reference world that is
+**27 snapshots and 64 MB folded into every single dashboard backup**: a 2.1 MB world was
+producing 66 MB archives, each containing copies of all the earlier ones. Archives now use
+an explicit include list (`*.sav` plus the config), and `os.walk` prunes excluded
+directories in place so it never even descends. Pinned by two tests.
+
+Design decisions:
+
+- **Compression is deliberately light** (gzip level 1). Palworld saves are already
+  Oodle-compressed — 2.0 MB of `Level.sav` gzips to 2.0 MB — so the archive is about
+  bundling and integrity, not shrinking. Measured, not assumed.
+- **The manifest lives inside the archive as well as beside it**, so an archive is
+  self-describing if the sidecar and the database are both lost. Tested by deleting the
+  sidecar and listing again.
+- **Restore is two steps**: preview then confirm. The preview hashes rather than stats, so
+  a same-size-different-content file is still reported as a change, and it lists files that
+  exist now but are absent from the backup (players who joined since) as *kept* — a restore
+  does not delete them.
+- **Retention thins rather than truncates**: newest N, then one per day, then one per week.
+  Rollback points taken before an edit are protected inside a grace period, because they
+  are the only way back from a bad edit.
+- **A missed schedule window is skipped, not replayed.** A machine asleep for a week wakes
+  up and takes one backup, not 168.
+- **`BackupStore` is an interface** with a local implementation, so cloud providers were
+  designed for without being built.
+- Tar extraction rejects `../` members — this path will eventually handle uploaded files.
+
+Also removed the duplicate half-featured backup UI from the Save Tools tab rather than
+maintaining two.
+
+Verified: 340 backend + 34 frontend tests pass · lint 0 errors · build succeeds.
 
 ### Phase 5 — Per-base inventory & advanced sorting (3–4 days)
 Wire `ModuleMap → target_container_id`; per-base breakdown; base-scoped sorting; category
@@ -585,8 +619,8 @@ because the data is already parsed:
 
 **Critical** — no `USER` in Dockerfile (S12).
 ~~zero tests~~ ✅ P0 · ~~S1 rate limiting~~ ✅ P3 · ~~S2 audit log~~ ✅ P3.
-**High** — backup verification before any editor expansion (Phase 4); S9 upload validation
-before import ships (Phase 6).
+**High** — S9 upload validation before import ships (Phase 6).
+~~backup verification before any editor expansion~~ ✅ P4.
 ~~`.gitignore` excluding docs~~ ✅ P0 · ~~S3/S4 accounts & revocation~~ ✅ P3 · ~~S5 route
 allowlist~~ ✅ P3.
 **Medium** — S7 CSRF tokens (mitigated by SameSite, not eliminated), multi-image Docker

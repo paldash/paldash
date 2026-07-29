@@ -3,13 +3,11 @@
 import { useState } from 'react';
 import { useDashboardStore } from '@/lib/store';
 import {
-  createBackup, restoreBackup, getBackups,
   sortContainers, stopContainer, startContainer,
   type SortResult,
 } from '@/lib/save-api';
 import {
-  Lock, Unlock, AlertTriangle, Save, RotateCcw, Download,
-  Clock, ShieldCheck, Play, Square, ArrowUpDown, PenLine,
+  Lock, Unlock, ShieldCheck, Play, Square, ArrowUpDown, PenLine,
 } from 'lucide-react';
 import { CAPABILITIES } from '@/lib/permissions';
 
@@ -23,12 +21,10 @@ import { CAPABILITIES } from '@/lib/permissions';
  */
 export default function SaveEditor() {
   const {
-    serverProcessRunning, backendOnline, backups, setBackups,
-    serverState, capabilities,
+    serverProcessRunning, backendOnline, serverState, capabilities,
   } = useDashboardStore();
 
   const [feedback, setFeedback] = useState<string | null>(null);
-  const [backupDesc, setBackupDesc] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
   const [lastResult, setLastResult] = useState<SortResult | null>(null);
 
@@ -36,39 +32,6 @@ export default function SaveEditor() {
   const flash = (msg: string) => {
     setFeedback(msg);
     setTimeout(() => setFeedback(null), 8000);
-  };
-
-  const refreshBackups = async () => {
-    try {
-      setBackups(await getBackups());
-    } catch { /* ignore */ }
-  };
-
-  const handleBackup = async () => {
-    setBusy('backup');
-    try {
-      await createBackup(backupDesc || undefined);
-      flash('Backup created.');
-      setBackupDesc('');
-      await refreshBackups();
-    } catch (e) {
-      flash(e instanceof Error ? e.message : 'Backup failed');
-    } finally {
-      setBusy(null);
-    }
-  };
-
-  const handleRestore = async (id: string) => {
-    if (!confirm('Restore this backup? The current world will be replaced (a snapshot of it is taken first).')) return;
-    setBusy('restore');
-    try {
-      await restoreBackup(id);
-      flash('Backup restored.');
-    } catch (e) {
-      flash(e instanceof Error ? e.message : 'Restore failed');
-    } finally {
-      setBusy(null);
-    }
   };
 
   const runSort = async (mode: 'stackables' | 'all') => {
@@ -88,7 +51,6 @@ export default function SaveEditor() {
         `Sorted ${result.slotsChanged} slots across ${result.containersTouched} containers. ` +
         `Verified. Rollback point: ${result.backupId}.`
       );
-      await refreshBackups();
     } catch (e) {
       flash(e instanceof Error ? e.message : 'Sort failed');
     } finally {
@@ -232,15 +194,14 @@ docker compose start palworld    # bring it back`}
         </div>
       )}
 
-      <BackupSection
-        backups={backups}
-        onRestore={handleRestore}
-        onBackup={handleBackup}
-        backupDesc={backupDesc}
-        setBackupDesc={setBackupDesc}
-        busy={busy !== null}
-        allowed={has(CAPABILITIES.BACKUP_MANAGE)}
-      />
+      {/* Backups have their own tab now — one place to create, verify, preview
+          and restore them, rather than a second half-featured copy here. */}
+      {has(CAPABILITIES.BACKUP_MANAGE) && (
+        <div className="notice" style={{ fontSize: 12 }}>
+          Every operation above takes a full backup first. Browse, verify and
+          restore them on the <strong>Backups</strong> tab.
+        </div>
+      )}
     </div>
   );
 }
@@ -285,80 +246,6 @@ function OperationCard({
       {blocked && (
         <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 8 }}>{blocked}</p>
       )}
-    </div>
-  );
-}
-
-function BackupSection({
-  backups, onRestore, onBackup, backupDesc, setBackupDesc, busy, allowed,
-}: {
-  backups: { id: string; timestamp: string; sizeBytes: number; description: string }[];
-  onRestore: (id: string) => void;
-  onBackup: () => void;
-  backupDesc: string;
-  setBackupDesc: (v: string) => void;
-  busy: boolean;
-  allowed: boolean;
-}) {
-  return (
-    <div className="glass-card" style={{ padding: 16 }}>
-      <div className="section-title" style={{ marginBottom: 12 }}>
-        <Save size={14} /> Backups
-      </div>
-
-      <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-        <input
-          className="input"
-          value={backupDesc}
-          onChange={(e) => setBackupDesc(e.target.value)}
-          placeholder="Description (optional)"
-          disabled={!allowed}
-        />
-        <button className="btn btn-primary" onClick={onBackup} disabled={busy || !allowed}>
-          <Download size={13} /> Create
-        </button>
-      </div>
-
-      {backups.length === 0 ? (
-        <p style={{ color: 'var(--text-muted)', fontSize: 13, textAlign: 'center', padding: 16 }}>
-          No backups yet. Every save-modifying operation creates one automatically.
-        </p>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          {backups.map((b) => (
-            <div
-              key={b.id}
-              style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                padding: '9px 12px', background: 'var(--bg-input)',
-                borderRadius: 'var(--radius)', border: '1px solid var(--border-primary)',
-              }}
-            >
-              <div>
-                <div style={{ fontSize: 13 }}>{b.description || `Backup ${b.id}`}</div>
-                <div style={{ fontSize: 11, color: 'var(--text-muted)', display: 'flex', gap: 12, marginTop: 2 }}>
-                  <span><Clock size={10} style={{ display: 'inline', verticalAlign: '-1px' }} /> {new Date(b.timestamp).toLocaleString()}</span>
-                  <span className="mono">{(b.sizeBytes / 1024 / 1024).toFixed(1)} MB</span>
-                </div>
-              </div>
-              <button
-                className="btn btn-ghost"
-                style={{ padding: '3px 9px', fontSize: 11 }}
-                onClick={() => onRestore(b.id)}
-                disabled={busy || !allowed}
-              >
-                <RotateCcw size={11} /> Restore
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
-
-      <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 12, display: 'flex', gap: 6 }}>
-        <AlertTriangle size={12} style={{ flexShrink: 0, marginTop: 2 }} />
-        Backups taken while the server is running are best-effort snapshots — files
-        may be mid-autosave. Stop the server for a guaranteed-clean one.
-      </p>
     </div>
   );
 }

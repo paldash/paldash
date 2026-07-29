@@ -58,7 +58,10 @@ unreachable API, unmounted volume, wrong password — resolves to "running".
 An HTTP 401 counts as **running** (something is listening and rejecting us).
 
 Every mutation goes through `backup.guarded_save_write`, which re-checks safety,
-takes a full backup, then re-checks again before yielding. `backend/saveedit.py`
+takes a full verified backup, then re-checks again before yielding. Backups are
+`.tar.gz` archives with per-file SHA-256s (`backend/backupstore.py`); never go
+back to copying the world directory, which silently swept in the server's own
+nested `backup/` snapshots. `backend/saveedit.py`
 adds the conservation invariant: total quantity of every item in every container
 must be identical after a sort, verified in memory *and* again after re-reading
 from disk, with automatic rollback on mismatch.

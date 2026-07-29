@@ -13,6 +13,12 @@ import type {
   ManagedUser,
   RolePreset,
   AuditPage,
+  BackupListing,
+  BackupDetail,
+  BackupVerification,
+  RestorePreview,
+  PruneResult,
+  BackupSchedule,
   ItemTotals,
   IniSettings,
   PalboxSummary,
@@ -234,8 +240,12 @@ export async function getContainerContents(containerId: string): Promise<Contain
 
 // ─── Backups ────────────────────────────────────────────
 
-export async function getBackups(): Promise<BackupInfo[]> {
-  return saveFetch<BackupInfo[]>('/backups');
+export async function getBackups(): Promise<BackupListing> {
+  return saveFetch<BackupListing>('/backups');
+}
+
+export async function getBackupDetail(backupId: string): Promise<BackupDetail> {
+  return saveFetch(`/backups/${backupId}`);
 }
 
 export async function createBackup(description?: string): Promise<BackupInfo> {
@@ -245,8 +255,60 @@ export async function createBackup(description?: string): Promise<BackupInfo> {
   });
 }
 
-export async function restoreBackup(backupId: string): Promise<{ success: boolean }> {
-  return saveFetch(`/restore/${backupId}`, { method: 'POST' });
+export async function verifyBackup(backupId: string): Promise<BackupVerification> {
+  return saveFetch(`/backups/${backupId}/verify`, { method: 'POST' });
+}
+
+export async function renameBackup(backupId: string, description: string): Promise<BackupInfo> {
+  return saveFetch(`/backups/${backupId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ description }),
+  });
+}
+
+export async function deleteBackup(backupId: string): Promise<{ success: boolean }> {
+  return saveFetch(`/backups/${backupId}`, { method: 'DELETE' });
+}
+
+export async function previewRestore(
+  backupId: string,
+  scope = 'world'
+): Promise<RestorePreview> {
+  return saveFetch(`/backups/${backupId}/preview?scope=${encodeURIComponent(scope)}`);
+}
+
+export async function restoreBackup(
+  backupId: string,
+  scope = 'world'
+): Promise<{ success: boolean; rollbackId: string; restoredFiles: string[] }> {
+  return saveFetch(`/restore/${backupId}`, {
+    method: 'POST',
+    body: JSON.stringify({ scope }),
+  });
+}
+
+export async function pruneBackups(dryRun = true): Promise<PruneResult> {
+  return saveFetch('/backups/prune', {
+    method: 'POST',
+    body: JSON.stringify({ dryRun }),
+  });
+}
+
+export function backupDownloadUrl(backupId: string): string {
+  return `${BASE}/backups/${backupId}/download`;
+}
+
+export async function getBackupSchedule(): Promise<BackupSchedule> {
+  return saveFetch('/backups/schedule/config');
+}
+
+export async function setBackupSchedule(
+  changes: Partial<{ enabled: boolean; frequency: string; pruneAfter: boolean }>
+): Promise<BackupSchedule> {
+  return saveFetch('/backups/schedule/config', {
+    method: 'POST',
+    body: JSON.stringify(changes),
+  });
 }
 
 // ─── Save Editing (Write Mode — server must be offline) ─

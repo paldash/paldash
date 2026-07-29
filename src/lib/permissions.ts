@@ -112,7 +112,14 @@ const ROUTES: RouteRule[] = [
 
   { pattern: /^backups$/, methods: ['GET'], capability: CAPABILITIES.BACKUP_MANAGE, feature: null },
   { pattern: /^backup$/, methods: ['POST'], capability: CAPABILITIES.BACKUP_MANAGE, feature: null },
-  { pattern: /^backups\/[A-Za-z0-9]+$/, methods: ['DELETE'], capability: CAPABILITIES.BACKUP_MANAGE, feature: null },
+  // Literal sub-paths come first so `prune` and `schedule` are never captured
+  // by the `{backup_id}` patterns below.
+  { pattern: /^backups\/prune$/, methods: ['POST'], capability: CAPABILITIES.BACKUP_MANAGE, feature: null },
+  { pattern: /^backups\/schedule\/config$/, methods: ['GET', 'POST'], capability: CAPABILITIES.BACKUP_MANAGE, feature: null },
+  { pattern: /^backups\/[A-Za-z0-9]+$/, methods: ['GET', 'PATCH', 'DELETE'], capability: CAPABILITIES.BACKUP_MANAGE, feature: null },
+  { pattern: /^backups\/[A-Za-z0-9]+\/verify$/, methods: ['POST'], capability: CAPABILITIES.BACKUP_MANAGE, feature: null },
+  { pattern: /^backups\/[A-Za-z0-9]+\/preview$/, methods: ['GET'], capability: CAPABILITIES.BACKUP_MANAGE, feature: null },
+  { pattern: /^backups\/[A-Za-z0-9]+\/download$/, methods: ['GET'], capability: CAPABILITIES.BACKUP_MANAGE, feature: null },
   { pattern: /^restore\/[A-Za-z0-9]+$/, methods: ['POST'], capability: CAPABILITIES.BACKUP_MANAGE, feature: null },
 
   { pattern: /^edit\/sort\/stackables$/, methods: ['POST'], capability: CAPABILITIES.SAVE_SORT_STACKABLES, feature: null },

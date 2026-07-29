@@ -275,14 +275,17 @@ def sort_containers(mode: str = "stackables", merge: bool = True) -> dict[str, A
             _assert_conserved(before, reread, "after re-reading from disk")
         except Exception as e:  # noqa: BLE001
             logger.error("Verification failed, rolling back: %s", e)
-            if restore_backup(backup["id"]):
+            try:
+                restore_backup(backup["id"], scope="world")
+            except Exception as rollback_error:  # noqa: BLE001
                 raise SaveEditError(
-                    f"Write verification failed and the world was rolled back to backup "
-                    f"{backup['id']}. Nothing was lost. Cause: {e}"
+                    f"Write verification FAILED and automatic rollback also failed "
+                    f"({rollback_error}). Restore backup {backup['id']} manually. "
+                    f"Original cause: {e}"
                 ) from e
             raise SaveEditError(
-                f"Write verification FAILED and automatic rollback also failed. "
-                f"Restore backup {backup['id']} manually. Cause: {e}"
+                f"Write verification failed and the world was rolled back to backup "
+                f"{backup['id']}. Nothing was lost. Cause: {e}"
             ) from e
 
         return {

@@ -218,18 +218,21 @@ def test_sort_conserves_every_item_end_to_end(palsav_available, sandbox):
 
 @pytest.mark.slow
 def test_sort_takes_a_backup_before_writing(palsav_available, sandbox):
+    import backup as backup_module
     import saveedit
-    from backup import list_backups
 
-    assert list_backups() == []
+    assert backup_module.list_backups() == []
     result = saveedit.sort_containers(mode="stackables", merge=True)
 
-    backups = list_backups()
+    backups = backup_module.list_backups()
     assert len(backups) == 1
     assert backups[0]["id"] == result["backupId"]
+    assert backups[0]["trigger"] == "pre-edit"
 
-    saved_level = os.path.join(backups[0]["path"], "Level.sav")
-    assert os.path.exists(saved_level), "the backup must contain the world"
+    # The rollback point must really contain the world, and verify clean.
+    detail = backup_module.describe_backup(result["backupId"])
+    assert any(f["path"] == "Level.sav" for f in detail["files"])
+    assert backup_module.verify_backup(result["backupId"])["ok"] is True
 
 
 @pytest.mark.slow
@@ -270,12 +273,20 @@ def test_read_only_lock_blocks_the_sort(palsav_available, sandbox, monkeypatch):
 
 @pytest.mark.slow
 def test_backup_restore_round_trip(palsav_available, sandbox):
-    from backup import create_backup, restore_backup
+    """A real 2 MB world, archived and restored byte-for-byte."""
+    import backup as backup_module
 
     level = os.path.join(sandbox["world"], "Level.sav")
     original = open(level, "rb").read()
 
-    meta = create_backup(sandbox["world"], "test snapshot")
+    meta = backup_module.create_backup(sandbox["world"], "test snapshot")
+
+    # An archive of a real world should be about the size of the world, not the
+    # size of the world plus the server's own rotating backups beside it.
+    assert meta["uncompressedBytes"] < 10 * 1024 * 1024, (
+        "archive swept up files it should have excluded"
+    )
+    assert backup_module.verify_backup(meta["id"])["ok"] is True
 
     with open(level, "wb") as f:
         f.write(b"corrupted rubbish")
@@ -285,8 +296,10 @@ def test_backup_restore_round_trip(palsav_available, sandbox):
     old = time.time() - 7200
     os.utime(level, (old, old))
 
-    assert restore_backup(meta["id"]) is True
+    result = backup_module.restore_backup(meta["id"])
+    assert result["success"] is True
     assert open(level, "rb").read() == original
+    assert result["rollbackId"], "a restore must leave its own rollback point"
 
 
 # ─── Player saves ────────────────────────────────────────────────

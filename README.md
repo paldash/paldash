@@ -132,8 +132,27 @@ guard that re-checks server state, takes a full world backup, then re-checks
 again immediately before applying. If the backup fails, the change is abandoned.
 `PalWorldSettings.ini` is copied to `BACKUP_DIR/config/` before any write, and is
 written atomically (temp file → `fsync` → `rename`), so an interrupted write
-leaves the original intact. Restores snapshot the current world first, so a
-restore is itself reversible.
+leaves the original intact.
+
+**Backups are verified archives, not directory copies.** Each one is a single
+`.tar.gz` with a manifest recording a SHA-256 for every file and one for the
+archive itself, so "a backup exists" and "a backup will restore" are the same
+statement. Verifying re-hashes the lot. A restore verifies *before* touching
+anything — restoring a corrupt backup over a working world would be the worst
+possible outcome — and leaves its own rollback point, so a restore is reversible.
+
+Restores are two steps: **preview, then confirm**. The preview hashes rather than
+compares sizes, and lists files that exist now but are absent from the backup
+(players who joined since) as *kept* — restoring does not delete them. You can
+restore the whole world, just `Players/`, or just the config.
+
+Retention thins rather than truncates: newest few, then one per day, then one per
+week. Rollback points taken automatically before an edit are protected while
+they are still fresh, because they are the only way back from a bad edit.
+
+Scheduled backups are off by default; when enabled, a missed window is skipped
+rather than replayed, so a machine that was asleep will not wake up and take a
+week of catch-up backups.
 
 **Belt and braces.** Set `SAVE_READ_ONLY=true` to refuse all writes regardless of
 server state, and/or mount the volume `:ro`. Leave `ALLOW_UNVERIFIED_EDITS=false`

@@ -1,12 +1,15 @@
 """
 Palworld Dashboard — save-file backend.
 
-Binds to loopback by default. It has NO authentication of its own: the Next.js
-layer in front of it is what distinguishes admin from guest. Never publish this
-port.
+Binds to loopback by default. It authenticates for itself: the session token
+arrives as `X-Session-Token` and is resolved against the local database (see
+authz.py), so the Next.js proxy forwards a credential rather than asserting an
+identity. Loopback binding is defence in depth, not the only control — but there
+is still no reason to publish this port.
 
-Everything that writes is gated on safety.assert_writable(), which only passes
-when the game server is *provably* stopped.
+Everything that writes is gated twice: on the caller's capability, and on
+safety.assert_writable(), which only passes when the game server is *provably*
+stopped.
 """
 
 from __future__ import annotations
@@ -29,8 +32,10 @@ import policy as policy_module
 import roles as roles_module
 import savecache
 import saveedit
+import schedule as schedule_module
 import settings_ini
-from backup import create_backup, delete_backup, list_backups, restore_backup
+import backup as backup_module
+from backupstore import BackupError
 from parser import (
     extract_player_progress,
     extract_player_save,
@@ -50,7 +55,9 @@ app = FastAPI(title="Palworld Save Backend", version="3.0.0")
 def _startup() -> None:
     """Prepare storage and make sure somebody can actually sign in."""
     db.init()
+    schedule_module.init()
     accounts.purge_expired()
+    schedule_module.start()
     created = accounts.bootstrap_from_env()
     if created:
         audit.record(
@@ -796,8 +803,23 @@ def apply_settings_preset(preset_id: str, request: Request) -> dict:
 
 
 @app.get("/api/backups")
-def get_backups() -> list[dict]:
-    return list_backups()
+def get_backups(request: Request) -> dict[str, Any]:
+    authz.require(request, roles_module.BACKUP_MANAGE)
+    return {
+        "backups": backup_module.list_backups(),
+        "usage": backup_module.storage_usage(),
+        "scopes": backup_module.RESTORE_SCOPES,
+        "retention": backup_module.DEFAULT_RETENTION,
+    }
+
+
+@app.get("/api/backups/{backup_id}")
+def get_backup_detail(backup_id: str, request: Request) -> dict:
+    authz.require(request, roles_module.BACKUP_MANAGE)
+    detail = backup_module.describe_backup(backup_id)
+    if not detail:
+        raise HTTPException(404, f"Backup {backup_id} not found")
+    return detail
 
 
 class BackupRequest(BaseModel):
@@ -807,18 +829,20 @@ class BackupRequest(BaseModel):
 @app.post("/api/backup")
 def make_backup(req: BackupRequest, request: Request) -> dict:
     """
-    Snapshot the world directory.
+    Snapshot the world into a verified archive.
 
     Safe to run while the server is live: it only reads the save files and
     writes elsewhere. Files may be mid-autosave, so a backup taken on a running
-    server is a best-effort snapshot — stop the server for a guaranteed-clean one.
+    server is a best-effort snapshot — stop the server for a guaranteed-clean one,
+    which is recorded in the manifest either way.
     """
     user = authz.require_user(request, roles_module.BACKUP_MANAGE)
-    world_dir = get_default_world_dir()
-    if not world_dir:
-        raise HTTPException(404, "No world directory found")
     try:
-        meta = create_backup(world_dir, req.description or "")
+        meta = backup_module.create_backup(
+            description=req.description or "",
+            trigger="manual",
+            created_by=user["username"],
+        )
     except Exception as e:  # noqa: BLE001
         audit.record(
             audit.BACKUP_CREATE, username=user["username"], role=user["role"],
@@ -835,45 +859,166 @@ def make_backup(req: BackupRequest, request: Request) -> dict:
     return meta
 
 
+@app.post("/api/backups/{backup_id}/verify")
+def verify_backup_route(backup_id: str, request: Request) -> dict:
+    """Re-hash the archive and every file in it. This is what makes a backup trustworthy."""
+    authz.require(request, roles_module.BACKUP_MANAGE)
+    if not backup_module.find_backup(backup_id):
+        raise HTTPException(404, f"Backup {backup_id} not found")
+    return backup_module.verify_backup(backup_id)
+
+
+class RenameRequest(BaseModel):
+    description: str
+
+
+@app.patch("/api/backups/{backup_id}")
+def rename_backup_route(backup_id: str, req: RenameRequest, request: Request) -> dict:
+    authz.require_user(request, roles_module.BACKUP_MANAGE)
+    renamed = backup_module.rename_backup(backup_id, req.description)
+    if not renamed:
+        raise HTTPException(404, f"Backup {backup_id} not found")
+    return renamed
+
+
+@app.get("/api/backups/{backup_id}/preview")
+def preview_restore_route(
+    backup_id: str, request: Request, scope: str = Query("world")
+) -> dict:
+    """What a restore would change, without changing anything."""
+    authz.require(request, roles_module.BACKUP_MANAGE)
+    try:
+        return backup_module.preview_restore(backup_id, scope)
+    except BackupError as e:
+        raise HTTPException(404, str(e))
+
+
+class RestoreRequest(BaseModel):
+    scope: str = "world"
+
+
 @app.post("/api/restore/{backup_id}")
-def do_restore(backup_id: str, request: Request) -> dict:
+def do_restore(backup_id: str, request: Request, req: RestoreRequest = RestoreRequest()) -> dict:
     user = authz.require_user(request, roles_module.BACKUP_MANAGE)
     ip = authz.client_ip(request)
 
-    try:
-        assert_writable()
-    except ServerRunningError as e:
+    def failed(message: str, status: int):
         audit.record(
             audit.BACKUP_RESTORE, username=user["username"], role=user["role"],
-            target=backup_id, detail=str(e), ip=ip, result=audit.RESULT_FAILED,
+            target=backup_id, detail=message, ip=ip, result=audit.RESULT_FAILED,
         )
-        raise HTTPException(423, str(e))
+        return HTTPException(status, message)
 
-    if not restore_backup(backup_id):
-        audit.record(
-            audit.BACKUP_RESTORE, username=user["username"], role=user["role"],
-            target=backup_id, detail="not found", ip=ip, result=audit.RESULT_FAILED,
+    try:
+        result = backup_module.restore_backup(
+            backup_id, req.scope, created_by=user["username"]
         )
-        raise HTTPException(404, f"Backup {backup_id} not found")
+    except ServerRunningError as e:
+        raise failed(str(e), 423)
+    except BackupError as e:
+        raise failed(str(e), 409)
+    except Exception as e:  # noqa: BLE001
+        logger.exception("Restore failed")
+        raise failed(f"Restore failed: {e}", 500)
 
     audit.record(
         audit.BACKUP_RESTORE, username=user["username"], role=user["role"],
-        target=backup_id, ip=ip,
+        target=backup_id,
+        detail={
+            "scope": req.scope,
+            "files": len(result["restoredFiles"]),
+            "rollbackId": result["rollbackId"],
+        },
+        ip=ip,
     )
     savecache.request_parse(force=True)
-    return {"success": True}
+    return result
+
+
+class PruneRequest(BaseModel):
+    dryRun: bool = True
+
+
+@app.post("/api/backups/prune")
+def prune_route(req: PruneRequest, request: Request) -> dict:
+    """Apply retention. Defaults to a dry run so nothing is deleted by accident."""
+    user = authz.require_user(request, roles_module.BACKUP_MANAGE)
+    result = backup_module.prune_backups(dry_run=req.dryRun)
+    if not req.dryRun and result["removed"]:
+        audit.record(
+            audit.BACKUP_DELETE, username=user["username"], role=user["role"],
+            target="retention",
+            detail={"removed": [r["id"] for r in result["removed"]],
+                    "freedBytes": result["freedBytes"]},
+            ip=authz.client_ip(request),
+        )
+    return result
 
 
 @app.delete("/api/backups/{backup_id}")
 def remove_backup(backup_id: str, request: Request) -> dict:
     user = authz.require_user(request, roles_module.BACKUP_MANAGE)
-    if not delete_backup(backup_id):
+    if not backup_module.delete_backup(backup_id):
         raise HTTPException(404, f"Backup {backup_id} not found")
     audit.record(
         audit.BACKUP_DELETE, username=user["username"], role=user["role"],
         target=backup_id, ip=authz.client_ip(request),
     )
     return {"success": True}
+
+
+@app.get("/api/backups/{backup_id}/download")
+def download_backup(backup_id: str, request: Request):
+    """Stream the archive so it can be kept somewhere this server is not."""
+    from fastapi.responses import FileResponse
+
+    authz.require(request, roles_module.BACKUP_MANAGE)
+    meta = backup_module.find_backup(backup_id)
+    if not meta:
+        raise HTTPException(404, f"Backup {backup_id} not found")
+
+    path = backup_module.store().path_for(backup_id)
+    if not os.path.exists(path):
+        raise HTTPException(404, "Archive file is missing")
+
+    stamp = (meta["timestamp"] or "")[:19].replace(":", "-")
+    return FileResponse(
+        path,
+        media_type="application/gzip",
+        filename=f"palworld-{meta['worldGuid'] or 'world'}-{stamp}-{backup_id}.tar.gz",
+    )
+
+
+# ─── Backup schedule ─────────────────────────────────────
+
+
+@app.get("/api/backups/schedule/config")
+def get_backup_schedule(request: Request) -> dict:
+    authz.require(request, roles_module.BACKUP_MANAGE)
+    return schedule_module.get_schedule()
+
+
+class ScheduleUpdate(BaseModel):
+    enabled: Optional[bool] = None
+    frequency: Optional[str] = None
+    pruneAfter: Optional[bool] = None
+
+
+@app.post("/api/backups/schedule/config")
+def set_backup_schedule(req: ScheduleUpdate, request: Request) -> dict:
+    user = authz.require_user(request, roles_module.BACKUP_MANAGE)
+    try:
+        updated = schedule_module.set_schedule(
+            enabled=req.enabled, frequency=req.frequency, prune_after=req.pruneAfter
+        )
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+    audit.record(
+        "backup.schedule", username=user["username"], role=user["role"],
+        detail=req.model_dump(exclude_none=True), ip=authz.client_ip(request),
+    )
+    return updated
 
 
 # ─── Save editing ────────────────────────────────────────
