@@ -350,6 +350,130 @@ def test_sorting_an_unknown_base_writes_nothing(palsav_available, sandbox):
 
 
 @pytest.mark.slow
+def test_import_writes_only_its_own_container(palsav_available, sandbox):
+    """
+    The import write path, end to end on a real world.
+
+    Conservation does not apply here — an import changes totals on purpose — so
+    the guarantee is scope: the target container reads back exactly as planned,
+    and every other container in the world is untouched.
+    """
+    import saveexport
+    import saveimport
+
+    level = os.path.join(sandbox["world"], "Level.sav")
+
+    def read_containers():
+        from palsav.core import decompress_sav_to_gvas
+        from palsav.gvas import GvasFile
+        from palsav.paltypes import PALWORLD_CUSTOM_PROPERTIES, PALWORLD_TYPE_HINTS
+        import saveedit
+
+        raw, _ = decompress_sav_to_gvas(open(level, "rb").read())
+        tree = GvasFile.read(raw, PALWORLD_TYPE_HINTS, PALWORLD_CUSTOM_PROPERTIES)
+        entries = tree.properties["worldSaveData"]["value"]["ItemContainerSaveData"]["value"]
+        return {saveedit._container_id_of(e): saveimport._live_slots(e) for e in entries}
+
+    before = read_containers()
+
+    # A container holding only plain stackables, with something to change.
+    target_id, slots = next(
+        (cid, s) for cid, s in before.items()
+        if len(s) >= 2
+        and not any(x["hasDynamicId"] for x in s)
+        and any(not x["isEmpty"] for x in s)
+    )
+
+    occupied = next(s for s in slots if not s["isEmpty"])
+    new_slots = [
+        {**s, "stackCount": s["stackCount"] + 1} if s["slotIndex"] == occupied["slotIndex"] else s
+        for s in slots
+    ]
+    document = saveexport.envelope(
+        "container", {"containerId": target_id, "owner": None, "slots": new_slots}, "test"
+    )
+
+    plan = saveimport.plan_container_import(document, slots)
+    assert plan["ok"], plan["problems"]
+    assert plan["slotsChanged"] == 1
+
+    result = saveimport.apply_container_import(document, expected_plan_hash=plan["planHash"])
+
+    assert result["ok"] is True
+    assert result["verified"] is True
+    assert result["backupId"]
+
+    after = read_containers()
+    changed = {cid for cid in before if before[cid] != after.get(cid)}
+    assert changed == {target_id}, f"import escaped its scope into {changed - {target_id}}"
+
+    written = {s["slotIndex"]: s for s in after[target_id]}
+    assert written[occupied["slotIndex"]]["stackCount"] == occupied["stackCount"] + 1
+
+
+@pytest.mark.slow
+def test_import_refuses_a_stale_plan_hash(palsav_available, sandbox):
+    """Approving a preview then applying it to a world that moved must fail."""
+    import saveexport
+    import saveimport
+
+    level = os.path.join(sandbox["world"], "Level.sav")
+    original = open(level, "rb").read()
+
+    from palsav.core import decompress_sav_to_gvas
+    from palsav.gvas import GvasFile
+    from palsav.paltypes import PALWORLD_CUSTOM_PROPERTIES, PALWORLD_TYPE_HINTS
+    import saveedit
+
+    raw, _ = decompress_sav_to_gvas(original)
+    tree = GvasFile.read(raw, PALWORLD_TYPE_HINTS, PALWORLD_CUSTOM_PROPERTIES)
+    entries = tree.properties["worldSaveData"]["value"]["ItemContainerSaveData"]["value"]
+    target_id, slots = next(
+        (saveedit._container_id_of(e), saveimport._live_slots(e))
+        for e in entries
+        if len(saveimport._live_slots(e)) >= 2
+        and not any(x["hasDynamicId"] for x in saveimport._live_slots(e))
+        and any(not x["isEmpty"] for x in saveimport._live_slots(e))
+    )
+
+    occupied = next(s for s in slots if not s["isEmpty"])
+    new_slots = [
+        {**s, "stackCount": s["stackCount"] + 5} if s["slotIndex"] == occupied["slotIndex"] else s
+        for s in slots
+    ]
+    document = saveexport.envelope(
+        "container", {"containerId": target_id, "owner": None, "slots": new_slots}, "test"
+    )
+
+    with pytest.raises(saveimport.ImportError_, match="no longer matches"):
+        saveimport.apply_container_import(document, expected_plan_hash="a-hash-from-another-world")
+
+    assert open(level, "rb").read() == original, "Level.sav was written despite the stale plan"
+
+
+@pytest.mark.slow
+def test_import_refuses_while_the_server_is_up(palsav_available, sandbox, monkeypatch):
+    import safety
+    import saveexport
+    import saveimport
+
+    level = os.path.join(sandbox["world"], "Level.sav")
+    original = open(level, "rb").read()
+
+    monkeypatch.setattr(
+        safety, "_probe_rest_api", lambda: safety.Signal("rest_api", "running", "test")
+    )
+    document = saveexport.envelope(
+        "container", {"containerId": "whatever", "owner": None, "slots": []}, "test"
+    )
+
+    with pytest.raises(safety.ServerRunningError):
+        saveimport.apply_container_import(document)
+
+    assert open(level, "rb").read() == original
+
+
+@pytest.mark.slow
 def test_sort_takes_a_backup_before_writing(palsav_available, sandbox):
     import backup as backup_module
     import saveedit

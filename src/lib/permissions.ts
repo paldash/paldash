@@ -100,6 +100,10 @@ const ROUTES: RouteRule[] = [
   // Literal `export/verify` before the `export/{kind}` pattern: verify is a POST
   // and must not be reachable as a GET export of a kind called "verify".
   { pattern: /^export\/verify$/, methods: ['POST'], capability: CAPABILITIES.VIEW_DETAIL, feature: null },
+  { pattern: /^import\/preview$/, methods: ['POST'], capability: CAPABILITIES.SAVE_EDIT_FULL, feature: null },
+  // Apply requires a planHash query param the backend checks against a fresh
+  // re-plan, so this route cannot be used to write without a preview first.
+  { pattern: /^import\/apply$/, methods: ['POST'], capability: CAPABILITIES.SAVE_EDIT_FULL, feature: null },
   { pattern: /^export\/(world|player|guild|base|container)$/, methods: ['GET'], capability: CAPABILITIES.VIEW_DETAIL, feature: null },
   { pattern: /^reports$/, methods: ['GET'], capability: CAPABILITIES.VIEW_DETAIL, feature: FEATURES.ITEMS },
   { pattern: /^reports\/[a-z-]+$/, methods: ['GET'], capability: CAPABILITIES.VIEW_DETAIL, feature: FEATURES.ITEMS },

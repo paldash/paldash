@@ -55,6 +55,7 @@ SAVE_EDIT = "save.edit"
 # An export is the whole inventory, plus real Steam IDs, in one downloadable
 # file. Auditing it matters as much as auditing a write.
 EXPORT = "save.export"
+SAVE_IMPORT = "save.import"
 
 SERVER_RESTART = "server.restart"
 SERVER_STOP = "server.stop"

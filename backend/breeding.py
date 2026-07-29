@@ -84,6 +84,7 @@ def pal_info(internal_name: str) -> dict[str, Any]:
         "isVariant": info.get("variant", False),
         "rarity": info.get("rarity"),
         "breedingPower": info.get("power"),
+        "unreleased": bool(info.get("unreleased")),
         "genderOdds": info.get("gender", {"MALE": 0.5, "FEMALE": 0.5}),
         "work": info.get("work", {}),
         "stats": info.get("stats", {}),
@@ -98,9 +99,26 @@ def passive_name(internal_id: str) -> str:
     return internal_id
 
 
-def all_pals() -> list[dict[str, Any]]:
+def is_unreleased(internal_name: str) -> bool:
+    """
+    True for Pals present in the game files but absent from the Paldeck
+    (`zukanIndex` of -1).
+
+    The 1.0 breeding tables reference several of these, so their pair data is
+    kept — it is correct if they are ever released. They are withheld from the
+    planner's target list because offering a goal nobody can obtain is worse
+    than not listing it.
+    """
+    return bool(_db()["pals"].get(internal_name, {}).get("unreleased"))
+
+
+def all_pals(include_unreleased: bool = False) -> list[dict[str, Any]]:
     return sorted(
-        (pal_info(name) for name in _db()["pals"]),
+        (
+            pal_info(name)
+            for name in _db()["pals"]
+            if include_unreleased or not is_unreleased(name)
+        ),
         key=lambda p: (p.get("dex") or 9999, p["name"]),
     )
 

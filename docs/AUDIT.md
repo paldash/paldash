@@ -66,19 +66,19 @@ than attempting all of it.
 | Save parsing engine | 95% | ✅ Phase 5: per-base container linkage, exact rather than spatial |
 | Corruption safety | 85% | Fail-closed, atomic, verified; no audit trail |
 | Backup & restore | 90% | ✅ Phase 4: verified archives, retention, schedule, preview, browser. No cloud targets |
-| Save editing | 25% | ✅ Phase 5: base-scoped sorting, real stack limits. General editor still 501 |
+| Save editing | 35% | ✅ P5 base-scoped sorting + real stack limits; ✅ P6 container import. General editor still 501 |
 | Live map | 70% | ✅ Phase 2: both maps ship, 174 fast-travel POIs, layers/search. World Tree transform provisional |
 | Reference data | 90% | ✅ Phase 1: full 1.0 DB bundled at 215 KB; icons still not shipped |
 | Auth & accounts | 85% | ✅ Phase 3: accounts, scrypt, revocable sessions, throttling, audit log. No 2FA/reset flow |
 | Permissions | 90% | ✅ Phase 3: 7 role presets, two-gate model, route allowlist |
 | Server dashboard | 30% | REST status; no metrics history, no admin commands |
 | Docker | 80% | Genuinely good; needs multi-image validation |
-| Import / export | 45% | ✅ Phase 6 export half: versioned, checksummed, verifiable. Import not started |
+| Import / export | 80% | ✅ Export complete; container import writes, verifies and rolls back. Player/Pal imports need Phase 7 |
 | Migration tools | 0% | Not started |
-| Testing | 78% | ✅ 399 backend + 42 frontend tests |
+| Testing | 84% | ✅ 449 backend + 46 frontend tests |
 | Documentation | 70% | ✅ Phase 0: `.gitignore` fixed, AGENTS.md written |
 | Reports / export | 60% | ✅ Phase 5: 4 reports × CSV/JSON/TXT. Save import/export is Phase 6 |
-| **Weighted total** | **~79%** | 32% → 36% (P0) → 43% (P1) → 50% (P2) → 62% (P3) → 70% (P4) → 76% (P5) → 79% (P6 export) |
+| **Weighted total** | **~85%** | 32% → 36% (P0) → 43% (P1) → 50% (P2) → 62% (P3) → 70% (P4) → 76% (P5) → 79% (P6 export) → 82% (P6 import gate) → 85% (P6 complete) |
 
 ---
 
@@ -107,7 +107,7 @@ Postgres — this is a LAN tool for tens of users, not a SaaS.
 | `parser.py` | 604 | ✅ Correct 1.0/Oodle decode, custom property registration |
 | `main.py` | 552 | 🟡 30 routes, no versioning, no rate limit, no audit hook |
 | `settings_ini.py` | 358 | ✅ Quote/paren-aware, type-preserving, backs up before write |
-| `breeding.py` | 335 | 🟡 Works; built on a derived dataset that `refs/` supersedes |
+| `breeding.py` | 335 | ✅ 1.0 data merged 2026-07-28: 46,655 pairs, 305 Pals |
 | `saveedit.py` | 311 | 🟠 Sorting only, but the write path is genuinely proven |
 | `safety.py` | 270 | ✅ Four-signal fail-closed detection |
 | `savefiles.py` | 267 | ✅ Torn-read protection, atomic write, case-insensitive GUID match |
@@ -553,7 +553,7 @@ handling. Each changes *where an item ends up* rather than how tidily it is pack
 makes them save-editor semantics (Phase 7) rather than sorting. Deferred rather than
 half-built. **Tests: 379 backend + 39 frontend.**
 
-### Phase 6 — Import / export · 🟡 **EXPORT HALF COMPLETE** (2026-07-28)
+### Phase 6 — Import / export · ✅ **COMPLETE for containers** (2026-07-28)
 
 Split deliberately: export is read-only and shippable on its own, import is the most
 dangerous surface in the product. `backend/saveexport.py` contains no write path at all,
@@ -577,10 +577,55 @@ never one typo from the safe code.
 - World exports deliberately omit raw container slots — that is hundreds of MB on a mature
   world. Container detail is a separate targeted export.
 
-**Remaining (the risky half):** import with a dry-run diff preview, mandatory pre-import
-backup, and per-field validation. Every import must be previewed and backed up first, no
-exceptions. **Depends on: Phase 4, and on Phase 7's validation schema for anything beyond
-a whole-container replace.**
+**Import — validation and dry run done (2026-07-28), write path deliberately not built.**
+
+`backend/saveimport.py` is a separate module from `saveexport.py` on purpose: export has no
+write path at all, so keeping them apart means the risky code is never one typo from the
+safe code.
+
+- `validate_container_payload` rejects unknown item ids outright, non-integer or
+  non-positive counts, counts above the item's real stack ceiling, duplicate or negative
+  slot indices, slots outside the target container's capacity, and absurd slot counts.
+- `plan_container_import` is pure and returns the exact per-slot diff, friendly names, the
+  item-total delta, the source world GUID, and a `planHash` so an apply step can refuse if
+  the world moved after the operator approved the preview.
+- `POST /api/import/preview` is read-only and gated on `SAVE_EDIT_FULL` — the preview tells
+  you how to build an acceptable document, which is editor knowledge.
+- **Only `container` imports are supported.** Player, Pal and technology imports are
+  refused with a reason rather than half-validated; they need Phase 7's per-field schema.
+- **There is no apply endpoint and no allowlist entry for one**, and a frontend test
+  asserts that, so adding one has to be a deliberate act.
+
+Conservation does not apply to imports the way it does to sorts — an import intentionally
+changes totals — so the safety net is different: a typed and bounded change set, a diff the
+operator approved, and `guarded_save_write`'s verified backup when the write path lands.
+
+**The write path landed (2026-07-28).** `apply_container_import` is the only function in
+the module that writes, and the order is not negotiable:
+
+1. `guarded_save_write` proves the server is stopped and takes a verified backup.
+2. The plan is recomputed against the **live** tree, never the parse cache, which can be
+   minutes stale.
+3. A mismatched `planHash` aborts — the world moved after the operator approved the diff.
+4. After writing, the file is re-read from disk: the target container must match the plan
+   exactly, **and every other container in the world must be unchanged**. Anything else
+   restores the backup automatically.
+
+`POST /api/import/apply` requires `planHash` as a mandatory query parameter, so the route
+cannot be used to write without previewing first.
+
+**Durability items are refused, not handled.** Equipment and eggs carry a non-zero
+`local_id_in_created_world` and have their own `DynamicItemSaveData` record. Overwriting
+one orphans that record and a replacement cannot be fabricated, so an import touching such
+a slot is rejected whole rather than partially applied — the same line the "stackables"
+sort takes. `parser.extract_containers` now exposes `hasDynamicId` so the preview refuses
+early rather than at write time.
+
+Empty-slot structure was read off the reference world rather than assumed: `static_id: ""`,
+`count: 0`, and a zeroed `dynamic_id`.
+
+**Still to build:** import kinds beyond `container`. Player, Pal and technology imports stay
+refused with a reason. **Depends on Phase 7's per-field validation schema.**
 
 ### Phase 7 — General save editor (8–12 days) · **the big one**
 Per-field validation schema (type, range, enum, cross-field) covering player fields, Pal

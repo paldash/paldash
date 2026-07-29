@@ -166,6 +166,33 @@ describe('describeSavePath', () => {
       expect(describeSavePath('export/verify', 'GET').allowed).toBe(false);
     });
 
+    it('gates the import dry run behind the editor capability', () => {
+      expect(describeSavePath('import/preview', 'POST')).toMatchObject({
+        allowed: true,
+        capability: CAPABILITIES.SAVE_EDIT_FULL,
+      });
+    });
+
+    it('gates the import write behind the editor capability', () => {
+      expect(describeSavePath('import/apply', 'POST')).toMatchObject({
+        allowed: true,
+        capability: CAPABILITIES.SAVE_EDIT_FULL,
+      });
+    });
+
+    it('exposes no import route other than preview and apply', () => {
+      for (const path of ['import', 'import/commit', 'import/container', 'import/world']) {
+        expect(describeSavePath(path, 'POST').allowed).toBe(false);
+      }
+      expect(describeSavePath('import/preview', 'GET').allowed).toBe(false);
+      expect(describeSavePath('import/apply', 'GET').allowed).toBe(false);
+    });
+
+    it('never exposes either import route to guests', () => {
+      expect(describeSavePath('import/preview', 'POST').feature).toBeNull();
+      expect(describeSavePath('import/apply', 'POST').feature).toBeNull();
+    });
+
     it('never exposes exports to guests', () => {
       // feature: null means a signed-out caller is refused outright, regardless
       // of the guest visibility policy. Exports carry real Steam IDs.

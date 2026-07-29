@@ -4,8 +4,8 @@ What exists **today**, as of 2026-07-28 (Phases 0–5 complete). Written because
 roadmap in `AUDIT.md` tracks *gaps* — anything already working simply does not appear
 there, which makes finished features look missing.
 
-Evidence: 58 backend routes, 21 backend modules, 13 UI components, 12 tabs,
-379 backend + 39 frontend tests.
+Evidence: 64 backend routes, 24 backend modules, 13 UI components, 12 tabs,
+449 backend + 46 frontend tests.
 
 Legend: ✅ works · 🟡 works with a caveat · 🔴 not built
 
@@ -59,6 +59,8 @@ Legend: ✅ works · 🟡 works with a caveat · 🔴 not built
 | Near-full base warnings | ✅ | **Phase 5**, 90 % threshold |
 | Reports: CSV / JSON / TXT | ✅ | **Phase 5**, 4 report types |
 | Container sorting (stackables / all) | ✅ | Conservation-verified, auto-rollback |
+| Structured export (5 kinds) | ✅ | **Phase 6**, checksummed and verifiable |
+| Container import | ✅ | **Phase 6**, dry-run diff + plan hash + scope-verified write |
 | Base-scoped sorting | ✅ | **Phase 5** |
 | Real stack limits | ✅ | **Phase 5**, `max(authoritative, observed)` |
 | Category rules / priorities / profiles | 🔴 | Deferred — these decide *where an item goes*, which is editor semantics |
@@ -67,12 +69,12 @@ Legend: ✅ works · 🟡 works with a caveat · 🔴 not built
 
 | Feature | State | Notes |
 |---|---|---|
-| Breeding calculator | ✅ | 44,850 precomputed parent pairs |
+| Breeding calculator | ✅ | 46,655 parent pairs |
 | Special combinations | ✅ | Correct by construction (full pair table, not a formula reimplementation) |
 | Palbox-driven suggestions | ✅ | Works from what players actually own |
 | Breeding path search | ✅ | Depth-capped BFS to protect CPU |
 | Inheritance odds | ✅ | |
-| Dataset currency | 🟡 | 299 Pals; `refs/` has 304 — **6 missing 1.0 Pals and 1 wrong combo**. See §8 |
+| Dataset currency | ✅ | **Merged 2026-07-28**: 305 Pals, +Astralym (#204), +1,803 pairs. See the merge note below |
 
 ## 6. Backups
 
@@ -107,7 +109,7 @@ Legend: ✅ works · 🟡 works with a caveat · 🔴 not built
 | Item | Reason |
 |---|---|
 | General save editor | Phase 7. Returns 501. The write path is proven; per-field validation is not |
-| Save import / export | Phase 6. Highest-risk surface in the product |
+| Save import beyond containers | Phase 7. Container import ships; player/Pal/technology imports refused until the per-field schema exists |
 | Migration (Steam ↔ dedicated ↔ Game Pass) | Phase 9 |
 | Mod detection / plugin support | Phase 9; full mod save parsing is out of scope permanently |
 | Cheat mode / arbitrary value injection | **Deliberately never.** Directly opposed to the corruption-safety goal |
@@ -116,34 +118,46 @@ Legend: ✅ works · 🟡 works with a caveat · 🔴 not built
 
 ---
 
-## The breeding data swap
+## The breeding data merge · ✅ **DONE** (2026-07-28)
 
-The replacement data is **already local** — no download, no scraping, no new dependency:
+`scripts/build-breedingdata.py`. The source data was already local — no download, no
+scraping, no new dependency:
 
 ```
 refs/PalWorldSaveTools-main.zip
   └── palworldsavetools/resources/game_data/breedingdata.json   (7.1 MB, MIT)
 ```
 
-Measured difference against the current palcalc-derived tables:
+**A merge, not a regeneration.** `refs/` ships the game's own tables but not a full pair
+expansion — `parent_to_children_formula` covers 44 parents. Reconstructing the combi-rank
+formula to fill the gap was tried and **rejected**: against the known-good palcalc table
+the best reconstruction agreed only **77.5%** of the time, across every plausible
+tie-break. Shipping a formula that is wrong one time in four is worse than slightly stale
+data. So palcalc's 44,850 pairs stay as the base and `refs/` layers on top.
 
-| | Current | `refs/` |
-|---|---:|---:|
-| Pals | 299 | 304 |
-| Precomputed pairs | 44,850 | formula + 253 unique combos |
-| Special combos agreeing | — | 248 / 253 |
+Result: **44,850 → 46,655 pairs, 299 → 305 Pals.**
 
-- **6 Pals genuinely missing today**: `BlackFurDragon`, `CandleWitch`, `ElecLion`,
-  `Strawhatcat`, `VolcanicTurtle`, `WorldTreeDragon` — 1.0 additions.
-- **1 disagreement**: `CatMage + FoxMage` → current says `FoxMage_Dark`, `refs/` says
-  `CatMage_Fire`. `refs/` is extracted from the game's own tables and is the authority.
-- **1 casing-only difference**: `BluePlatypus` vs `Blueplatypus` — exactly the trap the
-  case-insensitive resolver already exists for.
-- `PlantSlime_Flower` exists in the current data but not `refs/`; check before dropping it.
+Three earlier claims of mine were wrong, and the investigation is what corrected them:
 
-Earlier framing of this as "299 vs 753" was wrong: 753 is every entry in the Pal database
-including `BOSS_`/variant forms, not breedable species. The real gap is 6 Pals, not 454.
+| Claimed | Actually |
+|---|---|
+| "6 Pals genuinely missing" | **1.** Only `WorldTreeDragon` (Astralym, Paldeck #204) is a released Pal. The other five carry `zukanIndex: -1` — present in the game files, absent from the Paldeck |
+| "`CatMage + FoxMage` is wrong and `refs/` fixes it" | **Neither is wrong.** `unique_combos` lists that pair **twice, in the same parent order**, producing `FoxMage_Dark` *and* `CatMage_Fire` — and `child_to_parents_unique` names it as the unique parent pair of both. It genuinely has two outcomes |
+| "299 vs 753 Pals" | 753 counts every `BOSS_`/variant form. Breedable species is ~300 either way |
 
-Work required: a `scripts/build-breedingdata.py` alongside the existing
-`build-gamedata.py`, plus tests pinning the 6 new Pals and the corrected combo. Small, but
-it changes calculator output, so it is a change with tests attached rather than a drop-in.
+The handling follows from that:
+
+- **Ambiguous pairs are refused, not resolved.** Picking whichever entry came last in the
+  file would invent a certainty the data does not have. The base answer stands and the
+  build script prints the conflict. Representing "either of two" needs a schema change —
+  `pairs` maps one key to one child.
+- **Unreleased Pals are flagged, not dropped.** Their pair data is correct if they ever
+  ship; `all_pals()` withholds them from the planner's goal list, because offering a
+  target nobody can obtain is worse than not listing it.
+- **Existing spellings win.** `refs/` says `Blueplatypus`, the save says `BluePlatypus`;
+  keeping both would have put a duplicate Fuack in every dropdown. Names are folded onto
+  the existing spelling **in the pair keys too** — without that, the merged pairs were
+  keyed on a name no lookup could ever produce.
+
+Verified: byte-identical output on re-run, no pair references an unnameable Pal, and the
+table cannot shrink below palcalc's original 44,850. 13 tests in `test_breeding.py`.

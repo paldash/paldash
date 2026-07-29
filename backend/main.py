@@ -35,6 +35,7 @@ import roles as roles_module
 import savecache
 import saveedit
 import saveexport
+import saveimport
 import schedule as schedule_module
 import settings_ini
 import backup as backup_module
@@ -1201,6 +1202,107 @@ async def verify_export(request: Request) -> dict:
         return {"ok": False, "problems": [f"Not valid JSON: {e}"], "kind": None}
 
     return saveexport.verify(document)
+
+
+@app.post("/api/import/preview")
+async def preview_import(request: Request) -> dict:
+    """
+    Dry-run an import: what would change, and why it might be refused.
+
+    Read-only — this cannot write, and there is deliberately no apply endpoint
+    yet. Requires SAVE_EDIT_FULL rather than a view capability, because the
+    preview tells you precisely how to construct a document that would be
+    accepted, and that is editor knowledge.
+    """
+    authz.require(request, roles_module.SAVE_EDIT_FULL)
+
+    raw = await request.body()
+    if len(raw) > MAX_UPLOAD_BYTES:
+        raise HTTPException(
+            413, f"Document is larger than the {MAX_UPLOAD_BYTES // (1024 * 1024)} MB limit"
+        )
+
+    try:
+        document = json.loads(raw)
+    except (json.JSONDecodeError, UnicodeDecodeError) as e:
+        raise HTTPException(400, f"Not valid JSON: {e}")
+
+    container_id = ((document or {}).get("payload") or {}).get("containerId") or ""
+    current = savecache.get_data() or {}
+    containers = current.get("containers") if isinstance(current.get("containers"), dict) else {}
+    if container_id not in containers:
+        raise HTTPException(
+            404,
+            f"Container {container_id or '(none named)'} is not in the current parse. "
+            "Refresh the save data, or check this export came from this world.",
+        )
+
+    try:
+        plan = saveimport.plan_container_import(document, containers[container_id])
+    except saveimport.ImportRefused as e:
+        raise HTTPException(501, str(e))
+    except saveimport.ImportError_ as e:
+        raise HTTPException(400, str(e))
+
+    return {**plan, "summary": saveimport.summarise(plan), "applied": False}
+
+
+@app.post("/api/import/apply")
+async def apply_import(request: Request, planHash: str = Query(...)) -> dict:
+    """
+    Apply a previously previewed import.
+
+    `planHash` is required, not optional: it is the hash of the diff the
+    operator was actually shown. The import re-plans against the live world and
+    refuses if the hash no longer matches, so a world that changed between
+    preview and apply cannot be written blind.
+    """
+    user = authz.require_user(request, roles_module.SAVE_EDIT_FULL)
+    ip = authz.client_ip(request)
+
+    raw = await request.body()
+    if len(raw) > MAX_UPLOAD_BYTES:
+        raise HTTPException(
+            413, f"Document is larger than the {MAX_UPLOAD_BYTES // (1024 * 1024)} MB limit"
+        )
+
+    try:
+        document = json.loads(raw)
+    except (json.JSONDecodeError, UnicodeDecodeError) as e:
+        raise HTTPException(400, f"Not valid JSON: {e}")
+
+    def failed(message: str, status: int):
+        audit.record(
+            audit.SAVE_IMPORT, username=user["username"], role=user["role"],
+            target=((document or {}).get("payload") or {}).get("containerId", ""),
+            detail=message, ip=ip, result=audit.RESULT_FAILED,
+        )
+        return HTTPException(status, message)
+
+    try:
+        result = saveimport.apply_container_import(document, expected_plan_hash=planHash)
+    except ServerRunningError as e:
+        raise failed(str(e), 423)
+    except saveimport.ImportRefused as e:
+        raise failed(str(e), 501)
+    except saveimport.ImportError_ as e:
+        raise failed(str(e), 409)
+    except Exception as e:  # noqa: BLE001
+        logger.exception("Import failed")
+        raise failed(f"Import failed: {e}", 500)
+
+    audit.record(
+        audit.SAVE_IMPORT, username=user["username"], role=user["role"],
+        target=result["containerId"],
+        detail={
+            "slotsChanged": result["slotsChanged"],
+            "itemsBefore": result["itemsBefore"],
+            "itemsAfter": result["itemsAfter"],
+            "backupId": result["backupId"],
+        },
+        ip=ip,
+    )
+    return result
 
 
 # ─── Save editing ────────────────────────────────────────

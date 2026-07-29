@@ -821,6 +821,13 @@ def extract_containers(gvas: Any) -> dict[str, list[dict]]:
             # `item`. Reading count from inside `item` yields 0 for everything.
             item_id = str(_v(raw, "item", "static_id", default="") or "")
             count = int(raw.get("count") or 0)
+            # A non-zero local id means this item has its own record in
+            # DynamicItemSaveData — durability, eggs, anything individually
+            # tracked. Overwriting such a slot orphans that record, and a new
+            # one cannot be fabricated, so the importer refuses to touch them.
+            local_id = str(
+                _v(raw, "item", "dynamic_id", "local_id_in_created_world", default="") or ""
+            )
             slots.append(
                 {
                     "slotIndex": int(raw.get("slot_index") or 0),
@@ -828,6 +835,7 @@ def extract_containers(gvas: Any) -> dict[str, list[dict]]:
                     "itemName": item_id,
                     "stackCount": count,
                     "isEmpty": not item_id or count <= 0,
+                    "hasDynamicId": bool(local_id) and local_id != ZERO_GUID,
                 }
             )
 

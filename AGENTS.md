@@ -202,6 +202,31 @@ ownership from it, and a non-root process cannot fix it afterwards.
 Still broken: `STOP_COMMAND`/`START_COMMAND` invoke `docker`, which is not
 installed in the runtime image.
 
+## Imports write; exports do not
+
+`saveexport.py` has no write path at all. `saveimport.py` does. They are separate
+modules on purpose — keep it that way, so the risky code is never one typo from
+the safe code.
+
+**Conservation does not apply to an import.** A sort must end with identical item
+totals; an import changes them deliberately. The substitute guarantee is *scope*:
+after writing, the file is re-read and the target container must match the plan
+exactly **while every other container is unchanged**. Anything else rolls back.
+
+`apply_container_import` re-plans against the live tree, never the parse cache,
+and refuses if the caller's `planHash` no longer matches — that is what stops a
+world that moved between preview and apply from being written blind.
+
+**Durability items are refused, not handled.** A non-zero
+`item.dynamic_id.local_id_in_created_world` means a record in
+`DynamicItemSaveData`; overwriting the slot orphans it and a replacement cannot
+be fabricated. `extract_containers` exposes `hasDynamicId` so this is caught at
+preview time. An empty slot on disk is `static_id: ""`, `count: 0` and a zeroed
+`dynamic_id` — read off the reference world, not assumed.
+
+Only `container` imports exist. Player, Pal and technology imports are refused
+with a reason until Phase 7's per-field validation schema exists.
+
 ## Security boundary
 
 **The backend authenticates for itself.** The session token travels as
