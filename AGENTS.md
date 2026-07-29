@@ -8,10 +8,12 @@ A web dashboard for a self-hosted Palworld server: a Next.js UI and a Python
 save-parsing backend, running as one container beside the game server on a
 shared bind mount.
 
-- `src/` — Next.js 16 App Router UI. The API routes under `src/app/api/` are the
-  **entire security boundary**; see below.
-- `backend/` — FastAPI service that parses and (carefully) mutates save files,
-  and owns the SQLite database holding accounts, sessions and the audit log.
+- `src/` — Next.js 16 App Router UI. It is the only process listening on the
+  network; `src/app/api/` proxies to the backend and enforces a route allowlist.
+- `backend/` — FastAPI service on loopback that parses and (carefully) mutates
+  save files, and owns the SQLite database holding accounts, sessions, the audit
+  log and the backup schedule. It authenticates for itself — see "Security
+  boundary".
 - `docs/AUDIT.md` — current state, gap analysis, and the phased roadmap. Read
   this before planning work.
 - `refs/` — third-party reference archives (gitignored, ~66 MB). Contains the
@@ -40,6 +42,10 @@ npm run build
 
 # Backend alone
 .venv/bin/python backend/main.py    # binds 127.0.0.1:8400
+
+# Regenerate bundled assets from refs/ (rarely — only on a new PST release)
+python3 scripts/build-gamedata.py      # -> backend/data/gamedata.json.gz (212 KB)
+python3 scripts/install-map-assets.py  # -> public/maps/{palpagos,worldtree}.webp
 ```
 
 Integration tests skip automatically when `refworld/` or `palsav` is absent, so
@@ -58,13 +64,23 @@ unreachable API, unmounted volume, wrong password — resolves to "running".
 An HTTP 401 counts as **running** (something is listening and rejecting us).
 
 Every mutation goes through `backup.guarded_save_write`, which re-checks safety,
-takes a full verified backup, then re-checks again before yielding. Backups are
-`.tar.gz` archives with per-file SHA-256s (`backend/backupstore.py`); never go
-back to copying the world directory, which silently swept in the server's own
-nested `backup/` snapshots. `backend/saveedit.py`
-adds the conservation invariant: total quantity of every item in every container
-must be identical after a sort, verified in memory *and* again after re-reading
-from disk, with automatic rollback on mismatch.
+takes a full verified backup, then re-checks again before yielding.
+
+`backend/saveedit.py` adds the conservation invariant: the total quantity of
+every item in every container must be identical after a sort, verified in memory
+*and* again after re-reading from disk, with automatic rollback on mismatch.
+
+Backups (`backend/backupstore.py`) are `.tar.gz` archives with a SHA-256 per file
+plus one for the archive. Two things not to undo:
+
+- **Never go back to copying the world directory.** `copytree` silently swept in
+  the server's own rotating snapshots under `<world>/backup/` — on the reference
+  world that turned a 2.1 MB world into 66 MB archives, each containing copies of
+  all the earlier ones. `collect_world_files` uses an explicit include list and
+  prunes excluded directories during the walk.
+- **A restore verifies the archive before touching anything** and leaves its own
+  rollback point. Restoring a corrupt backup over a working world is the worst
+  outcome available here.
 
 When you touch any of this, run the full suite including `-m slow`. Those tests
 exercise the real pipeline against a real world.
@@ -82,6 +98,46 @@ exercise the real pipeline against a real world.
   them rather than indexing directly.
 - Player `.sav` filenames are uppercase undashed hex; `Level.sav` stores
   lowercase dashed GUIDs. Match via `savefiles.get_player_sav_path`.
+
+## The map has two regions, not one
+
+`src/lib/map-coordinates.ts`. Palworld 1.0's landmasses are **separate maps with
+separate framings**, not one continuous image — verified by checking all 174
+fast-travel points against the transform: 157/157 Palpagos points land on the
+Palpagos image, 0/17 World Tree points do. Anything that assumes a single
+transform is wrong.
+
+In-game map *coordinates* (`worldToGameMap`, what players read and type) are one
+continuous scale across both. Only the image placement differs.
+
+**Palpagos is calibrated; World Tree is `calibrated: false` and says so in the
+UI.** There is no ground truth to fit it against yet — the reference save has
+zero objects on that landmass. It becomes fittable the moment anyone builds or
+opens a chest there; then replace four constants and flip the flag. Do not
+quietly present the provisional transform as exact.
+
+Axes swap: in-game map X derives from world **Y**, and map Y from world X.
+
+## Friendly names
+
+`backend/gamedata.py` resolves internal IDs (`Sheepball`, `AIcore`) to what
+players see, from `backend/data/gamedata.json.gz` — bundled and committed, never
+fetched.
+
+**Lookups are case-insensitive, deliberately.** The upstream data is
+inconsistently capitalised: a save stores `Sheepball`, `OctopusGirl`,
+`SwordCutlassfish` while the reference spells them `SheepBall`, `OctopusGIrl` (a
+typo in their data), `SwordCutlassFish`. Exact matching silently loses eight real
+Pals. Resolve through this module rather than indexing the blob directly, and let
+unknown IDs fall back to `humanize()` rather than failing.
+
+`CharacterSaveParameterMap` holds humans as well as Pals, so use
+`character_name()` for anything out of it — `pal_name()` alone leaves merchants
+and guards showing internal IDs.
+
+Bundled `maxStack` values are authoritative but **deliberately unused by the
+sorter** so far: swapping them in changes what a sort writes to a save, which is
+a decision with tests attached, not a drive-by.
 
 ## Security boundary
 
@@ -112,7 +168,14 @@ Remaining gaps are catalogued in `docs/AUDIT.md` §5.
 `refs/PalWorldSaveTools-main.zip` contains `resources/game_data/` — the
 authoritative Palworld 1.0 database (2,466 items, 753 Pals, 1,905 passives, 588
 technologies, 174 fast-travel points with coordinates, 2,468 icons, both map
-textures). It is MIT-licensed and validated against the reference save.
+textures). MIT-licensed, and validated against the reference save: a player's 117
+unlocked fast-travel IDs matched 117/117.
+
+The compiled subset is already committed (`backend/data/gamedata.json.gz`), so
+`refs/` is only needed to regenerate it. Exact figures live there too — 1,413
+technology points over 537 techs, 185 ancient over 51 — and supersede the
+web-sourced estimates that remain in `reference_totals.json` for the handful of
+categories the data tables do not enumerate.
 
 **Do not hand-write or scrape game data that already exists there.** Do not add a
 runtime dependency on any external API — the container must work offline on a LAN,
