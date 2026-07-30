@@ -12,7 +12,8 @@ import {
   type MapRegion,
 } from '@/lib/map-coordinates';
 import type {
-  Discoveries, Player, BaseCamp, MapObject, FastTravelPoint } from '@/lib/types';
+  Discoveries, Player, BaseCamp, MapObject, FastTravelPoint,
+  StaticWorldObject } from '@/lib/types';
 
 interface Props {
   players: Player[];
@@ -20,11 +21,21 @@ interface Props {
   mapObjects: MapObject[];
   fastTravel: FastTravelPoint[];
   discoveries: Discoveries | null;
+  /** Static pak-derived objects for the current viewport. Fetched by the parent. */
+  staticObjects: StaticWorldObject[];
   layers: Record<string, boolean>;
   region: MapRegion;
   /** World coordinates to pan to, bumped by the search box. */
   flyTo: { x: number; y: number; nonce: number } | null;
   onMouseMove: (worldX: number, worldY: number) => void;
+  /**
+   * The visible area in world coordinates, after a pan or zoom settles.
+   *
+   * Reported rather than fetched here because the static-object set is 35,687
+   * strong and has to be queried by viewport — the map owns the viewport, and the
+   * parent owns the data.
+   */
+  onViewportChange: (box: { minX: number; minY: number; maxX: number; maxY: number }) => void;
 }
 
 /**
@@ -56,6 +67,28 @@ const CATEGORY_STYLE: Record<string, { color: string; size: number; label: strin
  */
 const MAX_POI_MARKERS = 4000;
 
+/**
+ * Static pak-derived categories. Deliberately smaller and flatter than
+ * `CATEGORY_STYLE`: there are an order of magnitude more of these, and they are
+ * terrain features rather than anything anyone owns.
+ */
+const STATIC_STYLE: Record<string, { color: string; size: number; label: string }> = {
+  ore:      { color: '#8a8378', size: 4, label: 'Ore / mineral node' },
+  treasure: { color: '#c9973f', size: 5, label: 'Treasure chest' },
+  fishing:  { color: '#5f6b73', size: 4, label: 'Fishing spot' },
+  oilrig:   { color: '#d97757', size: 6, label: 'Oil field' },
+};
+
+/** `BP_PalMapObjectSpawner_RockCopper` -> `Rock Copper`. */
+function prettyClass(cls: string): string {
+  return cls
+    .replace(/^BP_(PalMapObjectSpawnerTreasureBox|PalMapObjectSpawner|MapObject|LevelObject)_?/, '')
+    .replace(/^VisibleContent_?/, '')
+    .replace(/_/g, ' ')
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .trim() || cls;
+}
+
 function escapeHtml(value: string): string {
   return value.replace(/[&<>"']/g, (c) =>
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string
@@ -68,10 +101,12 @@ export default function MapInner({
   mapObjects,
   fastTravel,
   discoveries,
+  staticObjects,
   layers,
   region,
   flyTo,
   onMouseMove,
+  onViewportChange,
 }: Props) {
   const mapRef = useRef<L.Map | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -79,6 +114,7 @@ export default function MapInner({
   const rendererRef = useRef<L.Canvas | null>(null);
 
   const poiLayer = useRef<L.LayerGroup>(L.layerGroup());
+  const staticLayer = useRef<L.LayerGroup>(L.layerGroup());
   const travelLayer = useRef<L.LayerGroup>(L.layerGroup());
   const effigyLayer = useRef<L.LayerGroup>(L.layerGroup());
   const baseLayer = useRef<L.LayerGroup>(L.layerGroup());
@@ -94,6 +130,11 @@ export default function MapInner({
   useEffect(() => {
     regionRef.current = region;
   }, [region]);
+
+  const viewportRef = useRef(onViewportChange);
+  useEffect(() => {
+    viewportRef.current = onViewportChange;
+  }, [onViewportChange]);
 
   // ─── Map setup, once ────────────────────────────────────
   useEffect(() => {
@@ -120,6 +161,9 @@ export default function MapInner({
       [MAP_SIZE * 1.2, MAP_SIZE * 1.2],
     ]);
 
+    // Static objects sit under everything else: there are far more of them than
+    // anything player-owned, and a base marker buried under ore is useless.
+    staticLayer.current.addTo(map);
     poiLayer.current.addTo(map);
     travelLayer.current.addTo(map);
     effigyLayer.current.addTo(map);
@@ -130,6 +174,21 @@ export default function MapInner({
       const world = mapToWorld(e.latlng.lat, e.latlng.lng, regionRef.current);
       moveRef.current(world.x, world.y);
     });
+
+    // `moveend` fires once a pan or zoom settles, not on every frame of it, so
+    // dragging across the map is one request rather than sixty.
+    const report = () => {
+      const bounds = map.getBounds();
+      const a = mapToWorld(bounds.getSouth(), bounds.getWest(), regionRef.current);
+      const b = mapToWorld(bounds.getNorth(), bounds.getEast(), regionRef.current);
+      viewportRef.current({
+        minX: Math.min(a.x, b.x), minY: Math.min(a.y, b.y),
+        maxX: Math.max(a.x, b.x), maxY: Math.max(a.y, b.y),
+      });
+    };
+    map.on('moveend', report);
+    map.on('zoomend', report);
+    report();
 
     mapRef.current = map;
 
@@ -208,6 +267,45 @@ export default function MapInner({
         .addTo(group);
     }
   }, [mapObjects, layers, region]);
+
+  // ─── Static world objects (pak-derived, viewport-scoped) ─
+  //
+  // These are every ore node, chest and fishing spot the game ships, not the
+  // handful a save happens to have state for — 35,687 in total, which is why the
+  // parent fetches only what is in view. Drawn smaller and dimmer than
+  // save-derived markers, because "a rock exists here" is background information
+  // next to "someone's palbox is here".
+  useEffect(() => {
+    const group = staticLayer.current;
+    group.clearLayers();
+
+    const transform = getRegion(region);
+    for (const object of staticObjects) {
+      if (!layers[`static:${object.category}`]) continue;
+      if (!transform.contains(object.x, object.y)) continue;
+
+      const style = STATIC_STYLE[object.category] ??
+        { color: '#6d747e', size: 3, label: object.category };
+      const coords = worldToGameMap(object.x, object.y);
+
+      L.circleMarker(worldToMap(object.x, object.y, region), {
+        renderer: rendererRef.current ?? undefined,
+        radius: style.size / 2,
+        color: style.color,
+        weight: 0,
+        fillColor: style.color,
+        fillOpacity: 0.55,
+      })
+        .bindPopup(
+          `<div style="min-width:150px">
+             <div style="font-weight:600;margin-bottom:3px">${escapeHtml(prettyClass(object.cls))}</div>
+             <div style="font-size:12px;color:#a1a7b0">${escapeHtml(style.label)}</div>
+             <div style="font-size:11px;color:#6d747e;margin-top:4px">${coords.x}, ${coords.y}</div>
+           </div>`
+        )
+        .addTo(group);
+    }
+  }, [staticObjects, layers, region]);
 
   // ─── Fast travel (bundled game data, not from the save) ──
   //

@@ -5,6 +5,7 @@ import { CAPABILITIES } from '@/lib/permissions';
 import { announce, forceSave, shutdownServer, stopServer } from '@/lib/api';
 import MetricsHistoryPanel from './metrics-history';
 import Moderation from './moderation';
+import ScheduledAnnouncements from './scheduled-announcements';
 import {
   Activity, Clock, Users, Cpu, TrendingUp,
   Megaphone, Save, Power, AlertTriangle,
@@ -339,6 +340,7 @@ export default function ServerOverview() {
       {/* Moderation is its own capability, separate from server control: banning a
           player and shutting the server down are different trusts. */}
       {capabilities.includes(CAPABILITIES.PLAYERS_MODERATE) && <Moderation />}
+      {capabilities.includes(CAPABILITIES.PLAYERS_MODERATE) && <ScheduledAnnouncements />}
     </div>
   );
 }

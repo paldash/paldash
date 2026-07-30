@@ -41,6 +41,15 @@ import type {
   PalboxSummary,
   OffspringOption,
   PalSummary,
+  MyPrivacy,
+  ManageableBases,
+  StaticWorldObjects,
+  StaticWorldSummary,
+  GameBuildStatus,
+  WorldExportPlan,
+  WorldExportResult,
+  AnnouncementList,
+  ScheduledAnnouncement,
 } from './types';
 
 const BASE = '/api/save';
@@ -106,9 +115,15 @@ export async function startContainer(): Promise<{ ok: boolean }> {
 export interface AccessPolicyInfo {
   securityLevel: 'readonly' | 'safe' | 'full';
   guestVisibility: Record<string, boolean>;
+  /** Who sees locations nobody has found: `everyone`, a role name, or `nobody`. */
+  discoveryVisibility: string;
+  /** Per static-object category, same threshold vocabulary. */
+  worldObjectVisibility: Record<string, string>;
   envCeiling: string;
   levels: { id: string; label: string; description: string }[];
   visibilityKeys: string[];
+  discoveryLevels: { id: string; label: string; description: string }[];
+  worldObjectCategories: { id: string; label: string; count: number }[];
   allowedCapabilities: string[];
 }
 
@@ -119,6 +134,8 @@ export async function getAccessPolicy(): Promise<AccessPolicyInfo> {
 export async function setAccessPolicy(update: {
   securityLevel?: string;
   guestVisibility?: Record<string, boolean>;
+  discoveryVisibility?: string;
+  worldObjectVisibility?: Record<string, string>;
 }): Promise<AccessPolicyInfo> {
   return saveFetch('/policy', { method: 'POST', body: JSON.stringify(update) });
 }
@@ -486,6 +503,96 @@ export async function getMapObjects(category?: string): Promise<MapObject[]> {
 }
 
 /**
+ * Static pak-derived world objects inside a bounding box.
+ *
+ * The box is required in practice: there are 35,687 of these, and asking for all
+ * of them is asking the browser to draw 35,687 markers. The response reports
+ * `inView` and `truncated` so the caller can say what it is not showing.
+ */
+export async function getStaticWorldObjects(box: {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
+  categories?: string[];
+  /**
+   * Per-category class selection, `{ ore: ['BP_..._RockCoal'] }`. A category
+   * absent from this map is unfiltered; a category present with an empty array
+   * asks for none of it.
+   */
+  kinds?: Record<string, string[]>;
+  limit?: number;
+}): Promise<StaticWorldObjects> {
+  const query = new URLSearchParams({
+    minX: String(Math.round(box.minX)),
+    minY: String(Math.round(box.minY)),
+    maxX: String(Math.round(box.maxX)),
+    maxY: String(Math.round(box.maxY)),
+  });
+  // One category per request would mean four requests per pan. The backend
+  // returns every category when none is named, and the layer toggles decide what
+  // is drawn — so a request is only re-issued when the viewport moves.
+  if (box.categories?.length === 1) query.set('category', box.categories[0]);
+
+  // `category:class` pairs, not bare class names: a bare list would apply to
+  // every category, so narrowing ore to coal would filter chests to nothing.
+  // Only categories with an actual selection are sent, keeping the URL short.
+  if (box.kinds) {
+    const pairs: string[] = [];
+    for (const [category, classes] of Object.entries(box.kinds)) {
+      if (classes.length === 0) pairs.push(`${category}:`);
+      else pairs.push(...classes.map((cls) => `${category}:${cls}`));
+    }
+    if (pairs.length) query.set('kinds', pairs.join(','));
+  }
+
+  if (box.limit) query.set('limit', String(box.limit));
+  return saveFetch(`/world/objects?${query.toString()}`);
+}
+
+export async function getStaticWorldSummary(): Promise<StaticWorldSummary> {
+  return saveFetch('/world/objects/categories');
+}
+
+// ─── World copy with a uid remap ─────────────────────────
+//
+// Reads the live world and writes a new directory, so unlike every other save
+// operation here it does not need the server stopped.
+
+export async function previewWorldExport(
+  sourceUid: string,
+  targetUid: string
+): Promise<WorldExportPlan> {
+  return saveFetch('/export/world-copy/preview', {
+    method: 'POST',
+    body: JSON.stringify({ sourceUid, targetUid }),
+  });
+}
+
+export async function createWorldExport(
+  sourceUid: string,
+  targetUid: string,
+  planHash: string
+): Promise<WorldExportResult> {
+  return saveFetch('/export/world-copy', {
+    method: 'POST',
+    body: JSON.stringify({ sourceUid, targetUid, planHash }),
+  });
+}
+
+/** Whether the bundled positions still match the installed game build. */
+export async function getGameBuildStatus(): Promise<GameBuildStatus> {
+  return saveFetch('/world/build');
+}
+
+export async function acknowledgeGameBuild(buildId: string): Promise<GameBuildStatus> {
+  return saveFetch('/world/build/acknowledge', {
+    method: 'POST',
+    body: JSON.stringify({ buildId }),
+  });
+}
+
+/**
  * Fast-travel statues, from bundled game data rather than the save.
  *
  * Returns an empty list rather than throwing when the reference data is missing,
@@ -705,6 +812,78 @@ export async function updateUser(
 
 export async function deleteUser(username: string): Promise<{ ok: boolean }> {
   return saveFetch(`/users/${encodeURIComponent(username)}`, { method: 'DELETE' });
+}
+
+// ─── Recurring announcements ─────────────────────────────
+
+export async function getAnnouncements(): Promise<AnnouncementList> {
+  return saveFetch('/announcements');
+}
+
+export async function createAnnouncement(body: {
+  message: string;
+  interval: string;
+  enabled?: boolean;
+  onlyWhenOnline?: boolean;
+}): Promise<ScheduledAnnouncement> {
+  return saveFetch('/announcements', { method: 'POST', body: JSON.stringify(body) });
+}
+
+export async function updateAnnouncement(
+  id: number,
+  changes: Partial<{
+    message: string;
+    interval: string;
+    enabled: boolean;
+    onlyWhenOnline: boolean;
+  }>
+): Promise<ScheduledAnnouncement> {
+  return saveFetch(`/announcements/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(changes),
+  });
+}
+
+export async function deleteAnnouncement(id: number): Promise<{ ok: boolean }> {
+  return saveFetch(`/announcements/${id}`, { method: 'DELETE' });
+}
+
+/** Sends now, attributed to you, and resets the interval. */
+export async function sendAnnouncementNow(id: number): Promise<{ ok: boolean }> {
+  return saveFetch(`/announcements/${id}/send`, { method: 'POST' });
+}
+
+// ─── Your own map privacy ────────────────────────────────
+//
+// There is deliberately no "read someone else's" or "set someone else's" call
+// here, because the backend has no such route: an Owner switching a player's
+// privacy off would defeat the point of the setting, and staff already see
+// everyone below them regardless of it.
+
+export async function getMyPrivacy(): Promise<MyPrivacy> {
+  return saveFetch('/privacy/me');
+}
+
+export async function setMyPrivacy(mode: string): Promise<{ mode: string; ok: boolean }> {
+  return saveFetch('/privacy/me', {
+    method: 'POST',
+    body: JSON.stringify({ mode }),
+  });
+}
+
+/** Bases you may hide — your guild's, if you are its master. */
+export async function getManageableBases(): Promise<ManageableBases> {
+  return saveFetch('/privacy/bases');
+}
+
+export async function setBaseHidden(
+  baseId: string,
+  hidden: boolean
+): Promise<{ baseId: string; hidden: boolean }> {
+  return saveFetch(`/privacy/bases/${encodeURIComponent(baseId)}`, {
+    method: 'POST',
+    body: JSON.stringify({ hidden }),
+  });
 }
 
 export async function changeOwnPassword(

@@ -91,6 +91,17 @@ interface DashboardState {
   mapLayers: Record<string, boolean>;
   toggleMapLayer: (layer: string) => void;
 
+  /**
+   * Kinds *excluded* per static category, e.g. `{ ore: ['BP_..._RockCoal'] }`.
+   *
+   * Deliberately stores what is off rather than what is on. An empty entry means
+   * "all of them", so a game update that adds a new ore class shows up by default
+   * instead of being invisible because it was missing from a saved include list.
+   */
+  staticKindsOff: Record<string, string[]>;
+  toggleStaticKind: (category: string, cls: string) => void;
+  setStaticKindsOff: (category: string, kinds: string[]) => void;
+
   reset: () => void;
 }
 
@@ -173,10 +184,34 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
     comfort: false,
     defense: false,
     egg: false,
+    // Static pak-derived layers, off by default and listed explicitly so the
+    // default is a decision rather than an omission. Each one is thousands of
+    // markers, and switching one on is what makes the map issue a viewport
+    // query at all — with them off the map costs exactly what it did before.
+    'static:ore': false,
+    'static:treasure': false,
+    'static:fishing': false,
+    'static:oilrig': false,
   },
   toggleMapLayer: (layer) =>
     set((state) => ({
       mapLayers: { ...state.mapLayers, [layer]: !state.mapLayers[layer] },
+    })),
+
+  staticKindsOff: {},
+
+  toggleStaticKind: (category, cls) =>
+    set((state) => {
+      const current = state.staticKindsOff[category] ?? [];
+      const next = current.includes(cls)
+        ? current.filter((k) => k !== cls)
+        : [...current, cls];
+      return { staticKindsOff: { ...state.staticKindsOff, [category]: next } };
+    }),
+
+  setStaticKindsOff: (category, kinds) =>
+    set((state) => ({
+      staticKindsOff: { ...state.staticKindsOff, [category]: kinds },
     })),
 
   reset: () =>

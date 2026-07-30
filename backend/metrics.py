@@ -276,7 +276,9 @@ def prune(now: Optional[float] = None) -> int:
 # ─── Queries ─────────────────────────────────────────────
 
 
-def series(hours: int = 24, buckets: int = 120) -> dict[str, Any]:
+def series(
+    hours: int = 24, buckets: int = 120, now: Optional[int] = None
+) -> dict[str, Any]:
     """
     Bucketed history for a chart.
 
@@ -287,11 +289,22 @@ def series(hours: int = 24, buckets: int = 120) -> dict[str, Any]:
     answered. A bucket at 0.0 is an outage; anything below 1.0 is a partial one,
     which is exactly the shape of an intermittently crashing server and would be
     invisible if this were a boolean.
+
+    **`buckets` is a resolution target, not a promised point count.** Bucket
+    boundaries are aligned to absolute epoch time (`ts / width * width`) rather
+    than measured back from now, so a chart's x positions stay still between
+    refreshes instead of every boundary sliding a few seconds on each poll. The
+    cost is that a window can straddle a boundary and return one extra point —
+    correct, and worth it for a chart that does not jitter.
+
+    `now` is injectable for the same reason `prune`'s is: a test that anchors its
+    samples to real wall-clock time passes or fails depending on how close the
+    clock happens to be to a bucket edge.
     """
     hours = max(1, min(int(hours), RETENTION_DAYS * 24))
     buckets = max(1, min(int(buckets), 1000))
 
-    since = int(time.time() - hours * 3600)
+    since = int((time.time() if now is None else now) - hours * 3600)
     width = max(1, (hours * 3600) // buckets)
 
     rows = db.connect().execute(

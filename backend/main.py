@@ -23,16 +23,20 @@ from fastapi import FastAPI, HTTPException, Query, Request
 from pydantic import BaseModel
 
 import accounts
+import announcements
 import audit
 import authz
+import baseprivacy
 import breeding
 import charedit
 import db
 import editschema
 import gameapi
+import gameversion
 import gamedata
 import lifecycle
 import metrics
+import mods
 import moderate
 import palcheck
 import palclone
@@ -46,9 +50,12 @@ import saveedit
 import saveexport
 import saveimport
 import slotedit
+import teleport
+import soloexport
 import schedule as schedule_module
 import settings_ini
 import viewcache
+import worldobjects
 import backup as backup_module
 from backupstore import BackupError
 from parser import (
@@ -441,6 +448,8 @@ def get_policy() -> dict[str, Any]:
 class PolicyUpdate(BaseModel):
     securityLevel: Optional[str] = None
     guestVisibility: Optional[dict[str, bool]] = None
+    discoveryVisibility: Optional[str] = None
+    worldObjectVisibility: Optional[dict[str, str]] = None
 
 
 @app.post("/api/policy")
@@ -492,6 +501,51 @@ def get_hidden_uids(request: Request) -> dict[str, list[str]]:
     authz.require(request, roles_module.VIEW_BASIC)
     hidden = privacy.hidden_uids(*_viewer(request))
     return {key: sorted(value) for key, value in hidden.items()}
+
+
+class BaseVisibilityRequest(BaseModel):
+    hidden: bool
+
+
+@app.get("/api/privacy/bases")
+def get_manageable_bases(request: Request) -> dict[str, Any]:
+    """
+    Bases this account may hide, with their current state.
+
+    A guild master sees their guild's; everyone else sees a reason instead of an
+    empty list, because "you are not a guild master" and "nothing is hidden" are
+    different answers.
+    """
+    user = authz.require_user(request, roles_module.VIEW_BASIC)
+    return baseprivacy.manageable_bases(user["username"], user["role"])
+
+
+@app.post("/api/privacy/bases/{base_id}")
+def set_base_visibility(
+    base_id: str, req: BaseVisibilityRequest, request: Request
+) -> dict[str, Any]:
+    """
+    Hide or unhide one base.
+
+    Authorisation is ownership, not rank: a base belongs to a guild, so its guild
+    master decides. Staff have no override here and need none — nothing is ever
+    concealed from someone ranked above the person who hid it.
+    """
+    user = authz.require_user(request, roles_module.VIEW_BASIC)
+    allowed, why = baseprivacy.can_manage(base_id, user["username"])
+    if not allowed:
+        raise HTTPException(403, why)
+
+    result = baseprivacy.set_hidden(
+        base_id, req.hidden, username=user["username"], role=user["role"]
+    )
+    audit.record(
+        audit.USER_UPDATE, username=user["username"], role=user["role"],
+        target=f"base_privacy:{base_id}",
+        detail={"hidden": req.hidden, "authority": why},
+        ip=authz.client_ip(request),
+    )
+    return result
 
 
 @app.get("/api/privacy/me")
@@ -546,20 +600,50 @@ def _viewer(request: Request) -> tuple[str, str]:
     return str(user.get("role") or "guest"), str(user.get("username") or "")
 
 
+def _hidden_base_ids(request: Request) -> set[str]:
+    """
+    Every base id concealed from this viewer, for either of the two reasons.
+
+    One function because there are three endpoints that must agree — the base
+    markers, the objects standing inside them, and their storage contents. A
+    base dropped from one and returned by another is not hidden, and the
+    coordinates travel on the objects, so that mistake publishes the location
+    while looking like it concealed it.
+
+    The person-level half deliberately runs `privacy.filter_bases` and takes the
+    difference rather than reimplementing its rule. Whether `player_bases` covers
+    a given base depends on solo-versus-shared guild membership, and a second
+    copy of that logic is a second thing to get wrong.
+    """
+    viewer = _viewer(request)
+    hidden = privacy.hidden_uids(*viewer)
+
+    ids: set[str] = set()
+    if hidden["bases"] or hidden["guilds"]:
+        bases = savecache.get_section("bases")
+        kept = {
+            str(b.get("id") or "")
+            for b in privacy.filter_bases(
+                bases, savecache.get_section("guilds"),
+                hidden["bases"], hidden["guilds"],
+            )
+        }
+        ids |= {str(b.get("id") or "") for b in bases} - kept
+
+    return ids | baseprivacy.hidden_base_ids(*viewer)
+
+
 @app.get("/api/bases")
 def get_bases(request: Request) -> list[dict]:
     """
-    Base camps, minus any a player has chosen to hide from this viewer.
+    Base camps, minus any hidden from this viewer.
 
-    Bases belong to guilds, so the filter needs the guild roster to decide
-    whether a hidden player is alone in theirs — see `privacy.filter_bases`.
+    Two reasons a base is concealed: a *person* hid themselves and their guild's
+    bases with them (`privacy`), or a guild master hid this *specific* base
+    (`baseprivacy`). Both resolve to base ids in `_hidden_base_ids`.
     """
-    bases = savecache.get_section("bases")
-    hidden = privacy.hidden_uids(*_viewer(request))
-    if not hidden["bases"] and not hidden["guilds"]:
-        return bases
-    return privacy.filter_bases(
-        bases, savecache.get_section("guilds"), hidden["bases"], hidden["guilds"]
+    return baseprivacy.filter_bases(
+        savecache.get_section("bases"), _hidden_base_ids(request)
     )
 
 
@@ -624,7 +708,7 @@ def get_pals(owner: Optional[str] = None) -> list[dict]:
 
 
 @app.get("/api/bases/storage")
-def get_base_storage() -> list[dict]:
+def get_base_storage(request: Request) -> list[dict]:
     """
     Per-base storage: containers owned, slots used, and what is in them.
 
@@ -632,11 +716,17 @@ def get_base_storage() -> list[dict]:
     join is over every placed object in the world and has no business running on
     the request path.
     """
-    return savecache.get_section("baseStorage")
+    return baseprivacy.filter_storage(
+        savecache.get_section("baseStorage"), _hidden_base_ids(request)
+    )
 
 
 @app.get("/api/bases/{base_id}/storage")
-def get_one_base_storage(base_id: str) -> dict:
+def get_one_base_storage(base_id: str, request: Request) -> dict:
+    if base_id in _hidden_base_ids(request):
+        # 404 rather than 403: "you may not see this base" confirms the base
+        # exists, which is the one thing a hidden base is not supposed to say.
+        raise HTTPException(404, f"No base {base_id}, or the world has not been parsed yet")
     for summary in savecache.get_section("baseStorage"):
         if summary["baseId"] == base_id:
             return summary
@@ -652,12 +742,19 @@ def _named_map_objects() -> list[dict]:
 
 
 @app.get("/api/mapobjects")
-def get_map_objects(category: Optional[str] = None) -> list[dict]:
-    """Placed world objects with coordinates: chests, palboxes, farms, benches."""
+def get_map_objects(request: Request, category: Optional[str] = None) -> list[dict]:
+    """
+    Placed world objects with coordinates: chests, palboxes, farms, benches.
+
+    Filtered for base privacy, and that filter is not optional: these objects
+    carry the coordinates of the base they sit in, so returning them for a base
+    whose marker was dropped from `/api/bases` would hide the label and publish
+    the location.
+    """
     objects = viewcache.derived("mapObjects:named", _named_map_objects)
     if category:
         objects = [o for o in objects if o.get("category") == category]
-    return objects
+    return baseprivacy.filter_objects(objects, _hidden_base_ids(request))
 
 
 # ─── Static world data (bundled, not from the save) ──────
@@ -676,6 +773,153 @@ def get_fast_travel_points() -> dict[str, Any]:
         return {"points": gamedata.fast_travel_points()}
     except gamedata.GameDataUnavailable as e:
         raise HTTPException(503, str(e))
+
+
+@app.get("/api/world/build")
+def get_game_build(request: Request) -> dict[str, Any]:
+    """
+    Whether the bundled game data still matches the installed Palworld build.
+
+    A read at VIEW_BASIC because it qualifies the map everyone is looking at: if
+    the ore positions are a patch out of date, the person reading them is the one
+    who needs to know.
+    """
+    authz.require(request, roles_module.VIEW_BASIC)
+    return gameversion.status()
+
+
+class BuildAcknowledge(BaseModel):
+    buildId: str
+
+
+@app.post("/api/world/build/acknowledge")
+def acknowledge_game_build(req: BuildAcknowledge, request: Request) -> dict[str, Any]:
+    """
+    Dismiss the stale-data banner for one build.
+
+    Scoped to that build rather than a global "hide this": someone who verified
+    their data against build A has said nothing about B, so the next update
+    raises it again. POLICY_MANAGE because it is a server-wide statement, not a
+    per-user preference.
+    """
+    user = authz.require_user(request, roles_module.POLICY_MANAGE)
+    current = gameversion.status()
+    if not req.buildId or req.buildId != current["buildId"]:
+        raise HTTPException(
+            400,
+            "That is not the build currently installed. Reload and try again — "
+            "acknowledging a build that is no longer there would silence a "
+            "warning about the one that is.",
+        )
+    gameversion.acknowledge(req.buildId)
+    audit.record(
+        audit.POLICY_UPDATE, username=user["username"], role=user["role"],
+        target=f"game_build:{req.buildId}",
+        detail={"acknowledged": req.buildId, "verdict": current["verdict"]},
+        ip=authz.client_ip(request),
+    )
+    return gameversion.status()
+
+
+@app.get("/api/world/mods")
+def get_installed_mods(request: Request) -> dict[str, Any]:
+    """
+    Mods installed on the game server, if the install directory is visible.
+
+    Behind VIEW_DETAIL rather than VIEW_BASIC: the mod list is a fair description of
+    the server's configuration, and it is also the answer to "why does the Pal
+    checker not recognise these species", which is a detail-tab question.
+    """
+    authz.require(request, roles_module.VIEW_DETAIL)
+    return mods.detect()
+
+
+@app.get("/api/world/objects")
+def get_world_objects(
+    request: Request,
+    category: str = Query(""),
+    minX: Optional[float] = Query(None),
+    minY: Optional[float] = Query(None),
+    maxX: Optional[float] = Query(None),
+    maxY: Optional[float] = Query(None),
+    kinds: str = Query(""),
+    limit: int = Query(worldobjects.MAX_POINTS),
+) -> dict[str, Any]:
+    """
+    Static world objects inside a viewport: ore, chests, fishing spots, oil fields.
+
+    Bundled pak data, identical for every viewer, so there is nothing here to
+    filter for privacy — unlike `/api/mapobjects`, which is player content.
+
+    The bounding box is not optional in practice: 35,687 markers is not a number
+    to hand a browser. A response past the cap reports `truncated` and `inView` so
+    the UI can say what it is not showing rather than presenting a slice as the set.
+    """
+    authz.require(request, roles_module.VIEW_BASIC)
+    role = _viewer(request)[0]
+    allowed = _visible_world_categories(role)
+
+    if category and category not in allowed:
+        # Empty rather than 403: the caller asked about something this server has
+        # decided not to expose, and a refusal would confirm it exists and is
+        # populated. The category is absent from the legend for the same reason.
+        return {"points": [], "inView": 0, "returned": 0, "truncated": False,
+                "limit": limit, "restricted": True}
+
+    # `allowed` goes into the query rather than filtering its result: no category
+    # named means "everything", which must still mean everything *this viewer* may
+    # see, and a count taken before that filter would promise points that zooming
+    # in never reveals.
+    return worldobjects.query(
+        category=category,
+        min_x=minX, min_y=minY, max_x=maxX, max_y=maxY,
+        kinds=[k for k in kinds.split(",") if k],
+        allowed=allowed,
+        limit=limit,
+    )
+
+
+@app.get("/api/world/objects/categories")
+def get_world_object_categories(request: Request) -> dict[str, Any]:
+    """
+    The layer's legend: what exists, how much of it, and the class breakdown.
+
+    Categories the viewer may not see are **omitted, not flagged**. A name and a
+    count in a legend has already told a player what is out there and roughly how
+    much of it, which is most of what restricting it was for.
+    """
+    authz.require(request, roles_module.VIEW_BASIC)
+    allowed = _visible_world_categories(_viewer(request)[0])
+    categories = [c for c in worldobjects.categories() if c["id"] in allowed]
+    totals = worldobjects.totals()
+    # Spelled out rather than spread over `totals()`: that dict has its own
+    # `categories` key holding a *count*, which silently replaced this list the
+    # first time round.
+    return {
+        "categories": categories,
+        # Recomputed over the visible subset: the honest total for this viewer, not
+        # the world's, so the legend cannot say "of 35,687" while listing
+        # categories that add up to less.
+        "objects": sum(c["count"] for c in categories),
+        "categoryCount": len(categories),
+        "cellsParsed": totals["cellsParsed"],
+        "skipped": totals["skipped"],
+        "cellSize": totals["cellSize"],
+        "maxPoints": totals["maxPoints"],
+        "restrictedCategories": sorted(
+            c["id"] for c in worldobjects.categories() if c["id"] not in allowed
+        ),
+    }
+
+
+def _visible_world_categories(role: str) -> set[str]:
+    """Static object categories this role's policy threshold admits."""
+    current = policy_module.load_policy()
+    return {
+        category["id"]
+        for category in worldobjects.categories()
+        if policy_module.may_see_world_objects(role, category["id"], current)
+    }
 
 
 @app.get("/api/world/discoveries")
@@ -1426,6 +1670,135 @@ def export_save(kind: str, request: Request, id: Optional[str] = None):
             "Content-Disposition": f'attachment; filename="{saveexport.filename_for(document)}"'
         },
     )
+
+
+# ─── Teleport (a save edit, not a game command) ──────────
+
+
+class TeleportRequest(BaseModel):
+    uid: str
+    x: float
+    y: float
+    z: float
+
+
+@app.get("/api/teleport/destinations")
+def get_teleport_destinations(request: Request) -> dict[str, Any]:
+    """
+    Known-good destinations: the 174 fast-travel points, with verified ground `z`.
+
+    Offered because nothing here knows terrain height, so a hand-typed `z` can drop
+    a character under the map. These are positions the game itself puts players at.
+    """
+    authz.require(request, roles_module.VIEW_DETAIL)
+    return {"destinations": teleport.destinations()}
+
+
+@app.post("/api/teleport/preview")
+def preview_teleport(req: TeleportRequest, request: Request) -> dict[str, Any]:
+    authz.require(request, roles_module.SAVE_EDIT_FULL)
+    try:
+        return teleport.plan_teleport(req.uid, req.x, req.y, req.z)
+    except teleport.TeleportError as e:
+        raise HTTPException(400, str(e))
+
+
+@app.post("/api/teleport")
+def do_teleport(req: TeleportRequest, request: Request) -> dict[str, Any]:
+    """
+    Move a player by editing their save.
+
+    The game cannot do this: its only teleport is anchored to the issuing admin's
+    in-game character, and this dashboard has none. The price is that the server
+    must be stopped — `guarded_save_write` enforces that, and takes a rollback
+    point first.
+    """
+    user = authz.require_user(request, roles_module.SAVE_EDIT_FULL)
+    ip = authz.client_ip(request)
+    try:
+        result = teleport.apply_teleport(
+            req.uid, req.x, req.y, req.z, label=f"teleport by {user['username']}"
+        )
+    except (teleport.TeleportError, ServerRunningError) as e:
+        audit.record(
+            audit.SAVE_EDIT, username=user["username"], role=user["role"],
+            target=f"teleport:{req.uid}", detail=str(e), ip=ip,
+            result=audit.RESULT_FAILED,
+        )
+        raise HTTPException(400, str(e))
+
+    audit.record(
+        audit.SAVE_EDIT, username=user["username"], role=user["role"],
+        target=f"teleport:{req.uid}",
+        detail={"from": result["from"], "to": result["to"],
+                "backupId": result["backupId"]},
+        ip=ip,
+    )
+    return result
+
+
+# ─── World export with a uid remap (Phase 9) ─────────────
+
+
+class WorldExportRequest(BaseModel):
+    sourceUid: str
+    targetUid: str
+    planHash: Optional[str] = None
+
+
+@app.post("/api/export/world-copy/preview")
+def preview_world_export(req: WorldExportRequest, request: Request) -> dict[str, Any]:
+    """
+    What a remapped world copy would change. Reads only.
+
+    Gated on BACKUP_MANAGE rather than VIEW_DETAIL: the export it previews is the
+    entire world, every player's data included, which is the same disclosure a
+    backup is.
+    """
+    authz.require(request, roles_module.BACKUP_MANAGE)
+    try:
+        return soloexport.plan_export(req.sourceUid, req.targetUid)
+    except soloexport.SoloExportError as e:
+        raise HTTPException(400, str(e))
+
+
+@app.post("/api/export/world-copy")
+def create_world_export(req: WorldExportRequest, request: Request) -> dict[str, Any]:
+    """
+    Write a copy of the world with one player's uid remapped, and archive it.
+
+    **Deliberately not behind the save-write guard.** Every other writer here needs
+    the server provably stopped because it mutates the world in place; this one only
+    ever reads the source and writes a new directory, so there is nothing for a
+    running server to collide with. Requiring a shutdown would be a ritual, not a
+    protection.
+    """
+    user = authz.require_user(request, roles_module.BACKUP_MANAGE)
+    try:
+        result = soloexport.apply_export(
+            req.sourceUid, req.targetUid, expected_plan_hash=req.planHash
+        )
+        archive = soloexport.archive_export(result["destination"])
+    except soloexport.SoloExportError as e:
+        audit.record(
+            audit.EXPORT, username=user["username"], role=user["role"],
+            target=f"world-copy:{req.sourceUid}->{req.targetUid}",
+            detail=str(e), ip=authz.client_ip(request), result=audit.RESULT_FAILED,
+        )
+        raise HTTPException(400, str(e))
+
+    audit.record(
+        audit.EXPORT, username=user["username"], role=user["role"],
+        target=f"world-copy:{result['sourceUid']}->{result['targetUid']}",
+        detail={
+            "mode": result["mode"],
+            "referencesRemapped": result["applied"]["total"],
+            "sha256": archive["sha256"][:16],
+            "sizeBytes": archive["sizeBytes"],
+        },
+        ip=authz.client_ip(request),
+    )
+    return {**result, "archive": archive}
 
 
 @app.post("/api/export/verify")
@@ -2292,6 +2665,114 @@ def get_bans(request: Request) -> dict:
     """
     authz.require(request, roles_module.PLAYERS_MODERATE)
     return moderate.list_bans()
+
+
+# ─── Recurring announcements ─────────────────────────────
+
+
+class AnnouncementCreate(BaseModel):
+    message: str
+    interval: str = "hourly"
+    enabled: bool = True
+    onlyWhenOnline: bool = True
+
+
+class AnnouncementUpdate(BaseModel):
+    message: Optional[str] = None
+    interval: Optional[str] = None
+    enabled: Optional[bool] = None
+    onlyWhenOnline: Optional[bool] = None
+
+
+@app.get("/api/announcements")
+def list_announcements(request: Request) -> dict[str, Any]:
+    """
+    The recurring-announcement schedule.
+
+    Behind PLAYERS_MODERATE rather than VIEW_BASIC because the message list is
+    the same content the broadcast capability covers — someone who cannot send an
+    announcement has no reason to read the queue of them.
+    """
+    authz.require(request, roles_module.PLAYERS_MODERATE)
+    return {
+        "announcements": announcements.list_announcements(),
+        "intervals": announcements.describe_intervals(),
+        "max": announcements.MAX_ANNOUNCEMENTS,
+    }
+
+
+@app.post("/api/announcements")
+def create_announcement(req: AnnouncementCreate, request: Request) -> dict[str, Any]:
+    user = _moderator(request)
+    try:
+        entry = announcements.create(
+            req.message, req.interval, enabled=req.enabled,
+            only_when_online=req.onlyWhenOnline, created_by=user["username"],
+        )
+    except (ValueError, moderate.ModerationError) as e:
+        raise HTTPException(400, str(e))
+    announcements.record_change(
+        {"action": "created", "message": entry["message"], "interval": entry["interval"]},
+        actor=user, ip=authz.client_ip(request),
+    )
+    return entry
+
+
+@app.patch("/api/announcements/{announcement_id}")
+def update_announcement(
+    announcement_id: int, req: AnnouncementUpdate, request: Request
+) -> dict[str, Any]:
+    user = _moderator(request)
+    try:
+        entry = announcements.update(
+            announcement_id, message=req.message, interval=req.interval,
+            enabled=req.enabled, only_when_online=req.onlyWhenOnline,
+        )
+    except (ValueError, moderate.ModerationError) as e:
+        raise HTTPException(400, str(e))
+    announcements.record_change(
+        {"action": "updated", "id": announcement_id,
+         "message": entry["message"], "interval": entry["interval"],
+         "enabled": entry["enabled"]},
+        actor=user, ip=authz.client_ip(request),
+    )
+    return entry
+
+
+@app.delete("/api/announcements/{announcement_id}")
+def delete_announcement(announcement_id: int, request: Request) -> dict[str, Any]:
+    user = _moderator(request)
+    existing = announcements.get(announcement_id)
+    if existing is None:
+        raise HTTPException(404, f"No such announcement: {announcement_id}")
+    announcements.delete(announcement_id)
+    # The message is recorded on delete as well as on create: otherwise the audit
+    # log says something was removed without saying what the server had been
+    # telling players for the last month.
+    announcements.record_change(
+        {"action": "deleted", "id": announcement_id, "message": existing["message"]},
+        actor=user, ip=authz.client_ip(request),
+    )
+    return {"ok": True, "id": announcement_id}
+
+
+@app.post("/api/announcements/{announcement_id}/send")
+def send_announcement_now(announcement_id: int, request: Request) -> dict[str, Any]:
+    """
+    Send one now, attributed to whoever pressed the button.
+
+    Resets its interval, so testing a message does not mean the scheduled copy
+    arrives seconds afterwards.
+    """
+    user = _moderator(request)
+    try:
+        return announcements.send_now(
+            announcement_id, actor=user, ip=authz.client_ip(request)
+        )
+    except ValueError as e:
+        raise HTTPException(404, str(e))
+    except moderate.ModerationError as e:
+        raise HTTPException(502 if "reach" in str(e).lower() else 400, str(e))
 
 
 class ShutdownRequest(BaseModel):

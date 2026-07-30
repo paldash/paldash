@@ -92,6 +92,32 @@ def may_see_undiscovered(role: str, level: str) -> bool:
         return False
     return roles.ROLES[role]["rank"] >= roles.ROLES.get(level, {"rank": 99})["rank"]
 
+# Who may see each **static world-object category** — the 24,359 ore nodes, 8,386
+# chests, 2,757 fishing spots and 185 oil fields extracted from the game files.
+#
+# Same threshold vocabulary as `discoveryVisibility` (`everyone`, a role name
+# meaning that rank and above, or `nobody`) and for the same reason: whether
+# handing players a complete ore map is a convenience or the removal of the game
+# is a question about how a server is run, not a security one.
+#
+# Per *category* rather than one switch, because they are not equivalent. A
+# complete chest map is close to a loot solution; a fishing-spot map is a
+# convenience nobody would consider cheating. An operator who wants one and not
+# the other should not have to choose.
+#
+# **A category the viewer may not see is not listed either.** `world_object_levels`
+# filters the legend as well as the points — a category named in a legend with a
+# count beside it has already told the player what is out there and roughly how
+# much of it, which is most of what hiding it was for.
+DEFAULT_WORLD_OBJECT_LEVEL = "everyone"
+
+# Chests are the one category defaulting tighter than the rest: their contents are
+# the game's exploration reward, and a full map of them is the closest thing here
+# to a spoiler. The others are terrain.
+DEFAULT_WORLD_OBJECT_LEVELS: dict[str, str] = {
+    "treasure": "trusted",
+}
+
 GUEST_VISIBILITY_KEYS = (
     "serverStatus",   # online/offline, FPS, player counts
     "onlinePlayers",  # live player list and map positions
@@ -134,10 +160,59 @@ def _env_discovery() -> str:
     return level
 
 
+def _env_world_object_levels() -> dict[str, str]:
+    """
+    Per-category thresholds from the environment, e.g.
+    `WORLD_OBJECT_VISIBILITY=treasure:moderator,ore:everyone`.
+
+    One variable rather than one per category, because the category list comes
+    from the bundled data and adding a hardcoded variable per category would mean
+    a code change every time that data grows.
+    """
+    levels = dict(DEFAULT_WORLD_OBJECT_LEVELS)
+    raw = os.environ.get("WORLD_OBJECT_VISIBILITY", "").strip()
+    for pair in raw.split(","):
+        if not pair.strip():
+            continue
+        category, _, level = pair.partition(":")
+        category, level = category.strip(), level.strip().lower()
+        if not category or not is_discovery_level(level):
+            logger.warning(
+                "Ignoring WORLD_OBJECT_VISIBILITY entry %r; expected "
+                "category:level with level one of %s",
+                pair, ", ".join(discovery_choices()),
+            )
+            continue
+        levels[category] = level
+    return levels
+
+
+def world_object_level(category: str, policy: dict[str, Any] | None = None) -> str:
+    """The threshold for one category, falling back to the global default."""
+    current = policy if policy is not None else load_policy()
+    levels = current.get("worldObjectVisibility") or {}
+    level = levels.get(category)
+    return level if is_discovery_level(level) else DEFAULT_WORLD_OBJECT_LEVEL
+
+
+def may_see_world_objects(
+    role: str, category: str, policy: dict[str, Any] | None = None
+) -> bool:
+    """
+    Whether `role` may see one static category at all.
+
+    Reuses `may_see_undiscovered`'s comparison rather than restating it: both
+    answer "does this role clear a configured rank", and two copies of that is one
+    to get wrong.
+    """
+    return may_see_undiscovered(role, world_object_level(category, policy))
+
+
 def default_policy() -> dict[str, Any]:
     return {
         "securityLevel": _env_level(),
         "discoveryVisibility": _env_discovery(),
+        "worldObjectVisibility": _env_world_object_levels(),
         "guestVisibility": {
             "serverStatus": _env_bool("GUEST_SEE_SERVER_STATUS", True),
             "onlinePlayers": _env_bool("GUEST_SEE_PLAYERS", True),
@@ -200,6 +275,14 @@ def load_policy() -> dict[str, Any]:
                 policy["securityLevel"] = stored["securityLevel"]
             if is_discovery_level(stored.get("discoveryVisibility")):
                 policy["discoveryVisibility"] = stored["discoveryVisibility"]
+            world_objects = stored.get("worldObjectVisibility")
+            if isinstance(world_objects, dict):
+                # Merged over the defaults rather than replacing them, so a
+                # category added by newer bundled data keeps its default instead
+                # of vanishing from an older stored policy.
+                for category, level in world_objects.items():
+                    if isinstance(category, str) and is_discovery_level(level):
+                        policy["worldObjectVisibility"][category] = level
             visibility = stored.get("guestVisibility")
             if isinstance(visibility, dict):
                 for key in GUEST_VISIBILITY_KEYS:
@@ -249,6 +332,18 @@ def save_policy(update: dict[str, Any]) -> dict[str, Any]:
             )
         current["discoveryVisibility"] = discovery
 
+    world_objects = update.get("worldObjectVisibility")
+    if isinstance(world_objects, dict):
+        for category, level in world_objects.items():
+            if not isinstance(category, str) or not category:
+                raise ValueError("World-object category names must be strings")
+            if not is_discovery_level(level):
+                raise ValueError(
+                    f"Unknown visibility for '{category}': {level}. "
+                    f"Known: {', '.join(discovery_choices())}"
+                )
+            current.setdefault("worldObjectVisibility", {})[category] = level
+
     visibility = update.get("guestVisibility")
     if isinstance(visibility, dict):
         for key in GUEST_VISIBILITY_KEYS:
@@ -282,6 +377,25 @@ def require_capability(capability: str) -> None:
         )
 
 
+def _world_object_categories() -> list[dict[str, Any]]:
+    """
+    The static categories a dial can be set for, with their world totals.
+
+    Returns an empty list if the bundle is missing, so the settings page loses a
+    section rather than failing — the same rule the map layer follows.
+    """
+    try:
+        import worldobjects
+
+        return [
+            {"id": c["id"], "label": c["label"], "count": c["count"]}
+            for c in worldobjects.categories()
+        ]
+    except Exception as e:  # noqa: BLE001
+        logger.warning("World object categories unavailable for the policy UI: %s", e)
+        return []
+
+
 def describe() -> dict[str, Any]:
     """Policy plus the metadata the settings UI needs to render itself."""
     policy = load_policy()
@@ -307,5 +421,10 @@ def describe() -> dict[str, Any]:
         ],
         "visibilityKeys": list(GUEST_VISIBILITY_KEYS),
         "discoveryLevels": _describe_discovery_levels(),
+        # The categories to offer a dial for come from the bundled data rather
+        # than a list here, so new extracted content is configurable without a
+        # code change. Imported lazily: policy is loaded on paths that have no
+        # business touching a 486 KB data bundle.
+        "worldObjectCategories": _world_object_categories(),
         "allowedCapabilities": allowed_capabilities(),
     }

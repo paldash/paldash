@@ -20,6 +20,7 @@ directory) — it simply will not apply until a restart.
 from __future__ import annotations
 
 import logging
+import json
 import os
 import re
 import shutil
@@ -121,20 +122,38 @@ def _format(value: Any, value_type: str, original_raw: str) -> str:
 # blank the real one.
 SECRET_KEYS = ("AdminPassword", "ServerPassword")
 
-# INI keys that the popular server images regenerate from environment variables
-# on every container start.
+# INI keys that the popular server images may regenerate from environment
+# variables on container start.
 #
 # This is not a detail — it decides whether editing a setting here does anything
-# at all. `thijsvanloef/palworld-server-docker` (what the bundled compose file
-# uses) and `jammsen/docker-palworld-dedicated-server` both rewrite
-# PalWorldSettings.ini at boot from whichever of these env vars are set. A change
-# written here survives until the next restart and is then silently reverted,
-# which is worse than a refusal because the operator watched it succeed.
+# at all. A change written to the INI survives until the next restart and is then
+# silently reverted, which is worse than a refusal because the operator watched it
+# succeed.
 #
-# We cannot see the game container's environment from inside this one, so this
-# cannot be a *detection* — only a warning attached to the keys that are
-# commonly env-backed. The UI says "if your image sets this, your change will be
-# reverted", and points at the `.env` file instead.
+# **The two popular images differ, and the difference was measured** by inspecting
+# their published image metadata (see `docs/COMPATIBILITY.md`):
+#
+#   thijsvanloef/palworld-server-docker  — what the bundled compose file uses.
+#       Rewrites the INI at boot from whichever of these variables are set.
+#   jammsen/docker-palworld-dedicated-server — ships `SERVER_SETTINGS_MODE=manual`
+#       as its image default, and in that mode it does **not** touch the INI. Only
+#       `SERVER_SETTINGS_MODE=auto` regenerates it.
+#
+# So an unconditional "your change will be reverted" is wrong for a default
+# jammsen deployment. We cannot see the game container's environment from inside
+# this one, so this can only ever be a warning, and it is worded as a conditional.
+#
+# The variable *names* also differ between images: jammsen uses `RESTAPI_PORT`
+# where thijsvanloef uses `REST_API_PORT`. Both spellings are listed so the
+# warning names something the operator will actually find in their compose file.
+#
+# **The list below is thijsvanloef's surface, and it is a floor rather than a
+# ceiling.** jammsen exposes ~119 environment variables — effectively every INI
+# setting — so under `SERVER_SETTINGS_MODE=auto` *everything* here is env-managed,
+# not just these keys. Enumerating both images' full surfaces would be a second
+# schema to keep in sync with two upstreams, so the UI instead flags the keys that
+# are env-backed on any common image and says plainly that a server configured to
+# generate its INI may revert others too.
 ENV_MANAGED = {
     "ServerName": "SERVER_NAME",
     "ServerDescription": "SERVER_DESCRIPTION",
@@ -146,7 +165,8 @@ ENV_MANAGED = {
     "RCONEnabled": "RCON_ENABLED",
     "RCONPort": "RCON_PORT",
     "RESTAPIEnabled": "REST_API_ENABLED",
-    "RESTAPIPort": "REST_API_PORT",
+    # thijsvanloef spells it REST_API_PORT; jammsen spells it RESTAPI_PORT.
+    "RESTAPIPort": "REST_API_PORT / RESTAPI_PORT",
     "Region": "REGION",
     "bUseAuth": "USE_AUTH",
     "BanListURL": "BAN_LIST_URL",
@@ -370,6 +390,77 @@ PRESETS: list[dict[str, Any]] = [
             "bCanPickupOtherGuildDeathPenaltyDrop": False,
         },
     },
+    # ─── Rates and difficulty ───
+    #
+    # Every key below was checked against `DefaultPalWorldSettings.ini`'s 119
+    # settings, which is the only reliable source for these names. Note
+    # `PalEggDefaultHatchingTime` (not `EggDefaultHatchingTime`) and the game's own
+    # misspelling in `PalStaminaDecreaceRate` / `PlayerStomachDecreaceRate` — both
+    # are exactly as the game writes them, and correcting either would silently
+    # match nothing.
+    {
+        "id": "boosted",
+        "label": "Boosted — faster progression",
+        "description": (
+            "Double experience and capture rate, faster gathering, and eggs that "
+            "hatch in a tenth of the time. Combat difficulty is untouched."
+        ),
+        "changes": {
+            "ExpRate": 2.0,
+            "PalCaptureRate": 2.0,
+            "CollectionDropRate": 2.0,
+            "EnemyDropItemRate": 2.0,
+            "PalEggDefaultHatchingTime": 0.1,
+        },
+    },
+    {
+        "id": "small_server",
+        "label": "Small server — one to four players",
+        "description": (
+            "Tuned for a group too small to staff a base around the clock: boosted "
+            "rates, gentler hunger, faster egg hatching, and a longer window before "
+            "an inactive guild resets."
+        ),
+        "changes": {
+            "ExpRate": 3.0,
+            "PalCaptureRate": 2.0,
+            "CollectionDropRate": 2.0,
+            "PalEggDefaultHatchingTime": 0.05,
+            "PlayerStomachDecreaceRate": 0.5,
+            "PalStomachDecreaceRate": 0.5,
+            "AutoResetGuildTimeNoOnlinePlayers": 168.0,
+        },
+    },
+    {
+        "id": "hardcore",
+        "label": "Hardcore — everything hurts",
+        "description": (
+            "Death drops everything including equipment, players take double damage "
+            "and deal half, and progression is slowed. Does not enable PvP — combine "
+            "it with a PvP preset if that is what you want."
+        ),
+        "changes": {
+            "DeathPenalty": "All",
+            "PlayerDamageRateDefense": 2.0,
+            "PlayerDamageRateAttack": 0.5,
+            "ExpRate": 0.5,
+            "PalCaptureRate": 0.8,
+            "PlayerStaminaDecreaceRate": 1.5,
+        },
+    },
+    {
+        "id": "vanilla",
+        "label": "Reset rates to Palworld defaults",
+        "description": (
+            "Puts every rate, difficulty and base setting back to the value the game "
+            "ships with. Server name, ports, passwords and the REST API are left "
+            "alone — this undoes tuning, not your server's identity."
+        ),
+        # Filled in at apply time from the bundled defaults, so it cannot drift from
+        # what the game actually ships or from the keys the other presets touch.
+        "changes": {},
+        "derived": True,
+    },
 ]
 
 # Curated keys the UI surfaces first, grouped for a sane layout.
@@ -427,11 +518,84 @@ HIGHLIGHT_GROUPS: list[dict[str, Any]] = [
 ]
 
 
+DEFAULTS_PATH = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "data", "server_defaults.json"
+)
+
+_defaults: Optional[dict[str, Any]] = None
+
+
+def game_defaults() -> dict[str, Any]:
+    """
+    Palworld's own default for every setting, from `DefaultPalWorldSettings.ini`.
+
+    Bundled as derived JSON rather than by copying the file, because
+    `refs/palworld/` is a real server install that must never be committed. The two
+    credential keys are excluded: a "default" for a password is not something this
+    project should ever hand back, even an empty one.
+
+    This is what makes a truthful "reset to vanilla" possible. Writing remembered
+    values instead would be guessing, and the roadmap already records what that
+    costs — `EggDefaultHatchingTime` sat in a highlight group matching nothing for
+    months because the real key is `PalEggDefaultHatchingTime`.
+    """
+    global _defaults
+    if _defaults is not None:
+        return _defaults
+    try:
+        with open(DEFAULTS_PATH) as f:
+            _defaults = json.load(f).get("defaults") or {}
+    except (OSError, json.JSONDecodeError) as e:
+        logger.warning("Bundled server defaults unavailable (%s)", e)
+        _defaults = {}
+    return _defaults
+
+
+def _vanilla_changes() -> dict[str, Any]:
+    """
+    The rate and difficulty keys, back at the game's own values.
+
+    Scoped to the keys the presets and the highlight groups can change rather than
+    all 117, and then **`ENV_MANAGED` is subtracted**. Those are the server's
+    identity — name, ports, player cap, RCON and REST toggles, passwords — and
+    resetting them is not what "undo my tinkering" means: it would rename the
+    server, close the REST API the dashboard talks to, and on the popular images be
+    reverted from environment variables at the next restart anyway.
+
+    Reusing `ENV_MANAGED` rather than writing a second exclusion list is deliberate.
+    The two questions — "is this the server's identity" and "does the image rewrite
+    this from the environment" — have the same answer for every key here, and one
+    list cannot drift from itself.
+    """
+    defaults = game_defaults()
+    keys: set[str] = set()
+    for preset in PRESETS:
+        if preset.get("id") != "vanilla":
+            keys.update(preset.get("changes", {}))
+    for group in HIGHLIGHT_GROUPS:
+        keys.update(group.get("keys") or [])
+
+    keys -= set(ENV_MANAGED)
+    keys -= set(SECRET_KEYS)
+    return {k: defaults[k] for k in sorted(keys) if k in defaults}
+
+
 def apply_preset(preset_id: str, path: Optional[str] = None) -> dict[str, Any]:
     """Apply a named preset, skipping keys absent from this server's INI."""
     preset = next((p for p in PRESETS if p["id"] == preset_id), None)
     if not preset:
         raise SettingsError(f"Unknown preset: {preset_id}")
+
+    # Resolved at apply time, not at import: it depends on the bundled defaults and
+    # on the other presets' key sets, and a module-level literal would drift from
+    # both the moment either changed.
+    if preset_id == "vanilla":
+        preset = {**preset, "changes": _vanilla_changes()}
+        if not preset["changes"]:
+            raise SettingsError(
+                "The bundled Palworld defaults are missing, so there is nothing to "
+                "reset to. Reinstall the dashboard image."
+            )
 
     current = read_ini(path)
     present = {k: v for k, v in preset["changes"].items() if k in current["options"]}

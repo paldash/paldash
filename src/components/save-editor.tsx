@@ -15,6 +15,7 @@ import BulkPalEditor from './bulk-pal-editor';
 import SlotEditor from './slot-editor';
 import PalCheck from './pal-check';
 import PalImport from './pal-import';
+import WorldExport from './world-export';
 
 /**
  * Save Tools.
@@ -249,6 +250,11 @@ docker compose start palworld    # bring it back`}
           gate below — finding out whether anyone has been cheating must not
           require the capability to rewrite the world. */}
       {has(CAPABILITIES.VIEW_DETAIL) && <PalCheck canEdit={canEdit && has(CAPABILITIES.SAVE_EDIT_FULL)} />}
+
+      {/* Not gated on `canEdit`. This is the one operation here that never writes
+          to the live world — it reads it and produces a separate copy — so a
+          running server is no reason to hide it. */}
+      <WorldExport canManage={has(CAPABILITIES.BACKUP_MANAGE)} />
 
       {has(CAPABILITIES.SAVE_EDIT_FULL) ? (
         <>

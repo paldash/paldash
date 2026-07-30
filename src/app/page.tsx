@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Monitor, Map, Users, Building2, Wrench, LogIn, LogOut,
   Server, Shield, Eye, Lock, Unlock, Sliders, Egg, RefreshCw, Package, ShieldCheck,
-  UserCog, ScrollText, Archive,
+  UserCog, ScrollText, Archive, UserCircle,
 } from 'lucide-react';
 import { useDashboardStore } from '@/lib/store';
 import {
@@ -24,6 +24,7 @@ import BaseViewer from '@/components/base-viewer';
 import SaveEditor from '@/components/save-editor';
 import ServerSettings from '@/components/server-settings';
 import BreedingPlanner from '@/components/breeding-planner';
+import AccountSettings from '@/components/account-settings';
 import { CAPABILITIES } from '@/lib/permissions';
 import { ROLE_LABEL, type Role } from '@/lib/auth-types';
 import type { DashboardTab } from '@/lib/types';
@@ -38,6 +39,8 @@ const TABS: {
   label: string;
   icon: React.ReactNode;
   requires?: string;
+  /** Hidden for a guest session, which has no account to configure. */
+  needsAccount?: boolean;
 }[] = [
   { id: 'overview', label: 'Overview', icon: <Monitor size={15} /> },
   { id: 'map', label: 'Map', icon: <Map size={15} /> },
@@ -50,6 +53,7 @@ const TABS: {
   { id: 'backups', label: 'Backups', icon: <Archive size={15} />, requires: CAPABILITIES.BACKUP_MANAGE },
   { id: 'users', label: 'Users', icon: <UserCog size={15} />, requires: CAPABILITIES.USERS_MANAGE },
   { id: 'audit', label: 'Audit log', icon: <ScrollText size={15} />, requires: CAPABILITIES.AUDIT_VIEW },
+  { id: 'account', label: 'My account', icon: <UserCircle size={15} />, needsAccount: true },
   { id: 'editor', label: 'Save Tools', icon: <Wrench size={15} />, requires: CAPABILITIES.SAVE_SORT_STACKABLES },
 ];
 
@@ -222,7 +226,9 @@ export default function Home() {
   }
 
   const visibleTabs = TABS.filter(
-    (t) => !t.requires || store.capabilities.includes(t.requires)
+    (t) =>
+      (!t.requires || store.capabilities.includes(t.requires)) &&
+      (!t.needsAccount || Boolean(store.user))
   );
   const activeTab = visibleTabs.some((t) => t.id === store.activeTab)
     ? store.activeTab
@@ -371,6 +377,7 @@ export default function Home() {
           {activeTab === 'backups' && <BackupManager />}
           {activeTab === 'users' && <UserManager />}
           {activeTab === 'audit' && <AuditLog />}
+          {activeTab === 'account' && <AccountSettings />}
           {activeTab === 'editor' && <SaveEditor />}
         </div>
       </main>

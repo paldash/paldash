@@ -269,6 +269,11 @@ def scan(pals: list[dict], owners: Optional[dict] = None) -> dict:
         # Not violations. Reported so an admin can look, never counted as cheating.
         "advisories": advisories,
         "palsUnrecognised": len(advisories),
+        # Whether mods are installed, which is the innocent explanation for most
+        # unrecognised ids on a modded server — a Pal-adding mod puts species in
+        # the save that no bundled table will ever contain. `checked: false` means
+        # the game directory was not visible, which must not read as "unmodded".
+        "mods": _mod_context(),
         # The bounds this scan used, so a report can be read months later without
         # having to guess which version produced it.
         "bounds": {
@@ -278,6 +283,29 @@ def scan(pals: list[dict], owners: Optional[dict] = None) -> dict:
             "maxPassives": editschema.MAX_PASSIVES,
         },
     }
+
+
+def _mod_context() -> dict:
+    """
+    A compact mod summary for the scan report, or an honest "did not look".
+
+    Never raises: a scan is a diagnostic, and losing it because a directory listing
+    failed would be a worse outcome than an unqualified advisory count.
+    """
+    try:
+        import mods
+
+        found = mods.detect()
+        return {
+            "checked": found["checked"],
+            "modded": found["modded"],
+            "count": len(found["mods"]),
+            "reason": found["reason"],
+        }
+    except Exception as e:  # noqa: BLE001
+        logger.warning("Mod detection failed during a scan: %s", e)
+        return {"checked": False, "modded": False, "count": 0,
+                "reason": "Mod detection failed."}
 
 
 def scan_current() -> dict:

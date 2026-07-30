@@ -39,6 +39,19 @@ def down(ts):
     return row(ts, reachable=0, cpu_percent=4.0)
 
 
+def mid_bucket(width=3600):
+    """
+    A timestamp halfway through a bucket of `width`, and `series`' idea of "now".
+
+    Bucket boundaries are aligned to absolute epoch time, so samples anchored to
+    the real clock land in one bucket or two depending on the minute the suite
+    runs. Anchoring mid-bucket makes it deterministic: without this, the
+    single-bucket assertions below held for 51 minutes of every hour and failed
+    for the other 9.
+    """
+    return (int(time.time()) // width) * width + width // 2
+
+
 # ─── Storage ─────────────────────────────────────────────
 
 
@@ -104,11 +117,11 @@ def test_prune_on_an_empty_table_is_not_an_error(fresh):
 
 
 def test_series_buckets_and_averages(fresh):
-    now = int(time.time())
+    now = mid_bucket()
     for i in range(10):
         metrics.store(up(now - i * 60, fps=40.0 + i))
 
-    result = metrics.series(hours=1, buckets=1)
+    result = metrics.series(hours=1, buckets=1, now=now)
     assert len(result["points"]) == 1
     point = result["points"][0]
     assert point["samples"] == 10
@@ -121,20 +134,20 @@ def test_reachable_is_a_fraction_not_a_flag(fresh):
     an intermittently crashing server — the exact thing an operator is looking
     for — and a boolean would round it away in either direction.
     """
-    now = int(time.time())
+    now = mid_bucket()
     for i in range(4):
         metrics.store(up(now - i * 60) if i % 2 == 0 else down(now - i * 60))
 
-    point = metrics.series(hours=1, buckets=1)["points"][0]
+    point = metrics.series(hours=1, buckets=1, now=now)["points"][0]
     assert point["reachable"] == pytest.approx(0.5)
 
 
 def test_a_fully_down_bucket_reads_as_zero_reachable_with_no_fps(fresh):
-    now = int(time.time())
+    now = mid_bucket()
     for i in range(3):
         metrics.store(down(now - i * 60))
 
-    point = metrics.series(hours=1, buckets=1)["points"][0]
+    point = metrics.series(hours=1, buckets=1, now=now)["points"][0]
     assert point["reachable"] == 0.0
     assert point["serverFps"] is None        # a gap, not a zero
 
@@ -145,6 +158,26 @@ def test_series_ignores_samples_outside_the_window(fresh):
     metrics.store(up(now - 60))
 
     assert metrics.series(hours=1, buckets=10)["points"].__len__() == 1
+
+
+def test_bucket_boundaries_are_absolute_so_a_window_may_straddle_one(fresh):
+    """
+    Pins the alignment rather than treating the extra point as a bug.
+
+    `buckets` is a resolution target. Boundaries come from the timestamp itself,
+    which is what keeps a chart's x positions still between refreshes — measuring
+    back from `now` instead would slide every boundary on every poll. The visible
+    consequence is that samples spanning a boundary return two points, so this
+    asserts that on purpose: a later "fix" that makes the count exact would have
+    reintroduced the jitter.
+    """
+    boundary = (int(time.time()) // 3600) * 3600
+    metrics.store(up(boundary - 60))     # just before
+    metrics.store(up(boundary + 60))     # just after
+
+    points = metrics.series(hours=1, buckets=1, now=boundary + 120)["points"]
+    assert len(points) == 2
+    assert [p["samples"] for p in points] == [1, 1]
 
 
 def test_series_clamps_absurd_arguments(fresh):

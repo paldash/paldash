@@ -97,6 +97,17 @@ const ROUTES: RouteRule[] = [
   { pattern: /^bases$/, methods: ['GET'], capability: CAPABILITIES.VIEW_BASIC, feature: FEATURES.BASES },
   { pattern: /^guilds$/, methods: ['GET'], capability: CAPABILITIES.VIEW_BASIC, feature: FEATURES.GUILDS },
   { pattern: /^mapobjects$/, methods: ['GET'], capability: CAPABILITIES.VIEW_BASIC, feature: FEATURES.MAP_OBJECTS },
+  // Static pak-derived world objects, queried by viewport. Bundled data with no
+  // player content in it, so the gate is the same one the map itself uses.
+  { pattern: /^world\/objects$/, methods: ['GET'], capability: CAPABILITIES.VIEW_BASIC, feature: FEATURES.MAP_OBJECTS },
+  // Whether the bundled data still matches the installed game build. A read at
+  // VIEW_BASIC because it qualifies the map everyone is looking at; acknowledging
+  // it is a server-wide statement and needs POLICY_MANAGE.
+  { pattern: /^world\/build$/, methods: ['GET'], capability: CAPABILITIES.VIEW_BASIC, feature: FEATURES.MAP_OBJECTS },
+  // Installed mods — the innocent explanation for unrecognised species ids.
+  { pattern: /^world\/mods$/, methods: ['GET'], capability: CAPABILITIES.VIEW_DETAIL, feature: null },
+  { pattern: /^world\/build\/acknowledge$/, methods: ['POST'], capability: CAPABILITIES.POLICY_MANAGE, feature: null },
+  { pattern: /^world\/objects\/categories$/, methods: ['GET'], capability: CAPABILITIES.VIEW_BASIC, feature: FEATURES.MAP_OBJECTS },
   { pattern: /^world\/fasttravel$/, methods: ['GET'], capability: CAPABILITIES.VIEW_BASIC, feature: FEATURES.MAP_OBJECTS },
   { pattern: /^world\/reference$/, methods: ['GET'], capability: CAPABILITIES.VIEW_BASIC, feature: FEATURES.SERVER_STATUS },
   // Discoveries are VIEW_BASIC because a Player must be able to see their OWN
@@ -109,6 +120,10 @@ const ROUTES: RouteRule[] = [
   // backwards.
   { pattern: /^privacy\/me$/, methods: ['GET', 'POST'], capability: CAPABILITIES.VIEW_BASIC, feature: null },
   { pattern: /^privacy\/hidden$/, methods: ['GET'], capability: CAPABILITIES.VIEW_BASIC, feature: null },
+  // Per-base visibility. Also VIEW_BASIC, because the gate that matters is
+  // ownership — the backend checks the caller is the base's guild master.
+  { pattern: /^privacy\/bases$/, methods: ['GET'], capability: CAPABILITIES.VIEW_BASIC, feature: null },
+  { pattern: /^privacy\/bases\/[A-Za-z0-9-]+$/, methods: ['POST'], capability: CAPABILITIES.VIEW_BASIC, feature: null },
   { pattern: /^roles$/, methods: ['GET'], capability: CAPABILITIES.VIEW_BASIC, feature: FEATURES.SERVER_STATUS },
 
   // Storage is VIEW_DETAIL, unlike plain `bases` above — the base list is a map
@@ -191,6 +206,11 @@ const ROUTES: RouteRule[] = [
   // needs a record of. See backend/moderate.py.
   { pattern: /^moderate\/(announce|kick|ban|unban)$/, methods: ['POST'], capability: CAPABILITIES.PLAYERS_MODERATE, feature: null },
   { pattern: /^moderate\/bans$/, methods: ['GET'], capability: CAPABILITIES.PLAYERS_MODERATE, feature: null },
+  // Recurring announcements. Same gate as sending one by hand — the schedule is
+  // just a broadcast with a timer in front of it.
+  { pattern: /^announcements$/, methods: ['GET', 'POST'], capability: CAPABILITIES.PLAYERS_MODERATE, feature: null },
+  { pattern: /^announcements\/\d+$/, methods: ['PATCH', 'DELETE'], capability: CAPABILITIES.PLAYERS_MODERATE, feature: null },
+  { pattern: /^announcements\/\d+\/send$/, methods: ['POST'], capability: CAPABILITIES.PLAYERS_MODERATE, feature: null },
   // History is a read at the same gate as the live server status it extends.
   { pattern: /^metrics\/(history|summary)$/, methods: ['GET'], capability: CAPABILITIES.VIEW_BASIC, feature: FEATURES.SERVER_STATUS },
 
@@ -199,6 +219,16 @@ const ROUTES: RouteRule[] = [
   { pattern: /^users\/[A-Za-z0-9._-]+$/, methods: ['PATCH', 'DELETE'], capability: CAPABILITIES.USERS_MANAGE, feature: null },
   { pattern: /^audit$/, methods: ['GET'], capability: CAPABILITIES.AUDIT_VIEW, feature: null },
   { pattern: /^auth\/password$/, methods: ['POST'], capability: CAPABILITIES.VIEW_BASIC, feature: null },
+  // A remapped copy of the world. BACKUP_MANAGE because the output contains every
+  // player's data — the same disclosure a backup is — even though it only reads
+  // the live world and never writes to it.
+  // Teleport is a save edit, not a game command — the game's own teleport is
+  // anchored to an admin's in-game character, which a dashboard does not have.
+  { pattern: /^teleport$/, methods: ['POST'], capability: CAPABILITIES.SAVE_EDIT_FULL, feature: null },
+  { pattern: /^teleport\/preview$/, methods: ['POST'], capability: CAPABILITIES.SAVE_EDIT_FULL, feature: null },
+  { pattern: /^teleport\/destinations$/, methods: ['GET'], capability: CAPABILITIES.VIEW_DETAIL, feature: null },
+  { pattern: /^export\/world-copy$/, methods: ['POST'], capability: CAPABILITIES.BACKUP_MANAGE, feature: null },
+  { pattern: /^export\/world-copy\/preview$/, methods: ['POST'], capability: CAPABILITIES.BACKUP_MANAGE, feature: null },
 ];
 
 export interface RouteVerdict {

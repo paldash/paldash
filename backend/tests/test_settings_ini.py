@@ -216,7 +216,18 @@ def test_presets_are_well_formed():
     assert settings_ini.PRESETS
     for preset in settings_ini.PRESETS:
         assert preset["id"] and preset["label"]
-        assert isinstance(preset["changes"], dict) and preset["changes"]
+        assert isinstance(preset["changes"], dict)
+
+        if preset.get("derived"):
+            # A derived preset computes its changes at apply time from the bundled
+            # game defaults — `vanilla` cannot be a literal without drifting from
+            # both the game's own values and the keys the other presets touch. It
+            # still has to resolve to something, or it would report success while
+            # writing nothing.
+            assert not preset["changes"], "a derived preset holds no literal changes"
+            assert settings_ini._vanilla_changes(), "derived preset resolved to nothing"
+        else:
+            assert preset["changes"]
 
 
 def test_apply_unknown_preset_raises(ini):
@@ -361,7 +372,13 @@ def test_env_managed_keys_are_flagged(real_ini):
 
     assert options["AdminPassword"]["envManaged"] == "ADMIN_PASSWORD"
     assert options["ServerName"]["envManaged"] == "SERVER_NAME"
-    assert options["RESTAPIPort"]["envManaged"] == "REST_API_PORT"
+    # Both spellings, because the two popular images disagree: thijsvanloef uses
+    # REST_API_PORT and jammsen uses RESTAPI_PORT. Asserted by containment rather
+    # than as an exact literal — an operator has to be able to find the name in
+    # their own compose file, and which one that is depends on their image.
+    rest_port = options["RESTAPIPort"]["envManaged"]
+    assert "REST_API_PORT" in rest_port
+    assert "RESTAPI_PORT" in rest_port
     # A pure gameplay setting has no container equivalent and must not be flagged.
     assert "envManaged" not in options["ExpRate"]
 

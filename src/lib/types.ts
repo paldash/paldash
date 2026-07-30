@@ -623,7 +623,191 @@ export type DashboardTab =
   | 'backups'
   | 'users'
   | 'audit'
+  | 'account'
   | 'editor';
+
+/**
+ * One static world object from the game pak: an ore node, chest, fishing spot or
+ * oil field. Positions are fixed per game build — the save supplies state (mined,
+ * looted), these supply existence.
+ */
+export interface StaticWorldObject {
+  cls: string;
+  category: string;
+  x: number;
+  y: number;
+  z: number;
+  landmass: string;
+}
+
+/** A viewport query's answer, which reports what it left out. */
+export interface StaticWorldObjects {
+  points: StaticWorldObject[];
+  /** Everything matching the box, before the cap. */
+  inView: number;
+  returned: number;
+  truncated: boolean;
+  limit: number;
+}
+
+export interface StaticWorldCategory {
+  id: string;
+  label: string;
+  count: number;
+  kinds: { cls: string; count: number }[];
+}
+
+export interface StaticWorldSummary {
+  /** Only the categories this viewer's policy admits. */
+  categories: StaticWorldCategory[];
+  /** Total across the *visible* categories, not the world's. */
+  objects: number;
+  categoryCount: number;
+  cellsParsed: number;
+  skipped: Record<string, number>;
+  cellSize: number;
+  maxPoints: number;
+  /**
+   * Ids withheld by policy. Present so an Owner debugging their own settings can
+   * see the dial took effect; the categories themselves carry no counts here.
+   */
+  restrictedCategories: string[];
+}
+
+/**
+ * Whether the bundled game data still matches the installed Palworld build.
+ *
+ * `verdict` is `current`, `stale`, or `unknown` — and `unknown` is a real answer,
+ * not an optimistic `current`. Positions are static per build, so a content update
+ * can silently invalidate them and nothing in a save file says so.
+ */
+export interface GameBuildStatus {
+  verdict: 'current' | 'stale' | 'unknown';
+  buildId: string;
+  previousBuildId: string;
+  buildChanged: boolean;
+  /** `up` on an update, `down` on a deliberate rollback. */
+  buildDirection: 'up' | 'down' | 'same' | 'unknown';
+  acknowledged: boolean;
+  acknowledgedBuild: string;
+  reason: string;
+  signals: {
+    buildId: string;
+    buildIdSource: string;
+    lastUpdated: string;
+    pakStamp: string;
+    gameVersion: string;
+    installDir: string;
+    manifestFound: boolean;
+    pakFound: boolean;
+  };
+  artifacts: {
+    artifact: string;
+    builtFromBuild: string | null;
+    source: string;
+    regenerateWith: string;
+    note: string;
+    state: 'current' | 'stale' | 'unknown';
+  }[];
+  staleArtifacts: string[];
+  unknownArtifacts: string[];
+}
+
+/**
+ * What a remapped world copy would change.
+ *
+ * `mode` is the load-bearing field: `rename` moves one player's uid, `swap`
+ * exchanges two players' identities because the target uid already has a character
+ * in this world.
+ */
+export interface WorldExportPlan {
+  mode: 'rename' | 'swap';
+  sourceUid: string;
+  targetUid: string;
+  sourceInstanceId: string;
+  targetInstanceId: string;
+  hasDps: boolean;
+  references: {
+    characterEntries: number;
+    targetCharacterEntries: number;
+    guildHandles: number;
+    guildAdmin: number;
+    guildPlayers: number;
+    /** Every field in the world holding either uid. */
+    total: number;
+  };
+  warnings: string[];
+  planHash: string;
+}
+
+export interface WorldExportResult {
+  ok: boolean;
+  mode: string;
+  destination: string;
+  sourceUid: string;
+  targetUid: string;
+  applied: { total: number } & Record<string, number>;
+  sizeBytes: number;
+  warnings: string[];
+  archive: { path: string; sizeBytes: number; sha256: string };
+}
+
+/** One recurring announcement. */
+export interface ScheduledAnnouncement {
+  id: number;
+  message: string;
+  interval: string;
+  intervalLabel: string;
+  enabled: boolean;
+  /** Skip the window when nobody is connected, rather than queue it. */
+  onlyWhenOnline: boolean;
+  lastRun: string | null;
+  /** `ok`, `skipped: nobody online`, `failed: …` — shown verbatim. */
+  lastResult: string | null;
+  nextRun: string | null;
+  createdBy: string;
+  createdAt: string;
+}
+
+export interface AnnouncementList {
+  announcements: ScheduledAnnouncement[];
+  intervals: { id: string; label: string; seconds: number }[];
+  max: number;
+}
+
+/** One map-privacy choice, described by the backend rather than the UI. */
+export interface PrivacyMode {
+  id: string;
+  label: string;
+  description: string;
+}
+
+/** One base this account may hide, and whether it currently is. */
+export interface ManageableBase {
+  baseId: string;
+  name: string;
+  guildId: string;
+  guildName: string;
+  hidden: boolean;
+  /** Why you may change it: "guild master", or the member fallback. */
+  authority: string;
+}
+
+export interface ManageableBases {
+  bases: ManageableBase[];
+  /** Populated instead of an empty list when nothing is manageable, and why. */
+  reason: string;
+}
+
+/** This account's own privacy state. Nobody can read or set anyone else's. */
+export interface MyPrivacy {
+  mode: string;
+  modes: PrivacyMode[];
+  role: string;
+  linkedToPlayer: boolean;
+  /** Roles this setting currently conceals from — peers and below. */
+  hidesFrom: string[];
+}
 
 /** One account, as returned by the users endpoint. */
 export interface ManagedUser {

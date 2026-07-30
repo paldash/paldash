@@ -841,11 +841,37 @@ already has the timer.
 **Risk: low, as predicted.** Nothing here writes to a save file.
 **Depended on: Phase 3.**
 
-### Phase 9 — Migration, presets, polish (4–6 days)
+### Phase 9 — Migration, presets, polish · 🟡 **PARTIAL**
 Steam ↔ dedicated ↔ Game Pass ↔ co-op migration (port PST's proven implementations);
 remaining server presets; mod detection; version compatibility matrix; multi-image Docker
 validation.
 **Risk: medium** (Game Pass paths are Windows-specific and hard to test from Linux).
+
+**Done:** the uid remap (`soloexport.py`) covering Steam ↔ dedicated ↔ co-op, and
+mod detection (`mods.py`). The version compatibility matrix landed early as
+`gameversion.py` in the #21 work.
+
+**A naming correction.** Task #26 was titled "solo-world export", which reads as a
+different feature from the one the roadmap planned. It is not: "port PST's proven
+implementations" meant `fix_host_save.py`, and that is a **uid remap**, not an
+extraction. The distinction is recorded in `soloexport.py` — true solo extraction
+would delete every other player's characters, Pals and bases, which destroys the
+world it is meant to preserve, and no reference implementation exists for it.
+
+**Two departures from the reference implementation**, both deliberate:
+
+1. **It never writes to the live world.** PST mutates in place; this reads the world
+   and writes a new directory. That removes the corruption risk entirely and makes
+   it the one save feature that is safe to run while the server is up.
+2. **It matches uids by value, not by key name.** PST rewrites four named keys.
+   Counted against the reference world, that list misses **1,836 references** —
+   mostly `LastNickNameModifierPlayerUid` (1,817), plus `LostPlayerUId`,
+   `last_guild_name_modifier_player_uid`, `seller_player_uid` and
+   `SkinAppliedCharacterId`. A key list is also a promise about a schema this
+   project does not control.
+
+**Remaining:** Game Pass extraction (`xgp_save_extract.py` — no Game Pass save to
+verify against), the remaining server presets, and multi-image Docker validation.
 
 **Total: 40–55 engineer-days.** Phases 0–5 are done and produce a genuinely good,
 safe-to-run product with no Critical blockers. Phases 6–9 (~19–27 days) are the long tail,

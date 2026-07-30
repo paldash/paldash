@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { ShieldCheck, Eye, RefreshCw, Lock } from 'lucide-react';
+import { ShieldCheck, Eye, RefreshCw, Lock, Compass, Pickaxe } from 'lucide-react';
 import { getAccessPolicy, setAccessPolicy, type AccessPolicyInfo } from '@/lib/save-api';
 
 /**
@@ -187,6 +187,73 @@ export default function AccessSettings() {
         </div>
       </div>
 
+      {/* ─── Undiscovered content ─── */}
+      <div className="glass-card" style={{ padding: 16 }}>
+        <div className="section-title" style={{ marginBottom: 4 }}>
+          <Compass size={14} /> Undiscovered locations
+        </div>
+        <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 12 }}>
+          The dashboard knows where all 174 fast-travel points and 396 effigies are,
+          whether or not anyone has found them. This decides who sees the ones they
+          have not. Everyone always sees their own discoveries.
+        </p>
+        <ThresholdPicker
+          value={policy.discoveryVisibility}
+          options={policy.discoveryLevels}
+          busy={busy}
+          onPick={(level) => apply({ discoveryVisibility: level })}
+        />
+      </div>
+
+      {/* ─── Static world objects, per category ─── */}
+      {policy.worldObjectCategories.length > 0 && (
+        <div className="glass-card" style={{ padding: 16 }}>
+          <div className="section-title" style={{ marginBottom: 4 }}>
+            <Pickaxe size={14} /> Static world objects
+          </div>
+          <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 12 }}>
+            Ore, chests, fishing spots and oil fields read out of the game&apos;s own
+            files — every one that exists, not just the ones your save has touched.
+            Set separately per category, because a complete chest map is close to a
+            loot solution while a fishing-spot map is a convenience.
+            {' '}<strong>A category someone may not see is not listed to them either</strong>,
+            so they are not told what they are missing.
+          </p>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {policy.worldObjectCategories.map((category) => {
+              const current =
+                policy.worldObjectVisibility[category.id] ?? 'everyone';
+              return (
+                <div key={category.id}>
+                  <div style={{
+                    display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 5,
+                  }}>
+                    <span style={{ fontSize: 13 }}>{category.label}</span>
+                    <span style={{ fontSize: 11, color: 'var(--text-muted)' }} className="mono">
+                      {category.count.toLocaleString()}
+                    </span>
+                  </div>
+                  <ThresholdPicker
+                    value={current}
+                    options={policy.discoveryLevels}
+                    busy={busy}
+                    onPick={(level) =>
+                      apply({
+                        worldObjectVisibility: {
+                          ...policy.worldObjectVisibility,
+                          [category.id]: level,
+                        },
+                      })
+                    }
+                  />
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* ─── Effective capabilities ─── */}
       <div className="glass-card" style={{ padding: 16 }}>
         <div className="section-title" style={{ marginBottom: 8 }}>Currently permitted writes</div>
@@ -206,6 +273,59 @@ export default function AccessSettings() {
           all belong to the admin role.
         </p>
       </div>
+    </div>
+  );
+}
+
+/**
+ * A role-threshold selector, shared by the discovery and world-object dials.
+ *
+ * The vocabulary is the same in both places — `everyone`, a role name meaning
+ * that rank and above, or `nobody` — and the options come from the backend rather
+ * than being listed here, so the ladder cannot drift from `roles.py`.
+ *
+ * Rendered as a row of buttons rather than a `<select>` because the choice is an
+ * ordered ladder and seeing where the current setting sits on it is the point.
+ */
+function ThresholdPicker({
+  value, options, busy, onPick,
+}: {
+  value: string;
+  options: { id: string; label: string; description: string }[];
+  busy: boolean;
+  onPick: (level: string) => void;
+}) {
+  const active = options.find((o) => o.id === value);
+  return (
+    <div>
+      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+        {options.map((option) => {
+          const on = option.id === value;
+          return (
+            <button
+              key={option.id}
+              className="btn"
+              style={{
+                padding: '3px 10px',
+                fontSize: 11,
+                background: on ? 'var(--bg-card-hover)' : 'transparent',
+                color: on ? 'var(--text-primary)' : 'var(--text-muted)',
+                borderColor: on ? 'var(--accent)' : 'var(--border-primary)',
+              }}
+              disabled={busy}
+              onClick={() => onPick(option.id)}
+              title={option.description}
+            >
+              {option.label}
+            </button>
+          );
+        })}
+      </div>
+      {active && (
+        <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6 }}>
+          {active.description}
+        </p>
+      )}
     </div>
   );
 }

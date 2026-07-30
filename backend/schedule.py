@@ -1,10 +1,14 @@
 """
-Scheduled backups.
+Scheduled backups, and the tick everything else scheduled hangs off.
 
 A single background thread that wakes once a minute, decides whether a backup is
 due, and takes one. Deliberately not APScheduler or cron: one thread and a
 persisted "last run" timestamp is the whole requirement, and adding a dependency
 plus a second process to a container that must stay light is not.
+
+Recurring announcements (`announcements.py`) run on the same tick for the same
+reason — a second thread waking at the same interval to check a different table
+buys nothing. Each job is wrapped separately so neither can take the other down.
 
 Two things this must not do:
 
@@ -25,8 +29,10 @@ import threading
 from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
+import announcements
 import audit
 import backup as backup_module
+import gameversion
 import db
 
 logger = logging.getLogger(__name__)
@@ -208,14 +214,33 @@ def run_scheduled_backup() -> dict[str, Any]:
 
 
 def _loop() -> None:
-    logger.info("Backup scheduler started")
+    logger.info("Scheduler started")
     while not _stop.wait(CHECK_INTERVAL_SECONDS):
+        # Three independent jobs on one tick, each wrapped separately so a failure
+        # in one cannot silently disable the others — one try block around all of
+        # them is how a broken announcement stops backups.
         try:
             if is_due():
                 run_scheduled_backup()
         except Exception as e:  # noqa: BLE001 - the thread must never die
-            logger.exception("Scheduler tick failed: %s", e)
-    logger.info("Backup scheduler stopped")
+            logger.exception("Backup scheduler tick failed: %s", e)
+        try:
+            announcements.run_due()
+        except Exception as e:  # noqa: BLE001
+            logger.exception("Announcement scheduler tick failed: %s", e)
+        try:
+            # Self-rate-limited to every few hours, so calling it on a per-minute
+            # tick costs a monotonic clock read. A Palworld update lands roughly
+            # monthly and the check itself is ~0.05 ms — the interval is set by how
+            # often it is *worth* looking, not by what it costs.
+            #
+            # It only ever *notices*. Re-extracting 35,687 positions from 9,977 cell
+            # packages is minutes of work beside a live server, so that stays an
+            # operator decision.
+            gameversion.poll()
+        except Exception as e:  # noqa: BLE001
+            logger.exception("Game build check failed: %s", e)
+    logger.info("Scheduler stopped")
 
 
 def start() -> None:

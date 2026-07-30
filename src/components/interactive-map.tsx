@@ -3,10 +3,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useDashboardStore } from '@/lib/store';
 import { formatCoords, getRegion, MAP_REGIONS, type MapRegion } from '@/lib/map-coordinates';
-import { getMapObjects, getFastTravelPoints, getDiscoveries } from '@/lib/save-api';
+import {
+  getMapObjects, getFastTravelPoints, getDiscoveries,
+  getStaticWorldObjects, getStaticWorldSummary,
+} from '@/lib/save-api';
 import { Layers, Crosshair, RefreshCw, Search, Info } from 'lucide-react';
 import dynamic from 'next/dynamic';
-import type { MapObject, FastTravelPoint, Discoveries } from '@/lib/types';
+import BuildBanner from './build-banner';
+import type {
+  MapObject, FastTravelPoint, Discoveries,
+  StaticWorldObject, StaticWorldSummary,
+} from '@/lib/types';
 
 const MapComponent = dynamic(() => import('./map-inner'), { ssr: false });
 
@@ -17,7 +24,7 @@ const MapComponent = dynamic(() => import('./map-inner'), { ssr: false });
  * statues are static level actors, so their positions ship with the dashboard as
  * bundled game data. Everything else is read out of the world.
  */
-const LAYERS: { id: string; label: string; color: string; group: 'live' | 'world' | 'base' }[] = [
+const LAYERS: { id: string; label: string; color: string; group: 'live' | 'world' | 'static' | 'base' }[] = [
   { id: 'players', label: 'Players', color: '#5b9dd9', group: 'live' },
   { id: 'bases', label: 'Bases', color: '#c9973f', group: 'live' },
 
@@ -27,6 +34,14 @@ const LAYERS: { id: string; label: string; color: string; group: 'live' | 'world
   { id: 'oreNode', label: 'Ore nodes', color: '#8a8378', group: 'world' },
   { id: 'oilrigChest', label: 'Oil rig', color: '#d97757', group: 'world' },
   { id: 'fishingJunk', label: 'Fishing junk', color: '#5f6b73', group: 'world' },
+
+  // Pak-derived, and a different thing from the save-derived layers above: these
+  // are every node the game ships, not the ones a save has state for. Namespaced
+  // `static:` so the two can be toggled independently and never collide.
+  { id: 'static:ore', label: 'All ore', color: '#8a8378', group: 'static' },
+  { id: 'static:treasure', label: 'All chests', color: '#c9973f', group: 'static' },
+  { id: 'static:fishing', label: 'Fishing spots', color: '#5f6b73', group: 'static' },
+  { id: 'static:oilrig', label: 'Oil fields', color: '#d97757', group: 'static' },
 
   { id: 'palbox', label: 'Palboxes', color: '#5b9dd9', group: 'base' },
   { id: 'breeding', label: 'Breeding', color: '#8d84c7', group: 'base' },
@@ -39,7 +54,10 @@ const LAYERS: { id: string; label: string; color: string; group: 'live' | 'world
 ];
 
 export default function InteractiveMap() {
-  const { onlinePlayers, bases, mapLayers, toggleMapLayer } = useDashboardStore();
+  const {
+    onlinePlayers, bases, mapLayers, toggleMapLayer,
+    staticKindsOff, toggleStaticKind, setStaticKindsOff,
+  } = useDashboardStore();
   const [mouseCoords, setMouseCoords] = useState<{ x: number; y: number } | null>(null);
   const [mapObjects, setMapObjects] = useState<MapObject[]>([]);
   const [fastTravel, setFastTravel] = useState<FastTravelPoint[]>([]);
@@ -48,7 +66,92 @@ export default function InteractiveMap() {
   const [query, setQuery] = useState('');
   const [flyTo, setFlyTo] = useState<{ x: number; y: number; nonce: number } | null>(null);
   const [loading, setLoading] = useState(false);
+  const [staticObjects, setStaticObjects] = useState<StaticWorldObject[]>([]);
+  const [staticInfo, setStaticInfo] = useState<{ inView: number; truncated: boolean } | null>(null);
+  const [staticSummary, setStaticSummary] = useState<StaticWorldSummary | null>(null);
   const flyNonce = useRef(0);
+
+  // Categories this viewer is allowed to see at all. The summary omits the rest
+  // entirely rather than flagging them, so an absent id is a withheld category.
+  const visibleStaticIds = useMemo(
+    () => new Set((staticSummary?.categories ?? []).map((c) => c.id)),
+    [staticSummary]
+  );
+
+  // Any *visible* `static:` layer being on is what makes the viewport query worth
+  // issuing. With them all off the map costs exactly what it did before this layer
+  // existed.
+  const staticWanted = LAYERS.some(
+    (l) => l.group === 'static' && mapLayers[l.id] && visibleStaticIds.has(l.id.slice(7))
+  );
+  const staticWantedRef = useRef(staticWanted);
+  staticWantedRef.current = staticWanted;
+
+  const lastBox = useRef<{ minX: number; minY: number; maxX: number; maxY: number } | null>(null);
+  const inFlight = useRef(0);
+
+  /**
+   * The per-category class selection to send, derived from what is *excluded*.
+   *
+   * A category with nothing excluded is omitted entirely rather than listing all
+   * 17 of its classes: the backend treats an absent category as unfiltered, so
+   * this keeps the URL short and means a class added by newer game data is
+   * included by default rather than silently dropped.
+   */
+  const kindSelection = useMemo(() => {
+    const selection: Record<string, string[]> = {};
+    for (const category of staticSummary?.categories ?? []) {
+      const off = staticKindsOff[category.id] ?? [];
+      if (off.length === 0) continue;
+      selection[category.id] = category.kinds
+        .map((k) => k.cls)
+        .filter((cls) => !off.includes(cls));
+    }
+    return selection;
+  }, [staticSummary, staticKindsOff]);
+
+  const kindsRef = useRef(kindSelection);
+  kindsRef.current = kindSelection;
+
+  /**
+   * Fetch the static objects for a viewport.
+   *
+   * `inFlight` is a sequence number, not a boolean: panning quickly fires several
+   * of these and the responses can land out of order, so an older answer must not
+   * overwrite a newer one. Dropping the request instead would leave the map
+   * showing the wrong area.
+   */
+  const loadStatic = useCallback(async (box: {
+    minX: number; minY: number; maxX: number; maxY: number;
+  }) => {
+    lastBox.current = box;
+    if (!staticWantedRef.current) {
+      setStaticObjects([]);
+      setStaticInfo(null);
+      return;
+    }
+    const ticket = ++inFlight.current;
+    try {
+      const result = await getStaticWorldObjects({ ...box, kinds: kindsRef.current });
+      if (ticket !== inFlight.current) return;
+      setStaticObjects(result.points);
+      setStaticInfo({ inView: result.inView, truncated: result.truncated });
+    } catch {
+      if (ticket !== inFlight.current) return;
+      setStaticObjects([]);
+      setStaticInfo(null);
+    }
+  }, []);
+
+  // Re-fetch when a static layer is switched on, or the kind selection changes,
+  // using the viewport already known.
+  useEffect(() => {
+    if (lastBox.current) void loadStatic(lastBox.current);
+  }, [staticWanted, kindSelection, loadStatic]);
+
+  useEffect(() => {
+    getStaticWorldSummary().then(setStaticSummary).catch(() => setStaticSummary(null));
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -86,8 +189,15 @@ export default function InteractiveMap() {
       transform.contains(p.location_x, p.location_y)
     ).length;
     acc.bases = bases.filter((b) => transform.contains(b.x, b.y)).length;
+
+    // Static layers count the world total from the summary, not what is loaded:
+    // the loaded set is only ever the current viewport, so a per-viewport number
+    // would read as "there are 14 ore nodes in Palworld" when zoomed in.
+    for (const category of staticSummary?.categories ?? []) {
+      acc[`static:${category.id}`] = category.count;
+    }
     return acc;
-  }, [mapObjects, fastTravel, discoveries, onlinePlayers, bases, transform]);
+  }, [mapObjects, fastTravel, discoveries, onlinePlayers, bases, transform, staticSummary]);
 
   // Search across fast-travel names and base/guild names.
   const results = useMemo(() => {
@@ -119,8 +229,13 @@ export default function InteractiveMap() {
     setQuery('');
   };
 
-  const renderGroup = (group: 'live' | 'world' | 'base') =>
-    LAYERS.filter((l) => l.group === group).map((layer) => {
+  const renderGroup = (group: 'live' | 'world' | 'static' | 'base') =>
+    LAYERS.filter((l) => l.group === group)
+      // A static category the server withholds gets no toggle either. Leaving the
+      // button visible would offer a layer that always comes back empty, and would
+      // itself say the category exists — which is what withholding it was for.
+      .filter((l) => l.group !== 'static' || visibleStaticIds.has(l.id.slice(7)))
+      .map((layer) => {
       const active = mapLayers[layer.id];
       const count = counts[layer.id] ?? 0;
       return (
@@ -265,8 +380,91 @@ export default function InteractiveMap() {
         <span style={{ width: 1, height: 16, background: 'var(--border-primary)', margin: '0 4px' }} />
         {renderGroup('world')}
         <span style={{ width: 1, height: 16, background: 'var(--border-primary)', margin: '0 4px' }} />
+        {renderGroup('static')}
+        <span style={{ width: 1, height: 16, background: 'var(--border-primary)', margin: '0 4px' }} />
         {renderGroup('base')}
       </div>
+
+      {staticWanted && (
+        <>
+          <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+            {/* Saying what is not shown, rather than showing a slice as the whole.
+                Zoom is the fix, so the message names it. */}
+            {staticInfo?.truncated
+              ? `Showing ${staticObjects.length} of ${staticInfo.inView.toLocaleString()} static objects in view — zoom in to see the rest.`
+              : `Showing ${staticObjects.length.toLocaleString()} static objects in view` +
+                (staticSummary ? ` of ${staticSummary.objects.toLocaleString()} in the world.` : '.')}
+            {' '}Positions come from the game files and are the same for everyone.
+          </div>
+
+          {/* Per-kind filters. "Ore" is 17 different rocks and someone hunting
+              coal does not want copper, so each category's classes are individually
+              selectable — only for categories actually switched on, since a filter
+              for a hidden layer is noise. */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {(staticSummary?.categories ?? [])
+              .filter((c) => mapLayers[`static:${c.id}`])
+              .map((category) => {
+                const off = staticKindsOff[category.id] ?? [];
+                const allOff = off.length >= category.kinds.length;
+                return (
+                  <div key={category.id} className="glass-card" style={{ padding: '8px 10px' }}>
+                    <div style={{
+                      display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6,
+                      fontSize: 11, color: 'var(--text-secondary)',
+                    }}>
+                      <strong style={{ fontWeight: 600 }}>{category.label}</strong>
+                      <span style={{ color: 'var(--text-muted)' }}>
+                        {category.kinds.length - off.length}/{category.kinds.length} kinds
+                      </span>
+                      <button
+                        className="btn btn-ghost"
+                        style={{ padding: '1px 7px', fontSize: 10, marginLeft: 'auto' }}
+                        onClick={() =>
+                          setStaticKindsOff(
+                            category.id,
+                            allOff ? [] : category.kinds.map((k) => k.cls)
+                          )
+                        }
+                      >
+                        {allOff ? 'All' : 'None'}
+                      </button>
+                    </div>
+                    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                      {category.kinds.map((kind) => {
+                        const on = !off.includes(kind.cls);
+                        return (
+                          <button
+                            key={kind.cls}
+                            className="btn"
+                            style={{
+                              padding: '2px 8px',
+                              fontSize: 10,
+                              background: on ? 'var(--bg-card-hover)' : 'transparent',
+                              color: on ? 'var(--text-primary)' : 'var(--text-muted)',
+                              borderColor: on ? 'var(--border-accent)' : 'var(--border-primary)',
+                            }}
+                            onClick={() => toggleStaticKind(category.id, kind.cls)}
+                            title={kind.cls}
+                          >
+                            {prettyKind(kind.cls)}
+                            <span style={{ color: 'var(--text-muted)', marginLeft: 4 }}>
+                              {kind.count.toLocaleString()}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+          </div>
+        </>
+      )}
+
+      {/* Above the calibration notice: "this data may be from a different patch"
+          qualifies every marker on the map, including the calibrated ones. */}
+      <BuildBanner />
 
       {!transform.calibrated && (
         <div className="notice notice-warn" style={{ fontSize: 12 }}>
@@ -290,10 +488,12 @@ export default function InteractiveMap() {
           mapObjects={mapObjects}
           fastTravel={fastTravel}
           discoveries={discoveries}
+          staticObjects={staticObjects}
           layers={mapLayers}
           region={region}
           flyTo={flyTo}
           onMouseMove={(x, y) => setMouseCoords({ x, y })}
+          onViewportChange={loadStatic}
         />
       </div>
 
@@ -303,4 +503,20 @@ export default function InteractiveMap() {
       </p>
     </div>
   );
+}
+
+/**
+ * `BP_PalMapObjectSpawner_RockCopper` -> `Rock Copper`.
+ *
+ * The same transform `map-inner` applies to popup titles. Duplicated rather than
+ * shared because these are the only two callers and a one-function module for a
+ * regex is not worth the import.
+ */
+function prettyKind(cls: string): string {
+  return cls
+    .replace(/^BP_(PalMapObjectSpawnerTreasureBox|PalMapObjectSpawner|MapObject|LevelObject)_?/, '')
+    .replace(/^VisibleContent_?/, '')
+    .replace(/_/g, ' ')
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .trim() || cls;
 }

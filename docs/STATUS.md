@@ -266,11 +266,30 @@ The only outstanding action was rotation, which is done.
 ### Open — buildable now
 | # | Item | Size |
 |---|---|---|
-| 25 | Privacy UI: self-service control on the account page | small |
-| — | Scheduled announcements (Phase 8 scope, deferred — `schedule.py` already has a timer to hang it on) | small |
-| — | Teleport (Phase 8 scope, deferred — the game's REST API has no teleport command; it would need RCON) | blocked |
-| 21 | Game-update resilience: build-id detection, re-derive on update, stale-data banner, **and re-check extracted positions** (ore/chest/effigy coordinates are static per build, so a new build must re-run the extractors and diff) | medium |
-| 30 | Map layer for the 35,687 extracted world objects (needs viewport culling) | medium |
-| 28 | Per-base map visibility | medium |
-| — | Phase 8 | 3–4 days |
-| 26 | Phase 9: solo-world export, migration, presets, mod detection, multi-image Docker | 4–6 days |
+| — | ~~Teleport~~ — **closed, will not build.** See below. | — |
+| — | Game Pass save extraction (`xgp_save_extract.py`); no Game Pass save to verify against | medium |
+| — | Remaining server presets — check against `DefaultPalWorldSettings.ini`'s 119 keys, not memory | small |
+| — | Multi-image Docker validation (needs real container runs) | medium |
+| 26 | Phase 9 remainder: Game Pass extraction, server presets, multi-image Docker validation | 2–3 days |
+
+### Teleport — closed, will not build (2026-07-30)
+
+Verified against the shipped `PalServer-Linux-Shipping` binary rather than against
+memory or community docs.
+
+- The only player-facing teleport command is **`TeleportToPlayerByIndex`**. There is
+  **no coordinate teleport** in the server's command surface at all.
+- The `Debug_TeleportToBotLocation`, `Debug_TeleportToNearestCamp`,
+  `Dev_RequestTeleportToBossTower_ToServer` and
+  `Dev_TeleportToRelativeLocationInStageLevel_ToServer` symbols are development
+  RPCs, not admin commands, and are not reachable over RCON.
+- The decisive point is not the missing coordinates: both admin teleports are
+  **anchored to the issuing admin's in-game character** ("teleport me to X",
+  "teleport X to me"). A headless dashboard has no character in the world, so there
+  is no anchor. Adding an RCON client would buy a command it structurally cannot use.
+
+**The one alternative, deliberately not built:** a player's position lives in their
+character record, so a coordinate teleport *is* achievable as a save edit, and
+`charedit` already has the write path, validation and rollback. It would only work
+with the server stopped — which is useless for the case that motivates teleport in
+the first place, unsticking a player who is online right now.

@@ -445,15 +445,25 @@ hand-writing binary.
 
 ## The INI is not the source of truth on a containerised server
 
-`thijsvanloef/palworld-server-docker` and `jammsen/docker-palworld-dedicated-server`
-**regenerate PalWorldSettings.ini from environment variables on every start.** A
-setting the dashboard writes survives until the next restart and is then
-silently reverted — worse than a refusal, because the operator watched it work.
+`thijsvanloef/palworld-server-docker` **regenerates PalWorldSettings.ini from
+environment variables on every start.** A setting the dashboard writes survives
+until the next restart and is then silently reverted — worse than a refusal,
+because the operator watched it work.
 
-`settings_ini.ENV_MANAGED` lists the keys commonly backed that way and the
-variable for each; the settings UI names them and points at `.env`. This cannot
-be a *detection* — the dashboard container cannot read the game container's
-environment — so it is worded as a warning, not a fact about the user's setup.
+**`jammsen/palworld-dedicated-server` does not, by default** — corrected 2026-07-30
+by reading the image's own metadata rather than its docs. It ships
+`SERVER_SETTINGS_MODE=manual`, and only `auto` regenerates the INI. This file
+previously stated both images always rewrite it, which would have made the warning
+wrong for a default jammsen deployment.
+
+The variable names differ too: `REST_API_PORT` on thijsvanloef, `RESTAPI_PORT` on
+jammsen. `settings_ini.ENV_MANAGED` names both spellings, so the warning points at
+something the operator will actually find in their compose file.
+
+This cannot be a *detection* — the dashboard container cannot read the game
+container's environment — so it is worded as a conditional warning, not a fact about
+the user's setup. `docs/COMPATIBILITY.md` has the full matrix and the one-line
+`skopeo inspect` command that re-verifies it without pulling an image.
 
 ## Reading cooked UE5 packages: structure yes, properties no
 
@@ -701,3 +711,62 @@ ordering, because the first version had the comment and not the behaviour.
 An explicit Refresh gets a lower floor (`PARSE_FORCE_MIN_SERVER_FPS`, 12 fps vs
 20): the operator asked and is watching, so overriding them needs real trouble
 rather than mere load.
+
+## A world copy is the only save operation that never writes to the world
+
+`soloexport.py` remaps one player's uid across a copy of the world — for carrying a
+character from the dedicated server into co-op, or onto another server.
+
+**It reads the live world and writes a new directory.** Every other writer here goes
+through `backup.guarded_save_write` because it mutates in place; this one cannot
+corrupt anything, so it deliberately does *not* require the server stopped. The
+reference implementation (`PalWorldSaveTools/fix_host_save.py`) mutates in place.
+Producing a copy is what an operator actually wants and costs nothing but disk.
+
+**Match uids by value, never by key name.** PST rewrites four named keys. Counted
+against the reference world that misses **1,836 references**:
+
+| key | count | in PST's list |
+|---|---:|---|
+| `LastNickNameModifierPlayerUid` | 1,817 | no |
+| `OwnerPlayerUId` | 1,740 | yes |
+| `build_player_uid` | 973 | yes |
+| `SkinAppliedCharacterId` | 12 | no |
+| `LostPlayerUId` | 4 | no |
+| `last_guild_name_modifier_player_uid` | 2 | no |
+| `seller_player_uid` | 1 | no |
+
+A key list is also a promise about a schema this project does not control. Matching
+on value is exhaustive and cannot mistake one thing for another: a field holding a
+player's uid *means* that player, and a Palworld player uid is a Steam ID32 followed
+by zeros (`11a11a01-0000-...`), so it cannot collide with the full-entropy GUIDs used
+for bases, guilds and character instances.
+
+**A handled field must not be descended into.** A wrapped GVAS property is
+`{'struct_type': 'Guid', 'value': UUID(...)}`, so a plain recursion matches it twice
+— once at the outer key, once inside. Counting it twice inflates a number; *rewriting*
+it twice is a correctness failure that appears only on a swap, where the mapping is
+its own inverse and the second write undoes the first. On wrapped fields only, which
+are the majority. Measured: 1,176 of 3,148 apparent matches were this double visit.
+
+**palsav decodes GUIDs as its own `UUID` class, not `str`.** An `isinstance(v, str)`
+test matches nothing — the first version of this module counted 6,455 uid fields and
+rewrote zero of them. `_write_uid` also reconstructs the same type, because writing a
+`str` where the encoder expects a `UUID` produces a tree that looks right and bytes
+that are not.
+
+**Rename and swap are different operations and the plan says which.** If the target
+uid already has a character in the world, the two exchange identities; a rename
+asserts that *zero* references to the old uid survive, which a swap cannot.
+
+## Mod detection exists to qualify a report, not to manage mods
+
+`mods.py` answers "is this server modded" so `palcheck` can say whether unrecognised
+species have an innocent explanation. A Pal-adding mod puts species in the save that
+no bundled table will ever contain.
+
+**"Cannot see the game directory" must never render as "no mods installed."** The
+normal deployment mounts only the save path, so not knowing is the *common* case, and
+`explains_unknown_ids` returns false for it — an unexamined server must not become a
+confident claim. UE4SS is reported separately because it loads Lua mods that leave no
+pak at all, which is a real limit on what this can see.
