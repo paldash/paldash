@@ -21,6 +21,7 @@ import SaveEditor from '@/components/save-editor';
 import ServerSettings from '@/components/server-settings';
 import BreedingPlanner from '@/components/breeding-planner';
 import Paldeck from '@/components/paldeck';
+import ErrorBoundary from '@/components/error-boundary';
 import AccountSettings from '@/components/account-settings';
 import { CAPABILITIES } from '@/lib/permissions';
 import { ROLE_LABEL, type Role } from '@/lib/auth-types';
@@ -390,6 +391,7 @@ export default function Home() {
         )}
 
         <div className="fade-in" key={activeTab}>
+          <ErrorBoundary key={activeTab} label={activeTab}>
           {activeTab === 'overview' && <ServerOverview />}
           {activeTab === 'map' && <InteractiveMap />}
           {activeTab === 'bases' && <BaseViewer />}
@@ -403,6 +405,7 @@ export default function Home() {
           {activeTab === 'users' && <UserManager />}
           {activeTab === 'audit' && <AuditLog />}
           {activeTab === 'account' && <AccountSettings />}
+          </ErrorBoundary>
           {activeTab === 'editor' && <SaveEditor />}
         </div>
       </main>

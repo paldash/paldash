@@ -3,6 +3,7 @@
 import { useEffect, useRef } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { prettyClass } from '@/lib/pretty-class';
 import {
   worldToMap,
   worldToGameMap,
@@ -68,6 +69,40 @@ const CATEGORY_STYLE: Record<string, { color: string; size: number; label: strin
 const MAX_POI_MARKERS = 4000;
 
 /**
+ * Real game artwork for the *sparse* layers only.
+ *
+ * Image markers are DOM nodes; the canvas circles used for static objects are
+ * not. With up to 2,000 static markers redrawn on every pan, giving those
+ * artwork would trade a real amount of scroll smoothness for decoration. Bases,
+ * players, fast travel and palboxes number in the tens, so they can afford it —
+ * and they are the markers people actually look for.
+ *
+ * Missing files degrade to the old CSS markers rather than showing a broken
+ * image: icons are optional, and a clone that skipped `install-icons.py` must
+ * still get a usable map.
+ */
+const PIN = {
+  base: '/icons/game/baseicon.webp',
+  player: '/icons/game/playericon.webp',
+  fastTravel: '/icons/structures/T_icon_buildObject_FastTravelPoint.webp',
+  palbox: '/icons/structures/T_icon_buildObject_PalBoxV2.webp',
+} as const;
+
+/** An image pin that falls back to a CSS marker when the artwork is absent. */
+function pinIcon(src: string, size: number, fallbackClass: string): L.DivIcon {
+  return L.divIcon({
+    className: 'game-pin',
+    html:
+      `<img src="${src}" width="${size}" height="${size}" alt="" ` +
+      `style="display:block;filter:drop-shadow(0 1px 2px rgba(0,0,0,.6))" ` +
+      `onerror="this.replaceWith(Object.assign(document.createElement('div'),` +
+      `{className:'${fallbackClass}'}))">`,
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2],
+  });
+}
+
+/**
  * Static pak-derived categories. Deliberately smaller and flatter than
  * `CATEGORY_STYLE`: there are an order of magnitude more of these, and they are
  * terrain features rather than anything anyone owns.
@@ -85,15 +120,6 @@ const STATIC_STYLE: Record<string, { color: string; size: number; label: string 
   effigy:   { color: '#c7b04a', size: 5, label: 'Lifmunk effigy' },
 };
 
-/** `BP_PalMapObjectSpawner_RockCopper` -> `Rock Copper`. */
-function prettyClass(cls: string): string {
-  return cls
-    .replace(/^BP_(PalMapObjectSpawnerTreasureBox|PalMapObjectSpawner|MapObject|LevelObject)_?/, '')
-    .replace(/^VisibleContent_?/, '')
-    .replace(/_/g, ' ')
-    .replace(/([a-z])([A-Z])/g, '$1 $2')
-    .trim() || cls;
-}
 
 function escapeHtml(value: string): string {
   return value.replace(/[&<>"']/g, (c) =>
@@ -361,11 +387,19 @@ export default function MapInner({
       const found = point.discovered;
 
       L.marker(worldToMap(point.x, point.y, region), {
+        // Undiscovered points stay dimmed and desaturated, as before — the
+        // server already decided whether to send them, so what arrives is meant
+        // to be seen, just not mistaken for somewhere you have been.
         icon: L.divIcon({
           className: 'fasttravel-marker',
-          html: `<div class="fasttravel-marker-icon"${found ? '' : ' style="opacity:.35;filter:grayscale(1)"'}></div>`,
-          iconSize: [12, 12],
-          iconAnchor: [6, 6],
+          html:
+            `<img src="${PIN.fastTravel}" width="18" height="18" alt="" ` +
+            `style="display:block;filter:drop-shadow(0 1px 2px rgba(0,0,0,.6))` +
+            `${found ? '' : ';opacity:.35;filter:grayscale(1)'}" ` +
+            `onerror="this.replaceWith(Object.assign(document.createElement('div'),` +
+            `{className:'fasttravel-marker-icon'}))">`,
+          iconSize: [18, 18],
+          iconAnchor: [9, 9],
         }),
         zIndexOffset: found ? 500 : 400,
       })
@@ -435,14 +469,7 @@ export default function MapInner({
         }).addTo(group);
       }
 
-      L.marker(position, {
-        icon: L.divIcon({
-          className: 'player-marker',
-          html: '<div class="base-marker-icon"></div>',
-          iconSize: [14, 14],
-          iconAnchor: [7, 7],
-        }),
-      })
+      L.marker(position, { icon: pinIcon(PIN.base, 22, 'base-marker-icon') })
         .bindPopup(
           `<div style="min-width:180px">
              <div style="font-weight:600;margin-bottom:3px">${escapeHtml(base.guildName)}</div>
@@ -468,12 +495,7 @@ export default function MapInner({
     for (const player of here) {
       const coords = worldToGameMap(player.location_x, player.location_y);
       L.marker(worldToMap(player.location_x, player.location_y, region), {
-        icon: L.divIcon({
-          className: 'player-marker',
-          html: '<div class="player-marker-dot"></div>',
-          iconSize: [11, 11],
-          iconAnchor: [5.5, 5.5],
-        }),
+        icon: pinIcon(PIN.player, 20, 'player-marker-dot'),
         zIndexOffset: 1000,
       })
         .bindPopup(

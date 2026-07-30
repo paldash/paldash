@@ -1,6 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import MapLayersPanel from '@/components/map-layers-panel';
+import { prettyClass } from '@/lib/pretty-class';
 import { useDashboardStore } from '@/lib/store';
 import { formatCoords, getRegion, MAP_REGIONS, type MapRegion } from '@/lib/map-coordinates';
 import {
@@ -373,17 +375,21 @@ export default function InteractiveMap() {
         )}
       </div>
 
-      {/* Layer toggles, grouped */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
-        <Layers size={14} style={{ color: 'var(--text-muted)', marginRight: 2 }} />
-        {renderGroup('live')}
-        <span style={{ width: 1, height: 16, background: 'var(--border-primary)', margin: '0 4px' }} />
-        {renderGroup('world')}
-        <span style={{ width: 1, height: 16, background: 'var(--border-primary)', margin: '0 4px' }} />
-        {renderGroup('static')}
-        <span style={{ width: 1, height: 16, background: 'var(--border-primary)', margin: '0 4px' }} />
-        {renderGroup('base')}
-      </div>
+      {/* One button, one panel. This was 22 toggles across the top plus a stack
+          of per-kind cards below, which competed with the map for attention and
+          grew with every category added. */}
+      <MapLayersPanel
+        layers={LAYERS.filter(
+          (l) => l.group !== 'static' || visibleStaticIds.has(l.id.slice(7))
+        )}
+        active={mapLayers}
+        counts={counts}
+        onToggle={toggleMapLayer}
+        staticCategories={staticSummary?.categories ?? []}
+        staticKindsOff={staticKindsOff}
+        onToggleKind={toggleStaticKind}
+        onSetKinds={setStaticKindsOff}
+      />
 
       {staticWanted && (
         <>
@@ -447,7 +453,7 @@ export default function InteractiveMap() {
                             onClick={() => toggleStaticKind(category.id, kind.cls)}
                             title={kind.cls}
                           >
-                            {prettyKind(kind.cls)}
+                            {prettyClass(kind.cls)}
                             <span style={{ color: 'var(--text-muted)', marginLeft: 4 }}>
                               {kind.count.toLocaleString()}
                             </span>
@@ -512,11 +518,3 @@ export default function InteractiveMap() {
  * shared because these are the only two callers and a one-function module for a
  * regex is not worth the import.
  */
-function prettyKind(cls: string): string {
-  return cls
-    .replace(/^BP_(PalMapObjectSpawnerTreasureBox|PalMapObjectSpawner|MapObject|LevelObject)_?/, '')
-    .replace(/^VisibleContent_?/, '')
-    .replace(/_/g, ' ')
-    .replace(/([a-z])([A-Z])/g, '$1 $2')
-    .trim() || cls;
-}

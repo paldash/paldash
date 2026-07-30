@@ -50,6 +50,7 @@ import type {
   ReachableTargets,
   PaldeckListing,
   PaldeckDetail,
+  PlayerRoster,
   WorldExportPlan,
   WorldExportResult,
   AnnouncementList,
@@ -683,6 +684,17 @@ export async function getReachable(owner?: string): Promise<ReachableTargets> {
  * Every Pal in the game, from bundled data — a reference view, not a report on
  * your server, so it works with no parsed world.
  */
+/**
+ * Everyone who has played here, online or not.
+ *
+ * Merged server-side rather than in the browser: the backend already holds the
+ * save roster, the live list and the account table, and privacy filtering has
+ * to happen there anyway.
+ */
+export async function getPlayerRoster(): Promise<PlayerRoster> {
+  return saveFetch('/players/roster');
+}
+
 export async function getPaldeck(): Promise<PaldeckListing> {
   return saveFetch('/world/paldeck');
 }

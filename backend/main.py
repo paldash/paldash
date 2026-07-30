@@ -1260,6 +1260,72 @@ def list_players(request: Request) -> list[dict]:
     )
 
 
+@app.get("/api/players/roster")
+def player_roster(request: Request) -> dict[str, Any]:
+    """
+    Everyone who has played here, online or not, with what you may do about them.
+
+    The live REST list only knows who is connected *right now*, which is the
+    wrong population for "give this person a dashboard account" — the player you
+    want to add is usually the one who logged off. The save knows everybody, so
+    that is the base list and online status is an annotation on it.
+
+    Account linkage is included only for callers who could act on it. It is not
+    especially sensitive, but "which of your players has a dashboard login" is
+    not a roster fact and does not belong in a Player's view of their peers.
+
+    Privacy applies as everywhere else: a hidden player is absent, not greyed.
+    """
+    authz.require(request, roles_module.VIEW_DETAIL)
+    user = authz.current_user(request)
+    role, username = _viewer(request)
+    hidden = privacy.hidden_uids(role, username)["players"]
+    players = privacy.filter_players(get_players(), hidden)
+
+    online_by_uid: dict[str, dict] = {}
+    try:
+        for entry in gameapi.players():
+            online_by_uid[privacy.normalise_uid(entry.get("userId"))] = entry
+    except Exception:  # noqa: BLE001
+        # An unreachable game server means "nobody is known to be online", not
+        # an error — the save half of this view is still worth showing.
+        online_by_uid = {}
+
+    may_manage_users = roles_module.USERS_MANAGE in authz.effective_capabilities(user)
+    linked: dict[str, str] = {}
+    if may_manage_users:
+        for account in accounts.list_users():
+            uid = privacy.normalise_uid(account.get("steamUid"))
+            if uid:
+                linked[uid] = account["username"]
+
+    rows = []
+    for player in players:
+        uid = privacy.normalise_uid(player.get("uid"))
+        live = online_by_uid.get(uid)
+        row = {
+            **player,
+            "online": live is not None,
+            # The REST id, which is what kick and ban take. It is not always
+            # spelled the way the save spells the uid, so it is carried through
+            # rather than reconstructed.
+            "restUserId": (live or {}).get("userId", ""),
+            "ping": (live or {}).get("ping"),
+        }
+        if may_manage_users:
+            row["accountUsername"] = linked.get(uid, "")
+            row["hasAccount"] = uid in linked
+        rows.append(row)
+
+    rows.sort(key=lambda r: (not r["online"], (r.get("name") or "").lower()))
+    return {
+        "players": rows,
+        "onlineCount": sum(1 for r in rows if r["online"]),
+        "gameApiReachable": bool(online_by_uid) or gameapi.configured(),
+        "canManageAccounts": may_manage_users,
+    }
+
+
 def _read_player_sav(path: str, uid: str) -> dict:
     """One player's own save, decompressed and extracted. ~2.3 ms."""
     gvas = load_gvas(path)

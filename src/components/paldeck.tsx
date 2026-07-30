@@ -45,12 +45,19 @@ export default function Paldeck() {
     load();
   }, [load]);
 
+  const [detailError, setDetailError] = useState<string | null>(null);
+
   const select = async (entry: PaldeckEntry) => {
     setDetailLoading(true);
+    setDetailError(null);
     try {
       setSelected(await getPaldeckEntry(entry.id));
-    } catch {
+    } catch (e) {
+      // Say so. Swallowing this made a failed request look identical to a click
+      // that did not register — the panel just kept saying "pick a Pal", which
+      // is the least useful thing it could do.
       setSelected(null);
+      setDetailError(e instanceof Error ? e.message : `Could not load ${entry.name}`);
     } finally {
       setDetailLoading(false);
     }
@@ -73,7 +80,7 @@ export default function Paldeck() {
   // A habitat can span both landmasses, and the two map images have separate
   // framings — so they are split and drawn as two maps rather than one wrong one.
   const byLandmass = useMemo(() => {
-    const regions = selected?.habitat.regions ?? [];
+    const regions = selected?.habitat?.regions ?? [];
     return {
       palpagos: regions.filter((r) => r.landmass === 'palpagos'),
       worldtree: regions.filter((r) => r.landmass === 'worldtree'),
@@ -163,7 +170,14 @@ export default function Paldeck() {
 
         {/* ── The detail, with its habitat map ── */}
         <div className="glass-card" style={{ padding: 16, flex: '1 1 300px', minHeight: 200 }}>
-          {!selected ? (
+          {detailError ? (
+            <div className="notice notice-warn" style={{ fontSize: 12 }}>
+              <strong>Could not load that Pal</strong>
+              <div style={{ marginTop: 6 }} className="mono">{detailError}</div>
+            </div>
+          ) : detailLoading && !selected ? (
+            <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>Loading…</p>
+          ) : !selected ? (
             <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>
               Pick a Pal to see its details and where it spawns.
             </p>
@@ -184,9 +198,9 @@ export default function Paldeck() {
                 </div>
               </div>
 
-              {selected.elements.length > 0 && (
+              {(selected.elements ?? []).length > 0 && (
                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                  {selected.elements.map((el) => (
+                  {(selected.elements ?? []).map((el) => (
                     <span key={el} className="badge">{el}</span>
                   ))}
                 </div>
@@ -194,11 +208,11 @@ export default function Paldeck() {
 
               {detailLoading ? (
                 <div style={{ color: 'var(--text-muted)', fontSize: 12 }}>Loading…</div>
-              ) : selected.habitat.known ? (
+              ) : selected.habitat?.known ? (
                 <>
                   <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
                     Spawns across <strong>{selected.habitat.cells.length}</strong> areas
-                    {' '}({selected.habitat.spawnerCount.toLocaleString()} spawn points)
+                    {' '}({(selected.habitat.spawnerCount ?? 0).toLocaleString()} spawn points)
                   </div>
                   <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
                     {byLandmass.palpagos.length > 0 && (
@@ -219,10 +233,10 @@ export default function Paldeck() {
                     )}
                   </div>
 
-                  {selected.speciesIds.length > 1 && (
+                  {(selected.speciesIds ?? []).length > 1 && (
                     <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
                       Includes location variants:{' '}
-                      <span className="mono">{selected.speciesIds.join(', ')}</span>
+                      <span className="mono">{(selected.speciesIds ?? []).join(', ')}</span>
                     </div>
                   )}
                 </>

@@ -15,13 +15,14 @@ The archive ships 2,485 icons totalling 15.0 MB. Committing all of it would more
 than triple the repo's binary weight to serve views that do not exist:
 
     items         917   6.29 MB   the Items tab, container contents, imports
-    structures    534   3.34 MB   the map draws its own markers; no icon slot
+    structures    534   3.34 MB   too big for its value; three map pins are
+                                  cherry-picked from it instead (22 KB)
     technologies  460   3.10 MB   nothing renders a tech tree, only point totals
     pals          301   0.95 MB   roster, breeding, the Pal editor
     npcs          155   0.43 MB   merchants and guards in the character list
     ui             59   0.06 MB   PalworldSaveTools' own chrome
     elements       36   0.03 MB   type badges on Pals
-    game           12   0.12 MB   ditto
+    game           12   0.12 MB   base and player map pins live here
     passives        6   0.00 MB   only 6 of 1,905 — not worth a lookup path
     app             4   0.66 MB   someone else's application branding
 
@@ -67,7 +68,17 @@ ARCHIVE = os.path.join(ROOT, "refs", "PalWorldSaveTools-main.zip")
 OUT_DIR = os.path.join(ROOT, "public", "icons")
 
 # Categories installed unless --all is passed. See the module docstring.
-DEFAULT_CATEGORIES = ("pals", "items", "elements", "npcs")
+DEFAULT_CATEGORIES = ("pals", "items", "elements", "npcs", "game")
+
+# Individual icons pulled out of categories that are otherwise too large to
+# justify. `structures` is 534 files / 3.34 MB and the map draws its own markers
+# for nearly all of it — but these three are the ones map pins actually want,
+# and 22 KB is a very different proposition from 3.34 MB.
+EXTRA_FILES = (
+    "structures/T_icon_buildObject_FastTravelPoint.webp",
+    "structures/T_icon_buildObject_PalBoxV2.webp",
+    "structures/T_icon_buildObject_PalBoxTerminal.webp",
+)
 
 def scan(archive: zipfile.ZipFile) -> dict[str, list[zipfile.ZipInfo]]:
     by_category: dict[str, list[zipfile.ZipInfo]] = defaultdict(list)
@@ -131,6 +142,27 @@ def main() -> int:
 
     installed = 0
     total_bytes = 0
+
+    # Cherry-picked extras first, so a later full-category install overwrites
+    # them with identical bytes rather than the other way round.
+    if not args.categories:
+        for relative in EXTRA_FILES:
+            match = next(
+                (i for i in archive.infolist() if i.filename.endswith("/icons/" + relative)),
+                None,
+            )
+            if match is None:
+                continue
+            category, name = relative.split("/", 1)
+            target_dir = os.path.join(OUT_DIR, category)
+            os.makedirs(target_dir, exist_ok=True)
+            with archive.open(match) as src:
+                data = src.read()
+            with open(os.path.join(target_dir, name), "wb") as dst:
+                dst.write(data)
+            installed += 1
+            total_bytes += len(data)
+        print(f"  {'structures':12} {len(EXTRA_FILES):5} icons (map pins only)", file=sys.stderr)
 
     for category in wanted:
         target_dir = os.path.join(OUT_DIR, category)

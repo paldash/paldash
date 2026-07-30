@@ -113,6 +113,10 @@ const ROUTES: RouteRule[] = [
   { pattern: /^world\/packs\/reload$/, methods: ['POST'], capability: CAPABILITIES.POLICY_MANAGE, feature: null },
   // The Paldeck is bundled reference data about the game, not about this
   // server, so it reveals nothing a wiki would not and needs no parsed world.
+  // The merged roster: everyone in the save, annotated with who is online and
+  // (for callers who could act on it) who already has a dashboard account.
+  // VIEW_DETAIL like the plain player list — it is the same population.
+  { pattern: /^players\/roster$/, methods: ['GET'], capability: CAPABILITIES.VIEW_DETAIL, feature: null },
   { pattern: /^world\/paldeck$/, methods: ['GET'], capability: CAPABILITIES.VIEW_BASIC, feature: FEATURES.SERVER_STATUS },
   { pattern: /^world\/paldeck\/[A-Za-z0-9_]+$/, methods: ['GET'], capability: CAPABILITIES.VIEW_BASIC, feature: FEATURES.SERVER_STATUS },
   { pattern: /^world\/objects\/categories$/, methods: ['GET'], capability: CAPABILITIES.VIEW_BASIC, feature: FEATURES.MAP_OBJECTS },

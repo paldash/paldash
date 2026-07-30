@@ -129,7 +129,9 @@ export default function ServerOverview() {
             <span className="stat-label" style={{ marginTop: 0 }}>Players Online</span>
           </div>
           <div className="stat-value" style={{ color: 'var(--accent-purple)' }}>
-            {serverMetrics ? `${serverMetrics.currentplayernum}/${serverMetrics.maxplayernum}` : '—'}
+            {typeof serverMetrics?.currentplayernum === 'number'
+              ? `${serverMetrics.currentplayernum}/${serverMetrics.maxplayernum ?? '?'}`
+              : '—'}
           </div>
         </div>
 
@@ -139,7 +141,7 @@ export default function ServerOverview() {
             <span className="stat-label" style={{ marginTop: 0 }}>Uptime</span>
           </div>
           <div className="stat-value" style={{ color: 'var(--accent-emerald)', fontSize: '1.6rem' }}>
-            {serverMetrics ? formatUptime(serverMetrics.uptime) : '—'}
+            {typeof serverMetrics?.uptime === 'number' ? formatUptime(serverMetrics.uptime) : '—'}
           </div>
         </div>
 
@@ -149,7 +151,9 @@ export default function ServerOverview() {
             <span className="stat-label" style={{ marginTop: 0 }}>Frame Time</span>
           </div>
           <div className="stat-value" style={{ color: 'var(--accent-amber)', fontSize: '1.6rem' }}>
-            {serverMetrics ? `${serverMetrics.frametime.toFixed(1)}ms` : '—'}
+            {typeof serverMetrics?.frametime === 'number'
+              ? `${serverMetrics.frametime.toFixed(1)}ms`
+              : '—'}
           </div>
         </div>
       </div>

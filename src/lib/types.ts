@@ -149,6 +149,33 @@ export interface GuildMember {
   isOnline: boolean;
 }
 
+/**
+ * One row of the merged roster: everyone in the save, annotated with live state.
+ *
+ * The live REST list only knows who is connected right now, which is the wrong
+ * population for account management — the player you want to add an account for
+ * is usually the one who logged off.
+ */
+export interface RosterPlayer {
+  uid: string;
+  name: string;
+  level: number;
+  online: boolean;
+  /** The id kick/ban take, which is not always spelled like the save's uid. */
+  restUserId: string;
+  ping: number | null;
+  /** Only present for callers who could act on it (`users.manage`). */
+  hasAccount?: boolean;
+  accountUsername?: string;
+}
+
+export interface PlayerRoster {
+  players: RosterPlayer[];
+  onlineCount: number;
+  gameApiReachable: boolean;
+  canManageAccounts: boolean;
+}
+
 export interface PlayerSaveData {
   uid: string;
   name: string;
