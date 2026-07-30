@@ -163,6 +163,14 @@ export interface PlayerSaveData {
   inventoryInfo: InventoryInfo;
   palStorage: PalInfo[];
   technologyPoints: number;
+  /**
+   * `Steam`, `Xbox`, `PS5`, `Mac`, or "" on a save that predates the field.
+   *
+   * Empty rather than defaulting to Steam — see `docs/CROSSPLAY.md`. Everything
+   * here has only ever run against Steam accounts, so this is what makes a
+   * console player visible instead of something to infer.
+   */
+  platform?: string;
   unlockedRecipes: string[];
   /** Progression counters read from the player's own .sav. */
   progress?: Record<string, unknown> & {

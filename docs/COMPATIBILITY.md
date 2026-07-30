@@ -99,37 +99,3 @@ skopeo inspect docker://docker.io/jammsen/palworld-dedicated-server:latest
 
 Look at `.Env` for the path and port variables. It costs a few KB — there is no need
 to pull the images, and no need for a running daemon.
-
-## Game Pass / Xbox — extractable, but unverified
-
-`backend/gamepass.py` reads the Windows Game Save (WGS) container tree Game Pass
-writes instead of plain save files, and `scripts/extract-gamepass-save.py` drives it.
-
-**It is a script, not a dashboard feature, and that is structural.** A Game Pass save
-lives at `%LOCALAPPDATA%\Packages\PocketpairInc.Palworld_…\SystemAppData\wgs` on a
-Windows PC. The dashboard runs in a container beside a Linux dedicated server and
-cannot see that path, so a button for it would be one that can never work from the
-machine the UI runs on.
-
-**Nobody has run a real Game Pass save through it.** The format is derived from
-`PalWorldSaveTools/xgp_save_extract.py`; the tests build a *synthetic* WGS tree to
-the same understanding, so they prove the parser matches its spec rather than that
-the spec is correct.
-
-What makes shipping it defensible rather than reckless:
-
-- It only **reads** the WGS tree and writes a fresh directory. No code path can
-  touch an existing world.
-- It **verifies every extracted file parses as GVAS** before keeping anything, and
-  refuses a set with no `Level.sav`. A wrong offset therefore produces a named error,
-  never a directory of plausible garbage.
-- The integration tests wrap **real** `.sav` blobs from the reference world in a
-  synthetic container, so the verification path and the round trip are exercised
-  against genuine data — the extracted world parses with the ordinary reader and the
-  bytes come out identical.
-- A mid-sync container with two blob copies is **refused, not guessed**: picking the
-  wrong one would restore a stale save over a current one.
-
-If you have a Game Pass save, `--inspect` is read-only and costs nothing to try. If
-it reports something odd, that is the format having changed, and the module needs
-updating rather than the save.

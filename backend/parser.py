@@ -378,6 +378,17 @@ def extract_player_save(gvas: Any, uid: str) -> dict:
     props = getattr(gvas, "properties", {}) or {}
     save = _v(props, "SaveData", "value", default={}) or {}
 
+    def _platform(node: dict) -> str:
+        """
+        `EPalPlayerPlatform::Steam` -> `Steam`, or "" when the field is absent.
+
+        Empty rather than a default of "Steam": an older save that predates the
+        field would otherwise assert a platform nobody checked, which is the kind
+        of confident-but-unverified claim this project keeps having to correct.
+        """
+        raw = str(_v(node, "PlayerPlatform", "value", "value", default="") or "")
+        return raw.split("::")[-1] if "::" in raw else raw
+
     def container(name: str) -> str:
         return str(_v(save, name, "value", "ID", "value", default="") or "")
 
@@ -389,6 +400,16 @@ def extract_player_save(gvas: Any, uid: str) -> dict:
         "playerUid": str(_v(save, "IndividualId", "value", "PlayerUId", "value", default="") or ""),
         "technologyPoints": int(_prop(save, "TechnologyPoint", 0) or 0),
         "ancientTechnologyPoints": int(_prop(save, "bossTechnologyPoint", 0) or 0),
+        # Which store the player came from. The game's own enum is
+        # `EPalPlayerPlatform::{Steam,Xbox,PS5,Mac,None}` — read out of the server
+        # binary, not guessed — so a save can legitimately hold console players.
+        #
+        # Surfaced because this project has only ever been run against Steam
+        # accounts, and everything downstream treats a uid as opaque on the
+        # assumption that holds for other platforms too. If a console player ever
+        # appears, this field is what makes that visible rather than something to
+        # deduce from a uid that looks unusual. See docs/CROSSPLAY.md.
+        "platform": _platform(save),
         "unlockedRecipes": [
             str(r) for r in (_v(save, "UnlockedRecipeTechnologyNames", "value", "values", default=[]) or [])
         ],

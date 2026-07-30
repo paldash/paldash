@@ -94,9 +94,15 @@ class SoloExportError(Exception):
 # Matching on value is exhaustive and cannot mistake one thing for another, because
 # a field holding a player's uid *means* that player — there is no field where a
 # player's uid carries some other sense. Nor can it collide with the world's other
-# GUIDs: a Palworld player uid is a Steam ID32 followed by zeros
-# (`11a11a01-0000-0000-0000-000000000000`), while base camp, guild and character
-# instance ids are full-entropy GUIDs.
+# GUIDs, because a collision would require two 128-bit ids to be *equal*, which no
+# save produces.
+#
+# An earlier version of this note justified that with the shape of a uid — a Steam
+# ID32 followed by zeros, `11a11a01-0000-0000-0000-000000000000`. That is true of
+# every uid this project has ever seen, but every one of them is a Steam account.
+# Palworld's own `EPalPlayerPlatform` enum also has `Xbox`, `PS5` and `Mac`, and
+# nothing here knows what shape those uids take. The equality argument above holds
+# whatever they look like; the shape argument would not have. See docs/CROSSPLAY.md.
 #
 # Kept only for the reference-comparison test, which pins the finding above.
 REFERENCE_OWNER_KEYS = (
