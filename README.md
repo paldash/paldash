@@ -77,12 +77,24 @@ Copy this one service into your existing compose file. Three things must line
 up: the **same bind mount**, a **shared network**, and `RESTAPIEnabled=True` on
 the server.
 
+Put this repository in a directory **beside your compose file**, because
+`build:` is resolved relative to the compose file, not to your shell's working
+directory:
+
+```
+your-server-dir/
+├── docker-compose.yml
+├── .env
+├── palworld/               <- the game's data, already bind-mounted
+└── palworld-dashboard/     <- this repo
+```
+
 ```yaml
 services:
   # ... your existing palworld server service ...
 
   dashboard:
-    build: ./palworld-dashboard    # or: image: palworld-dashboard:latest
+    build: ./palworld-dashboard    # or: image: ghcr.io/<you>/palworld-dashboard:1.0
     container_name: palworld-dashboard
     restart: unless-stopped
     depends_on:
@@ -91,25 +103,21 @@ services:
       - "3000:3000"
     volumes:
       - ./palworld:/palworld       # <- EXACTLY the same mount your server uses
-      - dashboard-cache:/app/cache   # parse cache AND the accounts database
+      - dashboard-cache:/app/cache     # parse cache AND the accounts database
+      - dashboard-backups:/app/backups # keep these OFF the server's directory
     environment:
       # http://<your server's service name>:<REST port>
       - PALWORLD_REST_URL=http://palworld:8212
       - PALWORLD_ADMIN_PASSWORD=${PALWORLD_ADMIN_PASSWORD}
       - PANEL_PASSWORD=${PANEL_PASSWORD}   # creates the first Owner account
       - SAVE_BASE_DIR=/palworld/Pal/Saved/SaveGames/0
-      - BACKUP_DIR=/palworld/backups
+      - BACKUP_DIR=/app/backups
       - CACHE_DIR=/app/cache
-    networks:
-      - palnet                     # <- the same network as your server
     mem_limit: 3g
 
 volumes:
   dashboard-cache:
-
-networks:
-  palnet:
-    driver: bridge
+  dashboard-backups:
 ```
 
 Checklist:
@@ -117,16 +125,25 @@ Checklist:
 1. **Same host path** on both services. If your server mounts
    `/opt/palworld:/palworld`, the dashboard must mount `/opt/palworld:/palworld`
    too.
-2. **Same network.** If your server has no `networks:` key, add `palnet` to both.
-   `PALWORLD_REST_URL` uses Docker's DNS, so no `host.docker.internal` and no
-   published REST port.
+2. **No `networks:` needed if both services are in the same compose file.**
+   Compose puts every service in a project on one default network and gives each
+   a DNS name, so `http://palworld:8212` resolves already. You only need an
+   explicit shared network when the two live in *separate* compose files.
 3. **`RESTAPIEnabled=True`** and `AdminPassword` set on the server. Most images
-   expose these as `REST_API_ENABLED` / `ADMIN_PASSWORD`.
+   expose these as `REST_API_ENABLED` / `ADMIN_PASSWORD` (jammsen spells the port
+   `RESTAPI_PORT`, thijsvanloef `REST_API_PORT`).
 4. **Do not publish port 8212.** Palworld's own docs warn against exposing the
    REST API; the dashboard reaches it over the private network.
-5. If `SAVE_BASE_DIR` doesn't exist, check your image's layout — some use
-   `/palworld/Pal/Saved/...`, others differ. The Settings tab reports the path it
-   resolved.
+5. **Keep `BACKUP_DIR` on its own volume**, not under `/palworld`. Two reasons:
+   mounting `/palworld:ro` would otherwise break backups, and `/palworld/backups`
+   is where the jammsen image keeps *its* rotating snapshots — two backup systems
+   in one directory is a bad trade.
+6. **`PUID`/`PGID` must match.** The dashboard image is built for uid/gid 1000,
+   which is both server images' default. If yours differ, pass
+   `args: { APP_UID: "…", APP_GID: "…" }` under `build:` rather than reverting to
+   root.
+7. If `SAVE_BASE_DIR` doesn't exist, check your image's layout. The Settings tab
+   reports the path it resolved.
 
 ---
 
@@ -676,7 +693,7 @@ types, per-item totals identical, zero mismatches.
 
 ```bash
 ./scripts/setup-dev.sh          # builds .venv, compiles palsav from refs/
-.venv/bin/python -m pytest      # backend: 991 tests, ~140s
+.venv/bin/python -m pytest      # backend: 991 tests, ~21 min
 npm test                        # frontend: 82 tests, <1s
 ```
 
@@ -684,9 +701,14 @@ The suite is in tiers:
 
 | Command | Tests | Time | Needs |
 |---|---:|---:|---|
-| `npm test` | 82 | <1s | nothing |
-| `pytest -m "not integration"` | 931 | ~35s | nothing |
-| `pytest` | 991 | ~140s | `refworld/` + `palsav` |
+| `npm test` | 82 | <1 s | nothing |
+| `pytest -m "not integration"` | 931 | ~2 min | nothing |
+| `pytest` | 991 | ~21 min | `refworld/` + `palsav` |
+
+**The 60 integration tests are ~19 of those 21 minutes.** Each parses a real
+55 MB world, and the write paths take a full verified backup on top. That is the
+cost of testing against a real save rather than a fixture, and it is worth
+paying — but use `-m "not integration"` while iterating.
 
 That is **11,571 lines of backend tests against 17,435 lines of backend code.**
 

@@ -244,14 +244,19 @@ Run on 2026-07-30 against the current tree:
 
 | Check | Result |
 |---|---|
-| `pytest` (backend, incl. integration against a real world) | see §6.1 |
+| `pytest` (backend, incl. integration against a real world) | **991 passed, 0 failed** · 20 m 38 s |
 | `npm test` (vitest) | **82 passed** |
 | `npx tsc --noEmit` | clean |
 | `npm run lint` | **0 errors**, 20 warnings (all the pre-existing data-fetch-on-mount pattern) |
 | `npm run build` | clean, **73 MB** output |
-| `podman build` (the real Dockerfile) | see §6.1 |
+| `podman build` + run | **379 MB image**; container stays up as `uid=1000`, `/api/health` 200, backend refused from the host, sign-in 200 / bad password 401, proxy `POST` 405 |
 
-### 6.1 One finding from this pass
+**The suite now takes ~21 minutes, not the ~140 s the docs claimed** — 60
+integration tests, each parsing a real 55 MB world, with the write paths taking a
+full verified backup on top. `soloexport` is the single most expensive test
+because it walks the entire node tree. Corrected in `README.md` and `AGENTS.md`.
+
+### 6.1 Findings from this pass
 
 **`next.config.ts` had no `outputFileTracingExcludes`.** `output: "standalone"`
 copies traced files out of the project root, and the tracer was sweeping in
@@ -270,3 +275,17 @@ A side-finding while fixing it: **Turbopack's glob parser rejects character
 classes** (`TurbopackInternalError: Parsing glob pattern`) and fails the build
 outright, so `.gitignore`'s date-prefix pattern for the session transcripts
 cannot be copied across verbatim.
+
+Three smaller things closed in the same pass:
+
+- **`main.py` used the deprecated `@app.on_event("startup")`**, which logged a
+  warning on every container boot. Migrated to a lifespan handler and verified
+  with `DeprecationWarning` promoted to an error.
+- **Five unreferenced `create-next-app` SVGs** (`file`, `globe`, `next`,
+  `vercel`, `window`) were shipping in every image. Removed.
+- **`DISCOVERY_VISIBILITY` and `MAX_UPLOAD_MB`** are read by the code but were
+  never mentioned in `.env.example`. Documented.
+- **The README's "existing compose file" snippet put `BACKUP_DIR` under
+  `/palworld`**, which is where the jammsen image keeps its *own* rotating
+  snapshots, and which breaks if the mount is made read-only. Corrected to the
+  named volume the main compose file already uses.
