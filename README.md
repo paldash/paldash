@@ -50,7 +50,24 @@ use that file — use the snippet below.
 
 **`docs/DEPLOYMENT.md`** goes deeper: which server images are actually tested,
 matching PUID/PGID on the shared mount, read-only mode, working stop/start
-commands, and the three container traps that only show up on a real build.
+commands, publishing an image instead of building from a clone, and the three
+container traps that only show up on a real build.
+
+---
+
+## Documentation
+
+| File | What it answers |
+|---|---|
+| `docs/DEPLOYMENT.md` | How to run it, and how to ship it as an image |
+| `docs/ARCHITECTURE.md` | How the codebase is put together, and why |
+| `docs/FEATURES.md` | What exists today — read before concluding something is unbuilt |
+| `docs/STATUS.md` | Current state, measured numbers, open items |
+| `docs/AUDIT.md` | The gap analysis and phased roadmap |
+| `docs/COMPATIBILITY.md` | Which server images work, and where they differ |
+| `docs/CROSSPLAY.md` | What is known about non-Steam players, and what is not |
+| `docs/LICENSING.md` | Why this is GPL-3.0, and what that does and does not require |
+| `AGENTS.md` | The subtleties that have already caused bugs |
 
 ---
 
@@ -349,6 +366,71 @@ own runs are logged.
 - SESSION_TTL_HOURS=12
 ```
 
+---
+
+## Player privacy
+
+Separate from access control, and pointing the other way: access control is what
+staff may see, privacy is what a player may hide.
+
+**Each player chooses, about themselves**, on the My account tab — four modes,
+because bases belong to *guilds* and so "hide me" has more than one honest
+meaning:
+
+| Mode | Hides |
+|---|---|
+| `off` | Nothing |
+| `player` | Their live position and roster entry |
+| `player_bases` | That, plus their bases — solo guilds only |
+| `guild` | The whole guild's bases. The one mode with a social cost |
+
+**The whole rule is one comparison:** `hidden ⟺ viewer_rank <= hider_rank`.
+
+- A player can **never hide from staff**, so moderation works without anyone
+  maintaining an exemption list.
+- **Equal rank is concealed.** Peers are exactly who a privacy setting is for.
+
+**The default is the most private mode**, not the least. Nobody should have to
+discover a privacy setting exists before they stop being exposed, and it costs
+little because staff see everyone regardless.
+
+**Bases have their own switch**, held by the guild master (with a fallback if the
+master has no dashboard account, so a guild is never locked out). Staff get no
+override on that one.
+
+Filtering happens **server-side, in two places** — the save endpoints and the
+live REST proxy. A filter in only one leaves a hidden player missing from the map
+and still showing as a live dot on the same screen.
+
+Privacy governs map and roster visibility only. The audit log, account management
+and save editing all work on real identities regardless.
+
+---
+
+## Server operations
+
+**Metrics with history.** CPU, memory and disk sampled every 60 s and kept 30
+days raw. Under Docker the CPU and memory figures come from cgroup files, so they
+describe *this container's* limits rather than the machine's; disk is the
+filesystem holding your save directory, the one whose filling up stops the game
+saving.
+
+**A gap is data.** A sample is written even when the game is unreachable, so a
+chart cannot interpolate a smooth line straight through an outage. `reachable` is
+averaged into a fraction per bucket rather than a flag — a bucket at 0.5 is an
+intermittently crashing server, which is exactly what you would be hunting and
+what a boolean would round away.
+
+**Scheduled announcements.** Recurring messages on intervals from 15 minutes to
+daily. An empty server *consumes* its window rather than queueing it, so the
+first person to log in is not met with every overdue message at once.
+
+**Update detection.** The dashboard reads the server install's Steam
+`appmanifest` for its build id — two file reads, no network — and banners when
+the game has moved past the build the bundled data came from. If the install
+directory is not mounted (the normal setup mounts only the save path) it says
+**"cannot tell"** rather than a reassuring "up to date".
+
 ## Server settings & PvP
 
 The Settings tab edits `PalWorldSettings.ini` directly, with presets. The one you
@@ -460,19 +542,32 @@ Tree are approximate** and the UI says so: no save has any objects on that
 landmass yet, so there is nothing to fit the transform against. It becomes exact
 as soon as anyone builds a base or opens a chest there.
 
-**Map.** Points of interest come from the save itself — no external dataset
-needed. On a real world that's ~4,100 markers: chests (with opened/unopened
-state), ore and mining nodes, oil-rig crates, palboxes, breeding farms, statues,
-crafting benches, production nodes and
-storage, plus guild bases drawn with their actual build radius and live player
-positions. Layers toggle individually and chests default to off because a mature
-world has thousands.
+**What is on it comes from two sources.** The save supplies what players have
+*done*; the game's own files supply what *exists*.
+
+From the save (~4,100 markers on a real world): chests with opened/unopened
+state, ore nodes, oil-rig crates, palboxes, breeding farms, statues, crafting
+benches, production nodes and storage, plus guild bases drawn with their actual
+build radius, and live player positions polled from the REST API.
+
+From the game pak, bundled so nothing is fetched at runtime:
+
+- **35,687 static world objects** — 24,359 ore nodes, 8,386 chests, 2,757 fishing
+  spots, 185 oil fields. Far too many to draw at once, so they are viewport-culled
+  and capped at 2,000 markers.
+- **All 396 effigies**, each with the instance GUID save files key on — which is
+  what makes "which have I not found yet" answerable rather than just "here they
+  all are".
+- **174 fast-travel points**, validated 117/117 against a real player's unlocks.
+
+**Layers toggle per kind, not just per category** — each ore type, each chest
+type, individually. And an Owner sets which categories each role may see, down to
+whether a category is listed at all: on a server where finding things is the
+point, handing every Player a complete ore map is a decision, not a default.
 
 Coordinates match the in-game map, using a transform fitted to reference samples
-(±0.5 map units). Drop a 4096×4096 Palworld map image at
-`public/palworld-map.png` to replace the plain grid background — the previous
-build drew a *procedurally generated fake island*, which made markers look like
-they were floating in the sea.
+(±0.5 map units). Note that in-game map X derives from world **Y**, and map Y
+from world X — the axes swap.
 
 **Items.** The Items tab totals every item across every container in the world —
 base chests, guild chests, player inventories, palboxes. On the test world that's
@@ -496,6 +591,33 @@ All of it is implemented and verified against a real world:
 | **Pal import** | From a `pal` or `player` export — level, stars, skills, passives, IVs |
 | Player editor | Name, level, EXP, technology and ancient points |
 | Illegal-Pal check | Scan for out-of-range stats, repair by clamping |
+| Coordinate teleport | Move a player to any point, or to one of the 174 fast-travel presets |
+| World copy for co-op | Remap one player's uid across a **copy** of the world |
+
+### Moving a character between servers
+
+`soloexport.py` remaps a player's uid so a character works on another server or
+in co-op. It is the **one save operation that never writes to the live world** —
+it reads the world and produces a new directory, so it cannot corrupt anything
+and does not require the server stopped.
+
+Two departures from the reference implementation, both deliberate. It writes a
+copy rather than mutating in place, and it **matches uids by value rather than by
+key name**: the four named keys the reference rewrites miss **1,836 references**
+on a real world, 1,817 of them `LastNickNameModifierPlayerUid` alone. A key list
+is also a promise about a schema this project does not control, whereas a field
+holding a player's uid *means* that player whatever it is called.
+
+### Teleport
+
+Coordinate teleport is a **save edit**, not a live command — so the server has to
+be stopped. That limitation is real and worth stating plainly: it cannot unstick
+a player who is stuck right now.
+
+There is no live alternative. Verified against the shipped server binary rather
+than community docs: the only teleport command is `TeleportToPlayerByIndex`, and
+both admin teleports anchor to the **issuing admin's in-game character**. A
+headless dashboard has no character in the world, so there is no anchor.
 
 ### Importing a Pal
 
@@ -554,30 +676,47 @@ types, per-item totals identical, zero mismatches.
 
 ```bash
 ./scripts/setup-dev.sh          # builds .venv, compiles palsav from refs/
-.venv/bin/python -m pytest      # backend: 789 tests, ~140s
-npm test                        # frontend: 77 tests, <1s
+.venv/bin/python -m pytest      # backend: 991 tests, ~140s
+npm test                        # frontend: 82 tests, <1s
 ```
 
 The suite is in tiers:
 
 | Command | Tests | Time | Needs |
 |---|---:|---:|---|
-| `npm test` | 34 | <1s | nothing |
-| `pytest -m "not integration"` | 275 | ~35s | nothing |
-| `pytest` | 293 | ~140s | `refworld/` + `palsav` |
+| `npm test` | 82 | <1s | nothing |
+| `pytest -m "not integration"` | 931 | ~35s | nothing |
+| `pytest` | 991 | ~140s | `refworld/` + `palsav` |
+
+That is **11,571 lines of backend tests against 17,435 lines of backend code.**
 
 Unit tests cover the corruption guard (every way it must refuse to write), path
 handling, the settings-INI parser, the access-policy ceiling, the container sort
 algorithm on synthetic data, password hashing, session revocation, login
 throttling, and the role model. The frontend tests cover the proxy route
-allowlist. Integration tests run the real pipeline against
-a real world: parse a 55 MB save, sort every container, write it, re-read from
-disk and prove not one item moved in or out. They skip cleanly when `refworld/`
-is absent, so a fresh checkout still runs green.
+allowlist and the build-output tracing excludes. Integration tests run the real
+pipeline against a real world: parse a 55 MB save, sort every container, write
+it, re-read from disk and prove not one item moved in or out. They skip cleanly
+when `refworld/` is absent, so a fresh checkout still runs green.
 
 If you change anything under `backend/safety.py`, `backend/backup.py` or
 `backend/saveedit.py`, run the full suite — the slow tests are the ones that
 actually prove the save is safe.
+
+**Two hazards this suite has actually hit**, both worth knowing before you add to
+it:
+
+- `vitest.config.ts` excludes `.next/`, because `next build` copies `src/` into
+  `.next/standalone/` and vitest was discovering the stale copy — which would
+  stay green against yesterday's build while the real source failed.
+- Backend modules capture environment variables **at import time**, so tests
+  monkeypatch the module attribute, not `os.environ`. For the same reason,
+  patching `safety.assert_writable` does nothing to `backup.py`, which bound the
+  name at import — a teleport test once passed for exactly that wrong reason.
+
+The integration tests write full-world backup archives into `$TMPDIR`. If that is
+a tmpfs, repeated interrupted runs will fill it; `/tmp` being full presents as
+every shell command failing with no output.
 
 ---
 
@@ -633,12 +772,18 @@ Being straight about what is not done:
 - **Tower bosses are not on the map**, and dungeons only partially — the save
   has 170 markers with state but no position. Both are extractable from the pak
   with the same technique the effigies used; nobody has done it yet.
-- **The discoveries API has no map layer yet.** `/api/world/discoveries` returns
-  everything the map needs, marked found/not-found and filtered by policy, but
-  the map does not render it. That is the remaining piece of per-player fog of
-  war — the data and the permission model are done.
-- **Server metrics and admin commands** (Phase 8) are not started.
+- **Non-Steam players are unverified.** The save carries the platform
+  (`Steam`, `Xbox`, `PS5`, `Mac`) and the parser surfaces it, but no console
+  player has ever been seen on the reference server, and **neither of the two
+  reference projects handles this either** — so there is no prior art to copy.
+  Everything treats a uid as an opaque string, which is why it is expected to
+  work; expected is not verified. `docs/CROSSPLAY.md` has the three checks to run
+  the day one joins.
+- **Player and technology imports are refused**, with a reason. Container and Pal
+  imports work.
+- **No 2FA or password-reset flow**, and no dependency scanning in CI.
 - **`docker` is not in the runtime image**, so the container Stop/Start buttons
   stay hidden unless you configure them. Deliberate — see "Maintenance mode".
+  `docs/DEPLOYMENT.md` §4 has commands that work without it.
 
 [pst]: https://github.com/deafdudecomputers/PalworldSaveTools

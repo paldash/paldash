@@ -46,7 +46,12 @@ services:
     #   build:
     #     context: .
     #     args: { APP_UID: "1001", APP_GID: "1001" }
-    # image: palworld-dashboard:latest   # if you build/push it yourself
+    # Prefer a prebuilt image? Replace `build: .` with an `image:` line — the
+    # container needs no clone, no refs/ and no network to run, because all the
+    # game data is committed. `docs/DEPLOYMENT.md` §10 covers building once and
+    # pulling elsewhere (including with no registry at all), and what publishing
+    # one publicly would oblige you to do.
+    # image: ghcr.io/<you>/palworld-dashboard:1.0
     container_name: palworld-dashboard
     restart: unless-stopped
     depends_on:

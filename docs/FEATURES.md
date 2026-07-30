@@ -1,13 +1,13 @@
 # Feature inventory
 
-What exists **today**, as of 2026-07-28 (Phases 0–5 complete). Written because the
+What exists **today**, as of 2026-07-30 (Phases 0–9 complete). Written because the
 roadmap in `AUDIT.md` tracks *gaps* — anything already working simply does not appear
 there, which makes finished features look missing.
 
-Evidence: 64 backend routes, 24 backend modules, 13 UI components, 12 tabs,
-449 backend + 46 frontend tests.
+Evidence: 108 backend routes, 41 backend modules, 24 UI components,
+17,435 lines of backend Python against 11,571 lines of backend tests.
 
-Legend: ✅ works · 🟡 works with a caveat · 🔴 not built
+Legend: ✅ works · 🟡 works with a caveat · 🔴 not built · ⚪ out of scope
 
 ---
 
@@ -18,15 +18,18 @@ Legend: ✅ works · 🟡 works with a caveat · 🔴 not built
 | Live server status | ✅ | REST API + TCP + save-mtime + process scan |
 | Player count / online list | ✅ | via Palworld REST API |
 | Server settings viewer & editor | ✅ | `PalWorldSettings.ini`, CRLF-preserving |
-| Settings presets | 🟡 | Applies presets; the full preset library is Phase 9 |
+| Settings presets | ✅ | **Phase 9.** `boosted`, `small_server`, `hardcore` and a derived `vanilla` reset, all checked against `DefaultPalWorldSettings.ini`'s 119 keys rather than against memory |
 | Announce & graceful shutdown | ✅ | **Phase 8**, audited. Needs no container control — the game stops its own process |
 | Start / stop / restart container | 🟡 | Backend logic works. The `docker` binary is **not in the runtime image**, so a `docker …` command fails; `docs/DEPLOYMENT.md` §4 has working `node`-based commands. Left unconfigured by choice — manual `docker compose stop` works and the UI says so |
 | CPU / RAM / disk history | ✅ | **Phase 8**, 60s samples kept 30 days; outages drawn as gaps, not zeroes |
 | Broadcast / kick / ban / unban | ✅ | **Phase 8**, through the backend so every action is audited, failures included |
 | Force save | ✅ | **Phase 8**, audited |
 | Load-aware parse throttling | ✅ | **Phase 8**, defers a parse when server FPS is below the floor |
-| Teleport | 🔴 | **Blocked, not deferred.** Palworld's REST API has no teleport command — it is RCON-only, and RCON is not used here |
-| Scheduled announcements | 🔴 | Deferred from Phase 8; `schedule.py` already has the timer to hang it on |
+| Teleport a live player | 🔴 | **Closed, will not build.** Verified in the server binary: the only command is `TeleportToPlayerByIndex`, and both admin teleports anchor to the *issuing admin's* in-game character — which a headless dashboard does not have |
+| Teleport by coordinates | 🟡 | **Built as a save edit** (`teleport.py`), with the 174 fast-travel points as presets. Needs the server stopped, so it cannot unstick someone who is online now |
+| Scheduled announcements | ✅ | **Phase 8 follow-up.** Rides the existing scheduler tick. An empty server *consumes* its window rather than queueing, so logging in does not fire every overdue message at once |
+| Game build / update detection | ✅ | **Phase 9.** Reads the Steam `appmanifest` `buildid` — two file reads, no network. Banners stale bundled data. Reports "cannot tell" when the install directory is not mounted |
+| Mod detection | ✅ | **Phase 9.** Exists to qualify a `palcheck` report, not to manage mods. "Cannot see the game directory" never renders as "no mods installed" |
 
 ## 2. Map
 
@@ -35,6 +38,9 @@ Legend: ✅ works · 🟡 works with a caveat · 🔴 not built
 | Interactive map, both landmasses | ✅ | Palpagos + World Tree as separate framings |
 | 174 fast-travel points | ✅ | Validated 117/117 against a real player's unlocks |
 | Bases, chests, palboxes, farms, production, defences | ✅ | ~3,400 placed objects, layered |
+| Static world objects | ✅ | **35,687** from the game pak — 24,359 ore, 8,386 chests, 2,757 fishing spots, 185 oil. Viewport-culled, capped at 2,000 drawn |
+| Per-kind layer toggles | ✅ | Every category subdivides by kind (each ore type, each chest type), and an admin policy sets which categories each role may see — including whether they are listed at all |
+| Effigies | ✅ | All 396, with the GUIDs saves key on, so the map can show which ones a given player still needs |
 | Layer toggles + search | ✅ | |
 | World Tree coordinate accuracy | 🟡 | `calibrated: false`, stated in the UI. No ground truth exists yet — the reference world has zero objects there |
 | Live player position | 🟡 | Polled from REST, 15–30 s floor |
@@ -51,7 +57,9 @@ Legend: ✅ works · 🟡 works with a caveat · 🔴 not built
 | Per-base storage attribution | ✅ | **Phase 5.** Exact join, not spatial |
 | Player progression / completion | ✅ | Exact denominators from bundled data |
 | Pre-1.0 (`PlZ` / zlib) saves | 🟡 | `palsav` supports it; no sample to verify against |
-| Game Pass saves | 🔴 | Phase 9 |
+| Uid remap for co-op / another server | ✅ | **Phase 9** (`soloexport.py`). Writes a *copy*, so it is the one save feature safe to run while the server is up. Matches uids by value, not by key name — a key list misses 1,836 references |
+| Xbox / PS5 / Mac players | 🟡 | Platform is parsed and surfaced; no console player has ever been observed. `docs/CROSSPLAY.md`, task #33 |
+| Game Pass saves | ⚪ | Out of scope. The extraction tool solves a Windows *file-location* problem, not the crossplay question it gets mistaken for |
 
 ## 4. Inventory & items
 
@@ -104,8 +112,11 @@ Legend: ✅ works · 🟡 works with a caveat · 🔴 not built
 | Two-gate authorization | ✅ | role capability ∩ security-level ceiling |
 | Server-side revocable sessions | ✅ | Stored hashed |
 | Rate limiting (per IP + per user) | ✅ | Verified live: 401 on bad password |
-| Audit log | ✅ | Every mutating action |
-| Proxy route allowlist | ✅ | 39 frontend tests |
+| Audit log | ✅ | Every mutating action, **including the failures** — an attempt that did not land still says who tried |
+| Proxy route allowlist | ✅ | Not a prefix match; unlisted routes are refused and traversal is rejected before matching |
+| Per-player map privacy | ✅ | Four modes, **defaulting to the most private**. `hidden ⟺ viewer_rank <= hider_rank`, so a player can never hide from staff and peers *are* concealed |
+| Per-base visibility | ✅ | Gated on the guild master, with a fallback when the master has no account. Fails **closed** when no world has been parsed |
+| Undiscovered-content policy | ✅ | `everyone` / `detail` / `nobody`, filtered server-side — a UI that received everything and hid some would hand out the answers in the network tab |
 | Non-root container | ✅ | **2026-07-28**, uid 1000 |
 | CSRF tokens | 🟡 | Mitigated by `SameSite=Lax`, not eliminated |
 | 2FA / password reset flow | 🔴 | |
@@ -115,11 +126,12 @@ Legend: ✅ works · 🟡 works with a caveat · 🔴 not built
 
 | Item | Reason |
 |---|---|
-| General save editor | Phase 7. Returns 501. The write path is proven; per-field validation is not |
-| Player and technology imports | Container and Pal imports ship; these two stay refused with a reason |
-| Migration (Steam ↔ dedicated ↔ Game Pass) | Phase 9 |
-| Mod detection / plugin support | Phase 9; full mod save parsing is out of scope permanently |
+| Player and technology imports | Container and Pal imports ship; these two stay refused with a reason rather than half-validated |
+| Solo-world *extraction* | Would delete every other player's characters, Pals and bases — destroying the world it is meant to preserve. The uid remap is the useful half, and it is built |
+| Full mod save parsing | Out of scope permanently. Detect-and-warn is achievable; parsing arbitrary mod data is not |
 | Cheat mode / arbitrary value injection | **Deliberately never.** Directly opposed to the corruption-safety goal |
+| 2FA / password reset | Open |
+| Dependency scanning in CI | Open (`npm audit` + `pip-audit`) |
 | Multi-server management | Would reshape the data model |
 | Postgres / Redis | Wrong scale. SQLite is correct here |
 

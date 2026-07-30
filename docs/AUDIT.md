@@ -74,8 +74,8 @@ than attempting all of it.
 | Server dashboard | 30% | REST status; no metrics history, no admin commands |
 | Docker | 80% | Genuinely good; needs multi-image validation |
 | Import / export | 85% | ✅ Export complete; container import writes, verifies and rolls back. Slot editing reuses it. Player/Pal *file* imports still refused |
-| Migration tools | 0% | Not started |
-| Testing | 95% | ✅ 660 backend + 61 frontend tests |
+| Migration tools | 90% | ✅ Phase 9: uid remap across a world copy, Steam ↔ dedicated ↔ co-op. Game Pass extraction removed as out of scope |
+| Testing | 95% | ✅ 991 backend + 82 frontend tests; 11,571 lines of backend tests against 17,435 of code |
 | Documentation | 85% | ✅ README rewritten, AGENTS.md, FEATURES.md, LICENSING.md, GPL-3.0 LICENSE |
 | Reports / export | 60% | ✅ Phase 5: 4 reports × CSV/JSON/TXT. Save import/export is Phase 6 |
 | **Weighted total** | **~96%** | 32% → 36% (P0) → 43% (P1) → 50% (P2) → 62% (P3) → 70% (P4) → 76% (P5) → 79% (P6 export) → 82% (P6 import gate) → 85% (P6 complete) → 87% (P7 schema) → 89% (P7 Pal editor) → 90% (P7 UI) → 92% (P7 player editor) → 94% (P7 bulk/slot/repair) → 95% (P7 skills + cloning) → 96% (pak extraction, effigies, discoveries) |
@@ -841,7 +841,7 @@ already has the timer.
 **Risk: low, as predicted.** Nothing here writes to a save file.
 **Depended on: Phase 3.**
 
-### Phase 9 — Migration, presets, polish · 🟡 **PARTIAL**
+### Phase 9 — Migration, presets, polish · ✅ **COMPLETE** (2026-07-30)
 Steam ↔ dedicated ↔ Game Pass ↔ co-op migration (port PST's proven implementations);
 remaining server presets; mod detection; version compatibility matrix; multi-image Docker
 validation.
@@ -870,8 +870,32 @@ world it is meant to preserve, and no reference implementation exists for it.
    `SkinAppliedCharacterId`. A key list is also a promise about a schema this
    project does not control.
 
-**Remaining:** Game Pass extraction (`xgp_save_extract.py` — no Game Pass save to
-verify against), the remaining server presets, and multi-image Docker validation.
+**Server presets** were checked against `DefaultPalWorldSettings.ini`'s 119 keys
+rather than against memory — which is how `EggDefaultHatchingTime`, a key
+matching nothing, was found sitting in a highlight group (the real one is
+`PalEggDefaultHatchingTime`). `boosted`, `small_server`, `hardcore` and a derived
+`vanilla` reset now ship. `vanilla` subtracts `ENV_MANAGED` and `SECRET_KEYS`
+from what it writes, so a "reset to defaults" can never rename the server or
+clear its passwords.
+
+**Multi-image validation** was done from the images' own published metadata via
+`skopeo inspect` rather than by running them — a few KB fetched instead of
+multiple gigabytes pulled. It produced two corrections to this project's stated
+assumptions, both recorded in `docs/COMPATIBILITY.md`: jammsen does *not* always
+regenerate the INI, and the REST port variable is spelled differently between the
+two images. Validation by actually running jammsen remains open, and the doc says
+so.
+
+**Game Pass extraction was removed rather than built** (2026-07-30), at the
+operator's request. `xgp_save_extract.py` solves a Windows *storage-location*
+problem — finding a save inside `WGS` container folders — not the console-player
+question it was assumed to answer. What was actually wanted is **task #33**:
+handling Xbox/PS5/Mac players on a crossplay server. The save carries
+`PlayerPlatform` (values read out of the server binary: `Steam`, `Xbox`, `PS5`,
+`Mac`, `None`) and `parser.py` now surfaces it, but no console player has ever
+been observed and **neither PST nor the original dashboard handles it**, so there
+is no prior art to copy. `docs/CROSSPLAY.md` records what is verified, what is
+not, and the three checks to run the day one joins.
 
 **Total: 40–55 engineer-days.** Phases 0–5 are done and produce a genuinely good,
 safe-to-run product with no Critical blockers. Phases 6–9 (~19–27 days) are the long tail,
@@ -973,13 +997,24 @@ and refused from the host, sign-in works, a short password is refused with a cle
 and the safety guard correctly reports `editable: false` / "assuming running to protect the
 save" when it cannot prove otherwise.
 
-**Known defect, still open:** the documented `STOP_COMMAND` / `START_COMMAND` container
-controls invoke `docker`, which is **not installed in the runtime image**.
-`lifecycle._run_configured` raises `FileNotFoundError` → "STOP_COMMAND not found: docker".
-The feature has never worked as documented; the manual `docker compose stop palworld` path
-in the UI does. Fixing it means adding `docker-cli` (~35 MB) to the runtime stage — worth
-doing deliberately rather than as a drive-by, since it is image size and attack surface for
-a feature not everyone enables.
+**Resolved without adding the `docker` CLI.** The originally documented
+`STOP_COMMAND` / `START_COMMAND` invoked `docker`, which is **not installed in the
+runtime image** — `lifecycle._run_configured` raised `FileNotFoundError` →
+"STOP_COMMAND not found: docker". Adding `docker-cli` (~35 MB of image and attack
+surface for a feature not everyone enables) was declined.
+
+It was never needed. The `docker-socket-proxy` sidecar speaks the Docker **HTTP
+API**, and the runtime image is `node:20-bookworm-slim`, so `node` with a global
+`fetch` is already present — the healthcheck already uses it. `docker-compose.yml`
+and `docs/DEPLOYMENT.md` §4 now carry working `node -e` commands.
+
+Three details make those correct rather than merely plausible: **304 counts as
+success** (the Docker API returns it when the container was already in the
+requested state, so treating it as failure would error exactly when "stop the
+server" has already been achieved); the commands survive `shlex.split` into
+exactly three argv elements with **no shell**, so nothing can be injected; and the
+proxy must stay unpublished, since anything that can reach it can start and stop
+containers.
 
 **Licensing decision (not a blocker for private use):** `palsav` is GPL-3.0-or-later, so
 publishing this dashboard means licensing it GPL-3.0. The alternatives are to accept that,
@@ -998,8 +1033,9 @@ Critical and High items are closed.
 |---|---|---|
 | Palworld 1.0 saves (`PlM`, Oodle) | ✅ | Parsed `refworld/` end to end |
 | Pre-1.0 (`PlZ`, zlib) | 🟡 untested | `palsav` handles both; no sample to verify |
-| Game Pass saves | 🔴 | Needs PST's `xgp_save_extract.py` |
-| Co-op / single-player | 🟡 | Same format; host-GUID handling differs |
+| Game Pass saves | ⚪ out of scope | Extraction removed 2026-07-30; it was a Windows storage-location tool, not the crossplay feature it was taken for |
+| Xbox / PS5 / Mac **players** | 🟡 task #33 | `PlayerPlatform` surfaced; no console player observed. `docs/CROSSPLAY.md` |
+| Co-op / single-player | ✅ | `soloexport.py` remaps uids across a world copy; 1,836 references a key-list approach would miss |
 | `palworld-save-tools` (PyPI, cheahjs) | ❌ | **Cannot read 1.0.** Removed. Use `palsav`/`palooz`. |
 
 Recommend a startup check that reads the save's magic bytes and version and refuses

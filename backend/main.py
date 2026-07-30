@@ -17,7 +17,8 @@ from __future__ import annotations
 import json
 import logging
 import os
-from typing import Any, Optional
+from contextlib import asynccontextmanager
+from typing import Any, AsyncIterator, Optional
 
 from fastapi import FastAPI, HTTPException, Query, Request
 from pydantic import BaseModel
@@ -70,8 +71,6 @@ from savefiles import find_world_dirs, get_default_world_dir, get_player_sav_pat
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="Palworld Save Backend", version="3.0.0")
-
 # Ceiling on anything the dashboard accepts as an upload (audit S9). A world
 # export of a large server is a few MB; 64 is generous. The point is that an
 # unbounded read into memory is a denial-of-service against the machine running
@@ -79,9 +78,14 @@ app = FastAPI(title="Palworld Save Backend", version="3.0.0")
 MAX_UPLOAD_BYTES = int(os.environ.get("MAX_UPLOAD_MB", "64")) * 1024 * 1024
 
 
-@app.on_event("startup")
-def _startup() -> None:
-    """Prepare storage and make sure somebody can actually sign in."""
+@asynccontextmanager
+async def _lifespan(_app: FastAPI) -> AsyncIterator[None]:
+    """
+    Prepare storage and make sure somebody can actually sign in.
+
+    Lifespan rather than `@app.on_event("startup")`, which is deprecated and
+    logs a warning on every container boot.
+    """
     db.init()
     schedule_module.init()
     accounts.purge_expired()
@@ -95,6 +99,12 @@ def _startup() -> None:
             username="system", role="owner", target=created,
             detail="bootstrapped first Owner from PANEL_PASSWORD",
         )
+    yield
+    # Nothing to tear down: the scheduler and metrics samplers run on daemon
+    # threads, and SQLite connections are per-call.
+
+
+app = FastAPI(title="Palworld Save Backend", version="3.0.0", lifespan=_lifespan)
 
 
 # ─── Authentication ──────────────────────────────────────

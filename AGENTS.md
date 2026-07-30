@@ -19,6 +19,8 @@ shared bind mount.
 - `docs/FEATURES.md` — what already exists. The roadmap tracks *gaps*, so
   finished work (breeding, the map, backups) does not appear there and reads as
   missing. Check this before concluding something is unbuilt.
+- `docs/ARCHITECTURE.md` — how the pieces fit: the request path, the module map,
+  and the three invariants everything else falls out of.
 - `refs/` — third-party reference archives (gitignored, ~66 MB). Contains the
   authoritative Palworld 1.0 game database; see "Reference data" below.
 - `refworld/` — a real world save used for integration tests (gitignored,
@@ -193,6 +195,22 @@ and run. If you touch the Dockerfile or the entrypoint, build and run it.
 - **`.dockerignore` must exclude `refworld/` and `refs/`.** The first stage does
   `COPY . .`, so without it 132 MB including a real world save with real Steam
   IDs goes into the build context and cache.
+
+**Three ignore mechanisms have to agree, and `.next/` is the one that gets
+forgotten.** `output: "standalone"` copies traced files out of the project root,
+and the tracer over-includes: with no `outputFileTracingExcludes` in
+`next.config.ts` it swept `refs/` (5.1 GB, including the
+`PalWorldSettings.ini` that holds live server passwords) and `refworld/` into
+`.next/standalone/`. **5.8 GB of build output for a 73 MB app.** `.gitignore` and
+`.dockerignore` do not govern `.next/`, and the Dockerfile copies
+`.next/standalone` wholesale out of the builder stage — so this is one
+misconfigured ignore file away from publishing a real world save. Pinned by
+`src/lib/build-config.test.ts`.
+
+**Turbopack's glob parser rejects character classes** —
+`TurbopackInternalError: Parsing glob pattern` fails the build outright rather
+than degrading. So `.gitignore`'s date-prefix pattern for the session transcripts
+cannot be copied into that config verbatim.
 
 Runs as uid/gid 1000 (`APP_UID`/`APP_GID`), matching the Palworld server image's
 PUID/PGID so the shared bind mount is readable without root. `/app/cache` and

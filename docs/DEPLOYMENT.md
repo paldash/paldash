@@ -27,12 +27,25 @@ are expected to work rather than known to.
 | A bare-metal / systemd server | Works. Point `SAVE_BASE_DIR` at the real path and skip the network entirely, since the REST API is then on the host. |
 
 **The thing that actually differs between them matters more than the image
-choice:** both of the above **regenerate `PalWorldSettings.ini` from environment
-variables on every start.** A setting the dashboard writes survives until the next
-restart and is then silently reverted. `settings_ini.ENV_MANAGED` lists the keys
-commonly backed that way and the settings UI names them, but the dashboard cannot
-read your game container's environment, so it can only warn — it cannot detect
-this. If a setting keeps reverting, that is why: change it in `.env`.
+choice: whether the image regenerates `PalWorldSettings.ini` from environment
+variables on every start.** Where it does, a setting the dashboard writes
+survives until the next restart and is then silently reverted — worse than a
+refusal, because you watched it work.
+
+- **thijsvanloef: always regenerates.**
+- **jammsen: only when `SERVER_SETTINGS_MODE=auto`.** It ships `manual`, so a
+  default jammsen deployment leaves the INI alone.
+
+`settings_ini.ENV_MANAGED` lists the keys commonly backed that way (under both
+images' spellings — `REST_API_PORT` on thijsvanloef, `RESTAPI_PORT` on jammsen)
+and the settings UI names them. The dashboard **cannot read your game
+container's environment**, so this is worded as a conditional warning, not a
+detection. If a setting keeps reverting, that is why: change it in `.env`.
+
+`docs/COMPATIBILITY.md` has the full matrix, the other behavioural differences
+that show up in the dashboard (auto-pause draws as an outage; auto-update is the
+case the build check is sized for), and a one-line `skopeo inspect` command that
+re-verifies all of it without pulling a multi-gigabyte image.
 
 ---
 
@@ -215,9 +228,162 @@ python3 scripts/build-gamedata.py       # -> backend/data/gamedata.json.gz
 python3 scripts/install-map-assets.py   # -> public/maps/*.webp
 ```
 
-Automatic build-id detection and a stale-data banner are **not built yet** (task
-#21). Until then, treat a Palworld major update as a prompt to check
-`docs/STATUS.md` for what regenerating covers.
+**Detection is built.** `backend/gameversion.py` polls the server install's Steam
+`appmanifest` for its `buildid` — two file reads and a stat, no network — and the
+dashboard shows a banner when the game's build has moved past the one the bundled
+data was generated from. Build ids are monotonic, so it can tell an update from a
+rollback rather than just "different".
+
+The check is **self-rate-limited** (`GAME_BUILD_CHECK_INTERVAL_SECONDS`, default
+6 h) and always runs once after startup, because the common case is a container
+that auto-updated the game and restarted. If the install directory is not visible
+— the normal deployment mounts only the save path — it reports "cannot tell"
+rather than a reassuring "current".
+
+`scripts/check-game-build.py` runs the same check from a shell.
 
 **Never commit anything from `refs/palworld/`.** Besides the size, its
 `PalWorldSettings.ini` holds live server passwords.
+
+---
+
+## 10. Shipping an image instead of building from a clone
+
+**For your own servers: yes, and it is the better way to run this.** Nothing in
+the image needs the repository at runtime. The runtime stage copies exactly four
+things — the Next.js standalone bundle, its static assets, `public/`, and
+`backend/` — and every byte of game data is already committed, so a running
+container needs no clone, no `refs/`, and no network beyond your own server.
+
+Build once on a machine that has the source, push, and pull everywhere else:
+
+```bash
+docker build -t ghcr.io/<you>/palworld-dashboard:1.0 .
+docker push ghcr.io/<you>/palworld-dashboard:1.0
+```
+
+Tag a version rather than relying on `latest`: this image can write to your save
+files, and "which build is running" is a question you want answerable during an
+incident.
+
+Then in `docker-compose.yml`, replace `build: .` with
+`image: ghcr.io/<you>/palworld-dashboard:1.0`.
+
+**With no registry at all**, which is often the right answer for one LAN box:
+
+```bash
+docker save ghcr.io/<you>/palworld-dashboard:1.0 | gzip > dashboard.tar.gz
+# copy it over, then on the server:
+gunzip -c dashboard.tar.gz | docker load
+```
+
+### Four things to settle before a *public* image
+
+Private distribution — your own machines, your own registry — triggers none of
+this. Publishing does.
+
+**1. Pushing to a public registry is distribution under the GPL.** `palsav` is
+GPL-3.0-or-later and this project inherits it (`docs/LICENSING.md`). So a public
+image obliges you to offer the **complete corresponding source** — the dashboard,
+your changes, and the exact `palsav`/`palooz` revisions the binary was built
+from — under the same licence. In practice: publish the repository, and point at
+it from the image itself so the offer travels with the artifact.
+
+```dockerfile
+LABEL org.opencontainers.image.source="https://github.com/<you>/palworld-dashboard" \
+      org.opencontainers.image.licenses="GPL-3.0-or-later"
+```
+
+`LICENSE` is already inside the image (it sits at the root of the standalone
+bundle), which is the other half of the requirement.
+
+Note the asymmetry that catches people out: **hosting the dashboard publicly is
+not distribution** — that would be the AGPL. Handing over the software is.
+
+**2. The bundled game data is Pocketpair's, and it is the likelier problem.**
+`gamedata.json.gz`, `worldobjects.json.gz`, `effigies.json.gz` and the two 8192 px
+map textures are extracted from the game's own assets. The MIT licence on the
+packaging covers the packager's compilation work, not Pocketpair's underlying IP.
+Every community wiki and planner does the same thing and it is fine for a private
+tool — but a public image ships those assets to everyone who pulls it, which is a
+different act from using them yourself. Settle this separately from the code
+licence; it is not answered by going GPL.
+
+**3. `PALSAV_REF` defaults to `main`, so builds are not reproducible.** The
+Dockerfile clones `PalworldSaveTools` at build time:
+
+```dockerfile
+ARG PALSAV_REF=main
+```
+
+`main` moves. Two images built a week apart from the same commit of *this* repo
+can contain different parsers, and a GPL source offer has to correspond to the
+binary you actually shipped. Pin a commit SHA before publishing:
+
+```bash
+docker build --build-arg PALSAV_REF=<sha> -t … .
+```
+
+This also means **the build needs network access** to GitHub, while the runtime
+does not.
+
+**4. `APP_UID`/`APP_GID` are build args, so a published image is fixed at
+1000:1000.** That matches both server images' `PUID`/`PGID` defaults, so it is
+right for most people. If yours differ, a pulled image does not need rebuilding —
+override at run time:
+
+```yaml
+dashboard:
+  image: ghcr.io/<you>/palworld-dashboard:1.0
+  user: "1001:1001"
+```
+
+**The one catch**: `/app/cache` and `/app/backups` are chowned to 1000 *in the
+image*, and Docker seeds a fresh named volume's ownership from it. A 1001 process
+then cannot write its SQLite database. Either chown the volumes once after
+creating them, or bind-mount host directories you already own instead of using
+named volumes.
+
+### Multi-architecture
+
+`palooz` and `orjson` are compiled extensions, so each architecture is a real
+compile rather than a repack. `buildx` handles it, slowly:
+
+```bash
+docker buildx build --platform linux/amd64,linux/arm64 \
+  -t ghcr.io/<you>/palworld-dashboard:1.0 --push .
+```
+
+Worth doing only if you actually run arm64 — a Raspberry Pi or an Ampere VPS.
+Note that Palworld's own dedicated server has no native arm64 build;
+thijsvanloef runs it under box64, so an arm64 dashboard image is for a
+split deployment rather than the usual one-box setup.
+
+### Building with podman
+
+`podman build` works on the same Dockerfile with no changes — useful because it
+needs no root and no daemon socket. Verified 2026-07-30: **379 MB image, builds
+and runs**, container stays up, runs as `uid=1000(node)`, dashboard answers 200,
+the backend is reachable on loopback inside and refused from the host, sign-in
+works and a wrong password gives 401.
+
+**One difference worth knowing:** podman defaults to the OCI image format, which
+has no `HEALTHCHECK` field, so it prints
+
+```
+level=warning msg="HEALTHCHECK is not supported for OCI image format and will be ignored. Must use `docker` format"
+```
+
+and drops it silently. The image still works; it just has no healthcheck, so
+compose `depends_on: condition: service_healthy` will never be satisfied. Pass
+`--format docker` if you want it kept:
+
+```bash
+podman build --format docker -t palworld-dashboard:latest .
+```
+
+### What is *not* a reason to publish an image
+
+The build is the only slow part and it happens once. If the goal is just "I do
+not want a clone on my server", `docker save` / `docker load` gets you there
+without a registry, an account, or any of the licensing questions above.
