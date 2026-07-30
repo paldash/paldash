@@ -270,15 +270,27 @@ def test_the_bundled_data_has_the_documented_shape():
     """
     Not an integration test — this file ships with the dashboard. If the counts
     move, the docs and the roadmap figures are stale.
+
+    Regenerated 2026-07-30 to add `palspawner` and `dungeon`: 35,687 -> 51,701.
+    Spawners are what the Paldeck habitat map is built from
+    (`scripts/extract-pal-habitats.py`), and dungeons were already extractable
+    but had never been included.
+
+    **`effigy` is deliberately absent** even though the extractor can produce it.
+    Effigies have their own bundle carrying the instance GUIDs saves key on,
+    which is what makes "which have I not found" answerable; the world-object
+    copy has positions only, and including both would draw every effigy twice.
     """
     worldobjects.reset_for_tests()
     try:
         totals = worldobjects.totals()
-        assert totals["objects"] == 35_687
+        assert totals["objects"] == 51_701
         by_category = {c["id"]: c["count"] for c in worldobjects.categories()}
         assert by_category == {
             "ore": 24_359, "treasure": 8_386, "fishing": 2_757, "oilrig": 185,
+            "palspawner": 13_851, "dungeon": 2_163,
         }
+        assert "effigy" not in by_category
     finally:
         worldobjects.reset_for_tests()
 
@@ -286,7 +298,7 @@ def test_the_bundled_data_has_the_documented_shape():
 def test_a_realistic_viewport_query_is_cheap():
     """
     The reason the grid exists. A pan happens constantly, so the per-request cost
-    has to be a rounding error rather than a scan of 35,687 objects.
+    has to be a rounding error rather than a scan of 51,701 objects.
     """
     import time
 

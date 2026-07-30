@@ -107,6 +107,10 @@ const ROUTES: RouteRule[] = [
   // Installed mods — the innocent explanation for unrecognised species ids.
   { pattern: /^world\/mods$/, methods: ['GET'], capability: CAPABILITIES.VIEW_DETAIL, feature: null },
   { pattern: /^world\/build\/acknowledge$/, methods: ['POST'], capability: CAPABILITIES.POLICY_MANAGE, feature: null },
+  // Re-reads the bundled data files from disk. It reloads, it does not
+  // regenerate — see the backend route. POLICY_MANAGE because it changes what
+  // every session sees.
+  { pattern: /^world\/packs\/reload$/, methods: ['POST'], capability: CAPABILITIES.POLICY_MANAGE, feature: null },
   { pattern: /^world\/objects\/categories$/, methods: ['GET'], capability: CAPABILITIES.VIEW_BASIC, feature: FEATURES.MAP_OBJECTS },
   { pattern: /^world\/fasttravel$/, methods: ['GET'], capability: CAPABILITIES.VIEW_BASIC, feature: FEATURES.MAP_OBJECTS },
   { pattern: /^world\/reference$/, methods: ['GET'], capability: CAPABILITIES.VIEW_BASIC, feature: FEATURES.SERVER_STATUS },

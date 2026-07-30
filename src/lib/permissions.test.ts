@@ -162,6 +162,27 @@ describe('describeSavePath', () => {
     });
   });
 
+  describe('bundled data pack reload', () => {
+    it('is a POST gated on POLICY_MANAGE', () => {
+      expect(describeSavePath('world/packs/reload', 'POST')).toMatchObject({
+        allowed: true,
+        capability: CAPABILITIES.POLICY_MANAGE,
+      });
+    });
+
+    it('is not readable, and not guest-visible', () => {
+      // It mutates process state (drops caches) even though it writes no file,
+      // so it must not be reachable as an ordinary read.
+      expect(describeSavePath('world/packs/reload', 'GET').allowed).toBe(false);
+      expect(describeSavePath('world/packs/reload', 'POST').feature).toBeNull();
+    });
+
+    it('does not open a path to anything else under world/packs', () => {
+      expect(describeSavePath('world/packs', 'POST').allowed).toBe(false);
+      expect(describeSavePath('world/packs/regenerate', 'POST').allowed).toBe(false);
+    });
+  });
+
   describe('per-base storage and reports (Phase 5)', () => {
     it('allows the storage routes as detail reads', () => {
       expect(describeSavePath('bases/storage', 'GET')).toMatchObject({

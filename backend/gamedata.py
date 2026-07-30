@@ -105,9 +105,36 @@ def _lookup(section: str, key: str) -> Optional[dict]:
 
 def _reset_cache() -> None:
     """Test hook — drops the module-level caches."""
-    global _data
+    global _data, _effigies
     _data = None
+    _effigies = None
     _indexes.clear()
+
+
+def reload() -> dict[str, Any]:
+    """
+    Drop the cached bundles and read them again from disk.
+
+    The counterpart to `worldobjects.reload()`, for the same reason: replacing a
+    regenerated `gamedata.json.gz` or `effigies.json.gz` on disk should not need
+    a container restart to take effect. Reports what loaded rather than only
+    that it did.
+    """
+    _reset_cache()
+    data = load()
+    return {
+        "gamedata": {
+            "path": DATA_PATH,
+            "loaded": bool(data),
+            "items": len(data.get("items") or {}),
+            "pals": len(data.get("pals") or {}),
+            "technologies": len(data.get("technologies") or {}),
+        },
+        "effigies": {
+            "path": EFFIGY_PATH,
+            "count": len(effigies()),
+        },
+    }
 
 
 # ─── Fallback naming ─────────────────────────────────────────────

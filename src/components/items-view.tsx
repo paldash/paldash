@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Package, Search, RefreshCw } from 'lucide-react';
 import { getItemTotals } from '@/lib/save-api';
+import GameIcon from '@/components/game-icon';
 import type { ItemTotals } from '@/lib/types';
 
 /**
@@ -117,14 +118,20 @@ export default function ItemsView() {
             {filtered.map((item) => (
               <tr key={item.itemId} title={item.description || undefined}>
                 <td style={{ color: 'var(--text-primary)' }}>
-                  {item.name}
-                  {/* Keep the internal ID visible but secondary — it is what the
-                      save actually stores, and it is what you search a wiki for. */}
-                  <span
-                    className="mono"
-                    style={{ color: 'var(--text-muted)', fontSize: 11, marginLeft: 8 }}
-                  >
-                    {item.itemId}
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                    {/* The path comes straight from the bundled game data. */}
+                    <GameIcon src={item.icon} title={item.name} />
+                    <span>
+                      {item.name}
+                      {/* Keep the internal ID visible but secondary — it is what the
+                          save actually stores, and it is what you search a wiki for. */}
+                      <span
+                        className="mono"
+                        style={{ color: 'var(--text-muted)', fontSize: 11, marginLeft: 8 }}
+                      >
+                        {item.itemId}
+                      </span>
+                    </span>
                   </span>
                 </td>
                 <td style={{ color: 'var(--text-muted)', fontSize: 12 }}>

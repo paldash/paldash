@@ -116,6 +116,12 @@ DEFAULT_WORLD_OBJECT_LEVEL = "everyone"
 # to a spoiler. The others are terrain.
 DEFAULT_WORLD_OBJECT_LEVELS: dict[str, str] = {
     "treasure": "trusted",
+    # Spawn points say where to farm a species. On a server where finding things
+    # is part of playing, handing every Player a complete spawn atlas is a
+    # decision the operator should make deliberately, so it defaults closed —
+    # same reasoning as chests.
+    "palspawner": "trusted",
+    "dungeon": "trusted",
 }
 
 GUEST_VISIBILITY_KEYS = (

@@ -70,6 +70,29 @@ def load() -> dict[str, Any]:
     return _data
 
 
+def reload() -> dict[str, Any]:
+    """
+    Drop the cached bundle and read it again from disk.
+
+    Regenerating this file after a game update means replacing it on disk, and
+    without this the only way to pick that up was restarting the container —
+    which is a heavier action than the one that made it necessary. Returns a
+    summary so the caller can report what actually loaded rather than just
+    claiming success.
+    """
+    global _data, _index
+    _data = None
+    _index = None
+    data = load()
+    groups = data.get("groups") or {}
+    return {
+        "path": DATA_PATH,
+        "loaded": bool(groups),
+        "categories": {name: len(g.get("objects") or []) for name, g in groups.items()},
+        "total": sum(len(g.get("objects") or []) for g in groups.values()),
+    }
+
+
 def _cell(x: float, y: float) -> tuple[int, int]:
     return (int(math.floor(x / CELL_SIZE)), int(math.floor(y / CELL_SIZE)))
 

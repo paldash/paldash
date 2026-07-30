@@ -46,6 +46,8 @@ import type {
   StaticWorldObjects,
   StaticWorldSummary,
   GameBuildStatus,
+  WorldPackReload,
+  ReachableTargets,
   WorldExportPlan,
   WorldExportResult,
   AnnouncementList,
@@ -593,6 +595,18 @@ export async function acknowledgeGameBuild(buildId: string): Promise<GameBuildSt
 }
 
 /**
+ * Re-read the bundled data packs from disk.
+ *
+ * Reloads; does not regenerate. Extraction needs the game pak and walks ~9,900
+ * cell packages, which is not something to start from a web page beside a live
+ * game server — and it could not persist anyway, since `backend/data/` is in the
+ * image layer.
+ */
+export async function reloadWorldPacks(): Promise<WorldPackReload> {
+  return saveFetch('/world/packs/reload', { method: 'POST' });
+}
+
+/**
  * Fast-travel statues, from bundled game data rather than the save.
  *
  * Returns an empty list rather than throwing when the reference data is missing,
@@ -651,6 +665,16 @@ export async function getPalbox(owner?: string): Promise<PalboxSummary> {
 
 export async function getOffspring(owner?: string): Promise<OffspringOption[]> {
   return saveFetch(`/breeding/offspring${owner ? `?owner=${encodeURIComponent(owner)}` : ''}`);
+}
+
+/**
+ * Pals that need an intermediate breeding step, with the shortest route to each.
+ *
+ * One request covers every reachable species — the backend runs a single BFS
+ * rather than a route lookup per Pal.
+ */
+export async function getReachable(owner?: string): Promise<ReachableTargets> {
+  return saveFetch(`/breeding/reachable${owner ? `?owner=${encodeURIComponent(owner)}` : ''}`);
 }
 
 export async function getBreedingPath(target: string, owner?: string) {

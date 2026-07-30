@@ -77,6 +77,12 @@ const STATIC_STYLE: Record<string, { color: string; size: number; label: string 
   treasure: { color: '#c9973f', size: 5, label: 'Treasure chest' },
   fishing:  { color: '#5f6b73', size: 4, label: 'Fishing spot' },
   oilrig:   { color: '#d97757', size: 6, label: 'Oil field' },
+  // Spawners are the densest category by far (13,851 of them), so they are
+  // drawn smallest and dimmest — a hotspot is useful as a cloud, not as
+  // 13,000 individually legible pins.
+  palspawner: { color: '#6f9e6a', size: 3, label: 'Pal spawn point' },
+  dungeon:  { color: '#9a6fb0', size: 5, label: 'Dungeon' },
+  effigy:   { color: '#c7b04a', size: 5, label: 'Lifmunk effigy' },
 };
 
 /** `BP_PalMapObjectSpawner_RockCopper` -> `Rock Copper`. */
@@ -147,6 +153,17 @@ export default function MapInner({
       zoomControl: true,
       attributionControl: false,
       preferCanvas: true,
+
+      // Leaflet's defaults are tuned for tiled street maps, where a zoom level
+      // is a discrete set of tiles and snapping to one is correct. This is a
+      // single image overlay with no tile pyramid, so snapping buys nothing and
+      // costs a lot: at `zoomSnap: 1` every wheel notch jumps a whole level —
+      // a 2x scale change in one frame — which reads as the map lurching rather
+      // than zooming.
+      zoomSnap: 0,               // continuous zoom; no quantising to integers
+      zoomDelta: 0.5,            // the +/- buttons and keyboard step by half
+      wheelPxPerZoomLevel: 120,  // default 60; halves wheel sensitivity
+      wheelDebounceTime: 20,     // default 40; lower feels more responsive
     });
 
     rendererRef.current = L.canvas({ padding: 0.5 });
@@ -177,6 +194,12 @@ export default function MapInner({
 
     // `moveend` fires once a pan or zoom settles, not on every frame of it, so
     // dragging across the map is one request rather than sixty.
+    //
+    // The trailing debounce is for continuous zoom: with `zoomSnap: 0` a single
+    // trackpad pinch settles several times, and each settle refetches the
+    // viewport and rebuilds every static marker. Coalescing them means one
+    // rebuild per gesture instead of one per intermediate stop.
+    let settleTimer: ReturnType<typeof setTimeout> | null = null;
     const report = () => {
       const bounds = map.getBounds();
       const a = mapToWorld(bounds.getSouth(), bounds.getWest(), regionRef.current);
@@ -186,13 +209,19 @@ export default function MapInner({
         maxX: Math.max(a.x, b.x), maxY: Math.max(a.y, b.y),
       });
     };
-    map.on('moveend', report);
-    map.on('zoomend', report);
+    const reportSoon = () => {
+      if (settleTimer) clearTimeout(settleTimer);
+      settleTimer = setTimeout(report, 150);
+    };
+    map.on('moveend', reportSoon);
+    map.on('zoomend', reportSoon);
     report();
 
     mapRef.current = map;
 
     return () => {
+      // Before map.remove(), or a pending settle fires into a torn-down map.
+      if (settleTimer) clearTimeout(settleTimer);
       map.remove();
       mapRef.current = null;
       overlayRef.current = null;
@@ -286,7 +315,6 @@ export default function MapInner({
 
       const style = STATIC_STYLE[object.category] ??
         { color: '#6d747e', size: 3, label: object.category };
-      const coords = worldToGameMap(object.x, object.y);
 
       L.circleMarker(worldToMap(object.x, object.y, region), {
         renderer: rendererRef.current ?? undefined,
@@ -296,13 +324,18 @@ export default function MapInner({
         fillColor: style.color,
         fillOpacity: 0.55,
       })
-        .bindPopup(
-          `<div style="min-width:150px">
+        // Built on open, not on draw. This layer is rebuilt on every pan and
+        // can hold 2,000 markers, so eagerly formatting 2,000 popups meant
+        // 2,000 string builds and coordinate conversions per gesture for
+        // content that is almost never read.
+        .bindPopup(() => {
+          const coords = worldToGameMap(object.x, object.y);
+          return `<div style="min-width:150px">
              <div style="font-weight:600;margin-bottom:3px">${escapeHtml(prettyClass(object.cls))}</div>
              <div style="font-size:12px;color:#a1a7b0">${escapeHtml(style.label)}</div>
              <div style="font-size:11px;color:#6d747e;margin-top:4px">${coords.x}, ${coords.y}</div>
-           </div>`
-        )
+           </div>`;
+        })
         .addTo(group);
     }
   }, [staticObjects, layers, region]);

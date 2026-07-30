@@ -2,9 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Egg, Search, RefreshCw, ArrowRight } from 'lucide-react';
-import { getBreedingPath, getOffspring, getPalbox } from '@/lib/save-api';
-import type { OffspringOption, PalboxSummary, PalSummary } from '@/lib/types';
+import { getBreedingPath, getOffspring, getPalbox, getReachable } from '@/lib/save-api';
+import type { OffspringOption, PalboxSummary, PalSummary, ReachableTargets } from '@/lib/types';
 import { useDashboardStore } from '@/lib/store';
+import GameIcon from '@/components/game-icon';
 
 /**
  * Breeding planner driven by the Pals actually present in the save.
@@ -19,6 +20,8 @@ export default function BreedingPlanner() {
   const [owner, setOwner] = useState<string>('');
   const [palbox, setPalbox] = useState<PalboxSummary | null>(null);
   const [offspring, setOffspring] = useState<OffspringOption[]>([]);
+  const [reachable, setReachable] = useState<ReachableTargets | null>(null);
+  const [expanded, setExpanded] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
@@ -40,12 +43,14 @@ export default function BreedingPlanner() {
     setLoading(true);
     setError(null);
     try {
-      const [box, kids] = await Promise.all([
+      const [box, kids, indirect] = await Promise.all([
         getPalbox(owner || undefined),
         getOffspring(owner || undefined),
+        getReachable(owner || undefined),
       ]);
       setPalbox(box);
       setOffspring(kids);
+      setReachable(indirect);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not load breeding data');
     } finally {
@@ -137,10 +142,13 @@ export default function BreedingPlanner() {
               {path.steps.map((step, i) => (
                 <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
                   <span style={{ color: 'var(--text-muted)', width: 20 }}>{i + 1}.</span>
+                  <GameIcon src={step.parentA.icon} size={20} />
                   <span>{step.parentA.name}</span>
                   <span style={{ color: 'var(--text-muted)' }}>+</span>
+                  <GameIcon src={step.parentB.icon} size={20} />
                   <span>{step.parentB.name}</span>
                   <ArrowRight size={13} style={{ color: 'var(--text-muted)' }} />
+                  <GameIcon src={step.child.icon} size={20} />
                   <span style={{ color: 'var(--accent)' }}>{step.child.name}</span>
                 </div>
               ))}
@@ -165,8 +173,13 @@ export default function BreedingPlanner() {
             {filtered.map((option) => (
               <tr key={option.internalName}>
                 <td style={{ color: 'var(--text-primary)' }}>
-                  {option.name}
-                  {option.owned && <span className="badge" style={{ marginLeft: 8 }}>owned</span>}
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                    <GameIcon src={option.icon} size={22} />
+                    <span>
+                      {option.name}
+                      {option.owned && <span className="badge" style={{ marginLeft: 8 }}>owned</span>}
+                    </span>
+                  </span>
                 </td>
                 <td className="mono">{option.dex ?? '—'}</td>
                 <td className="mono">{option.pairCount}</td>
@@ -194,6 +207,63 @@ export default function BreedingPlanner() {
           </p>
         )}
       </div>
+
+      {/* Reachable, but not in one step. The offspring table above answers
+          "what can I breed right now"; this answers the question after it. */}
+      {reachable && reachable.targets.length > 0 && (
+        <div className="glass-card" style={{ padding: 16 }}>
+          <div className="section-title" style={{ marginBottom: 4 }}>
+            Reachable with an extra step ({reachable.targets.length})
+          </div>
+          <p style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 12 }}>
+            Not obtainable directly from what you own, but reachable by breeding an
+            intermediate first. Counts are <em>breedings you must perform</em>, which
+            can exceed the generation count when both parents need breeding too.
+            Searched {reachable.maxDepth} generations deep from{' '}
+            {reachable.ownedSpecies} owned species.
+          </p>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {reachable.targets.map((t) => (
+              <div key={t.internalName}>
+                <button
+                  onClick={() => setExpanded(expanded === t.internalName ? null : t.internalName)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 8, width: '100%',
+                    background: 'none', border: 'none', padding: '4px 0',
+                    cursor: 'pointer', color: 'inherit', font: 'inherit', textAlign: 'left',
+                  }}
+                >
+                  <GameIcon src={t.icon} size={22} />
+                  <span style={{ color: 'var(--text-primary)' }}>{t.name}</span>
+                  <span className="badge">{t.depth} breedings</span>
+                  <span style={{ marginLeft: 'auto', color: 'var(--text-muted)', fontSize: 11 }}>
+                    {expanded === t.internalName ? 'hide' : 'route'}
+                  </span>
+                </button>
+
+                {expanded === t.internalName && (
+                  <div style={{ margin: '4px 0 10px 30px', display: 'flex', flexDirection: 'column', gap: 5 }}>
+                    {t.steps.map((step, i) => (
+                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12 }}>
+                        <span style={{ color: 'var(--text-muted)', width: 16 }}>{i + 1}.</span>
+                        <GameIcon src={step.parentA.icon} size={18} />
+                        <span>{step.parentA.name}</span>
+                        <span style={{ color: 'var(--text-muted)' }}>+</span>
+                        <GameIcon src={step.parentB.icon} size={18} />
+                        <span>{step.parentB.name}</span>
+                        <ArrowRight size={12} style={{ color: 'var(--text-muted)' }} />
+                        <GameIcon src={step.child.icon} size={18} />
+                        <span style={{ color: 'var(--accent)' }}>{step.child.name}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

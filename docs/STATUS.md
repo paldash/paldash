@@ -276,7 +276,39 @@ classes** (`TurbopackInternalError: Parsing glob pattern`) and fails the build
 outright, so `.gitignore`'s date-prefix pattern for the session transcripts
 cannot be copied across verbatim.
 
-Three smaller things closed in the same pass:
+### 6.2 Second pass (same day, after a real deployment)
+
+Running this against a live server found what the test suite could not.
+
+**The extractors wrote plain JSON to a `.gz` path.** `--out effigies.json.gz`
+produced an uncompressed file, while every loader reads with `gzip.open`, so the
+map silently lost its effigies and all 35,687 world objects. The committed
+bundles had been gzipped by a separate step, so the scripts never round-tripped
+their own output. Fixed in `scripts/jsonout.py`, which also pins `mtime=0` so a
+regeneration is diffable.
+
+**`breeding.py` looked species up with an exact `dict.get`.** Saves store
+`Sheepball`, palcalc stores `SheepBall`. The visible symptom was internal ids in
+breeding paths; the real one was `_breedable` using the same match, silently
+dropping those Pals from the palbox, and `_pair_key` missing every pair
+involving them. Canonicalisation now happens at the boundary. 9 tests.
+
+**World Tree orientation: attempted and abandoned, deliberately.**
+`scripts/fit-worldtree.py` tried to settle it by correlating the occupied-cell
+silhouette against the map texture across 8 orientations. It **fails its own
+control** — Palpagos' known-correct orientation ranks 6th of 8, and the winner
+leads by 0.015 IoU. The premise is wrong: occupied cells fill 51.8% of the
+bounding box against a 24.4% land mask, because the game ships cells for ocean
+with content too. Kept as a recorded negative result. Orientation still needs a
+real point on that landmass.
+
+Also added: game icons (1,409 files, 7.71 MB, manifest-resolved case-insensitively),
+an admin-only **Reload data packs** action so replacing a bundle no longer needs a
+container restart, and continuous map zoom (`zoomSnap: 0`) with lazy marker popups.
+
+### 6.3 Smaller things
+
+Three closed in the first pass:
 
 - **`main.py` used the deprecated `@app.on_event("startup")`**, which logged a
   warning on every container boot. Migrated to a lifespan handler and verified

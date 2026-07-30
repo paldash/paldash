@@ -831,6 +831,47 @@ def acknowledge_game_build(req: BuildAcknowledge, request: Request) -> dict[str,
     return gameversion.status()
 
 
+@app.post("/api/world/packs/reload")
+def reload_world_packs(request: Request) -> dict[str, Any]:
+    """
+    Re-read the bundled data files from disk without restarting.
+
+    Regenerating after a game update means replacing `worldobjects.json.gz`,
+    `effigies.json.gz` or `gamedata.json.gz` on disk. Before this, the only way
+    to pick that up was restarting the container — a heavier action than the one
+    that made it necessary, and on a shared box it briefly takes the dashboard
+    away from everyone else.
+
+    **This reloads; it does not regenerate.** Extraction walks ~9,900 streaming
+    cell packages and needs the game pak mounted, which is exactly the kind of
+    work this project keeps off the machine running the game. It also could not
+    persist: `backend/data/` lives in the image layer, so anything written there
+    would silently revert on the next rebuild and the operator would have no way
+    to tell. Regenerating stays a deliberate act on the host.
+
+    POLICY_MANAGE rather than a view capability: it changes what every session
+    sees, so it is a server-wide statement.
+    """
+    user = authz.require_user(request, roles_module.POLICY_MANAGE)
+    result = {
+        "worldObjects": worldobjects.reload(),
+        **gamedata.reload(),
+    }
+    audit.record(
+        audit.DATA_RELOAD, username=user["username"], role=user["role"],
+        target="world_packs",
+        detail={
+            "worldObjects": result["worldObjects"]["total"],
+            "effigies": result["effigies"]["count"],
+            "items": result["gamedata"]["items"],
+        },
+        ip=authz.client_ip(request),
+    )
+    # The build check compares bundled data against the installed game, so its
+    # verdict is stale the moment the bundles change.
+    return {**result, "build": gameversion.status()}
+
+
 @app.get("/api/world/mods")
 def get_installed_mods(request: Request) -> dict[str, Any]:
     """
@@ -1217,6 +1258,23 @@ def breeding_palbox(owner: Optional[str] = None) -> dict:
 def breeding_offspring(owner: Optional[str] = None) -> list[dict]:
     try:
         return breeding.possible_offspring(_pals_for(owner))
+    except breeding.BreedingDataError as e:
+        raise HTTPException(503, str(e))
+
+
+@app.get("/api/breeding/reachable")
+def breeding_reachable(owner: Optional[str] = None) -> dict:
+    """
+    Pals that need an intermediate step, with the shortest route to each.
+
+    The offspring list answers "what can I breed right now"; this answers the
+    question straight after it. One BFS serves the whole list, so this costs
+    about the same as a single route lookup rather than one per species.
+    """
+    try:
+        summary = breeding.summarize_palbox(_pals_for(owner))
+        owned = [s["internalName"] for s in summary["species"]]
+        return breeding.indirect_targets(owned)
     except breeding.BreedingDataError as e:
         raise HTTPException(503, str(e))
 

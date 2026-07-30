@@ -62,6 +62,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import upackage  # noqa: E402
 from palpak import Pak  # noqa: E402
+from jsonout import write_json  # noqa: E402
 
 CELL_SIZE = 25600
 RELIC_MARKER = b"BP_LevelObject_Relic"
@@ -213,8 +214,7 @@ def main() -> int:
             return 1
 
     if args.out:
-        with open(args.out, "w", encoding="utf-8") as f:
-            json.dump(result, f, indent=1)
+        write_json(args.out, result)
         print(f"wrote {args.out}", file=sys.stderr)
     else:
         json.dump(result, sys.stdout, indent=1)

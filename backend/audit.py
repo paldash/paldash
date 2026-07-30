@@ -70,6 +70,8 @@ PLAYER_KICK = "player.kick"
 PLAYER_BAN = "player.ban"
 PLAYER_UNBAN = "player.unban"
 
+DATA_RELOAD = "data.reload"
+
 DENIED = "access.denied"
 
 RESULT_OK = "ok"

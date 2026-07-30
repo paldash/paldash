@@ -41,8 +41,11 @@ Legend: ✅ works · 🟡 works with a caveat · 🔴 not built · ⚪ out of sc
 | Static world objects | ✅ | **35,687** from the game pak — 24,359 ore, 8,386 chests, 2,757 fishing spots, 185 oil. Viewport-culled, capped at 2,000 drawn |
 | Per-kind layer toggles | ✅ | Every category subdivides by kind (each ore type, each chest type), and an admin policy sets which categories each role may see — including whether they are listed at all |
 | Effigies | ✅ | All 396, with the GUIDs saves key on, so the map can show which ones a given player still needs |
+| Smooth zoom | ✅ | Continuous (`zoomSnap: 0`). Leaflet's default snaps to whole levels — a 2x jump per wheel notch on a single-image map |
+| Game icons | ✅ | 1,409 installed (Pals, items, elements, NPCs). Resolved through a manifest, case-insensitively — a guessed path 404s on exactly the Pals the capitalisation bug already cost us |
+| Reload data packs | ✅ | Admin-only. Re-reads the bundled files from disk after you replace them; no container restart. **Reloads, never regenerates** |
 | Layer toggles + search | ✅ | |
-| World Tree coordinate accuracy | 🟡 | `calibrated: false`, stated in the UI. No ground truth exists yet — the reference world has zero objects there |
+| World Tree coordinate accuracy | 🟡 | Extent is exact (from the streaming grid); **orientation** is assumed and flagged `calibrated: false` in the UI. Deriving it from the cell silhouette was tried and failed its control — see `scripts/fit-worldtree.py` |
 | Live player position | 🟡 | Polled from REST, 15–30 s floor |
 | Live player *facing* | 🔴 | **Deliberately not built.** The REST API does not return rotation. Documented rather than faked |
 | Fog-of-war / exploration overlay | 🔴 | Data (`FindAreaFlagMap`) is parsed but unused |

@@ -1,8 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { AlertTriangle, HelpCircle, Check } from 'lucide-react';
-import { getGameBuildStatus, acknowledgeGameBuild } from '@/lib/save-api';
+import { AlertTriangle, HelpCircle, Check, RefreshCw } from 'lucide-react';
+import { getGameBuildStatus, acknowledgeGameBuild, reloadWorldPacks } from '@/lib/save-api';
 import { useDashboardStore } from '@/lib/store';
 import { CAPABILITIES } from '@/lib/permissions';
 import type { GameBuildStatus } from '@/lib/types';
@@ -28,6 +28,7 @@ export default function BuildBanner() {
   const [status, setStatus] = useState<GameBuildStatus | null>(null);
   const [busy, setBusy] = useState(false);
   const [detail, setDetail] = useState(false);
+  const [reloaded, setReloaded] = useState<string | null>(null);
 
   const load = useCallback(() => {
     getGameBuildStatus().then(setStatus).catch(() => setStatus(null));
@@ -111,24 +112,65 @@ export default function BuildBanner() {
           </div>
 
           {canAcknowledge && (
-            <button
-              className="btn btn-ghost"
-              style={{ marginTop: 10, padding: '3px 10px', fontSize: 11 }}
-              disabled={busy}
-              onClick={async () => {
-                setBusy(true);
-                try {
-                  setStatus(await acknowledgeGameBuild(status.buildId));
-                } catch {
-                  load();
-                } finally {
-                  setBusy(false);
-                }
-              }}
-              title={`Hides this for build ${status.buildId} only. The next update raises it again.`}
-            >
-              <Check size={11} /> I have checked this build
-            </button>
+            <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+              {/* Reload, not regenerate. Once the files on disk have been
+                  replaced, this is what picks them up — the alternative was
+                  restarting the container, which takes the dashboard away from
+                  everyone else to fix a data file. */}
+              <button
+                className="btn btn-ghost"
+                style={{ padding: '3px 10px', fontSize: 11 }}
+                disabled={busy}
+                onClick={async () => {
+                  setBusy(true);
+                  setReloaded(null);
+                  try {
+                    const result = await reloadWorldPacks();
+                    setStatus(result.build);
+                    setReloaded(
+                      `${result.worldObjects.total.toLocaleString()} objects, ` +
+                        `${result.effigies.count} effigies, ` +
+                        `${result.gamedata.items.toLocaleString()} items`,
+                    );
+                  } catch (e) {
+                    setReloaded(e instanceof Error ? e.message : 'Reload failed');
+                  } finally {
+                    setBusy(false);
+                  }
+                }}
+                title="Re-reads the bundled data files from disk. Use after replacing them; no restart needed."
+              >
+                <RefreshCw size={11} /> Reload data packs
+              </button>
+
+              <button
+                className="btn btn-ghost"
+                style={{ padding: '3px 10px', fontSize: 11 }}
+                disabled={busy}
+                onClick={async () => {
+                  setBusy(true);
+                  try {
+                    setStatus(await acknowledgeGameBuild(status.buildId));
+                  } catch {
+                    load();
+                  } finally {
+                    setBusy(false);
+                  }
+                }}
+                title={`Hides this for build ${status.buildId} only. The next update raises it again.`}
+              >
+                <Check size={11} /> I have checked this build
+              </button>
+            </div>
+          )}
+
+          {/* Counts, not "done" — a wrongly-compressed or truncated pack loads
+              to an empty bundle without erroring, and that is precisely the
+              failure worth surfacing here. */}
+          {reloaded && (
+            <div style={{ marginTop: 8, fontSize: 11, color: 'var(--text-muted)' }}>
+              Loaded: {reloaded}
+            </div>
           )}
         </div>
       </div>

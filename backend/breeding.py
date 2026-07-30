@@ -23,6 +23,8 @@ from collections import deque
 from functools import lru_cache
 from typing import Any, Iterable, Optional
 
+import gamedata
+
 logger = logging.getLogger(__name__)
 
 _DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
@@ -71,15 +73,73 @@ def _pair_key(a: str, b: str) -> str:
 # ─── Lookups ─────────────────────────────────────────────────────
 
 
+_pal_index: Optional[dict[str, str]] = None
+
+
+def _folded_pals() -> dict[str, str]:
+    """
+    Lowercased species id -> the key `pal_db` actually stores it under.
+
+    **Lookups here must be case-insensitive, for exactly the reason
+    `gamedata.py` is.** The sources disagree on capitalisation: a save stores
+    `Sheepball`, `OctopusGirl`, `SwordCutlassfish`, while palcalc spells them
+    `SheepBall`, `OctopusGirl` and `SwordCutlassFish`. An exact `dict.get` misses
+    those, and the miss is silent — `pal_info` falls back to echoing the internal
+    id, so a breeding path renders as "Sheepball + ElecCat" instead of
+    "Lamball + Sparkit". That is what this fixes.
+    """
+    global _pal_index
+    if _pal_index is None:
+        _pal_index = {key.lower(): key for key in _db()["pals"]}
+    return _pal_index
+
+
+def _icon(internal_name: str) -> str:
+    entry = gamedata.pal(internal_name) or gamedata.character(internal_name) or {}
+    return str(entry.get("icon") or "")
+
+
+def canonical_species(internal_name: str) -> str:
+    """
+    A save's spelling of a species -> the spelling `pal_db` and the pair table
+    use. Unchanged when there is no match, so callers can still test membership.
+
+    **Canonicalise at the boundary, not just when rendering a name.** The pair
+    table is keyed on palcalc's spelling and `_pair_key` joins raw ids, so a save
+    that says `Sheepball` misses every pair involving Lamball. Fixing only
+    `pal_info` would leave the display right and the *breeding maths* wrong,
+    which is the worse of the two failures.
+    """
+    pals = _db()["pals"]
+    if internal_name in pals:
+        return internal_name
+    return _folded_pals().get(str(internal_name).lower(), internal_name)
+
+
+def _find_pal(internal_name: str) -> Optional[dict]:
+    return _db()["pals"].get(canonical_species(internal_name))
+
+
 def pal_info(internal_name: str) -> dict[str, Any]:
     """Display metadata for an internal Pal name, degrading gracefully."""
-    pals = _db()["pals"]
-    info = pals.get(internal_name)
+    info = _find_pal(internal_name)
     if not info:
-        return {"internalName": internal_name, "name": internal_name, "known": False}
+        # palcalc's table covers breedable species only, so anything else —
+        # NPCs, boss forms, a Pal added by an update — legitimately misses. The
+        # bundled game database is broader, so ask it before giving up; only
+        # then fall back to the humanised id, which still beats `ElecCat`.
+        return {
+            "internalName": internal_name,
+            "name": gamedata.character_name(internal_name) or internal_name,
+            "icon": _icon(internal_name),
+            "known": False,
+        }
     return {
         "internalName": internal_name,
         "name": info["name"],
+        # From the bundled game data, which records the path directly. palcalc's
+        # table has no artwork of its own.
+        "icon": _icon(internal_name),
         "dex": info.get("dex"),
         "isVariant": info.get("variant", False),
         "rarity": info.get("rarity"),
@@ -92,11 +152,25 @@ def pal_info(internal_name: str) -> dict[str, Any]:
     }
 
 
+_passive_index: Optional[dict[str, str]] = None
+
+
 def passive_name(internal_id: str) -> str:
-    entry = _db().get("passives", {}).get(internal_id)
+    global _passive_index
+    passives = _db().get("passives", {})
+    entry = passives.get(internal_id)
+    if entry is None:
+        # Same case-insensitivity rule as the species lookup above.
+        if _passive_index is None:
+            _passive_index = {key.lower(): key for key in passives}
+        key = _passive_index.get(str(internal_id).lower())
+        entry = passives.get(key) if key else None
     if entry and entry.get("name") and not str(entry["name"]).startswith("en Text"):
         return entry["name"]
-    return internal_id
+    # `en Text ...` is palcalc's placeholder for an unlocalised string, so it is
+    # no better than the raw id. The bundled game database covers all 1,905
+    # passives and is the better answer in both cases.
+    return gamedata.passive_name(internal_id) or internal_id
 
 
 def is_unreleased(internal_name: str) -> bool:
@@ -109,7 +183,7 @@ def is_unreleased(internal_name: str) -> bool:
     planner's target list because offering a goal nobody can obtain is worse
     than not listing it.
     """
-    return bool(_db()["pals"].get(internal_name, {}).get("unreleased"))
+    return bool((_find_pal(internal_name) or {}).get("unreleased"))
 
 
 def all_pals(include_unreleased: bool = False) -> list[dict[str, Any]]:
@@ -125,7 +199,9 @@ def all_pals(include_unreleased: bool = False) -> list[dict[str, Any]]:
 
 def predict_child(parent_a: str, parent_b: str) -> Optional[str]:
     """The Pal produced by this pair, or None if the pair cannot breed."""
-    return _breeding()["pairs"].get(_pair_key(parent_a, parent_b))
+    return _breeding()["pairs"].get(
+        _pair_key(canonical_species(parent_a), canonical_species(parent_b))
+    )
 
 
 # ─── Palbox analysis ─────────────────────────────────────────────
@@ -136,7 +212,7 @@ def _breedable(pal: dict) -> bool:
     if pal.get("isBoss"):
         return False
     species = pal.get("speciesId") or ""
-    return species in _db()["pals"]
+    return canonical_species(species) in _db()["pals"]
 
 
 def summarize_palbox(pals: Iterable[dict]) -> dict[str, Any]:
@@ -151,7 +227,8 @@ def summarize_palbox(pals: Iterable[dict]) -> dict[str, Any]:
         if not _breedable(pal):
             skipped += 1
             continue
-        key = pal["speciesId"]
+        # Canonical, so this key matches the pair table's spelling.
+        key = canonical_species(pal["speciesId"])
         entry = species.setdefault(
             key,
             {
@@ -254,72 +331,151 @@ def possible_offspring(pals: Iterable[dict]) -> list[dict[str, Any]]:
     return sorted(results.values(), key=lambda r: (r.get("dex") or 9999))
 
 
+def _owned_pool(owned_species: Iterable[str]) -> set[str]:
+    """Canonicalised owned species that the pair table actually knows."""
+    known = _db()["pals"]
+    return {c for c in (canonical_species(s) for s in owned_species) if c in known}
+
+
+def _expand(pool: set[str], max_depth: int) -> tuple[dict[str, tuple[str, str]], dict[str, int]]:
+    """
+    Breadth-first over the pair table from an owned pool.
+
+    Returns `origin` (child -> the pair that first produced it) and `depth`
+    (child -> how many breeding steps deep it first appeared). Because BFS
+    visits in generation order and a child is only ever recorded the first time
+    it is seen, `depth` is the *shortest* route, not merely a route.
+
+    Shared by the single-target search and the reachability listing so there is
+    one implementation of the traversal rather than two that can disagree.
+    """
+    pairs = _breeding()["pairs"]
+    origin: dict[str, tuple[str, str]] = {}
+    depth: dict[str, int] = {}
+    reached = set(pool)
+
+    for step in range(1, max_depth + 1):
+        new: set[str] = set()
+        # Bounded: a full expansion over 46,655 pairs would happily eat the CPU
+        # the game server needs.
+        current = sorted(reached)[:MAX_PATH_FRONTIER]
+
+        for i, a in enumerate(current):
+            for b in current[i:]:
+                child = pairs.get(_pair_key(a, b))
+                if child and child not in reached and child not in new:
+                    new.add(child)
+                    origin[child] = (a, b)
+                    depth[child] = step
+
+        if not new:
+            break
+        reached |= new
+
+    return origin, depth
+
+
+def _unwind(target: str, origin: dict[str, tuple[str, str]]) -> list[dict[str, Any]]:
+    """
+    The pair sequence producing `target`, parents before children.
+
+    Depth-first through `origin`, emitting each step only after both its parents
+    have been emitted, so the list can be followed top to bottom.
+    """
+    steps: list[dict[str, Any]] = []
+    seen: set[str] = set()
+
+    def walk(node: str) -> None:
+        if node in seen or node not in origin:
+            return
+        seen.add(node)
+        a, b = origin[node]
+        walk(a)
+        walk(b)
+        steps.append({"parentA": pal_info(a), "parentB": pal_info(b), "child": pal_info(node)})
+
+    walk(target)
+    return steps
+
+
 def breeding_paths(target: str, owned_species: list[str], max_depth: int = MAX_PATH_DEPTH) -> dict[str, Any]:
     """
     Shortest breeding route from what you own to a target Pal.
 
-    Breadth-first over the pair table: each step adds every child obtainable
-    from the species pool, until the target appears or we hit the depth cap.
     Gender is ignored here (a route is about species reachability); the
-    single-step view above is the one that enforces it.
+    single-step offspring view is the one that enforces it.
     """
-    pairs = _breeding()["pairs"]
-    pool = {s for s in owned_species if s in _db()["pals"]}
+    target = canonical_species(target)
+    pool = _owned_pool(owned_species)
 
     if not pool:
         return {"target": target, "reachable": False, "reason": "No breedable Pals owned", "steps": []}
     if target in pool:
         return {"target": target, "reachable": True, "alreadyOwned": True, "steps": []}
 
-    # parent -> how it was made
-    origin: dict[str, tuple[str, str]] = {}
-    frontier = set(pool)
-
-    for _depth in range(max_depth):
-        new: set[str] = set()
-        current = sorted(pool)[:MAX_PATH_FRONTIER]
-
-        for i, a in enumerate(current):
-            for b in current[i:]:
-                child = pairs.get(_pair_key(a, b))
-                if child and child not in pool and child not in new:
-                    new.add(child)
-                    origin[child] = (a, b)
-
-        if not new:
-            break
-
-        pool |= new
-        frontier = new
-
-        if target in pool:
-            # walk back to the owned set
-            steps: list[dict[str, Any]] = []
-            seen: set[str] = set()
-
-            def unwind(node: str) -> None:
-                if node in seen or node not in origin:
-                    return
-                seen.add(node)
-                a, b = origin[node]
-                unwind(a)
-                unwind(b)
-                steps.append(
-                    {
-                        "parentA": pal_info(a),
-                        "parentB": pal_info(b),
-                        "child": pal_info(node),
-                    }
-                )
-
-            unwind(target)
-            return {"target": target, "reachable": True, "alreadyOwned": False, "steps": steps}
-
+    origin, depth = _expand(pool, max_depth)
+    if target not in depth:
+        return {
+            "target": target,
+            "reachable": False,
+            "reason": f"Not reachable within {max_depth} breeding steps from your current Pals",
+            "steps": [],
+        }
     return {
         "target": target,
-        "reachable": False,
-        "reason": f"Not reachable within {max_depth} breeding steps from your current Pals",
-        "steps": [],
+        "reachable": True,
+        "alreadyOwned": False,
+        "steps": _unwind(target, origin),
+    }
+
+
+def indirect_targets(owned_species: Iterable[str], max_depth: int = MAX_PATH_DEPTH) -> dict[str, Any]:
+    """
+    Every Pal reachable by breeding but **not** obtainable in one step.
+
+    The offspring view answers "what can I make right now". This answers the
+    question after it: what is within reach if you are willing to breed an
+    intermediate first, and what is the shortest way there.
+
+    **`steps` counts breedings, not BFS generations, and those differ.** A Pal
+    can appear in generation 2 while needing three pairings, because *both* its
+    parents may themselves have to be bred first — Cremis is exactly this. The
+    useful number to a player is how many breedings they must perform, so that
+    is what is counted, sorted on and labelled. A test pins it against an
+    independent route lookup, because reporting "2 steps" for a three-breeding
+    plan is the kind of wrong that looks right.
+
+    One-breeding children are excluded — they already have their own view, and
+    repeating them here would bury the ones that need a plan.
+
+    Unreleased species are dropped for the same reason `all_pals` withholds
+    them: offering a goal nobody can obtain is worse than not listing it. Their
+    pair data stays in the table, so they can still appear as an intermediate
+    step on the way to something real.
+    """
+    pool = _owned_pool(owned_species)
+    if not pool:
+        return {"maxDepth": max_depth, "ownedSpecies": 0, "targets": []}
+
+    origin, depth = _expand(pool, max_depth)
+
+    targets = []
+    for species in depth:
+        if is_unreleased(species):
+            continue
+        steps = _unwind(species, origin)
+        if len(steps) < 2:
+            continue        # obtainable in one breeding; the offspring view has it
+        targets.append({**pal_info(species), "depth": len(steps), "steps": steps})
+
+    # Fewest breedings first, then Paldeck order — a two-step target is more
+    # useful than a four-step one and should not be buried under it.
+    targets.sort(key=lambda t: (t["depth"], t.get("dex") or 9999, t["name"]))
+
+    return {
+        "maxDepth": max_depth,
+        "ownedSpecies": len(pool),
+        "targets": targets,
     }
 
 

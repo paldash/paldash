@@ -689,6 +689,32 @@ export interface StaticWorldSummary {
  * not an optimistic `current`. Positions are static per build, so a content update
  * can silently invalidate them and nothing in a save file says so.
  */
+/**
+ * Result of re-reading the bundled data packs from disk.
+ *
+ * Counts rather than a bare success flag, because "reloaded" and "reloaded
+ * something that actually has data in it" are different claims — a truncated or
+ * wrongly-compressed file loads to an empty bundle without erroring, which is
+ * exactly the failure that shipped once.
+ */
+export interface WorldPackReload {
+  worldObjects: {
+    path: string;
+    loaded: boolean;
+    categories: Record<string, number>;
+    total: number;
+  };
+  gamedata: {
+    path: string;
+    loaded: boolean;
+    items: number;
+    pals: number;
+    technologies: number;
+  };
+  effigies: { path: string; count: number };
+  build: GameBuildStatus;
+}
+
 export interface GameBuildStatus {
   verdict: 'current' | 'stale' | 'unknown';
   buildId: string;
@@ -1021,6 +1047,8 @@ export interface SettingsPreset {
 export interface PalSummary {
   internalName: string;
   name: string;
+  /** Path into `public/icons/`, from the bundled game data. "" when there is none. */
+  icon?: string;
   dex?: number;
   isVariant?: boolean;
   rarity?: number;
@@ -1055,6 +1083,25 @@ export interface PalboxSummary {
   speciesCount: number;
   totalBreedable: number;
   skippedUnbreedable: number;
+}
+
+/** One breeding step: two parents and what they produce. */
+export interface BreedingStep {
+  parentA: PalSummary;
+  parentB: PalSummary;
+  child: PalSummary;
+}
+
+/**
+ * Pals reachable only via an intermediate, with the shortest route to each.
+ *
+ * Excludes depth-1 children: those are already the offspring list, and
+ * repeating them here would bury the ones that actually need a plan.
+ */
+export interface ReachableTargets {
+  maxDepth: number;
+  ownedSpecies: number;
+  targets: (PalSummary & { depth: number; steps: BreedingStep[] })[];
 }
 
 export interface OffspringOption extends PalSummary {

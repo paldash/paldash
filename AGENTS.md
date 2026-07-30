@@ -133,6 +133,44 @@ quietly present the provisional transform as exact.
 
 Axes swap: in-game map X derives from world **Y**, and map Y from world X.
 
+## A `.gz` filename is a promise, and the extractors broke it
+
+`scripts/jsonout.py` exists because both pak extractors wrote **plain JSON
+regardless of the output path**, while `gamedata.py`, `worldobjects.py` and the
+effigy loader all read with `gzip.open`. A file named `effigies.json.gz`
+containing `{\n` therefore loaded as:
+
+    World object data unavailable (Not a gzipped file (b'{\n')); the layer will be empty
+
+...and the map silently rendered an empty layer. The committed bundles had been
+gzipped by a separate step, so the scripts never round-tripped their own output
+and nothing caught it until someone regenerated on a live server.
+
+`write_json` honours the suffix and sets `mtime=0`, so unchanged input produces
+byte-identical output and a regeneration can be **diffed** rather than trusted.
+
+## World Tree orientation cannot be derived from the cell grid
+
+`scripts/fit-worldtree.py` is a recorded **negative** result. The idea was to
+skip needing a player up there by correlating the occupied-cell silhouette
+against the map texture and picking the best of 8 flips/rotations.
+
+It fails its own control. Palpagos' orientation is known correct (157/157
+fast-travel points), and the correlation ranks it **6th of 8** — the winner takes
+it by 0.015 IoU, which is noise.
+
+The premise is wrong, not the tuning: **occupied cells are not a coastline.** The
+game ships a streaming cell for anything containing content, including open ocean
+with fishing spots and oil rigs. Measured on Palpagos, the occupied set fills
+**51.8%** of its bounding box while the texture's land mask covers **24.4%** — two
+masks describing different things, so their overlap is bounded low at every
+orientation.
+
+The cell grid remains exactly right for the **extent**, which is what
+`map-coordinates.ts` uses it for. It carries no usable shape. Do not "fix" the
+script by changing metrics until the control passes; that is fitting the method
+to the answer. Orientation still needs a real point on that landmass.
+
 ## Friendly names
 
 `backend/gamedata.py` resolves internal IDs (`Sheepball`, `AIcore`) to what
@@ -149,6 +187,31 @@ unknown IDs fall back to `humanize()` rather than failing.
 `CharacterSaveParameterMap` holds humans as well as Pals, so use
 `character_name()` for anything out of it — `pal_name()` alone leaves merchants
 and guards showing internal IDs.
+
+**`breeding.py` had the same bug and it cost more than names.** Its lookups were
+exact `dict.get` against palcalc's table until 2026-07-30. The visible symptom
+was a breeding path rendering "Sheepball + ElecCat"; the invisible ones were
+worse — `_breedable` used the same exact match, so those Pals were classified
+unbreedable and dropped from the palbox entirely, and `_pair_key` joins raw ids,
+so every pair involving them missed the table.
+
+So canonicalisation happens at the **boundary** (`breeding.canonical_species`),
+not in the display helper. Fixing only `pal_info` would have left the names right
+and the breeding maths wrong, which is the harder failure to notice.
+
+**Icons need no lookup at all, and building one was the mistake.**
+`gamedata.json.gz` already records each entry's icon path
+(`AIcore -> /icons/items/T_itemicon_Material_AIcore.webp`) and `describe_item()`
+already returns it, so `scripts/install-icons.py` preserves the archive's
+filenames and every existing path just resolves.
+
+A first version renamed files to the ids the API speaks and shipped a lowercased
+manifest to resolve them case-insensitively. It matched **0 of 2,466** items:
+item icons are named after their *texture*, and nothing turns
+`T_itemicon_Material_AIcore` into `AIcore`. Deriving a mapping the data already
+contained created a second source of truth that disagreed with the first.
+Preserving filenames took coverage to **99.6% of items and 93.4% of Pals** — the
+Pal shortfall is boss and variant forms, which have no artwork of their own.
 
 Bundled `maxStack` values are wired into the sorter as of Phase 5. The merge
 ceiling is `max(authoritative, observed)`, and the `max()` is the point: raising

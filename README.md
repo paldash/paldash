@@ -577,6 +577,18 @@ From the game pak, bundled so nothing is fetched at runtime:
   all are".
 - **174 fast-travel points**, validated 117/117 against a real player's unlocks.
 
+Icons for Pals, items, elements and NPCs install from the reference archive:
+
+```bash
+python3 scripts/install-icons.py          # 1,409 icons, 7.7 MB
+python3 scripts/install-icons.py --list   # what else is available
+```
+
+They are optional — without them every view renders text-only rather than a
+column of broken images. Lookups go through a manifest rather than a guessed
+path, because the sources disagree on capitalisation and a 404 reads as "this
+Pal has no icon".
+
 **Layers toggle per kind, not just per category** — each ore type, each chest
 type, individually. And an Owner sets which categories each role may see, down to
 whether a category is listed at all: on a server where finding things is the
