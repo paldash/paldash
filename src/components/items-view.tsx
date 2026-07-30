@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Package, Search, RefreshCw } from 'lucide-react';
-import { getItemTotals } from '@/lib/save-api';
+import { getItemTotals, getItemScopes } from '@/lib/save-api';
 import GameIcon from '@/components/game-icon';
 import type { ItemTotals } from '@/lib/types';
 
@@ -18,22 +18,30 @@ export default function ItemsView() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
+  const [scopes, setScopes] = useState<Awaited<ReturnType<typeof getItemScopes>> | null>(null);
+  // '' means the default the backend picks for you — your own guilds below the
+  // threshold, server-wide above it.
+  const [guild, setGuild] = useState('');
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      setData(await getItemTotals());
+      setData(await getItemTotals(guild || undefined));
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not load item totals');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [guild]);
 
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    getItemScopes().then(setScopes).catch(() => setScopes(null));
+  }, []);
 
   const filtered = useMemo(() => {
     if (!data) return [];
@@ -94,6 +102,22 @@ export default function ItemsView() {
             onChange={(e) => setQuery(e.target.value)}
           />
         </div>
+        {(scopes?.guilds.length ?? 0) > 0 && (
+          <select
+            className="select"
+            style={{ width: 200 }}
+            value={guild}
+            onChange={(e) => setGuild(e.target.value)}
+            title="Item totals are per guild, because containers belong to bases and bases belong to guilds"
+          >
+            <option value="">
+              {scopes?.serverWide ? 'Whole server' : 'My guilds'}
+            </option>
+            {scopes?.guilds.map((g) => (
+              <option key={g.id} value={g.id}>{g.name}</option>
+            ))}
+          </select>
+        )}
         <button className="btn btn-ghost" onClick={load} disabled={loading}>
           <RefreshCw size={13} /> Reload
         </button>
@@ -157,8 +181,9 @@ export default function ItemsView() {
         {data && !data.namesResolved
           ? 'Bundled game data is missing, so items show their internal IDs. Run scripts/build-gamedata.py. '
           : 'Names come from bundled Palworld 1.0 game data; the grey text is the internal ID stored in the save. '}
-        Totals cover every container in the world: base chests, guild chests,
-        player inventories and palboxes.
+        {data?.scope === 'server'
+          ? 'Totals cover every container in the world: base chests, guild chests, player inventories and palboxes.'
+          : 'Totals cover the base storage of your guild(s). Player inventories and palboxes are not included — those containers belong to a person rather than a base, so folding them in would make a guild total include things nobody put in guild storage.'}
       </p>
     </div>
   );

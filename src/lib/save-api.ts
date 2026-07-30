@@ -122,12 +122,20 @@ export interface AccessPolicyInfo {
   guestVisibility: Record<string, boolean>;
   /** Who sees locations nobody has found: `everyone`, a role name, or `nobody`. */
   discoveryVisibility: string;
+  /** Who sees other guilds' bases: `everyone`, a role name, or `own`. */
+  baseVisibility: string;
+  /** Who sees server-wide item totals rather than their own guilds'. */
+  serverTotalsVisibility: string;
+  /** Who sees everyone's Pals rather than their own. */
+  allPalsVisibility: string;
   /** Per static-object category, same threshold vocabulary. */
   worldObjectVisibility: Record<string, string>;
   envCeiling: string;
   levels: { id: string; label: string; description: string }[];
   visibilityKeys: string[];
   discoveryLevels: { id: string; label: string; description: string }[];
+  baseVisibilityLevels: { id: string; label: string; description: string }[];
+  scopeLevels: { id: string; label: string; description: string }[];
   worldObjectCategories: { id: string; label: string; count: number }[];
   allowedCapabilities: string[];
 }
@@ -140,6 +148,9 @@ export async function setAccessPolicy(update: {
   securityLevel?: string;
   guestVisibility?: Record<string, boolean>;
   discoveryVisibility?: string;
+  baseVisibility?: string;
+  serverTotalsVisibility?: string;
+  allPalsVisibility?: string;
   worldObjectVisibility?: Record<string, string>;
 }): Promise<AccessPolicyInfo> {
   return saveFetch('/policy', { method: 'POST', body: JSON.stringify(update) });
@@ -203,8 +214,15 @@ export interface PalRecord {
   /** Equipped moves, prefix stripped. Null when the Pal stores no EquipWaza. */
   activeSkills?: string[] | null;
   activeSkillNames?: string[];
+  /** Species work levels from bundled game data, e.g. `{Mining: 3}`. */
+  workSuitabilities?: Record<string, number>;
+  rarity?: number;
 }
 
+/**
+ * Pals. Whose, is the backend's decision — below `allPalsVisibility` the
+ * caller is pinned to their own character whatever `owner` says.
+ */
 export async function getPals(owner?: string): Promise<PalRecord[]> {
   return saveFetch(`/pals${owner ? `?owner=${encodeURIComponent(owner)}` : ''}`);
 }
@@ -632,8 +650,17 @@ export async function getDiscoveries(uid?: string): Promise<Discoveries> {
   return saveFetch(`/world/discoveries${uid ? `?uid=${encodeURIComponent(uid)}` : ''}`);
 }
 
-export async function getItemTotals(): Promise<ItemTotals> {
-  return saveFetch('/items');
+/** Which item scopes this caller may ask for. Decided by the backend. */
+export async function getItemScopes(): Promise<{
+  guilds: { id: string; name: string }[];
+  serverWide: boolean;
+  bases: boolean;
+}> {
+  return saveFetch('/items/scopes');
+}
+
+export async function getItemTotals(guild?: string): Promise<ItemTotals> {
+  return saveFetch(`/items${guild ? `?guild=${encodeURIComponent(guild)}` : ''}`);
 }
 
 // ─── Server settings (PalWorldSettings.ini) ─────────────

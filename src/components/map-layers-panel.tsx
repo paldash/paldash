@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Layers, ChevronDown, ChevronRight, X } from 'lucide-react';
 import { prettyClass } from '@/lib/pretty-class';
+import { kindColor, markerShape, shapeSvg } from '@/lib/kind-colors';
 
 export interface LayerDef {
   id: string;
@@ -159,9 +160,11 @@ export default function MapLayersPanel({
 
                 {inGroup.map((layer) => {
                   const isOn = !!active[layer.id];
-                  const category = layer.id.startsWith('static:')
-                    ? staticCategories.find((c) => `static:${c.id}` === layer.id)
-                    : undefined;
+                  // Static layers are namespaced `static:`; save-derived ones
+                  // are not. Both carry kinds, so both get the sub-filter.
+                  const category = staticCategories.find(
+                    (c) => `static:${c.id}` === layer.id || c.id === layer.id,
+                  );
                   const off = category ? staticKindsOff[category.id] ?? [] : [];
                   const isExpanded = expanded === layer.id;
                   const art = LAYER_ICON[layer.id];
@@ -231,6 +234,7 @@ export default function MapLayersPanel({
                           <div style={{ display: 'flex', gap: 6, marginBottom: 4 }}>
                             <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>
                               {category.kinds.length - off.length}/{category.kinds.length} kinds
+                              {' · shift-click to isolate one'}
                             </span>
                             <button
                               className="btn btn-ghost"
@@ -253,15 +257,46 @@ export default function MapLayersPanel({
                               return (
                                 <button
                                   key={kind.cls}
-                                  onClick={() => onToggleKind(category.id, kind.cls)}
+                                  // Shift-click isolates. "Show me only coal"
+                                  // is the actual question people bring to an
+                                  // ore layer, and getting there by switching
+                                  // off the other sixteen is not an answer.
+                                  onClick={(e) => {
+                                    if (e.shiftKey) {
+                                      onSetKinds(
+                                        category.id,
+                                        category.kinds
+                                          .map((k) => k.cls)
+                                          .filter((c) => c !== kind.cls),
+                                      );
+                                    } else {
+                                      onToggleKind(category.id, kind.cls);
+                                    }
+                                  }}
                                   className="btn"
                                   style={{
-                                    padding: '1px 6px', fontSize: 10,
+                                    padding: '1px 6px 1px 4px', fontSize: 10,
                                     opacity: kindOn ? 1 : 0.4,
                                     background: kindOn ? 'var(--bg-tertiary)' : 'transparent',
+                                    display: 'inline-flex', alignItems: 'center', gap: 4,
                                   }}
-                                  title={`${kind.count.toLocaleString()} in the world`}
+                                  title={
+                                    `${kind.count.toLocaleString()} in the world` +
+                                    ` — shift-click to show only this`
+                                  }
                                 >
+                                  {/* Same colour the marker uses, so the chip
+                                      and the map read as one thing. */}
+                                  <span
+                                    style={{ flexShrink: 0, lineHeight: 0 }}
+                                    dangerouslySetInnerHTML={{
+                                      __html: shapeSvg(
+                                        markerShape(category.id),
+                                        9,
+                                        kindColor(kind.cls, layer.color),
+                                      ),
+                                    }}
+                                  />
                                   {prettyClass(kind.cls)}
                                 </button>
                               );

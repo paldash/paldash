@@ -102,7 +102,14 @@ export interface BaseCamp {
   y: number;
   z: number;
   radius: number;
-  palCount: number;
+  /**
+   * Pals in this base's **guild**, not at this base.
+   *
+   * Guild bases share a palbox and the save has no per-base Pal attribution, so
+   * this is a guild total repeated on each of its bases — never sum it across
+   * bases, or a guild with three bases reports three times its Pals.
+   */
+  guildPalCount: number;
   containerIds: string[];
   storedItemCount?: number;
   usedSlots?: number;
@@ -654,6 +661,7 @@ export type DashboardTab =
   | 'items'
   | 'breeding'
   | 'paldeck'
+  | 'mypals'
   | 'settings'
   | 'access'
   | 'backups'
@@ -998,6 +1006,14 @@ export interface ItemTotalRow {
 
 /** Server-wide item totals across every container. */
 export interface ItemTotals {
+  /**
+   * What the figures actually cover: `server`, `own`, or `guild:<id>`.
+   *
+   * Reported rather than assumed, because the backend may narrow a request it
+   * will not refuse — a total labelled server-wide that silently is not would be
+   * worse than an error.
+   */
+  scope?: string;
   items: ItemTotalRow[];
   itemTypes: number;
   totalCount: number;

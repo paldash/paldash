@@ -162,10 +162,30 @@ def test_the_default_is_the_most_private_option(defaults):
     people discover too late.
     """
     assert privacy.get_mode("alice") == "guild"
-    assert privacy.DEFAULT_MODE == privacy.MODES[-1]
 
+    # Asserted behaviourally rather than as `MODES[-1]`. That held while the
+    # modes were a strict ladder, and stopped holding when `bases_only` was
+    # added — it sits last but is deliberately *less* private, hiding bases
+    # while leaving the player visible. Position was never the property that
+    # mattered; concealing the most is.
     hidden = privacy.hidden_uids("player")
-    assert privacy.normalise_uid(SAVE_UID_A) in hidden["players"]
+    uid = privacy.normalise_uid(SAVE_UID_A)
+    assert uid in hidden["players"]
+    assert uid in hidden["bases"]
+    assert uid in hidden["guilds"]
+    for mode in privacy.MODES:
+        if mode == privacy.DEFAULT_MODE:
+            continue
+        privacy.set_mode("alice", mode)
+        other = privacy.hidden_uids("player")
+        assert not (
+            other["players"] >= hidden["players"]
+            and other["bases"] >= hidden["bases"]
+            and other["guilds"] >= hidden["guilds"]
+            and (other["players"] | other["bases"] | other["guilds"])
+            > (hidden["players"] | hidden["bases"] | hidden["guilds"])
+        ), f"{mode} conceals more than the default"
+    privacy.set_mode("alice", privacy.DEFAULT_MODE)
 
 
 def test_the_private_default_still_leaves_staff_able_to_see(defaults):
@@ -217,3 +237,37 @@ def test_modes_are_described_for_the_ui():
     described = privacy.describe_modes()
     assert [d["id"] for d in described] == list(privacy.MODES)
     assert all(d["label"] and d["description"] for d in described)
+
+
+# ─── bases_only: the one mode that is not a rung on the ladder ────
+
+
+def test_bases_only_hides_bases_but_not_the_player(defaults):
+    """
+    The inverse of `player`, and the reason `MODES` is no longer an ordered
+    ladder: some people do not mind being seen playing and simply would rather
+    their base locations were not advertised.
+    """
+    privacy.set_mode("alice", "bases_only")
+    hidden = privacy.hidden_uids("player")
+    uid = privacy.normalise_uid(SAVE_UID_A)
+
+    assert uid not in hidden["players"], "the player should stay visible"
+    assert uid in hidden["bases"]
+    assert uid in hidden["guilds"]
+
+
+def test_bases_only_still_never_hides_from_staff(defaults):
+    """`hidden ⟺ viewer_rank <= hider_rank` applies to every mode alike."""
+    privacy.set_mode("alice", "bases_only")
+    hidden = privacy.hidden_uids("moderator")
+    uid = privacy.normalise_uid(SAVE_UID_A)
+    assert uid not in hidden["bases"]
+    assert uid not in hidden["guilds"]
+
+
+def test_bases_only_is_offered_to_the_ui_with_an_explanation():
+    modes = {m["id"]: m for m in privacy.describe_modes()}
+    assert "bases_only" in modes
+    assert modes["bases_only"]["label"]
+    assert "position" in modes["bases_only"]["description"].lower()

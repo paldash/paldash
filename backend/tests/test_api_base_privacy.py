@@ -67,6 +67,11 @@ BASE_STORAGE = [
 def client(fresh_db, tmp_path, monkeypatch):
     monkeypatch.setattr(policy_module, "POLICY_FILE", str(tmp_path / "policy.json"))
     monkeypatch.setenv("SECURITY_LEVEL", "full")
+    # `baseVisibility` defaults to `own`, which would hide other guilds' bases
+    # before per-base privacy ever came into it. These tests are about the
+    # per-base switch, so the server-wide rule is opened up to isolate it —
+    # the same reason player privacy is switched off in the `cast` fixture.
+    monkeypatch.setenv("BASE_VISIBILITY", "everyone")
     policy_module._cache = None
     monkeypatch.setattr(
         savecache, "get_section",

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Archive, BookOpen, Building2, Egg, Eye, Lock, LogIn, LogOut, Map, Monitor, Package, RefreshCw, ScrollText, Server, Shield, ShieldCheck, Sliders, Unlock, UserCircle, UserCog, Users, Wrench } from 'lucide-react';
+import { Archive, BookOpen, Building2, Egg, Eye, Lock, LogIn, LogOut, Map, Monitor, Package, PawPrint, RefreshCw, ScrollText, Server, Shield, ShieldCheck, Sliders, Unlock, UserCircle, UserCog, Users, Wrench } from 'lucide-react';
 import { useDashboardStore } from '@/lib/store';
 import {
   getServerInfo, getServerMetrics, getPlayers,
@@ -21,6 +21,7 @@ import SaveEditor from '@/components/save-editor';
 import ServerSettings from '@/components/server-settings';
 import BreedingPlanner from '@/components/breeding-planner';
 import Paldeck from '@/components/paldeck';
+import MyPals from '@/components/my-pals';
 import ErrorBoundary from '@/components/error-boundary';
 import AccountSettings from '@/components/account-settings';
 import { CAPABILITIES } from '@/lib/permissions';
@@ -50,6 +51,8 @@ const TABS: {
   // rather than a readout of this server's Pals, so it needs no parsed world and
   // discloses nothing a wiki would not.
   { id: 'paldeck', label: 'Paldeck', icon: <BookOpen size={15} />, requires: CAPABILITIES.VIEW_BASIC },
+  // VIEW_SELF: your own palbox is the one Pal view a plain Player must have.
+  { id: 'mypals', label: 'My Pals', icon: <PawPrint size={15} />, requires: CAPABILITIES.VIEW_SELF, needsAccount: true },
   { id: 'settings', label: 'Settings', icon: <Sliders size={15} />, requires: CAPABILITIES.SETTINGS_WRITE },
   { id: 'access', label: 'Access', icon: <ShieldCheck size={15} />, requires: CAPABILITIES.POLICY_MANAGE },
   { id: 'backups', label: 'Backups', icon: <Archive size={15} />, requires: CAPABILITIES.BACKUP_MANAGE },
@@ -399,6 +402,7 @@ export default function Home() {
           {activeTab === 'players' && <PlayerRoster />}
           {activeTab === 'breeding' && <BreedingPlanner />}
           {activeTab === 'paldeck' && <Paldeck />}
+          {activeTab === 'mypals' && <MyPals />}
           {activeTab === 'settings' && <ServerSettings />}
           {activeTab === 'access' && <AccessSettings />}
           {activeTab === 'backups' && <BackupManager />}

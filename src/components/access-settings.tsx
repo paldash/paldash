@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { ShieldCheck, Eye, RefreshCw, Lock, Compass, Pickaxe } from 'lucide-react';
+import { Building2, Compass, Egg, Eye, Lock, Package, Pickaxe, RefreshCw, ShieldCheck } from 'lucide-react';
 import { getAccessPolicy, setAccessPolicy, type AccessPolicyInfo } from '@/lib/save-api';
 
 /**
@@ -202,6 +202,63 @@ export default function AccessSettings() {
           options={policy.discoveryLevels}
           busy={busy}
           onPick={(level) => apply({ discoveryVisibility: level })}
+        />
+      </div>
+
+      {/* ─── Guild bases ─── */}
+      <div className="glass-card" style={{ padding: 16 }}>
+        <div className="section-title" style={{ marginBottom: 4 }}>
+          <Building2 size={14} /> Other guilds&apos; bases
+        </div>
+        <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 12 }}>
+          Per-player privacy only protects people who have a dashboard account —
+          someone who has never signed in has no privacy setting to apply, so their
+          bases were visible to every signed-in player regardless. This is the
+          server-wide rule, and it needs no account to take effect. Moderators and
+          above always see every base, so moderation still works.
+        </p>
+        <ThresholdPicker
+          value={policy.baseVisibility}
+          options={policy.baseVisibilityLevels}
+          busy={busy}
+          onPick={(level) => apply({ baseVisibility: level })}
+        />
+      </div>
+
+      {/* ─── Scope: whose data a view covers ─── */}
+      <div className="glass-card" style={{ padding: 16 }}>
+        <div className="section-title" style={{ marginBottom: 4 }}>
+          <Package size={14} /> Server-wide item totals
+        </div>
+        <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 12 }}>
+          A server-wide total answers &ldquo;what exists here&rdquo;, which is an
+          operations question rather than a player-facing one, and it discloses
+          every guild&apos;s holdings in a single figure. Below this threshold the
+          Items tab scopes to the viewer&apos;s own guilds instead of refusing.
+        </p>
+        <ThresholdPicker
+          value={policy.serverTotalsVisibility}
+          options={policy.scopeLevels}
+          busy={busy}
+          onPick={(level) => apply({ serverTotalsVisibility: level })}
+        />
+      </div>
+
+      <div className="glass-card" style={{ padding: 16 }}>
+        <div className="section-title" style={{ marginBottom: 4 }}>
+          <Egg size={14} /> Everyone&apos;s Pals in breeding
+        </div>
+        <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 12 }}>
+          Below this, the breeding planner and the Pal list are scoped to the
+          viewer&apos;s own character — which is the common case, and what makes
+          both usable by a plain Player. Above it, they can plan across every Pal
+          on the server.
+        </p>
+        <ThresholdPicker
+          value={policy.allPalsVisibility}
+          options={policy.scopeLevels}
+          busy={busy}
+          onPick={(level) => apply({ allPalsVisibility: level })}
         />
       </div>
 

@@ -99,7 +99,10 @@ export default function BaseViewer() {
         </div>
         <div className="stat-card">
           <div className="stat-value" style={{ color: 'var(--accent-emerald)' }}>
-            {bases.reduce((acc, b) => acc + b.palCount, 0)}
+            {/* Once per guild. Summing the per-base figure counted a
+                  guild's Pals once for every base it owns. */}
+            {[...new Map(bases.map((b) => [b.guildId, b.guildPalCount])).values()]
+              .reduce((acc, n) => acc + n, 0)}
           </div>
           <div className="stat-label">Total Base Pals</div>
         </div>
@@ -200,7 +203,7 @@ export default function BaseViewer() {
 
               <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
                 <Stat icon={<Users size={12} style={{ color: 'var(--accent-cyan)' }} />}
-                      text={`${base.palCount} Pals`} />
+                      text={`${base.guildPalCount} guild Pals`} />
                 <Stat icon={<Package size={12} style={{ color: 'var(--accent-amber)' }} />}
                       text={`${store?.containerCount ?? base.containerIds.length} Containers`} />
                 {store && (

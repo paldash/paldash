@@ -15,8 +15,30 @@ import savecache
 
 
 @pytest.fixture
-def client():
+def client(fresh_db):
     return TestClient(main.app)
+
+
+@pytest.fixture
+def staff(client):
+    """
+    A signed-in Owner.
+
+    `/api/items` and `/api/pals` moved from open-to-any-caller to `VIEW_SELF`
+    when Pal and item views gained per-caller scoping — a plain Player must be
+    able to read their own palbox, and nobody unauthenticated should read either.
+    These tests are about naming and enrichment, so they use the widest role and
+    let `test_api_scoping.py` cover who sees what.
+    """
+    import accounts
+
+    accounts.create_user("owner", "correct-horse-battery-staple", role="owner")
+    res = client.post(
+        "/api/auth/login",
+        json={"username": "owner", "password": "correct-horse-battery-staple"},
+    )
+    assert res.status_code == 200, res.text
+    return {"X-Session-Token": res.json()["token"]}
 
 
 @pytest.fixture
@@ -55,8 +77,8 @@ def fake_parse(monkeypatch):
 # ─── Items ───────────────────────────────────────────────────────
 
 
-def test_items_endpoint_resolves_names(client, fake_parse):
-    body = client.get("/api/items").json()
+def test_items_endpoint_resolves_names(client, fake_parse, staff):
+    body = client.get("/api/items", headers=staff).json()
     by_id = {row["itemId"]: row for row in body["items"]}
 
     assert by_id["AIcore"]["name"] == "AI Core"
@@ -65,15 +87,15 @@ def test_items_endpoint_resolves_names(client, fake_parse):
     assert body["namesResolved"] is True
 
 
-def test_items_endpoint_falls_back_for_unknown_ids(client, fake_parse):
-    body = client.get("/api/items").json()
+def test_items_endpoint_falls_back_for_unknown_ids(client, fake_parse, staff):
+    body = client.get("/api/items", headers=staff).json()
     row = next(r for r in body["items"] if r["itemId"] == "TotallyUnknownThing")
     assert row["name"] == "Totally Unknown Thing"
     assert row["known"] is False
 
 
-def test_items_endpoint_keeps_counts_and_totals(client, fake_parse):
-    body = client.get("/api/items").json()
+def test_items_endpoint_keeps_counts_and_totals(client, fake_parse, staff):
+    body = client.get("/api/items", headers=staff).json()
     assert body["totalCount"] == 8013
     assert body["itemTypes"] == 3
     assert next(r for r in body["items"] if r["itemId"] == "Wood")["count"] == 8000
@@ -82,8 +104,8 @@ def test_items_endpoint_keeps_counts_and_totals(client, fake_parse):
 # ─── Pals ────────────────────────────────────────────────────────
 
 
-def test_pals_endpoint_resolves_species_and_passives(client, fake_parse):
-    rows = client.get("/api/pals").json()
+def test_pals_endpoint_resolves_species_and_passives(client, fake_parse, staff):
+    rows = client.get("/api/pals", headers=staff).json()
     by_instance = {r["instanceId"]: r for r in rows}
 
     lamball = by_instance["i1"]
@@ -95,8 +117,8 @@ def test_pals_endpoint_resolves_species_and_passives(client, fake_parse):
     assert by_instance["i2"]["speciesName"] == "Anubis"
 
 
-def test_pals_endpoint_preserves_raw_fields(client, fake_parse):
-    rows = client.get("/api/pals").json()
+def test_pals_endpoint_preserves_raw_fields(client, fake_parse, staff):
+    rows = client.get("/api/pals", headers=staff).json()
     assert {r["speciesId"] for r in rows} == {"Sheepball", "BOSS_Anubis"}
     assert next(r for r in rows if r["instanceId"] == "i2")["level"] == 40
 
@@ -104,7 +126,7 @@ def test_pals_endpoint_preserves_raw_fields(client, fake_parse):
 # ─── Map objects ─────────────────────────────────────────────────
 
 
-def test_mapobjects_endpoint_adds_structure_names(client, fake_parse):
+def test_mapobjects_endpoint_adds_structure_names(client, fake_parse, staff):
     rows = client.get("/api/mapobjects").json()
     assert rows[0]["name"] == "Palbox"
     assert rows[0]["x"] == 1, "original fields must survive enrichment"

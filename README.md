@@ -60,6 +60,7 @@ container traps that only show up on a real build.
 | File | What it answers |
 |---|---|
 | `docs/DEPLOYMENT.md` | How to run it, and how to ship it as an image |
+| `docs/CONFIGURATION.md` | Every environment variable, every option, and what each means |
 | `docs/ARCHITECTURE.md` | How the codebase is put together, and why |
 | `docs/FEATURES.md` | What exists today — read before concluding something is unbuilt |
 | `docs/STATUS.md` | Current state, measured numbers, open items |

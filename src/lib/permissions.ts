@@ -180,9 +180,15 @@ const ROUTES: RouteRule[] = [
   { pattern: /^export\/(world|player|guild|base|container|pal)$/, methods: ['GET'], capability: CAPABILITIES.VIEW_DETAIL, feature: null },
   { pattern: /^reports$/, methods: ['GET'], capability: CAPABILITIES.VIEW_DETAIL, feature: FEATURES.ITEMS },
   { pattern: /^reports\/[a-z-]+$/, methods: ['GET'], capability: CAPABILITIES.VIEW_DETAIL, feature: FEATURES.ITEMS },
-  { pattern: /^items$/, methods: ['GET'], capability: CAPABILITIES.VIEW_DETAIL, feature: FEATURES.ITEMS },
-  { pattern: /^pals$/, methods: ['GET'], capability: CAPABILITIES.VIEW_DETAIL, feature: FEATURES.BREEDING },
-  { pattern: /^breeding\/[a-z]+$/, methods: ['GET'], capability: CAPABILITIES.VIEW_DETAIL, feature: FEATURES.BREEDING },
+  { pattern: /^items\/scopes$/, methods: ['GET'], capability: CAPABILITIES.VIEW_SELF, feature: FEATURES.ITEMS },
+  { pattern: /^items$/, methods: ['GET'], capability: CAPABILITIES.VIEW_SELF, feature: FEATURES.ITEMS },
+  // VIEW_SELF, not VIEW_DETAIL: a Player must be able to see their own palbox.
+  // The backend pins them to their own character below the allPalsVisibility
+  // threshold, so the wider gate here does not widen what comes back.
+  { pattern: /^pals$/, methods: ['GET'], capability: CAPABILITIES.VIEW_SELF, feature: FEATURES.BREEDING },
+  // Same reasoning as `pals`: the planner scoped to your own box is a Player
+  // feature, and the backend decides whose Pals it actually reads.
+  { pattern: /^breeding\/[a-z]+$/, methods: ['GET'], capability: CAPABILITIES.VIEW_SELF, feature: FEATURES.BREEDING },
   { pattern: /^players$/, methods: ['GET'], capability: CAPABILITIES.VIEW_DETAIL, feature: null },
   { pattern: /^players\/[A-Za-z0-9-]+$/, methods: ['GET'], capability: CAPABILITIES.VIEW_DETAIL, feature: null },
   { pattern: /^progress$/, methods: ['GET'], capability: CAPABILITIES.VIEW_DETAIL, feature: null },

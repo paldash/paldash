@@ -201,6 +201,43 @@ export default function InteractiveMap() {
     return acc;
   }, [mapObjects, fastTravel, discoveries, onlinePlayers, bases, transform, staticSummary]);
 
+  /**
+   * Save-derived layers, described in the same shape the static ones use, so
+   * one panel serves both.
+   *
+   * These carry a `kind` too — the per-kind filter was only ever wired to the
+   * pak-derived categories, so "show me only copper" worked on the game-file
+   * ore layer and not on the chests your players have actually opened. Built
+   * from what is in view, because unlike the static bundle there is no
+   * world-total summary to quote.
+   */
+  const saveCategories = useMemo(() => {
+    const byCategory = new Map<string, Map<string, number>>();
+    for (const object of mapObjects) {
+      if (!transform.contains(object.x, object.y)) continue;
+      const kinds = byCategory.get(object.category) ?? new Map<string, number>();
+      kinds.set(object.kind, (kinds.get(object.kind) ?? 0) + 1);
+      byCategory.set(object.category, kinds);
+    }
+    // Effigies are their own layer and carry a kind from the extraction.
+    const effigyKinds = new Map<string, number>();
+    for (const point of discoveries?.effigies.points ?? []) {
+      if (!transform.contains(point.x, point.y)) continue;
+      const kind = point.kind || 'Effigy';
+      effigyKinds.set(kind, (effigyKinds.get(kind) ?? 0) + 1);
+    }
+    if (effigyKinds.size) byCategory.set('effigies', effigyKinds);
+
+    return [...byCategory.entries()].map(([id, kinds]) => ({
+      id,
+      label: id,
+      count: [...kinds.values()].reduce((a, b) => a + b, 0),
+      kinds: [...kinds.entries()]
+        .map(([cls, count]) => ({ cls, count }))
+        .sort((a, b) => b.count - a.count),
+    }));
+  }, [mapObjects, discoveries, transform]);
+
   // Search across fast-travel names and base/guild names.
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -385,7 +422,7 @@ export default function InteractiveMap() {
         active={mapLayers}
         counts={counts}
         onToggle={toggleMapLayer}
-        staticCategories={staticSummary?.categories ?? []}
+        staticCategories={[...(staticSummary?.categories ?? []), ...saveCategories]}
         staticKindsOff={staticKindsOff}
         onToggleKind={toggleStaticKind}
         onSetKinds={setStaticKindsOff}
@@ -496,6 +533,7 @@ export default function InteractiveMap() {
           discoveries={discoveries}
           staticObjects={staticObjects}
           layers={mapLayers}
+        kindsOff={staticKindsOff}
           region={region}
           flyTo={flyTo}
           onMouseMove={(x, y) => setMouseCoords({ x, y })}

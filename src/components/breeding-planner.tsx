@@ -25,6 +25,10 @@ export default function BreedingPlanner() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
+  // Defaults to hiding what you already own. The reason to open a breeding
+  // planner is to get something you have not got, so a list topped by Pals
+  // already in your box is mostly noise.
+  const [hideOwned, setHideOwned] = useState(true);
   const [target, setTarget] = useState<string | null>(null);
   const [path, setPath] = useState<{
     reachable: boolean;
@@ -74,8 +78,12 @@ export default function BreedingPlanner() {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return q ? offspring.filter((o) => o.name.toLowerCase().includes(q)) : offspring;
-  }, [offspring, query]);
+    return offspring.filter(
+      (o) =>
+        (!hideOwned || !o.owned) &&
+        (!q || o.name.toLowerCase().includes(q)),
+    );
+  }, [offspring, query, hideOwned]);
 
   if (error) {
     return (
@@ -110,6 +118,15 @@ export default function BreedingPlanner() {
             onChange={(e) => setQuery(e.target.value)}
           />
         </div>
+
+        <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-secondary)' }}>
+          <input
+            type="checkbox"
+            checked={hideOwned}
+            onChange={(e) => setHideOwned(e.target.checked)}
+          />
+          Only ones I don&apos;t have
+        </label>
 
         <button className="btn btn-ghost" onClick={load} disabled={loading}>
           <RefreshCw size={13} /> Refresh

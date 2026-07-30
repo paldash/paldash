@@ -213,7 +213,7 @@ def extract_base_camps(gvas: Any, guild_names: Optional[dict] = None) -> list[di
                 "z": float(translation.get("z") or 0.0),
                 "radius": float(raw.get("area_range") or 0.0),
                 "state": raw.get("state"),
-                "palCount": 0,
+                "guildPalCount": 0,
                 "containerIds": [],
             }
         )

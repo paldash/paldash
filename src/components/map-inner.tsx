@@ -4,6 +4,7 @@ import { useEffect, useRef } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { prettyClass } from '@/lib/pretty-class';
+import { kindColor, markerShape, shapeSvg } from '@/lib/kind-colors';
 import {
   worldToMap,
   worldToGameMap,
@@ -25,6 +26,14 @@ interface Props {
   /** Static pak-derived objects for the current viewport. Fetched by the parent. */
   staticObjects: StaticWorldObject[];
   layers: Record<string, boolean>;
+  /**
+   * Per-category kind exclusions, for the save-derived POI layer.
+   *
+   * The static (pak-derived) layer was filtered server-side by viewport query;
+   * these objects all arrive at once, so the filter is applied here. Same state
+   * either way, so one control governs both.
+   */
+  kindsOff: Record<string, string[]>;
   region: MapRegion;
   /** World coordinates to pan to, bumped by the search box. */
   flyTo: { x: number; y: number; nonce: number } | null;
@@ -140,6 +149,7 @@ export default function MapInner({
   discoveries,
   staticObjects,
   layers,
+  kindsOff,
   region,
   flyTo,
   onMouseMove,
@@ -296,7 +306,10 @@ export default function MapInner({
 
     const transform = getRegion(region);
     const visible = mapObjects.filter(
-      (o) => layers[o.category] && transform.contains(o.x, o.y)
+      (o) =>
+        layers[o.category] &&
+        !(kindsOff[o.category] ?? []).includes(o.kind) &&
+        transform.contains(o.x, o.y)
     );
 
     for (const object of visible.slice(0, MAX_POI_MARKERS)) {
@@ -305,13 +318,38 @@ export default function MapInner({
         { color: '#6d747e', size: 4, label: object.category };
       const coords = worldToGameMap(object.x, object.y);
       const name = object.name || object.kind;
+      // Colour says which kind, shape says which category. Circles stay on the
+      // canvas renderer; anything else needs a DOM marker, which is why only
+      // the sparse categories get one.
+      const color = kindColor(object.kind, style.color);
+      const shape = markerShape(object.category);
+
+      if (shape !== 'circle') {
+        L.marker(worldToMap(object.x, object.y, region), {
+          icon: L.divIcon({
+            className: 'shape-marker',
+            html: shapeSvg(shape, style.size + 2, color),
+            iconSize: [style.size + 2, style.size + 2],
+            iconAnchor: [(style.size + 2) / 2, (style.size + 2) / 2],
+          }),
+        })
+          .bindPopup(
+            `<div style="min-width:150px">
+               <div style="font-weight:600;margin-bottom:3px">${escapeHtml(name)}</div>
+               <div style="font-size:12px;color:#a1a7b0">${escapeHtml(style.label)}</div>
+               <div style="font-size:11px;color:#6d747e;margin-top:4px">${coords.x}, ${coords.y}</div>
+             </div>`
+          )
+          .addTo(group);
+        continue;
+      }
 
       L.circleMarker(worldToMap(object.x, object.y, region), {
         renderer: rendererRef.current ?? undefined,
         radius: style.size / 2,
-        color: style.color,
+        color,
         weight: 1,
-        fillColor: style.color,
+        fillColor: color,
         fillOpacity: 0.7,
       })
         .bindPopup(
@@ -326,7 +364,7 @@ export default function MapInner({
         )
         .addTo(group);
     }
-  }, [mapObjects, layers, region]);
+  }, [mapObjects, layers, kindsOff, region]);
 
   // ─── Static world objects (pak-derived, viewport-scoped) ─
   //
@@ -346,13 +384,42 @@ export default function MapInner({
 
       const style = STATIC_STYLE[object.category] ??
         { color: '#6d747e', size: 3, label: object.category };
+      // Per *kind*, not per category: 17 rocks all drawn in one grey told you
+      // nothing about which was copper and which was coal.
+      const color = kindColor(object.cls, style.color);
+      const shape = markerShape(object.category);
+
+      // Ore and spawners stay canvas circles no matter what: there are 24,359
+      // and 13,851 of them, DOM markers at that count jank the browser, and at
+      // that density shape is indistinguishable anyway.
+      if (shape !== 'circle' && object.category !== 'ore' && object.category !== 'palspawner') {
+        L.marker(worldToMap(object.x, object.y, region), {
+          icon: L.divIcon({
+            className: 'shape-marker',
+            html: shapeSvg(shape, style.size + 1, color),
+            iconSize: [style.size + 1, style.size + 1],
+            iconAnchor: [(style.size + 1) / 2, (style.size + 1) / 2],
+          }),
+          opacity: 0.85,
+        })
+          .bindPopup(() => {
+            const c = worldToGameMap(object.x, object.y);
+            return `<div style="min-width:150px">
+               <div style="font-weight:600;margin-bottom:3px">${escapeHtml(prettyClass(object.cls))}</div>
+               <div style="font-size:12px;color:#a1a7b0">${escapeHtml(style.label)}</div>
+               <div style="font-size:11px;color:#6d747e;margin-top:4px">${c.x}, ${c.y}</div>
+             </div>`;
+          })
+          .addTo(group);
+        continue;
+      }
 
       L.circleMarker(worldToMap(object.x, object.y, region), {
         renderer: rendererRef.current ?? undefined,
         radius: style.size / 2,
-        color: style.color,
+        color,
         weight: 0,
-        fillColor: style.color,
+        fillColor: color,
         fillOpacity: 0.55,
       })
         // Built on open, not on draw. This layer is rebuilt on every pan and
@@ -475,7 +542,7 @@ export default function MapInner({
         .bindPopup(
           `<div style="min-width:180px">
              <div style="font-weight:600;margin-bottom:3px">${escapeHtml(base.guildName)}</div>
-             <div style="font-size:12px;color:#a1a7b0">Pals: ${base.palCount}</div>
+             <div style="font-size:12px;color:#a1a7b0">Guild Pals: ${base.guildPalCount}</div>
              <div style="font-size:11px;color:#6d747e;margin-top:4px">${coords.x}, ${coords.y}</div>
            </div>`
         )

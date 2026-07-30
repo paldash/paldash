@@ -34,6 +34,16 @@ meanings and the player picks:
   player_bases  the above, plus bases in guilds where they are the only member
   guild         the above, plus their whole guild's bases and membership
                 (**the default** — see DEFAULT_MODE)
+  bases_only    the inverse: their guild's bases are hidden but they themselves
+                stay visible, live position included
+
+`bases_only` is the one mode that is not cumulative with the others, which is why
+it sits at the end of the list rather than in the middle of it. The first four
+form a ladder — each hides everything the previous one did, plus more — and a
+fifth rung could only ever mean "and also hide the player". This is a different
+axis: some people are happy to be seen playing and simply do not want their base
+locations advertised. Modelling it as a rung would have meant either lying about
+the ordering or refusing a reasonable request.
 
 `guild` deliberately affects other people's view of a shared asset, so it is the
 one mode with a social cost. It is offered because a two-person guild wanting to
@@ -57,7 +67,7 @@ import roles
 
 logger = logging.getLogger(__name__)
 
-MODES = ("off", "player", "player_bases", "guild")
+MODES = ("off", "player", "player_bases", "guild", "bases_only")
 
 # The default is the MOST private option, not the least.
 #
@@ -96,6 +106,13 @@ MODE_LABELS: dict[str, dict[str, str]] = {
         "description": "As above, and your guild's bases and member list are "
                        "hidden. This affects what others see of a shared guild, "
                        "so agree it with your guildmates.",
+    },
+    "bases_only": {
+        "label": "Hide my bases, not me",
+        "description": "Your guild's bases are hidden, but you stay visible — "
+                       "live position included. For when you do not mind being "
+                       "seen playing and would rather your base locations were "
+                       "not advertised. Also affects a shared guild.",
     },
 }
 
@@ -203,10 +220,12 @@ def hidden_uids(viewer_role: str, viewer_username: str = "") -> dict[str, set[st
         if not conceals(viewer_role, entry["role"], entry["mode"]):
             continue
 
-        players.add(uid)
-        if entry["mode"] in ("player_bases", "guild"):
+        # `bases_only` is the one mode that does not hide the player.
+        if entry["mode"] != "bases_only":
+            players.add(uid)
+        if entry["mode"] in ("player_bases", "guild", "bases_only"):
             bases.add(uid)
-        if entry["mode"] == "guild":
+        if entry["mode"] in ("guild", "bases_only"):
             guilds.add(uid)
 
     return {"players": players, "bases": bases, "guilds": guilds}

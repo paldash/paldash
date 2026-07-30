@@ -457,9 +457,21 @@ def get_policy() -> dict[str, Any]:
 
 
 class PolicyUpdate(BaseModel):
+    """
+    Every field `save_policy` understands has to be declared here.
+
+    Pydantic drops what it does not know, so an omission is silent: the request
+    returns 200, the setting never changes, and only hand-editing policy.json
+    works. `discoveryVisibility` was missing this way once already — adding a
+    field to `save_policy` without adding it here is the failure to watch for.
+    """
+
     securityLevel: Optional[str] = None
     guestVisibility: Optional[dict[str, bool]] = None
     discoveryVisibility: Optional[str] = None
+    baseVisibility: Optional[str] = None
+    serverTotalsVisibility: Optional[str] = None
+    allPalsVisibility: Optional[str] = None
     worldObjectVisibility: Optional[dict[str, str]] = None
 
 
@@ -611,9 +623,74 @@ def _viewer(request: Request) -> tuple[str, str]:
     return str(user.get("role") or "guest"), str(user.get("username") or "")
 
 
+def _foreign_guild_base_ids(request: Request) -> set[str]:
+    """
+    Bases belonging to guilds this viewer is not in, when policy withholds them.
+
+    Separate from `privacy.py` because it answers a different question. Privacy
+    is a **choice a player makes**, and it only protects accounts — someone who
+    has never signed into the dashboard has no row in `users`, so nothing hides
+    them however private the default is. This is the operator's blanket rule,
+    which needs no account to take effect.
+
+    Returns nothing at `everyone`, nothing for a viewer whose rank clears the
+    threshold, and nothing when the world has not been parsed — the caller's
+    other filters still apply, and a missing world means there are no bases to
+    withhold rather than every base to withhold.
+    """
+    role, _ = _viewer(request)
+    user = authz.current_user(request)
+
+    # Staff are exempt, always. This is the same rule per-player privacy
+    # follows — "a player can never hide from staff, so moderation works
+    # without anyone maintaining an exemption list" — and it applies with more
+    # force here, because this filter is the *operator's* own setting and an
+    # operator who cannot see the bases they are responsible for has misread
+    # the switch. `players.moderate` is the line: it is the capability that
+    # means answerable for what happens on this server.
+    if roles_module.PLAYERS_MODERATE in authz.effective_capabilities(user):
+        return set()
+
+    level = policy_module.load_policy().get(
+        "baseVisibility", policy_module.DEFAULT_BASE_VISIBILITY
+    )
+    if policy_module.may_see_all_bases(role, level):
+        return set()
+
+    bases = savecache.get_section("bases")
+    if not bases:
+        return set()
+
+    # A guest, or an account with no linked character, is in no guild — so at
+    # anything short of `everyone` they see no guild bases at all. That is the
+    # setting working rather than a bug: "only your own guild's" is an empty set
+    # when you have no guild.
+    viewer_uid = privacy.normalise_uid((user or {}).get("steamUid"))
+
+    own_guilds: set[str] = set()
+    if viewer_uid:
+        for guild in savecache.get_section("guilds"):
+            members = {
+                privacy.normalise_uid(m.get("uid"))
+                for m in (guild.get("members") or [])
+                if m.get("uid")
+            }
+            if viewer_uid in members:
+                own_guilds.add(str(guild.get("id") or ""))
+
+    return {
+        str(base.get("id") or "")
+        for base in bases
+        if str(base.get("guildId") or "") not in own_guilds
+    }
+
+
 def _hidden_base_ids(request: Request) -> set[str]:
     """
     Every base id concealed from this viewer, for either of the two reasons.
+
+    Three reasons now: per-player privacy, per-base visibility set by a guild
+    master, and the server-wide `baseVisibility` policy.
 
     One function because there are three endpoints that must agree — the base
     markers, the objects standing inside them, and their storage contents. A
@@ -629,7 +706,7 @@ def _hidden_base_ids(request: Request) -> set[str]:
     viewer = _viewer(request)
     hidden = privacy.hidden_uids(*viewer)
 
-    ids: set[str] = set()
+    ids: set[str] = set() | _foreign_guild_base_ids(request)
     if hidden["bases"] or hidden["guilds"]:
         bases = savecache.get_section("bases")
         kept = {
@@ -696,13 +773,19 @@ def _enriched_pals() -> list[dict]:
                 "activeSkillNames": [
                     gamedata.skill_name(w) for w in (pal.get("activeSkills") or [])
                 ],
+                # Work suitabilities and rarity come from the bundled tables, not
+                # the save — a Pal's work levels are a property of its species.
+                # Attached here so the client can filter on "can mine at 3+"
+                # without a lookup table of its own.
+                "workSuitabilities": details.get("workSuitabilities") or {},
+                "rarity": details.get("rarity", 0),
             }
         )
     return enriched
 
 
 @app.get("/api/pals")
-def get_pals(owner: Optional[str] = None) -> list[dict]:
+def get_pals(request: Request, owner: Optional[str] = None) -> list[dict]:
     """
     Pals, named. Enrichment is cached per parse rather than redone per request.
 
@@ -710,11 +793,28 @@ def get_pals(owner: Optional[str] = None) -> list[dict]:
     otherwise make the cache key depend on the query and the shared work would
     never be shared. Narrowing 1,905 rows costs microseconds; naming them costs
     milliseconds.
+
+    **`VIEW_SELF` is enough to read your own Pals.** A palbox is 960 slots and
+    the game shows one Pal at a time, so this is the view that most justifies a
+    dashboard — and gating it on `VIEW_DETAIL` meant a Player could see nothing
+    of their own. Below the `allPalsVisibility` threshold the caller is pinned to
+    their own character regardless of `?owner=`.
     """
+    authz.require(request, roles_module.VIEW_SELF)
     pals = viewcache.derived("pals:enriched", _enriched_pals)
-    if owner:
-        key = owner.lower()
-        pals = [p for p in pals if (p.get("ownerUid") or "").lower().startswith(key)]
+
+    effective = _breeding_owner(request, owner)
+    if effective:
+        # Normalise BOTH sides. `_own_identity` returns a dash-stripped uid and
+        # the save stores a dashed one, so comparing them raw matches nothing —
+        # and matches nothing *silently*, which is how a scoped view becomes an
+        # empty view that looks like "you own no Pals". `_pals_for` already does
+        # this; the inline filter here did not.
+        key = effective.replace("-", "").lower()
+        pals = [
+            p for p in pals
+            if (p.get("ownerUid") or "").replace("-", "").lower().startswith(key)
+        ]
     return pals
 
 
@@ -1218,8 +1318,37 @@ def get_paldeck_entry(species_id: str, request: Request) -> dict[str, Any]:
     return {**details, **extra, "speciesIds": ids, "habitat": habitats.merged(ids)}
 
 
+@app.get("/api/items/scopes")
+def item_scopes(request: Request) -> dict[str, Any]:
+    """
+    Which item scopes this caller may ask for, and what they are called.
+
+    Returned rather than inferred client-side because the answer depends on a
+    policy the browser does not hold, and on which guilds the caller is actually
+    in — a UI that guessed would offer options that come back empty.
+    """
+    authz.require(request, roles_module.VIEW_SELF)
+    _, guild_ids = _own_identity(request)
+    guilds = [
+        {"id": str(g.get("id") or ""), "name": g.get("name") or "Guild"}
+        for g in savecache.get_section("guilds")
+        if str(g.get("id") or "") in guild_ids
+    ]
+    return {
+        "guilds": guilds,
+        "serverWide": _may_see_server_wide(request),
+        "bases": roles_module.VIEW_DETAIL in authz.effective_capabilities(
+            authz.current_user(request)
+        ),
+    }
+
+
 @app.get("/api/items")
-def get_item_totals(limit: int = Query(500, ge=1, le=5000)) -> dict[str, Any]:
+def get_item_totals(
+    request: Request,
+    limit: int = Query(500, ge=1, le=5000),
+    guild: Optional[str] = None,
+) -> dict[str, Any]:
     """
     Every item on the server, totalled across all containers — the equivalent of
     standing at an item retrieval unit and asking what exists.
@@ -1227,9 +1356,27 @@ def get_item_totals(limit: int = Query(500, ge=1, le=5000)) -> dict[str, Any]:
     Names are resolved at request time rather than baked into the parse cache, so
     refreshing the bundled game data does not require re-parsing the world.
     """
+    authz.require(request, roles_module.VIEW_SELF)
     data = savecache.get_data() or {}
-    items = data.get("items") or []
     containers = data.get("containers") or {}
+
+    # Scope before totalling. A server-wide figure answers "what exists here",
+    # which is an operations question rather than a player-facing one, and it
+    # discloses every guild's holdings in a single number.
+    own_uid, own_guilds = _own_identity(request)
+    server_wide = _may_see_server_wide(request)
+
+    if guild:
+        if guild not in own_guilds and not server_wide:
+            raise HTTPException(403, "You are not a member of that guild.")
+        items, scope = _items_for_guilds({guild}), f"guild:{guild}"
+    elif server_wide:
+        items, scope = (data.get("items") or []), "server"
+    else:
+        # The default for anyone below the threshold: their own guilds' bases.
+        # Not "their own items" — containers belong to *bases*, which belong to
+        # guilds, so there is no per-player ownership in the save to key on.
+        items, scope = _items_for_guilds(own_guilds), "own"
 
     enriched = []
     for entry in items[:limit]:
@@ -1239,6 +1386,9 @@ def get_item_totals(limit: int = Query(500, ge=1, le=5000)) -> dict[str, Any]:
 
     return {
         "items": enriched,
+        # Say what was actually counted. A total labelled server-wide that
+        # silently was not would be worse than a refusal.
+        "scope": scope,
         "itemTypes": len(items),
         "totalCount": sum(i["count"] for i in items),
         "containersScanned": len(containers),
@@ -1325,6 +1475,37 @@ def player_roster(request: Request) -> dict[str, Any]:
         "gameApiReachable": bool(online_by_uid) or gameapi.configured(),
         "canManageAccounts": may_manage_users,
     }
+
+
+def _items_for_guilds(guild_ids: set[str]) -> list[dict]:
+    """
+    Item totals restricted to the bases of the given guilds.
+
+    Built from `baseStorage`, which the parse already produces per base with its
+    own per-item breakdown — so this is a group-by rather than a second walk of
+    11,639 containers.
+
+    Player inventories and palboxes are **not** included. They are containers the
+    per-base join does not attribute to any base (that is exactly how
+    `extract_container_ownership` separates them), and folding them in would make
+    a guild total silently include things nobody put in guild storage.
+    """
+    if not guild_ids:
+        return []
+
+    totals: dict[str, int] = {}
+    for entry in savecache.get_section("baseStorage"):
+        if str(entry.get("guildId") or "") not in guild_ids:
+            continue
+        for item in entry.get("items") or []:
+            item_id = item.get("itemId") or ""
+            if item_id:
+                totals[item_id] = totals.get(item_id, 0) + int(item.get("count") or 0)
+
+    return [
+        {"itemId": item_id, "count": count}
+        for item_id, count in sorted(totals.items(), key=lambda kv: -kv[1])
+    ]
 
 
 def _read_player_sav(path: str, uid: str) -> dict:
@@ -1449,6 +1630,52 @@ def get_inventory(container_id: str) -> dict:
 # ─── Breeding ────────────────────────────────────────────
 
 
+def _own_identity(request: Request) -> tuple[str, set[str]]:
+    """
+    The caller's own character uid and the guild ids they belong to.
+
+    Both empty for a guest or an account with no linked character — which means
+    "own-scoped" resolves to nothing rather than to everything. That is the
+    intended direction: an unlinked account has no claim on anyone's data, and
+    the fix is to link it from the Players tab.
+    """
+    user = authz.current_user(request)
+    uid = privacy.normalise_uid((user or {}).get("steamUid"))
+    if not uid:
+        return "", set()
+
+    guilds = {
+        str(guild.get("id") or "")
+        for guild in savecache.get_section("guilds")
+        if uid in {
+            privacy.normalise_uid(m.get("uid"))
+            for m in (guild.get("members") or [])
+            if m.get("uid")
+        }
+    }
+    return uid, guilds
+
+
+def _may_see_server_wide(request: Request) -> bool:
+    role, _ = _viewer(request)
+    return policy_module.meets_scope(
+        role,
+        policy_module.load_policy().get(
+            "serverTotalsVisibility", policy_module.DEFAULT_SERVER_TOTALS
+        ),
+    )
+
+
+def _may_see_all_pals(request: Request) -> bool:
+    role, _ = _viewer(request)
+    return policy_module.meets_scope(
+        role,
+        policy_module.load_policy().get(
+            "allPalsVisibility", policy_module.DEFAULT_ALL_PALS
+        ),
+    )
+
+
 def _pals_for(owner: Optional[str]) -> list[dict]:
     pals = savecache.get_section("pals")
     if not owner:
@@ -1457,18 +1684,35 @@ def _pals_for(owner: Optional[str]) -> list[dict]:
     return [p for p in pals if (p.get("ownerUid") or "").replace("-", "").lower().startswith(key)]
 
 
+def _breeding_owner(request: Request, owner: Optional[str]) -> Optional[str]:
+    """
+    Which player's Pals a breeding request may actually use.
+
+    Below the `allPalsVisibility` threshold a caller is pinned to their own
+    character, whatever they asked for — the query parameter is a convenience
+    for people who may already see everyone, not a way around the setting.
+
+    An unlinked account gets a uid that matches nothing, which yields an empty
+    palbox. That is the honest answer: they have no Pals *here*.
+    """
+    if _may_see_all_pals(request):
+        return owner
+    uid, _ = _own_identity(request)
+    return uid or "\u0000no-such-uid"
+
+
 @app.get("/api/breeding/palbox")
-def breeding_palbox(owner: Optional[str] = None) -> dict:
+def breeding_palbox(request: Request, owner: Optional[str] = None) -> dict:
     try:
-        return breeding.summarize_palbox(_pals_for(owner))
+        return breeding.summarize_palbox(_pals_for(_breeding_owner(request, owner)))
     except breeding.BreedingDataError as e:
         raise HTTPException(503, str(e))
 
 
 @app.get("/api/breeding/offspring")
-def breeding_offspring(owner: Optional[str] = None) -> list[dict]:
+def breeding_offspring(request: Request, owner: Optional[str] = None) -> list[dict]:
     try:
-        return breeding.possible_offspring(_pals_for(owner))
+        return breeding.possible_offspring(_pals_for(_breeding_owner(request, owner)))
     except breeding.BreedingDataError as e:
         raise HTTPException(503, str(e))
 
@@ -1491,9 +1735,9 @@ def breeding_reachable(owner: Optional[str] = None) -> dict:
 
 
 @app.get("/api/breeding/paths")
-def breeding_path(target: str, owner: Optional[str] = None) -> dict:
+def breeding_path(request: Request, target: str, owner: Optional[str] = None) -> dict:
     try:
-        summary = breeding.summarize_palbox(_pals_for(owner))
+        summary = breeding.summarize_palbox(_pals_for(_breeding_owner(request, owner)))
         owned = [s["internalName"] for s in summary["species"]]
         return breeding.breeding_paths(target, owned)
     except breeding.BreedingDataError as e:

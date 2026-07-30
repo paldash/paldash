@@ -67,6 +67,97 @@ LEVEL_CAPABILITIES: dict[str, list[str]] = {
 DISCOVERY_SENTINELS = ("everyone", "nobody")
 DEFAULT_DISCOVERY = "trusted"
 
+# Who may see guild bases they are not a member of.
+#
+#   everyone      — anyone who can see the map
+#   own           — only your own guild's bases
+#   <role name>   — that role's rank and above sees everything; below that,
+#                   only their own guild's
+#
+# **Defaults to `own`**, for the same reason per-player privacy defaults to its
+# most private mode: `privacy.py` protects *accounts*, and a player who has
+# never signed into the dashboard has no row in `users` and therefore no privacy
+# setting at all. Without this, everyone's bases were visible to every signed-in
+# Player until each of them independently created an account — which is exactly
+# the "exposed until you discover the setting exists" failure the privacy
+# default was written to avoid.
+#
+# Like `discoveryVisibility`, this is a taste question about how a server is run
+# rather than a security one, so it is configurable rather than hardcoded. Staff
+# ranks are unaffected: moderation cannot work through a filter.
+BASE_SENTINELS = ("everyone", "own")
+DEFAULT_BASE_VISIBILITY = "own"
+
+# Who may see figures covering the **whole server** rather than their own things.
+#
+#   everyone      — anyone with the tab
+#   <role name>   — that rank and above
+#   own           — nobody; everyone is scoped to their own guild/character
+#
+# `admin` by default. A server-wide item total is a useful operations number and
+# a poor player-facing one: it answers "what exists on this server", which is a
+# question about the server rather than about you, and it discloses every
+# guild's holdings in one figure. Below the threshold the same endpoints scope to
+# the caller instead of refusing, because an empty tab teaches nothing.
+DEFAULT_SERVER_TOTALS = "admin"
+
+# Who may see **everyone's** Pals in the breeding planner, rather than their own.
+#
+# `trusted` by default: the planner is far more useful across a whole server, and
+# Trusted is already the "may see other players in detail" rank. A plain Player
+# gets the same planner scoped to their own box, which is the common case anyway.
+DEFAULT_ALL_PALS = "trusted"
+
+
+def is_scope_level(value: Any) -> bool:
+    import roles
+
+    return isinstance(value, str) and (
+        value in BASE_SENTINELS or roles.is_role(value)
+    )
+
+
+def meets_scope(role: str, level: str) -> bool:
+    """
+    Whether `role` clears a scope threshold.
+
+    Shares `may_see_all_bases`' vocabulary deliberately — `everyone`, a role
+    name, or `own` meaning nobody clears it — so an operator learns one set of
+    words rather than four.
+    """
+    return may_see_all_bases(role, level)
+
+
+def base_visibility_choices() -> tuple[str, ...]:
+    import roles
+
+    return BASE_SENTINELS[:1] + roles.ASSIGNABLE_ROLES + BASE_SENTINELS[1:]
+
+
+def is_base_visibility(value: Any) -> bool:
+    import roles
+
+    return isinstance(value, str) and (
+        value in BASE_SENTINELS or roles.is_role(value)
+    )
+
+
+def may_see_all_bases(role: str, level: str) -> bool:
+    """
+    Whether `role` sees every guild's bases, or only their own guild's.
+
+    `own` means nobody clears it by rank — which is deliberate and is what makes
+    the setting meaningful. Staff are exempted by the *caller*, not here, so this
+    stays a pure threshold test.
+    """
+    import roles
+
+    if level == "everyone":
+        return True
+    if level == "own" or not roles.is_role(role):
+        return False
+    return roles.ROLES[role]["rank"] >= roles.ROLES.get(level, {"rank": 99})["rank"]
+
 
 def discovery_choices() -> tuple[str, ...]:
     import roles
@@ -166,6 +257,28 @@ def _env_discovery() -> str:
     return level
 
 
+def _env_base_visibility() -> str:
+    level = os.environ.get("BASE_VISIBILITY", DEFAULT_BASE_VISIBILITY).strip().lower()
+    if not is_base_visibility(level):
+        logger.warning(
+            "Unknown BASE_VISIBILITY=%r, falling back to %r. Known: %s",
+            level, DEFAULT_BASE_VISIBILITY, ", ".join(base_visibility_choices()),
+        )
+        return DEFAULT_BASE_VISIBILITY
+    return level
+
+
+def _env_scope(name: str, default: str) -> str:
+    level = os.environ.get(name, default).strip().lower()
+    if not is_scope_level(level):
+        logger.warning(
+            "Unknown %s=%r, falling back to %r. Known: %s",
+            name, level, default, ", ".join(base_visibility_choices()),
+        )
+        return default
+    return level
+
+
 def _env_world_object_levels() -> dict[str, str]:
     """
     Per-category thresholds from the environment, e.g.
@@ -218,6 +331,9 @@ def default_policy() -> dict[str, Any]:
     return {
         "securityLevel": _env_level(),
         "discoveryVisibility": _env_discovery(),
+        "baseVisibility": _env_base_visibility(),
+        "serverTotalsVisibility": _env_scope("SERVER_TOTALS_VISIBILITY", DEFAULT_SERVER_TOTALS),
+        "allPalsVisibility": _env_scope("ALL_PALS_VISIBILITY", DEFAULT_ALL_PALS),
         "worldObjectVisibility": _env_world_object_levels(),
         "guestVisibility": {
             "serverStatus": _env_bool("GUEST_SEE_SERVER_STATUS", True),
@@ -257,6 +373,54 @@ def _describe_discovery_levels() -> list[dict[str, Any]]:
     return out
 
 
+def _describe_base_visibility() -> list[dict[str, Any]]:
+    """The threshold choices for guild-base visibility, for a UI to render."""
+    import roles
+
+    out: list[dict[str, Any]] = [{
+        "id": "everyone", "label": "Everyone",
+        "description": "Anyone who can see the map sees every guild's bases.",
+    }]
+    for name in roles.ASSIGNABLE_ROLES:
+        role = roles.ROLES[name]
+        out.append({
+            "id": name,
+            "label": f"{role['label']} and above",
+            "description": f"Ranks below {role['label']} see only their own "
+                           "guild's bases.",
+        })
+    out.append({
+        "id": "own", "label": "Own guild only",
+        "description": "Everyone sees only their own guild's bases. Moderators "
+                       "and above always see all of them, so moderation still "
+                       "works.",
+    })
+    return out
+
+
+def _describe_scope_levels() -> list[dict[str, Any]]:
+    """Threshold choices for the server-wide/own-scope settings."""
+    import roles
+
+    out: list[dict[str, Any]] = [{
+        "id": "everyone", "label": "Everyone",
+        "description": "Anyone with the tab sees server-wide figures.",
+    }]
+    for name in roles.ASSIGNABLE_ROLES:
+        role = roles.ROLES[name]
+        out.append({
+            "id": name,
+            "label": f"{role['label']} and above",
+            "description": f"Ranks below {role['label']} see only their own.",
+        })
+    out.append({
+        "id": "own", "label": "Own only",
+        "description": "Everyone is scoped to their own guild or character, "
+                       "including staff.",
+    })
+    return out
+
+
 def _level_rank(level: str) -> int:
     try:
         return SECURITY_LEVELS.index(level)
@@ -281,6 +445,11 @@ def load_policy() -> dict[str, Any]:
                 policy["securityLevel"] = stored["securityLevel"]
             if is_discovery_level(stored.get("discoveryVisibility")):
                 policy["discoveryVisibility"] = stored["discoveryVisibility"]
+            if is_base_visibility(stored.get("baseVisibility")):
+                policy["baseVisibility"] = stored["baseVisibility"]
+            for field in ("serverTotalsVisibility", "allPalsVisibility"):
+                if is_scope_level(stored.get(field)):
+                    policy[field] = stored[field]
             world_objects = stored.get("worldObjectVisibility")
             if isinstance(world_objects, dict):
                 # Merged over the defaults rather than replacing them, so a
@@ -337,6 +506,25 @@ def save_policy(update: dict[str, Any]) -> dict[str, Any]:
                 f"Known: {', '.join(discovery_choices())}"
             )
         current["discoveryVisibility"] = discovery
+
+    base_visibility = update.get("baseVisibility")
+    if isinstance(base_visibility, str):
+        if not is_base_visibility(base_visibility):
+            raise ValueError(
+                f"Unknown base visibility: {base_visibility}. "
+                f"Known: {', '.join(base_visibility_choices())}"
+            )
+        current["baseVisibility"] = base_visibility
+
+    for field in ("serverTotalsVisibility", "allPalsVisibility"):
+        value = update.get(field)
+        if isinstance(value, str):
+            if not is_scope_level(value):
+                raise ValueError(
+                    f"Unknown {field}: {value}. "
+                    f"Known: {', '.join(base_visibility_choices())}"
+                )
+            current[field] = value
 
     world_objects = update.get("worldObjectVisibility")
     if isinstance(world_objects, dict):
@@ -427,6 +615,8 @@ def describe() -> dict[str, Any]:
         ],
         "visibilityKeys": list(GUEST_VISIBILITY_KEYS),
         "discoveryLevels": _describe_discovery_levels(),
+        "baseVisibilityLevels": _describe_base_visibility(),
+        "scopeLevels": _describe_scope_levels(),
         # The categories to offer a dial for come from the bundled data rather
         # than a list here, so new extracted content is configurable without a
         # code change. Imported lazily: policy is loaded on paths that have no

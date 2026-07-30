@@ -103,7 +103,21 @@ def main() -> int:
     storage_by_base = {s["baseId"]: s for s in base_storage}
 
     for base in bases:
-        base["palCount"] = sum(1 for p in pals if p.get("guildId") == base.get("guildId"))
+        # A GUILD figure, and named as one.
+        #
+        # It was `palCount` on the base, which read as "Pals at this base" and
+        # was not: every base in a guild got the guild's whole total, so the
+        # Bases tab summed 100 Pals across three bases into 300.
+        #
+        # Per-base attribution is not available. Pals live in character
+        # containers (palboxes), `extract_container_ownership` maps *item*
+        # containers to bases, and guild bases share a palbox anyway — so
+        # "which base is this Pal at" has no answer in the save. Reporting the
+        # guild total once, honestly labelled, is the whole of what the data
+        # supports.
+        base["guildPalCount"] = sum(
+            1 for p in pals if p.get("guildId") == base.get("guildId")
+        )
         base["objectCount"] = sum(1 for o in map_objects if o.get("baseCampId") == base["id"])
         summary = storage_by_base.get(base["id"])
         base["containerIds"] = [c["containerId"] for c in summary["containers"]] if summary else []
