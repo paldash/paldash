@@ -42,7 +42,7 @@
   "source": "Pal-LinuxServer.pak (spawner blueprint name tables + placed spawner actors)",
   "gameBuild": "24370498",
   "regenerateWith": "python3 scripts/extract-pal-habitats.py --out backend/data/habitats.json.gz",
-  "note": "348 species -> the streaming cells their spawners occupy. Derived by intersecting each spawner sheet's NAME TABLE with the known species list, because the blueprints are cooked with unversioned properties and cannot be decoded. 13,440 of 13,851 spawners attributed (97.0%). Depends on worldobjects.json.gz being regenerated first, with palspawner in --targets."
+  "note": "348 species -> the streaming cells their spawners occupy. Derived by intersecting each spawner sheet's NAME TABLE with the known species list, because the blueprints are cooked with unversioned properties and cannot be decoded. 13,440 of 13,851 spawners attributed (97.0%). Encounter-only forms (_Oilrig, _Tower) legitimately have none \u2014 they are placed by encounter logic, not by world spawners, which is why the Paldeck merges variants into one entry and unions their ranges. Depends on worldobjects.json.gz being regenerated first, with palspawner in --targets."
  },
  "icons/": {
   "source": "PalWorldSaveTools-main.zip resources/icons (MIT, (c) 2026 Pylar)",

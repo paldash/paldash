@@ -162,6 +162,32 @@ describe('describeSavePath', () => {
     });
   });
 
+  describe('paldeck', () => {
+    it('is readable at VIEW_BASIC, both listing and entry', () => {
+      expect(describeSavePath('world/paldeck', 'GET')).toMatchObject({
+        allowed: true,
+        capability: CAPABILITIES.VIEW_BASIC,
+      });
+      expect(describeSavePath('world/paldeck/SheepBall', 'GET')).toMatchObject({
+        allowed: true,
+        capability: CAPABILITIES.VIEW_BASIC,
+      });
+    });
+
+    it('is read-only', () => {
+      expect(describeSavePath('world/paldeck', 'POST').allowed).toBe(false);
+      expect(describeSavePath('world/paldeck/SheepBall', 'DELETE').allowed).toBe(false);
+    });
+
+    it('refuses a species id containing separators', () => {
+      // The id goes into a path segment; anything with a slash or dot must not
+      // reach the backend as a species name.
+      expect(describeSavePath('world/paldeck/../build', 'GET').allowed).toBe(false);
+      expect(describeSavePath('world/paldeck/a.b', 'GET').allowed).toBe(false);
+      expect(describeSavePath('world/paldeck/a-b', 'GET').allowed).toBe(false);
+    });
+  });
+
   describe('bundled data pack reload', () => {
     it('is a POST gated on POLICY_MANAGE', () => {
       expect(describeSavePath('world/packs/reload', 'POST')).toMatchObject({

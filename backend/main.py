@@ -57,6 +57,7 @@ import schedule as schedule_module
 import settings_ini
 import viewcache
 import worldobjects
+import habitats
 import backup as backup_module
 from backupstore import BackupError
 from parser import (
@@ -1071,6 +1072,119 @@ def get_reference_data() -> dict[str, Any]:
         }
     except gamedata.GameDataUnavailable as e:
         raise HTTPException(503, str(e))
+
+
+def _paldeck_entries() -> list[dict[str, Any]]:
+    """
+    One row per Paldeck entry, with the ids that feed it.
+
+    Two kinds of duplicate have to collapse here or the same Pal is listed
+    several times:
+
+    - **`BOSS_`/`PREDATOR_` prefixes** — `describe_pal` already strips them, so
+      anything reporting a prefix is a second copy of a species already present.
+    - **Location suffixes** — `HadesBird` and `HadesBird_Oilrig`,
+      `GrassPanda_Electric` and `..._Tower`. These share a Paldeck number and a
+      name but genuinely spawn in different places, so they are merged into one
+      entry whose habitat is the *union* of theirs. Dropping either would hide
+      half of where the Pal is found.
+
+    Entries the in-game Paldeck does not list are excluded outright — see the
+    comment on the negative-index check below.
+    """
+    grouped: dict[Any, dict[str, Any]] = {}
+    for species_id in (gamedata.load().get("pals") or {}):
+        details = gamedata.describe_pal(species_id)
+        if details["variants"]:
+            continue
+        number = details["paldeckNumber"]
+        # Only real Paldeck entries. Negative zukan indices are not "missing a
+        # number" — they mark things the in-game Paldeck does not list at all:
+        # -2 for gym bosses, -1 for species present in the files but unreleased.
+        # Including them put five "Zoe & Grizzbolt (Gym)" rows in a Paldeck.
+        if not number or number <= 0:
+            continue
+        row = grouped.get(number)
+        if row is None:
+            grouped[number] = {**details, "speciesIds": [species_id]}
+            continue
+        row["speciesIds"].append(species_id)
+        # Keep the shortest id as canonical: `HadesBird` reads better than
+        # `HadesBird_Oilrig` and is the one every other view already uses.
+        if len(species_id) < len(row["id"]):
+            row.update({**details, "speciesIds": row["speciesIds"]})
+
+    entries = []
+    for row in grouped.values():
+        habitat = habitats.merged(row["speciesIds"])
+        entries.append({**row, "hasHabitat": habitat["known"],
+                        "habitatCells": len(habitat["cells"])})
+    return entries
+
+
+@app.get("/api/world/paldeck")
+def get_paldeck(request: Request) -> dict[str, Any]:
+    """
+    Every Pal in the game, from bundled data rather than from the save.
+
+    This is a reference view, not a report on your server — it lists what exists
+    so a player can look something up, which is why it is `VIEW_BASIC` and needs
+    no parsed world.
+
+    Variant and boss forms are excluded: they share a Paldeck number with their
+    base species and would list the same Pal several times. `describe_pal`
+    already strips those prefixes, so anything with a prefix is a duplicate.
+    """
+    authz.require(request, roles_module.VIEW_BASIC)
+    try:
+        entries = _paldeck_entries()
+    except gamedata.GameDataUnavailable as e:
+        raise HTTPException(503, str(e))
+
+    # Paldeck order, with unlisted entries last.
+    #
+    # `paldeckNumber` is not simply "0 when absent": the game uses **negative**
+    # zukan indices for things that are not Paldeck entries at all — gym bosses
+    # are -2, and -1 marks a species present in the files but not in the
+    # Paldeck. A plain `or 9999` leaves those negatives intact and sorts them
+    # ahead of Lamball, which is how Axel & Orserk ended up as entry number one.
+    entries.sort(key=lambda p: (p["paldeckNumber"] if p["paldeckNumber"] > 0 else 9999,
+                                p["name"]))
+    return {"pals": entries, "habitats": habitats.summary()}
+
+
+@app.get("/api/world/paldeck/{species_id}")
+def get_paldeck_entry(species_id: str, request: Request) -> dict[str, Any]:
+    """One Pal's full detail, including where it spawns."""
+    authz.require(request, roles_module.VIEW_BASIC)
+    try:
+        details = gamedata.describe_pal(species_id)
+    except gamedata.GameDataUnavailable as e:
+        raise HTTPException(503, str(e))
+    if not details["known"]:
+        raise HTTPException(404, f"No bundled data for species {species_id!r}")
+
+    # palcalc's table carries stats, work values and breeding power that the
+    # game-data bundle does not, so the two are merged rather than picked between.
+    extra: dict[str, Any] = {}
+    try:
+        info = breeding.pal_info(species_id)
+        if info.get("known"):
+            extra = {
+                "stats": info.get("stats") or {},
+                "work": info.get("work") or {},
+                "breedingPower": info.get("breedingPower"),
+                "genderOdds": info.get("genderOdds") or {},
+            }
+    except breeding.BreedingDataError:
+        pass        # breeding data is optional; the entry is still useful
+
+    # Merge the location variants that share this Paldeck number, so the map
+    # shows every place the Pal is found rather than one of them.
+    siblings = [e["speciesIds"] for e in _paldeck_entries()
+                if species_id in e["speciesIds"]]
+    ids = siblings[0] if siblings else [species_id]
+    return {**details, **extra, "speciesIds": ids, "habitat": habitats.merged(ids)}
 
 
 @app.get("/api/items")

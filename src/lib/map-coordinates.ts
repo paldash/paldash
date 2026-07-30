@@ -196,6 +196,29 @@ export function worldToMap(
   return [MAP_SIZE - imageY, imageX];
 }
 
+/**
+ * World coordinates to **image-space** pixels (top-left origin, y down).
+ *
+ * `worldToMap` returns Leaflet's `[lat, lng]`, which has its origin at the
+ * bottom-left — right for Leaflet, wrong for SVG and canvas. The Paldeck's
+ * habitat map is a plain SVG over the texture, so it wants this instead of
+ * flipping Leaflet's output back at every call site.
+ *
+ * Output is in the same 0..MAP_SIZE space as the Leaflet map, so a consumer
+ * scales by `viewportSize / MAP_SIZE`.
+ */
+export function worldToImage(
+  worldX: number,
+  worldY: number,
+  region: MapRegion = 'palpagos'
+): { x: number; y: number } {
+  const t = getRegion(region);
+  return {
+    x: worldY * t.imgXScale + t.imgXOffset,
+    y: worldX * t.imgYScale + t.imgYOffset,
+  };
+}
+
 /** Leaflet [lat, lng] back to world coordinates on a given region's map. */
 export function mapToWorld(
   lat: number,

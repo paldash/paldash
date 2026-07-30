@@ -626,6 +626,7 @@ export type DashboardTab =
   | 'bases'
   | 'items'
   | 'breeding'
+  | 'paldeck'
   | 'settings'
   | 'access'
   | 'backups'
@@ -1043,6 +1044,67 @@ export interface SettingsPreset {
 }
 
 // ─── Breeding ───────────────────────────────────────────
+
+/** One World Partition cell a species' spawners occupy, in world space. */
+export interface HabitatRegion {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  landmass: 'palpagos' | 'worldtree';
+}
+
+/**
+ * Where a species spawns.
+ *
+ * `known: false` is ordinary, not an error — plenty of Pals have no spawner at
+ * all (tower bosses, raid-only, breeding-only).
+ */
+export interface Habitat {
+  species: string;
+  known: boolean;
+  mergedFrom?: string[];
+  cells: [number, number][];
+  regions: HabitatRegion[];
+  spawnerCount: number;
+  cellSize: number;
+}
+
+/** One row of the Paldeck listing. */
+export interface PaldeckEntry {
+  id: string;
+  species: string;
+  name: string;
+  icon: string;
+  elements: string[];
+  rarity: number;
+  paldeckNumber: number;
+  workSuitabilities: Record<string, number>;
+  /** Location variants merged into this entry (e.g. `HadesBird_Oilrig`). */
+  speciesIds: string[];
+  hasHabitat: boolean;
+  habitatCells: number;
+  known: boolean;
+}
+
+export interface PaldeckListing {
+  pals: PaldeckEntry[];
+  habitats: {
+    species: number;
+    spawnersMatched: number;
+    spawnersTotal: number;
+    cellSize: number;
+    available: boolean;
+  };
+}
+
+export interface PaldeckDetail extends PaldeckEntry {
+  habitat: Habitat;
+  stats?: Record<string, number>;
+  work?: Record<string, number>;
+  breedingPower?: number;
+  genderOdds?: { MALE: number; FEMALE: number };
+}
 
 export interface PalSummary {
   internalName: string;

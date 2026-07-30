@@ -83,6 +83,29 @@ Legend: ✅ works · 🟡 works with a caveat · 🔴 not built · ⚪ out of sc
 | Real stack limits | ✅ | **Phase 5**, `max(authoritative, observed)` |
 | Category rules / priorities / profiles | 🔴 | Deferred — these decide *where an item goes*, which is editor semantics |
 
+## 4b. Paldeck
+
+| Feature | State | Notes |
+|---|---|---|
+| Browse every Pal | ✅ | 204 Paldeck entries from bundled data. Needs **no parsed save** — it describes the game, not your server, so it is `VIEW_BASIC` |
+| Spawn habitat map | ✅ | 183 of 204 entries. A side map shading where the species is found, at streaming-cell resolution |
+| Search | ✅ | Name, Paldeck number, internal id or element |
+| Location variants merged | ✅ | `HadesBird` + `HadesBird_Electric` are one Helzephyr entry with the **union** of their ranges |
+| Spawn *rates* | 🔴 | Not derivable. A sheet says a species is referenced by spawners in an area, not how often it appears |
+
+**Where the habitat data comes from, and why it took a detour.** Spawner actors
+name a *sheet*, not a species (`BP_PalSpawner_Sheets_2_1_forest_1`), and the
+species list lives in properties that are cooked with unversioned property names
+— undecodable. But a package's **name table** is plainly serialised, so reading
+the sheet's name table and intersecting it with the known species list yields
+its roster. Same trick the effigy extractor uses: attribution without decoding.
+
+Result: **348 species mapped, 13,440 of 13,851 spawners attributed (97.0%)**.
+
+**Encounter-only forms have no habitat, and that is correct.** `_Oilrig` and
+`_Tower` variants are placed by encounter logic rather than by world spawners.
+Merging variants is what keeps their Paldeck entry mapped anyway.
+
 ## 5. Breeding — **built, and often assumed missing**
 
 | Feature | State | Notes |
@@ -91,6 +114,7 @@ Legend: ✅ works · 🟡 works with a caveat · 🔴 not built · ⚪ out of sc
 | Special combinations | ✅ | Correct by construction (full pair table, not a formula reimplementation) |
 | Palbox-driven suggestions | ✅ | Works from what players actually own |
 | Breeding path search | ✅ | Depth-capped BFS to protect CPU |
+| Reachable-with-an-extra-step list | ✅ | Everything obtainable via an intermediate, shortest route each. Counts **breedings**, not BFS generations — a Pal can be two generations deep and need three pairings |
 | Inheritance odds | ✅ | |
 | Dataset currency | ✅ | **Merged 2026-07-28**: 305 Pals, +Astralym (#204), +1,803 pairs. See the merge note below |
 

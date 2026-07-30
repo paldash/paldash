@@ -1,11 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import {
-  Monitor, Map, Users, Building2, Wrench, LogIn, LogOut,
-  Server, Shield, Eye, Lock, Unlock, Sliders, Egg, RefreshCw, Package, ShieldCheck,
-  UserCog, ScrollText, Archive, UserCircle,
-} from 'lucide-react';
+import { Archive, BookOpen, Building2, Egg, Eye, Lock, LogIn, LogOut, Map, Monitor, Package, RefreshCw, ScrollText, Server, Shield, ShieldCheck, Sliders, Unlock, UserCircle, UserCog, Users, Wrench } from 'lucide-react';
 import { useDashboardStore } from '@/lib/store';
 import {
   getServerInfo, getServerMetrics, getPlayers,
@@ -24,6 +20,7 @@ import BaseViewer from '@/components/base-viewer';
 import SaveEditor from '@/components/save-editor';
 import ServerSettings from '@/components/server-settings';
 import BreedingPlanner from '@/components/breeding-planner';
+import Paldeck from '@/components/paldeck';
 import AccountSettings from '@/components/account-settings';
 import { CAPABILITIES } from '@/lib/permissions';
 import { ROLE_LABEL, type Role } from '@/lib/auth-types';
@@ -48,6 +45,10 @@ const TABS: {
   { id: 'items', label: 'Items', icon: <Package size={15} />, requires: CAPABILITIES.VIEW_DETAIL },
   { id: 'players', label: 'Players', icon: <Users size={15} />, requires: CAPABILITIES.VIEW_DETAIL },
   { id: 'breeding', label: 'Breeding', icon: <Egg size={15} />, requires: CAPABILITIES.VIEW_DETAIL },
+  // VIEW_BASIC, unlike Breeding: the Paldeck is reference data about the game
+  // rather than a readout of this server's Pals, so it needs no parsed world and
+  // discloses nothing a wiki would not.
+  { id: 'paldeck', label: 'Paldeck', icon: <BookOpen size={15} />, requires: CAPABILITIES.VIEW_BASIC },
   { id: 'settings', label: 'Settings', icon: <Sliders size={15} />, requires: CAPABILITIES.SETTINGS_WRITE },
   { id: 'access', label: 'Access', icon: <ShieldCheck size={15} />, requires: CAPABILITIES.POLICY_MANAGE },
   { id: 'backups', label: 'Backups', icon: <Archive size={15} />, requires: CAPABILITIES.BACKUP_MANAGE },
@@ -372,6 +373,7 @@ export default function Home() {
           {activeTab === 'items' && <ItemsView />}
           {activeTab === 'players' && <PlayerRoster />}
           {activeTab === 'breeding' && <BreedingPlanner />}
+          {activeTab === 'paldeck' && <Paldeck />}
           {activeTab === 'settings' && <ServerSettings />}
           {activeTab === 'access' && <AccessSettings />}
           {activeTab === 'backups' && <BackupManager />}

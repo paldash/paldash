@@ -111,6 +111,10 @@ const ROUTES: RouteRule[] = [
   // regenerate — see the backend route. POLICY_MANAGE because it changes what
   // every session sees.
   { pattern: /^world\/packs\/reload$/, methods: ['POST'], capability: CAPABILITIES.POLICY_MANAGE, feature: null },
+  // The Paldeck is bundled reference data about the game, not about this
+  // server, so it reveals nothing a wiki would not and needs no parsed world.
+  { pattern: /^world\/paldeck$/, methods: ['GET'], capability: CAPABILITIES.VIEW_BASIC, feature: FEATURES.SERVER_STATUS },
+  { pattern: /^world\/paldeck\/[A-Za-z0-9_]+$/, methods: ['GET'], capability: CAPABILITIES.VIEW_BASIC, feature: FEATURES.SERVER_STATUS },
   { pattern: /^world\/objects\/categories$/, methods: ['GET'], capability: CAPABILITIES.VIEW_BASIC, feature: FEATURES.MAP_OBJECTS },
   { pattern: /^world\/fasttravel$/, methods: ['GET'], capability: CAPABILITIES.VIEW_BASIC, feature: FEATURES.MAP_OBJECTS },
   { pattern: /^world\/reference$/, methods: ['GET'], capability: CAPABILITIES.VIEW_BASIC, feature: FEATURES.SERVER_STATUS },

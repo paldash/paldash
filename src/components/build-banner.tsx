@@ -152,7 +152,24 @@ export default function BuildBanner() {
                   try {
                     setStatus(await acknowledgeGameBuild(status.buildId));
                   } catch {
-                    load();
+                    // The backend refuses to acknowledge a build that is not the
+                    // installed one — correctly, since silencing a warning about
+                    // a build that is no longer there would hide the one that
+                    // is. But this banner can be holding a stale id (the game
+                    // updated while the page sat open), and the old handler just
+                    // reloaded, so the operator had to click twice and saw a
+                    // failure in between. Re-read and retry once against the
+                    // build that is actually installed.
+                    try {
+                      const fresh = await getGameBuildStatus();
+                      setStatus(
+                        fresh.buildId && fresh.buildId !== status.buildId
+                          ? await acknowledgeGameBuild(fresh.buildId)
+                          : fresh,
+                      );
+                    } catch {
+                      load();
+                    }
                   } finally {
                     setBusy(false);
                   }

@@ -149,6 +149,34 @@ and nothing caught it until someone regenerated on a live server.
 `write_json` honours the suffix and sets `mtime=0`, so unchanged input produces
 byte-identical output and a regeneration can be **diffed** rather than trusted.
 
+## Spawn habitats come from name tables, not from properties
+
+`scripts/extract-pal-habitats.py`. Spawner actors placed in the world name a
+**sheet**, not a species — `BP_PalSpawner_Sheets_2_1_forest_1` — and which
+species a sheet spawns lives in properties cooked with unversioned property
+names, so it cannot be decoded. The reference archive has no habitat field
+either.
+
+The way through is the same one `extract-effigies.py` uses: a package's **name
+table is plainly serialised** even when its properties are not. Intersecting a
+sheet's name table with the known species list gives its roster. Measured:
+**348 species, 13,440 of 13,851 spawners attributed (97.0%)**.
+
+**The claim is narrower than it looks.** A name-table hit means "this blueprint
+references this species", not "this species spawns here at this rate". Good
+enough to shade a region; do not present it as a spawn-rate table.
+
+**Encounter-only forms legitimately have no habitat.** `_Oilrig` and `_Tower`
+variants are placed by encounter logic rather than by world spawners, so
+`HadesBird_Oilrig` has zero cells while `HadesBird` has 132. That is why the
+Paldeck merges variants sharing a Paldeck number and **unions** their ranges —
+and why a zero there must not read as missing data.
+
+**`paldeckNumber` is not "0 when absent".** The game uses negative zukan indices
+for things the Paldeck does not list: **-2** for gym bosses, **-1** for species
+present in the files but unreleased. A plain `or 9999` leaves negatives intact
+and sorts them ahead of Lamball — which put "Axel & Orserk (Gym)" at entry #1.
+
 ## World Tree orientation cannot be derived from the cell grid
 
 `scripts/fit-worldtree.py` is a recorded **negative** result. The idea was to

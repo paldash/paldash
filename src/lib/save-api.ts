@@ -48,6 +48,8 @@ import type {
   GameBuildStatus,
   WorldPackReload,
   ReachableTargets,
+  PaldeckListing,
+  PaldeckDetail,
   WorldExportPlan,
   WorldExportResult,
   AnnouncementList,
@@ -675,6 +677,18 @@ export async function getOffspring(owner?: string): Promise<OffspringOption[]> {
  */
 export async function getReachable(owner?: string): Promise<ReachableTargets> {
   return saveFetch(`/breeding/reachable${owner ? `?owner=${encodeURIComponent(owner)}` : ''}`);
+}
+
+/**
+ * Every Pal in the game, from bundled data — a reference view, not a report on
+ * your server, so it works with no parsed world.
+ */
+export async function getPaldeck(): Promise<PaldeckListing> {
+  return saveFetch('/world/paldeck');
+}
+
+export async function getPaldeckEntry(speciesId: string): Promise<PaldeckDetail> {
+  return saveFetch(`/world/paldeck/${encodeURIComponent(speciesId)}`);
 }
 
 export async function getBreedingPath(target: string, owner?: string) {
