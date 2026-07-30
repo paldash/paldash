@@ -131,7 +131,7 @@ def per_file(path: str, build: Callable[[], Any]) -> Any:
     return value
 
 
-def per_files(paths: list[str], build: Callable[[], Any]) -> Any:
+def per_files(key: str, paths: list[str], build: Callable[[], Any]) -> Any:
     """
     A value computed from several files, rebuilt when *any* of them changes.
 
@@ -150,24 +150,31 @@ def per_files(paths: list[str], build: Callable[[], Any]) -> Any:
     stale. That is also what makes the "Reload data packs" action work — it
     replaces files on disk, and the stamps move with them, so there is no
     invalidation call for anyone to forget.
+
+    **`key` names the value, and it is not optional.** An earlier version keyed
+    on the paths alone, so two different views derived from the same two files
+    collided: the Paldeck listing and its species->siblings index shared an
+    entry, and whichever ran second was handed the other's value. It presented
+    as every detail request returning 500 *after* the listing had been loaded —
+    and as passing cleanly when tested on its own.
     """
     stamps = tuple(_stamp(p) for p in paths)
     if any(s is None for s in stamps):
         return build()
 
-    key = "\0".join(paths)
+    entry_key = "\0".join([key, *paths])
     with _lock:
-        hit = _files.get(key)
+        hit = _files.get(entry_key)
         if hit is not None and hit[0] == stamps:
-            _files.move_to_end(key)
+            _files.move_to_end(entry_key)
             return hit[1]
 
     value = build()
 
     with _lock:
         if tuple(_stamp(p) for p in paths) == stamps:
-            _files[key] = (stamps, value)
-            _files.move_to_end(key)
+            _files[entry_key] = (stamps, value)
+            _files.move_to_end(entry_key)
             while len(_files) > MAX_FILES:
                 _files.popitem(last=False)
     return value

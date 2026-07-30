@@ -35,8 +35,8 @@ def test_builds_once_then_serves_from_cache(files):
         calls.append(1)
         return "value"
 
-    assert viewcache.per_files(list(files), build) == "value"
-    assert viewcache.per_files(list(files), build) == "value"
+    assert viewcache.per_files("k", list(files), build) == "value"
+    assert viewcache.per_files("k", list(files), build) == "value"
     assert len(calls) == 1
 
 
@@ -44,7 +44,7 @@ def test_builds_once_then_serves_from_cache(files):
 def test_a_change_to_any_input_rebuilds(files, which):
     """The whole point: either file moving must invalidate."""
     calls = []
-    viewcache.per_files(list(files), lambda: calls.append(1))
+    viewcache.per_files("k", list(files), lambda: calls.append(1))
 
     target = files[which]
     with open(target, "w") as f:
@@ -54,7 +54,7 @@ def test_a_change_to_any_input_rebuilds(files, which):
     stat = os.stat(target)
     os.utime(target, (stat.st_atime + 10, stat.st_mtime + 10))
 
-    viewcache.per_files(list(files), lambda: calls.append(1))
+    viewcache.per_files("k", list(files), lambda: calls.append(1))
     assert len(calls) == 2
 
 
@@ -66,15 +66,32 @@ def test_an_unstattable_input_builds_without_caching(files, tmp_path):
     calls = []
     paths = [files[0], str(tmp_path / "missing.json")]
     for _ in range(3):
-        viewcache.per_files(paths, lambda: calls.append(1))
+        viewcache.per_files("k", paths, lambda: calls.append(1))
     assert len(calls) == 3
 
 
 def test_different_input_sets_do_not_share_an_entry(files, tmp_path):
     c = tmp_path / "c.json"
     c.write_text("3")
-    assert viewcache.per_files(list(files), lambda: "AB") == "AB"
-    assert viewcache.per_files([files[0], str(c)], lambda: "AC") == "AC"
+    assert viewcache.per_files("k", list(files), lambda: "AB") == "AB"
+    assert viewcache.per_files("k", [files[0], str(c)], lambda: "AC") == "AC"
+
+
+def test_two_values_from_the_same_files_do_not_collide(files):
+    """
+    The bug this key exists for. Keying on paths alone made the Paldeck listing
+    and its siblings index share an entry — the second caller was handed the
+    first's value, and a `.get()` on a list is a 500. It passed in isolation and
+    failed only once both had been requested, which is the worst shape a caching
+    bug can have.
+    """
+    a = viewcache.per_files("entries", list(files), lambda: ["a", "b"])
+    b = viewcache.per_files("index", list(files), lambda: {"a": 1})
+    assert a == ["a", "b"]
+    assert b == {"a": 1}
+    # And again, now that both are warm.
+    assert viewcache.per_files("entries", list(files), lambda: "rebuilt") == ["a", "b"]
+    assert viewcache.per_files("index", list(files), lambda: "rebuilt") == {"a": 1}
 
 
 def test_nested_per_file_would_miss_the_inner_change(files):
@@ -103,10 +120,10 @@ def test_nested_per_file_would_miss_the_inner_change(files):
 
     # per_files, given the same two inputs, does notice.
     calls.clear()
-    viewcache.per_files([outer, inner], lambda: calls.append(1))
+    viewcache.per_files("k", [outer, inner], lambda: calls.append(1))
     with open(inner, "w") as f:
         f.write("inner changed again, differently")
     stat = os.stat(inner)
     os.utime(inner, (stat.st_atime + 20, stat.st_mtime + 20))
-    viewcache.per_files([outer, inner], lambda: calls.append(1))
+    viewcache.per_files("k", [outer, inner], lambda: calls.append(1))
     assert len(calls) == 2

@@ -1101,7 +1101,8 @@ def _paldeck_entries() -> list[dict[str, Any]]:
     forget.
     """
     return viewcache.per_files(
-        [gamedata.DATA_PATH, habitats.DATA_PATH], _build_paldeck_entries)
+        "paldeck:entries", [gamedata.DATA_PATH, habitats.DATA_PATH],
+        _build_paldeck_entries)
 
 
 def _build_paldeck_entries() -> list[dict[str, Any]]:
@@ -1151,7 +1152,7 @@ def _paldeck_siblings() -> dict[str, list[str]]:
         return index
 
     return viewcache.per_files(
-        [gamedata.DATA_PATH, habitats.DATA_PATH], build)
+        "paldeck:siblings", [gamedata.DATA_PATH, habitats.DATA_PATH], build)
 
 
 @app.get("/api/world/paldeck")

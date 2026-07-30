@@ -84,7 +84,6 @@ const MAX_POI_MARKERS = 4000;
 const PIN = {
   base: '/icons/game/baseicon.webp',
   player: '/icons/game/playericon.webp',
-  fastTravel: '/icons/structures/T_icon_buildObject_FastTravelPoint.webp',
   palbox: '/icons/structures/T_icon_buildObject_PalBoxV2.webp',
 } as const;
 
@@ -93,8 +92,14 @@ function pinIcon(src: string, size: number, fallbackClass: string): L.DivIcon {
   return L.divIcon({
     className: 'game-pin',
     html:
-      `<img src="${src}" width="${size}" height="${size}" alt="" ` +
-      `style="display:block;filter:drop-shadow(0 1px 2px rgba(0,0,0,.6))" ` +
+      `<img src="${src}" alt="" ` +
+      // Size in the inline style, not only as width/height attributes. The
+      // source art is up to 512x512 and HTML attributes lose to any stylesheet
+      // rule that touches `img`; one that did put 512px statues on the map,
+      // which also made every marker look wildly off-centre when zoomed out
+      // because the visual centre was nowhere near the 9px anchor point.
+      `style="display:block;width:${size}px;height:${size}px;` +
+      `object-fit:contain;filter:drop-shadow(0 1px 2px rgba(0,0,0,.6))" ` +
       `onerror="this.replaceWith(Object.assign(document.createElement('div'),` +
       `{className:'${fallbackClass}'}))">`,
     iconSize: [size, size],
@@ -387,19 +392,16 @@ export default function MapInner({
       const found = point.discovered;
 
       L.marker(worldToMap(point.x, point.y, region), {
-        // Undiscovered points stay dimmed and desaturated, as before — the
-        // server already decided whether to send them, so what arrives is meant
-        // to be seen, just not mistaken for somewhere you have been.
+        // The game's own fast-travel art is a dark stone plinth, which is
+        // illegible at 18px against a map and reads as a black blob. The
+        // purpose-built marker below is a gold diamond that says "fast travel"
+        // at a glance, so this layer deliberately keeps CSS rather than art —
+        // real artwork is not automatically the better choice at marker size.
         icon: L.divIcon({
           className: 'fasttravel-marker',
-          html:
-            `<img src="${PIN.fastTravel}" width="18" height="18" alt="" ` +
-            `style="display:block;filter:drop-shadow(0 1px 2px rgba(0,0,0,.6))` +
-            `${found ? '' : ';opacity:.35;filter:grayscale(1)'}" ` +
-            `onerror="this.replaceWith(Object.assign(document.createElement('div'),` +
-            `{className:'fasttravel-marker-icon'}))">`,
-          iconSize: [18, 18],
-          iconAnchor: [9, 9],
+          html: `<div class="fasttravel-marker-icon"${found ? '' : ' style="opacity:.35;filter:grayscale(1)"'}></div>`,
+          iconSize: [12, 12],
+          iconAnchor: [6, 6],
         }),
         zIndexOffset: found ? 500 : 400,
       })

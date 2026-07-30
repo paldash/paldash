@@ -146,3 +146,44 @@ def test_world_endpoints_fail_gracefully_without_data(client, monkeypatch, tmp_p
         assert client.get("/api/world/fasttravel").status_code == 503
     finally:
         gamedata._reset_cache()
+
+
+# ─── Paldeck ──────────────────────────────────────────────
+
+
+def _paldeck_client():
+    from fastapi.testclient import TestClient
+    import main
+    return TestClient(main.app)
+
+
+def test_every_paldeck_entry_opens_after_the_listing_is_loaded(fresh_db):
+    """
+    The listing must be requested *first*, because that is what broke.
+
+    `_paldeck_entries` and `_paldeck_siblings` are both derived from the same two
+    bundled files, and an earlier `viewcache.per_files` keyed on the paths alone
+    — so they shared a cache entry and the second caller was handed the first's
+    value. Every detail request returned 500, but only once the listing had been
+    loaded, so testing a single entry in isolation passed.
+    """
+    import accounts
+    client = _paldeck_client()
+    accounts.create_user("owner", "correct-horse-battery-staple", role="owner")
+    token = client.post(
+        "/api/auth/login",
+        json={"username": "owner", "password": "correct-horse-battery-staple"},
+    ).json()["token"]
+    headers = {"X-Session-Token": token}
+
+    listing = client.get("/api/world/paldeck", headers=headers)
+    assert listing.status_code == 200, listing.text
+    entries = listing.json()["pals"]
+    assert entries, "no Paldeck entries; the bundled game data is missing"
+
+    failures = []
+    for entry in entries:
+        res = client.get(f"/api/world/paldeck/{entry['id']}", headers=headers)
+        if res.status_code != 200:
+            failures.append((entry["id"], res.status_code))
+    assert not failures, f"{len(failures)} of {len(entries)} entries failed: {failures[:5]}"

@@ -36,7 +36,6 @@ const GROUP_LABEL: Record<LayerDef['group'], string> = {
 const LAYER_ICON: Record<string, string> = {
   players: '/icons/game/playericon.webp',
   bases: '/icons/game/baseicon.webp',
-  fastTravel: '/icons/structures/T_icon_buildObject_FastTravelPoint.webp',
   palbox: '/icons/structures/T_icon_buildObject_PalBoxV2.webp',
 };
 
@@ -188,7 +187,13 @@ export default function MapLayersPanel({
                           <input type="checkbox" checked={isOn} readOnly style={{ pointerEvents: 'none' }} />
                           {art ? (
                             // eslint-disable-next-line @next/next/no-img-element
-                            <img src={art} alt="" width={16} height={16} style={{ flexShrink: 0 }} />
+                            <img
+                              src={art}
+                              alt=""
+                              // Explicit style, not attributes: the source art
+                              // is up to 512px and attributes lose to CSS.
+                              style={{ width: 16, height: 16, objectFit: 'contain', flexShrink: 0 }}
+                            />
                           ) : (
                             <span
                               style={{
