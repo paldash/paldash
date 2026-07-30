@@ -188,7 +188,33 @@ def get_server_state() -> ServerState:
     running  = any signal says "running"
     editable = every meaningful signal positively says "stopped"
     """
-    signals = [_probe_rest_api(), _probe_tcp(), _probe_save_activity(), _probe_process()]
+    # Order matters, and the reason is cost rather than logic.
+    #
+    # The three cheap probes total ~0.2 ms. `_probe_process` walks every process
+    # in the namespace reading its cmdline: **26.5 ms**, which was 78% of the
+    # `/api/health` response and is polled continuously by every open dashboard.
+    #
+    # It can be skipped — verdict-identically — whenever a cheaper signal has
+    # already voted "running". `_probe_process` never returns "stopped" (absence
+    # of a match proves nothing when we may not share a PID namespace), so its
+    # only possible contributions are "running", which is already established,
+    # and "unknown", which changes nothing: `proven_stopped` below reads only
+    # rest, tcp and activity.
+    #
+    # So the scan still runs in full whenever nothing else says "running" — which
+    # is exactly the case where somebody may be about to write to a save, and
+    # where paying 26 ms is obviously right. This is a reordering, not a
+    # weakening: `test_safety.py` pins the verdict against an always-scanning
+    # reference across every signal combination.
+    cheap = [_probe_rest_api(), _probe_tcp(), _probe_save_activity()]
+    if any(s.verdict == "running" for s in cheap):
+        process = Signal(
+            "process", "unknown",
+            "not scanned: a faster signal already reports the server running",
+        )
+    else:
+        process = _probe_process()
+    signals = [*cheap, process]
 
     running_votes = [s for s in signals if s.verdict == "running"]
     if running_votes:

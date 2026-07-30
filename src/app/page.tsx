@@ -195,9 +195,32 @@ export default function Home() {
     pollLive();
     pollSave();
 
-    const live = setInterval(pollLive, 5000);
-    const save = setInterval(pollSave, 120000);
+    // Nothing polls while the tab is hidden.
+    //
+    // Each live poll is three requests to the *game server's* REST API, and a
+    // dashboard left open in a background tab was making them every five
+    // seconds indefinitely — per open tab. This project's whole posture is
+    // staying out of the game server's way, and polling for a chart nobody is
+    // looking at is the clearest possible violation of that.
+    //
+    // On return the data is refreshed immediately rather than waiting out the
+    // remaining interval, so coming back to the tab never shows a stale reading.
+    const hidden = () => typeof document !== 'undefined' && document.hidden;
+    const liveTick = () => {
+      if (!hidden()) pollLive();
+    };
+    const saveTick = () => {
+      if (!hidden()) pollSave();
+    };
+    const onVisible = () => {
+      if (!hidden()) pollLive();
+    };
+
+    document.addEventListener('visibilitychange', onVisible);
+    const live = setInterval(liveTick, 5000);
+    const save = setInterval(saveTick, 120000);
     return () => {
+      document.removeEventListener('visibilitychange', onVisible);
       clearInterval(live);
       clearInterval(save);
     };

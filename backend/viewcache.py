@@ -131,6 +131,48 @@ def per_file(path: str, build: Callable[[], Any]) -> Any:
     return value
 
 
+def per_files(paths: list[str], build: Callable[[], Any]) -> Any:
+    """
+    A value computed from several files, rebuilt when *any* of them changes.
+
+    `per_file`'s multi-input sibling, for views derived from more than one
+    bundled artifact — the Paldeck reads both `gamedata.json.gz` and
+    `habitats.json.gz`, and keying on either alone would serve a stale answer
+    when the other was replaced.
+
+    Nesting two `per_file` calls does **not** work here and the reason is worth
+    stating: the outer entry would hold the inner's result, so a change to the
+    inner file alone would never invalidate the outer. The stamps have to be
+    compared as one tuple.
+
+    Same rule as `per_file` about unstattable paths: if any file cannot be
+    stamped, build without caching rather than pin a value that can never go
+    stale. That is also what makes the "Reload data packs" action work — it
+    replaces files on disk, and the stamps move with them, so there is no
+    invalidation call for anyone to forget.
+    """
+    stamps = tuple(_stamp(p) for p in paths)
+    if any(s is None for s in stamps):
+        return build()
+
+    key = "\0".join(paths)
+    with _lock:
+        hit = _files.get(key)
+        if hit is not None and hit[0] == stamps:
+            _files.move_to_end(key)
+            return hit[1]
+
+    value = build()
+
+    with _lock:
+        if tuple(_stamp(p) for p in paths) == stamps:
+            _files[key] = (stamps, value)
+            _files.move_to_end(key)
+            while len(_files) > MAX_FILES:
+                _files.popitem(last=False)
+    return value
+
+
 def stats() -> dict[str, Any]:
     """Cache occupancy, for the health endpoint."""
     with _lock:

@@ -1091,7 +1091,20 @@ def _paldeck_entries() -> list[dict[str, Any]]:
 
     Entries the in-game Paldeck does not list are excluded outright — see the
     comment on the negative-index check below.
+
+    **Cached on the bundle files' stamps.** This is entirely static reference
+    data, and rebuilding it measured **20 ms** — paid on every listing request
+    *and* on every detail request, which calls this only to find an entry's
+    sibling ids. Clicking through twenty Pals was half a second of recomputing
+    an answer that cannot change. Keying on the files means replacing a bundle
+    (or pressing "Reload data packs") invalidates it with no explicit call to
+    forget.
     """
+    return viewcache.per_files(
+        [gamedata.DATA_PATH, habitats.DATA_PATH], _build_paldeck_entries)
+
+
+def _build_paldeck_entries() -> list[dict[str, Any]]:
     grouped: dict[Any, dict[str, Any]] = {}
     for species_id in (gamedata.load().get("pals") or {}):
         details = gamedata.describe_pal(species_id)
@@ -1120,6 +1133,25 @@ def _paldeck_entries() -> list[dict[str, Any]]:
         entries.append({**row, "hasHabitat": habitat["known"],
                         "habitatCells": len(habitat["cells"])})
     return entries
+
+
+def _paldeck_siblings() -> dict[str, list[str]]:
+    """
+    Species id -> every id merged into the same Paldeck entry.
+
+    An index rather than a scan: the detail route needs one lookup, and walking
+    204 entries per request to find it was the whole reason that route cost as
+    much as the listing.
+    """
+    def build() -> dict[str, list[str]]:
+        index: dict[str, list[str]] = {}
+        for entry in _paldeck_entries():
+            for species_id in entry["speciesIds"]:
+                index[species_id] = entry["speciesIds"]
+        return index
+
+    return viewcache.per_files(
+        [gamedata.DATA_PATH, habitats.DATA_PATH], build)
 
 
 @app.get("/api/world/paldeck")
@@ -1181,9 +1213,7 @@ def get_paldeck_entry(species_id: str, request: Request) -> dict[str, Any]:
 
     # Merge the location variants that share this Paldeck number, so the map
     # shows every place the Pal is found rather than one of them.
-    siblings = [e["speciesIds"] for e in _paldeck_entries()
-                if species_id in e["speciesIds"]]
-    ids = siblings[0] if siblings else [species_id]
+    ids = _paldeck_siblings().get(species_id, [species_id])
     return {**details, **extra, "speciesIds": ids, "habitat": habitats.merged(ids)}
 
 
