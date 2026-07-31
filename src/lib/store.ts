@@ -197,6 +197,12 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
     'static:npc': false,
     // On by default: 99 markers, and the thing people most want a map for.
     'static:fieldboss': true,
+    // Also sparse and also landmarks — 68 fruit trees in the entire world.
+    'static:skillfruit': true,
+    'static:lotus': false,
+    'static:junk': false,
+    'static:collectible': false,
+    'static:supply': false,
   },
   toggleMapLayer: (layer) =>
     set((state) => ({

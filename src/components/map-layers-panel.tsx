@@ -50,8 +50,10 @@ const GROUP_LABEL: Record<LayerDef['group'], string> = {
  * the thing in the list.
  */
 const LAYER_ICON: Record<string, string> = {
-  players: '/icons/game/playericon.webp',
-  bases: '/icons/game/baseicon.webp',
+  players: '/icons/map/player.webp',
+  bases: '/icons/map/base.webp',
+  fastTravel: '/icons/map/fasttravel.webp',
+  'static:fieldboss': '/icons/map/fieldboss.webp',
   palbox: '/icons/structures/T_icon_buildObject_PalBoxV2.webp',
 };
 

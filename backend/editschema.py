@@ -81,6 +81,18 @@ class SchemaError(Exception):
 #
 # This number is not in `refs/` in any form, so it is a documented constant
 # rather than a derived one, and it is overridable for a future cap raise.
+# 80 is a **community-sourced figure, not one read from the game files.**
+#
+# There is no level cap in `DefaultPalWorldSettings.ini` and no datatable
+# carrying one, so unlike almost everything else here it cannot be verified
+# against the install. The bundled EXP table has 100 rows, which `_max_level`
+# treats as headroom rather than as the cap. Highest actually observed on the
+# reference world: **71** (a player) and 70 (a Pal) — consistent with 80, but
+# consistent with more.
+#
+# The environment override exists precisely because this is the one bound here
+# that is not derivable. If a server reports a higher level than this, raise it
+# rather than assuming the save is wrong.
 MAX_LEVEL = int(os.environ.get("PALWORLD_MAX_LEVEL", "80"))
 
 
@@ -244,8 +256,14 @@ PAL_FIELDS: dict[str, Field] = {
     "level": Field("level", "int", label="Level", minimum=1, maximum=_max_level),
     "exp": Field("exp", "int", label="Experience", minimum=0),
     "rank": Field(
-        "rank", "int", label="Condenser rank", minimum=MIN_RANK, maximum=MAX_RANK,
-        note="1 is unenhanced; 5 is fully condensed.",
+        "rank", "int", label="Condenser rank (1 = no stars, 5 = ★★★★)",
+        minimum=MIN_RANK, maximum=MAX_RANK,
+        note="The save counts from 1, the game shows stars from 0 — so rank 5 is "
+             "a four-star Pal, not five. Rank 5 is real: one Pal on the reference "
+             "world has it. The game recomputes HP/Attack/Defense from this at "
+             "load, so raising it does raise the stats in game; the multipliers "
+             "themselves are in no data this project bundles, which is why the "
+             "new values are not previewed here.",
     ),
     "gender": Field("gender", "enum", label="Gender", choices=GENDERS),
     "speciesId": Field("speciesId", "string", label="Species", validator=_species_problem),

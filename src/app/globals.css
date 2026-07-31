@@ -365,29 +365,38 @@ html, body {
 }
 /* Fast-travel statues. A diamond so they stay distinguishable from bases
    (squares) and players (circles) without relying on colour alone. */
+/* The gold diamond is now the FALLBACK, sitting under the real artwork. If the
+   image loads you see the icon; if it does not you see the shape, and never a
+   broken-file glyph. */
 .fasttravel-marker-icon {
-  width: 9px;
-  height: 9px;
-  margin: 1.5px;
-  background: #e0c060;
+  width: 100%;
+  height: 100%;
+  background-color: #e0c060;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
   border: 1.5px solid #0f1115;
   transform: rotate(45deg);
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6));
+}
+/* With artwork present the diamond framing would fight it, so anything carrying
+   a background image drops the shape and keeps only the drop shadow. */
+.fasttravel-marker-icon[style*="background-image"] {
+  background-color: transparent;
+  border: none;
+  transform: none;
 }
 /* A tower boss is a destination, not a bus stop. Bigger, red, and round so it
    reads as a different class of thing at a glance rather than as a gold diamond
    you have to hover to identify — which is what all eight of them were. */
 .fasttravel-marker-icon.is-tower {
-  width: 13px;
-  height: 13px;
-  margin: -0.5px;
-  background: #c25757;
+  background-color: #c25757;
   border-width: 2px;
   border-radius: 50%;
   transform: none;
-  box-shadow: 0 0 6px rgba(194, 87, 87, 0.6);
 }
 .fasttravel-marker-icon.is-watchtower {
-  background: #8fc4e0;
+  background-color: #8fc4e0;
 }
 /* ─── Live player markers ───────────────────────────────
    Scaled by `--player-scale`, which the map sets from the zoom level (see

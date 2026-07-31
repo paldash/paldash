@@ -269,6 +269,14 @@ DEFAULT_WORLD_OBJECT_LEVELS: dict[str, str] = {
     # Field bosses default open: they are fixed, named, once-per-world
     # encounters rather than a farming atlas, and every wiki lists them.
     "fieldboss": "everyone",
+    # Fixed, few, and the reason people open a map at all. Skill fruit is 68
+    # trees in the whole world; lotuses and supply points are landmarks rather
+    # than a loot solution.
+    "skillfruit": "everyone",
+    "lotus": "everyone",
+    "supply": "everyone",
+    "collectible": "everyone",
+    "junk": "everyone",
 }
 
 GUEST_VISIBILITY_KEYS = (

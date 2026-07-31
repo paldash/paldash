@@ -1834,6 +1834,90 @@ def get_progress(request: Request) -> dict[str, Any]:
     }
 
 
+# A player's own item containers, in the order the game shows them.
+#
+# `EssentialContainerId` is the key-items bag — saddles, harnesses, key spheres.
+# Measured on the reference world: 25 items, **none carrying a `dynamic_id`**, so
+# unlike weapons and armour they are genuinely editable through the existing slot
+# writer. That was the open question about whether player inventory editing was
+# worth building at all.
+PLAYER_CONTAINERS: tuple[tuple[str, str, str], ...] = (
+    ("CommonContainerId", "Inventory", "Everyday carry — materials, food, ammo"),
+    ("EssentialContainerId", "Key items", "Saddles, harnesses, key spheres"),
+    ("WeaponLoadOutContainerId", "Weapons", "Durability-bearing; read-only"),
+    ("PlayerEquipArmorContainerId", "Armor", "Durability-bearing; read-only"),
+    ("FoodEquipContainerId", "Food slots", "The quick-use food bar"),
+    ("DropSlotContainerId", "Drop slots", "Staging area the game uses on death"),
+)
+
+
+@app.get("/api/players/{uid}/containers")
+def get_player_containers(uid: str, request: Request) -> dict[str, Any]:
+    """
+    One player's item containers, with fill and how much of each is editable.
+
+    **Scoped like everything else**: `VIEW_SELF` gets your own, anyone else's
+    needs `VIEW_DETAIL`. Reading a container's *contents* still goes through
+    `/api/inventory/{id}`, which enforces its own rules — this only says which
+    ids belong to whom.
+
+    `editableSlots` is reported per container so the UI can say "4 of 4 locked"
+    before someone picks it, rather than after. A slot with a `dynamic_id` names
+    a record in `DynamicItemSaveData`; overwriting it orphans that record and a
+    replacement cannot be fabricated, so the writer refuses those outright.
+    """
+    authz.require(request, roles_module.VIEW_SELF)
+    asked = privacy.normalise_uid(uid)
+    user = authz.current_user(request)
+
+    if roles_module.VIEW_DETAIL not in authz.effective_capabilities(user):
+        if asked != authz.linked_uid(user):
+            raise HTTPException(403, "You can only view your own inventory")
+    elif asked in privacy.hidden_uids(*_viewer(request))["players"]:
+        raise HTTPException(404, f"Player {uid} not found")
+
+    player = next(
+        (p for p in get_players() if privacy.normalise_uid(p.get("uid")) == asked),
+        None,
+    )
+    if player is None:
+        raise HTTPException(404, f"Player {uid} not found")
+
+    ids = player.get("inventoryContainerIds") or {}
+    data = savecache.get_data() or {}
+    decoded = (data.get("containers") or {}) if isinstance(data.get("containers"), dict) else {}
+
+    out = []
+    for field, label, note in PLAYER_CONTAINERS:
+        container_id = str(ids.get(field) or "")
+        if not container_id:
+            continue
+        slots = decoded.get(container_id)
+        if slots is None:
+            # The container exists on the player but the parse did not decode
+            # items. Reported rather than dropped, so "no items parsed" does not
+            # masquerade as "this player has no key items".
+            out.append({"field": field, "label": label, "note": note,
+                        "containerId": container_id, "decoded": False})
+            continue
+        occupied = [s for s in slots if not s.get("isEmpty")]
+        locked = sum(1 for s in occupied if s.get("hasDynamicId"))
+        out.append({
+            "field": field, "label": label, "note": note,
+            "containerId": container_id, "decoded": True,
+            "totalSlots": len(slots), "usedSlots": len(occupied),
+            "itemCount": sum(int(s.get("stackCount") or 0) for s in occupied),
+            "lockedSlots": locked,
+            "editableSlots": len(occupied) - locked,
+        })
+
+    return {
+        "uid": player.get("uid"),
+        "name": player.get("name"),
+        "containers": out,
+    }
+
+
 @app.get("/api/players/{uid}")
 def get_player(uid: str, request: Request) -> dict:
     """

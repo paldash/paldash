@@ -276,7 +276,15 @@ def test_the_bundled_data_has_the_documented_shape():
     (`scripts/extract-pal-habitats.py`), and dungeons were already extractable
     but had never been included.
 
-    Regenerated again the same day to add `npc` (merchants and hostile camps):
+    Grew to **59,396** after a coverage check over all 916 placeable actor
+    classes in the pak: the ore, treasure and fishing patterns were each too
+    narrow. `BP_PalMapObjectSpawnerTreasureBox*` and
+    `BP_PalMapObjectSpawner_Treasure_*` are different families one underscore
+    apart, and matching only the first still returned a plausible-looking 8,386 —
+    a count that looks right is not coverage. Five categories were added at the
+    same time (skill fruit, lotuses, junk piles, coins/pots, supply drops).
+
+    Regenerated earlier the same day to add `npc` (merchants and hostile camps):
     51,701 -> 51,921. And once more to split `fieldboss` out of `palspawner`
     (13,851 -> 13,752 + 99) — the alpha Pals that drop Ancient Technology Points
     were already extracted and simply indistinguishable from ordinary spawn
@@ -297,12 +305,14 @@ def test_the_bundled_data_has_the_documented_shape():
     worldobjects.reset_for_tests()
     try:
         totals = worldobjects.totals()
-        assert totals["objects"] == 51_921
+        assert totals["objects"] == 59_396
         by_category = {c["id"]: c["count"] for c in worldobjects.categories()}
         assert by_category == {
-            "ore": 24_359, "treasure": 8_386, "fishing": 2_757, "oilrig": 185,
+            "oilrig": 185,
+            "ore": 27_408, "treasure": 9_923, "fishing": 3_503,
             "palspawner": 13_752, "dungeon": 2_163, "npc": 220,
-            "fieldboss": 99,
+            "fieldboss": 99, "skillfruit": 68, "junk": 794,
+            "lotus": 705, "collectible": 103, "supply": 473,
         }
         assert "effigy" not in by_category
     finally:
@@ -312,7 +322,7 @@ def test_the_bundled_data_has_the_documented_shape():
 def test_a_realistic_viewport_query_is_cheap():
     """
     The reason the grid exists. A pan happens constantly, so the per-request cost
-    has to be a rounding error rather than a scan of 51,921 objects.
+    has to be a rounding error rather than a scan of 59,396 objects.
     """
     import time
 

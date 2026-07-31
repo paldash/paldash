@@ -56,16 +56,63 @@ Z_LIMIT = 50_000
 # Target groups: a label, the actor-class pattern, and a coarse category the map
 # can colour by. Patterns match the export's class name prefix.
 TARGETS: dict[str, dict] = {
+    # A COVERAGE CHECK FOUND THESE PATTERNS WERE TOO NARROW
+    # ------------------------------------------------------
+    # `scripts/` has no standing coverage tool, so this was measured by
+    # enumerating every `BP_*_C_UAID_` class in the pak — 916 of them — and
+    # asking which no TARGET matched. The misses were not exotic:
+    #
+    #   PalCrystal_Small, SkyIslandOre, WorldTreeOre, NightStone   ore variants
+    #   Mushroom, RedBerry                                          gatherables
+    #   BP_PalMapObjectSpawner_Treasure_*                           a SECOND chest family
+    #   BP_FishingSpot_*                                            a SECOND fishing family
+    #   Lotus_*                                                     stat lotuses
+    #   DogCoin, Yakushima_Pot                                      collectibles
+    #
+    # The treasure one is the instructive miss. `BP_PalMapObjectSpawnerTreasureBox`
+    # and `BP_PalMapObjectSpawner_Treasure_…` differ by one underscore and are
+    # different families; matching the first looked complete because it returned
+    # 8,386 objects. A count that looks plausible is not coverage.
     "ore": {
         "label": "Ore & mineral nodes",
         "pattern": re.compile(
-            r"^BP_PalMapObjectSpawner_(Rock\w*|Crystal|PalCrystal|Sulfur|Coal|Quartz|"
-            r"SmallStone|log|CaveMushroom|Ice\w*|Sand\w*)$"
+            r"^BP_PalMapObjectSpawner_(Rock\w*|Crystal\w*|PalCrystal\w*|Sulfur\w*|"
+            r"Coal\w*|Quartz\w*|SmallStone\w*|log\w*|CaveMushroom\w*|Mushroom\w*|"
+            r"Ice\w*|Sand\w*|NightStone\w*|SkyIslandOre\w*|WorldTreeOre\w*|"
+            r"RedBerry\w*|Jade\w*)$"
         ),
     },
     "treasure": {
         "label": "Treasure chests",
-        "pattern": re.compile(r"^BP_PalMapObjectSpawnerTreasureBox\w*$"),
+        # Both families, plus the oil-rig crates, which are their own class again.
+        "pattern": re.compile(
+            r"^(BP_PalMapObjectSpawnerTreasureBox\w*|BP_PalMapObjectSpawner_Treasure\w*|"
+            r"BP_OilrigTreasureBoxSpawner\w*)$"
+        ),
+        "prefixes": ["BP_PalMapObjectSpawnerTreasureBox",
+                     "BP_PalMapObjectSpawner_Treasure",
+                     "BP_OilrigTreasureBoxSpawner"],
+    },
+    # Stat-boosting lotuses: Attack, HP, Stamina, Work Speed, Weight. The class
+    # name carries both the stat and the drop chance
+    # (`Lotus_Attack_01_40percent`), so the per-kind filter separates them.
+    "lotus": {
+        "label": "Stat lotuses",
+        "pattern": re.compile(r"^BP_PalMapObjectSpawner_Lotus_\w+$"),
+        "prefixes": ["BP_PalMapObjectSpawner_Lotus"],
+    },
+    # Airdropped supply crates. Their spawn points are fixed even though what
+    # lands in them is not.
+    "supply": {
+        "label": "Supply drop points",
+        "pattern": re.compile(r"^BP_SupplySpawner_\w+$"),
+        "prefixes": ["BP_SupplySpawner_"],
+    },
+    # Dog coins and the Sakurajima pots — collectibles rather than resources.
+    "collectible": {
+        "label": "Coins & pots",
+        "pattern": re.compile(r"^BP_PalMapObjectSpawner_(DogCoin\w*|Yakushima_Pot\w*)$"),
+        "prefixes": ["BP_PalMapObjectSpawner_DogCoin", "BP_PalMapObjectSpawner_Yakushima_Pot"],
     },
     "dungeon": {
         "label": "Dungeons",
@@ -73,7 +120,10 @@ TARGETS: dict[str, dict] = {
     },
     "fishing": {
         "label": "Fishing spots",
-        "pattern": re.compile(r"^BP_MapObject_FishingJunkSpot\w*$"),
+        # Two families again: `FishingJunkSpot` is the junk you fish up,
+        # `BP_FishingSpot_*` is where you actually fish.
+        "pattern": re.compile(r"^(BP_MapObject_FishingJunkSpot\w*|BP_FishingSpot_\w+)$"),
+        "prefixes": ["BP_MapObject_FishingJunkSpot", "BP_FishingSpot_"],
     },
     "palspawner": {
         "label": "Pal spawners",
@@ -84,6 +134,24 @@ TARGETS: dict[str, dict] = {
     "oilrig": {
         "label": "Oil fields",
         "pattern": re.compile(r"^BP_LevelObject_Oil\w*$"),
+    },
+    # Skill fruit trees, and the affection fruit that raises a Pal's bond.
+    #
+    # Spotted because a community map showed them and this one did not — worth
+    # recording that the fix was to extract them from the same pak everything
+    # else comes from, not to copy someone's marker data. Eight biome variants,
+    # which the per-kind filter keeps separable ("only World Tree fruit").
+    "skillfruit": {
+        "label": "Skill & affection fruit",
+        "pattern": re.compile(r"^BP_PalMapObjectSpawner_(SkillFruits_\w+|AffectionFruit)$"),
+        "prefixes": ["BP_PalMapObjectSpawner_SkillFruits", "BP_PalMapObjectSpawner_AffectionFruit"],
+    },
+    # Ground junk piles. Distinct from `fishing`, which is
+    # `BP_MapObject_FishingJunkSpot` — those are fished, these are walked up to.
+    "junk": {
+        "label": "Junk piles",
+        "pattern": re.compile(r"^BP_PalMapObjectSpawner_Junk_\w+$"),
+        "prefixes": ["BP_PalMapObjectSpawner_Junk"],
     },
     # The alpha Pals that drop Ancient Technology Points.
     #

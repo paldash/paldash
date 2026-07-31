@@ -429,6 +429,42 @@ ownership from it, and a non-root process cannot fix it afterwards.
 Still broken: `STOP_COMMAND`/`START_COMMAND` invoke `docker`, which is not
 installed in the runtime image.
 
+## A durability record is not one record — it is sixteen
+
+`backend/dynamicitem.py`. Equipment carries a per-instance record in
+`DynamicItemSaveData`, and the container slot points at it by
+`dynamic_id.local_id_in_created_world`. Durability lives there, not in the slot.
+
+**A local id does not identify one record.** Measured on the reference world:
+**32,446 records, 2,052 distinct ids** — 2,022 ids appear exactly **16** times,
+twelve appear 6 times, one appears 5, seventeen appear once. Every copy of an id
+is byte-for-byte identical. 30,866 of the records are eggs, far more than the
+world has eggs, so this looks like accumulated orphans rather than a game
+requirement.
+
+The first version keyed one id to one record and its own smoke test caught the
+consequence in a minute: the plan read one copy, the apply re-looked-up the id
+and mutated a *different* copy, and the value appeared not to change. Editing 1
+of 16 silently would have been worse than that visible failure — the game may
+read any of them. **Every copy is written, and a copy count that changed between
+plan and apply is a refusal.**
+
+**Repair works; creation is refused, and the reason is not the format.**
+Deep-copying a record of the right type solves the shape problem the way
+`palclone` does for Pals. What stops creation is the copy count: nothing explains
+the 16, and appending one record where the game expects sixteen leaves a
+half-registered item. `can_create()` returns that refusal with the number in it,
+so it reads as "not yet understood" rather than "impossible" — PST fabricates
+records (`generate_dynamic_item_uuid`) and is more capable here. Resolving it
+most likely means crafting one weapon in game and diffing the save.
+
+**Three shapes, and an egg is not equipment.** `armor` is
+`type/id/durability/leading/trailing`; `weapon` adds `remaining_bullets`,
+`passive_skill_list` and `unknown_bytes` (813 of 814 have the last one, one does
+not); `egg` has no durability at all and instead embeds a **whole Pal** under
+`object`. So "egg editing" is character editing, which is `palclone`'s problem.
+`describe()` never returns that embedded record.
+
 ## Imports write; exports do not
 
 `saveexport.py` has no write path at all. `saveimport.py` does. They are separate

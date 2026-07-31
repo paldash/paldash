@@ -256,7 +256,11 @@ def test_diff_reports_only_what_changes():
 
 def test_diff_labels_fields_for_display():
     out = editschema.diff("pal", {"rank": 3}, {"rank": 1})
-    assert out[0]["label"] == "Condenser rank"
+    # Not an exact match: the label carries the star mapping now, because the
+    # save counts rank from 1 while the game shows stars from 0 — so rank 5 is a
+    # four-star Pal. Asserting the prefix keeps the test about *which field* is
+    # labelled rather than about its exact wording.
+    assert out[0]["label"].startswith("Condenser rank")
 
 
 # ─── Helpers ─────────────────────────────────────────────────────

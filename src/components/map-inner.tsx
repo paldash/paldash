@@ -107,9 +107,17 @@ const MAX_POI_MARKERS = 4000;
  * still get a usable map.
  */
 const PIN = {
-  base: '/icons/game/baseicon.webp',
-  player: '/icons/game/playericon.webp',
+  base: '/icons/map/base.webp',
+  player: '/icons/map/player.webp',
   palbox: '/icons/structures/T_icon_buildObject_PalBoxV2.webp',
+  // Fast travel finally has real artwork. The game's *own* fast-travel asset
+  // (`structures/T_icon_buildObject_FastTravelPoint.webp`) is a 512px stone
+  // plinth measured at luma 8 of 255 — a black blob at marker size, which is why
+  // it was rejected before. These are the compass HUD icons, drawn to be read
+  // small. See `public/icons/map/PROVENANCE.md`.
+  fastTravel: '/icons/map/fasttravel.webp',
+  tower: '/icons/map/tower.webp',
+  fieldboss: '/icons/map/fieldboss.webp',
 } as const;
 
 /**
@@ -168,9 +176,10 @@ function playerIcon(name: string): L.DivIcon {
 function bossIcon(icon: string | undefined, size: number): L.DivIcon {
   // Background image, not `<img>` — see `pinIcon`. A boss whose species did not
   // resolve simply shows the ring with nothing in it.
-  const art = icon
-    ? `<span class="boss-pin-art" style="background-image:url('${icon}')"></span>`
-    : '';
+  // Falls back to the game's generic alpha-Pal map icon for the two of 73
+  // sheets whose species did not resolve, rather than an empty ring.
+  const art =
+    `<span class="boss-pin-art" style="background-image:url('${icon || PIN.fieldboss}')"></span>`;
   return L.divIcon({
     className: 'boss-pin',
     html: `<span class="boss-pin-ring">${art}</span>`,
@@ -229,6 +238,11 @@ const STATIC_STYLE: Record<string, { color: string; size: number; label: string 
   dungeon:  { color: '#9a6fb0', size: px(5), label: 'Dungeon' },
   effigy:   { color: '#c7b04a', size: px(5), label: 'Lifmunk effigy' },
   npc:      { color: '#c9a227', size: px(5), label: 'NPC / camp' },
+  skillfruit:  { color: '#d98cc4', size: px(6), label: 'Skill / kinship fruit' },
+  lotus:       { color: '#7fd4c1', size: px(5), label: 'Stat lotus' },
+  junk:        { color: '#8a7a5f', size: px(4), label: 'Junk pile' },
+  collectible: { color: '#e0c060', size: px(5), label: 'Coin / pot' },
+  supply:      { color: '#5b9dd9', size: px(5), label: 'Supply drop' },
   fieldboss: { color: '#d14b4b', size: px(9), label: 'Field boss' },
 };
 
@@ -641,11 +655,17 @@ export default function MapInner({
         // purpose-built marker below is a gold diamond that says "fast travel"
         // at a glance, so this layer deliberately keeps CSS rather than art —
         // real artwork is not automatically the better choice at marker size.
+        // Real artwork over the CSS shape, as a background image so a failed
+        // load degrades to that shape rather than to a broken-file glyph. The
+        // marker keeps its size and anchor either way.
         icon: L.divIcon({
           className: 'fasttravel-marker',
-          html: `<div class="fasttravel-marker-icon is-${kind}"${found ? '' : ' style="opacity:.35;filter:grayscale(1)"'}></div>`,
-          iconSize: [12, 12],
-          iconAnchor: [6, 6],
+          html:
+            `<div class="fasttravel-marker-icon is-${kind}" style="` +
+            `background-image:url('${kind === 'tower' ? PIN.tower : PIN.fastTravel}')` +
+            `${found ? '' : ';opacity:.4;filter:grayscale(1)'}"></div>`,
+          iconSize: kind === 'tower' ? [22, 22] : [16, 16],
+          iconAnchor: kind === 'tower' ? [11, 11] : [8, 8],
         }),
         // Towers above everything else in the layer: there are eight of them
         // among 174 and they are what people are looking for.

@@ -500,6 +500,27 @@ export async function verifyExport(file: File): Promise<{
 
 // ─── Per-base storage & reports ─────────────────────────
 
+/** One player's item containers, with fill and how much of each is editable. */
+export interface PlayerContainer {
+  field: string;
+  label: string;
+  note: string;
+  containerId: string;
+  decoded: boolean;
+  totalSlots?: number;
+  usedSlots?: number;
+  itemCount?: number;
+  /** Slots holding a durability item; the writer refuses these. */
+  lockedSlots?: number;
+  editableSlots?: number;
+}
+
+export async function getPlayerContainers(
+  uid: string
+): Promise<{ uid: string; name: string; containers: PlayerContainer[] }> {
+  return saveFetch(`/players/${encodeURIComponent(uid)}/containers`);
+}
+
 export async function getBaseStorage(): Promise<BaseStorage[]> {
   return saveFetch('/bases/storage');
 }

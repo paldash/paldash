@@ -202,6 +202,9 @@ const ROUTES: RouteRule[] = [
   { pattern: /^players$/, methods: ['GET'], capability: CAPABILITIES.VIEW_DETAIL, feature: null },
   // VIEW_SELF for your own uid only; the backend rejects anyone else's.
   { pattern: /^players\/[A-Za-z0-9-]+$/, methods: ['GET'], capability: CAPABILITIES.VIEW_SELF, feature: null },
+  // A player's own item containers. Same scoping — own at VIEW_SELF, anyone
+  // else's at VIEW_DETAIL, enforced by the backend which knows whose uid it is.
+  { pattern: /^players\/[A-Za-z0-9-]+\/containers$/, methods: ['GET'], capability: CAPABILITIES.VIEW_SELF, feature: null },
   // VIEW_SELF: the backend narrows this to the caller's own row below
   // VIEW_DETAIL rather than refusing, so a Player can see their own
   // progression. The denominators are still computed across everyone —

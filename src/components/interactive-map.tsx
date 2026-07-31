@@ -63,6 +63,14 @@ const LAYERS: { id: string; label: string; color: string; group: 'live' | 'disco
   // and drawn with the Pal's own artwork — they were previously indistinguishable
   // from the other 13,851 spawn points.
   { id: 'static:fieldboss', label: 'Field bosses', color: '#d14b4b', group: 'static' },
+  // Found by a coverage check over every placeable class in the pak, after a
+  // community map showed content this one did not. Extracted from the same pak
+  // as everything else rather than copied from anyone's marker data.
+  { id: 'static:skillfruit', label: 'Skill & kinship fruit', color: '#d98cc4', group: 'static' },
+  { id: 'static:lotus', label: 'Stat lotuses', color: '#7fd4c1', group: 'static' },
+  { id: 'static:junk', label: 'Junk piles', color: '#8a7a5f', group: 'static' },
+  { id: 'static:collectible', label: 'Coins & pots', color: '#e0c060', group: 'static' },
+  { id: 'static:supply', label: 'Supply drops', color: '#5b9dd9', group: 'static' },
 
   { id: 'palbox', label: 'Palboxes', color: '#5b9dd9', group: 'base' },
   { id: 'breeding', label: 'Breeding', color: '#8d84c7', group: 'base' },

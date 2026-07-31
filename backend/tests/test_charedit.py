@@ -188,7 +188,7 @@ def test_the_plan_shows_before_and_after():
 
     assert change["before"] == 1
     assert change["after"] == 4
-    assert change["label"] == "Condenser rank"
+    assert change["label"].startswith("Condenser rank")
 
 
 def test_applying_a_plan_by_hand_round_trips():

@@ -5,9 +5,10 @@ import { Boxes, ShieldCheck, AlertTriangle, Lock, Trash2, Search } from 'lucide-
 import GameIcon from '@/components/game-icon';
 import {
   getBaseStorage, getContainerContents, getItemTotals, previewSlotEdit, applySlotEdit,
+  getSavePlayers, getPlayerContainers, type PlayerContainer,
 } from '@/lib/save-api';
 import type {
-  BaseStorage, BaseContainer, InventorySlot, SlotPatch, SlotEditPlan,
+  BaseStorage, BaseContainer, InventorySlot, SlotPatch, SlotEditPlan, PlayerSaveData,
 } from '@/lib/types';
 
 /**
@@ -25,6 +26,13 @@ import type {
  * editable would only produce a rejection at preview time.
  */
 export default function SlotEditor({ canEdit }: { canEdit: boolean }) {
+  // Base storage and player inventories are the same kind of thing to the
+  // writer — an item container — so they share one editor rather than two that
+  // can drift. Only the picker differs.
+  const [source, setSource] = useState<'base' | 'player'>('base');
+  const [players, setPlayers] = useState<PlayerSaveData[]>([]);
+  const [playerUid, setPlayerUid] = useState('');
+  const [playerContainers, setPlayerContainers] = useState<PlayerContainer[]>([]);
   const [bases, setBases] = useState<BaseStorage[]>([]);
   const [baseId, setBaseId] = useState('');
   const [containerId, setContainerId] = useState('');
@@ -60,6 +68,27 @@ export default function SlotEditor({ canEdit }: { canEdit: boolean }) {
       });
     return () => { cancelled = true; };
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    getSavePlayers()
+      .then((list) => { if (!cancelled) setPlayers(list); })
+      .catch(() => undefined);
+    return () => { cancelled = true; };
+  }, []);
+
+  // A player's containers are fetched per player rather than all at once: the
+  // endpoint is scoped per uid and most sessions only ever look at one.
+  useEffect(() => {
+    if (!playerUid) { setPlayerContainers([]); return; }
+    let cancelled = false;
+    getPlayerContainers(playerUid)
+      .then((r) => { if (!cancelled) setPlayerContainers(r.containers); })
+      .catch((e: unknown) => {
+        if (!cancelled) setError(e instanceof Error ? e.message : 'Could not read that inventory');
+      });
+    return () => { cancelled = true; };
+  }, [playerUid]);
 
   /**
    * Containers in the *chosen base only*.
@@ -222,6 +251,79 @@ export default function SlotEditor({ canEdit }: { canEdit: boolean }) {
         </div>
       )}
 
+      {/* Base storage or a player's own bags. Same writer either way — an item
+          container is an item container — so they share one editor rather than
+          two that can drift apart. Only the picker differs. */}
+      <div style={{ display: 'flex', gap: 4, marginBottom: 10 }}>
+        {(['base', 'player'] as const).map((m) => (
+          <button
+            key={m}
+            className="btn"
+            style={{
+              padding: '4px 12px', fontSize: 12,
+              background: source === m ? 'var(--bg-card-hover)' : 'transparent',
+              color: source === m ? 'var(--text-primary)' : 'var(--text-muted)',
+            }}
+            onClick={() => { setSource(m); loadContainer(''); }}
+            disabled={busy}
+          >
+            {m === 'base' ? 'Base storage' : 'Player inventory'}
+          </button>
+        ))}
+      </div>
+
+      {source === 'player' && (
+        <>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
+            <select
+              className="input"
+              style={{ width: 250 }}
+              value={playerUid}
+              onChange={(e) => { setPlayerUid(e.target.value); loadContainer(''); }}
+              disabled={busy}
+            >
+              <option value="">Pick a player…</option>
+              {players.map((p) => (
+                <option key={p.uid} value={p.uid}>
+                  {p.name || p.uid.slice(0, 8)} — Lv {p.level}
+                </option>
+              ))}
+            </select>
+
+            <select
+              className="input"
+              style={{ width: 380 }}
+              value={containerId}
+              onChange={(e) => loadContainer(e.target.value)}
+              disabled={busy || !playerUid}
+            >
+              <option value="">{playerUid ? 'Pick a bag…' : 'Pick a player first'}</option>
+              {playerContainers.map((c) => (
+                <option key={c.containerId} value={c.containerId} disabled={!c.decoded}>
+                  {c.label}
+                  {c.decoded
+                    ? ` — ${c.usedSlots}/${c.totalSlots} used` +
+                      (c.lockedSlots ? `, ${c.lockedSlots} locked` : '')
+                    : ' — not decoded (parse with items enabled)'}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {playerUid && (
+            <p style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 12 }}>
+              {/* Said before the pick, not after the writer refuses. Measured on
+                  the reference world: every weapon and armour slot carries a
+                  dynamic_id; not one key item does. */}
+              Weapons and armour carry durability records and are shown read-only.{' '}
+              <strong>Saddles, harnesses and key spheres are editable</strong> — they
+              carry no durability record.
+            </p>
+          )}
+        </>
+      )}
+
+      {source === 'base' && (
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
         <select
           className="input"
@@ -261,6 +363,7 @@ export default function SlotEditor({ canEdit }: { canEdit: boolean }) {
         </select>
       </div>
 
+      )}
       {containerId && slots.length > 0 && (
         <>
           <datalist id="slot-editor-items">
