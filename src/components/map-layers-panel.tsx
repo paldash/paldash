@@ -9,7 +9,7 @@ export interface LayerDef {
   id: string;
   label: string;
   color: string;
-  group: 'live' | 'world' | 'static' | 'base';
+  group: 'live' | 'discovery' | 'world' | 'static' | 'base';
 }
 
 export interface StaticCategory {
@@ -21,6 +21,12 @@ export interface StaticCategory {
 
 const GROUP_LABEL: Record<LayerDef['group'], string> = {
   live: 'Live',
+  // Bundled positions + your save's found/not-found state. Neither of the two
+  // groups below describes that, and filing them under "From the save" was
+  // wrong in the one way that matters: it claimed the *positions* came from the
+  // world, when the whole point of these layers is that the dashboard knows
+  // where all 174 and all 396 are regardless of what anyone has found.
+  discovery: 'Discoveries',
   world: 'From the save',
   static: 'From the game files',
   base: 'Base structures',
@@ -94,7 +100,7 @@ export default function MapLayersPanel({
   }, [open]);
 
   const activeCount = layers.filter((l) => active[l.id]).length;
-  const groups: LayerDef['group'][] = ['live', 'world', 'static', 'base'];
+  const groups: LayerDef['group'][] = ['live', 'discovery', 'world', 'static', 'base'];
 
   return (
     <div ref={boxRef} style={{ position: 'relative', display: 'inline-block' }}>

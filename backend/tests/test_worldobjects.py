@@ -277,7 +277,11 @@ def test_the_bundled_data_has_the_documented_shape():
     but had never been included.
 
     Regenerated again the same day to add `npc` (merchants and hostile camps):
-    51,701 -> 51,921. Every pre-existing category came back **byte-identical**,
+    51,701 -> 51,921. And once more to split `fieldboss` out of `palspawner`
+    (13,851 -> 13,752 + 99) — the alpha Pals that drop Ancient Technology Points
+    were already extracted and simply indistinguishable from ordinary spawn
+    points. The split is by negative lookahead rather than target ordering, so an
+    object lands in exactly one group whatever `--targets` says. Every pre-existing category came back **byte-identical**,
     which is the property `jsonout.write_json` exists to give — a regeneration
     can be diffed rather than trusted.
 
@@ -297,7 +301,8 @@ def test_the_bundled_data_has_the_documented_shape():
         by_category = {c["id"]: c["count"] for c in worldobjects.categories()}
         assert by_category == {
             "ore": 24_359, "treasure": 8_386, "fishing": 2_757, "oilrig": 185,
-            "palspawner": 13_851, "dungeon": 2_163, "npc": 220,
+            "palspawner": 13_752, "dungeon": 2_163, "npc": 220,
+            "fieldboss": 99,
         }
         assert "effigy" not in by_category
     finally:
@@ -321,5 +326,40 @@ def test_a_realistic_viewport_query_is_cheap():
         # Measured at ~0.15 ms; the bound is loose so a slow CI box does not fail
         # it, and tight enough that losing the grid would.
         assert per_call_ms < 2.0, f"{per_call_ms:.2f} ms per viewport query"
+    finally:
+        worldobjects.reset_for_tests()
+
+
+def test_field_bosses_are_named_and_disjoint_from_spawners():
+    """
+    99 placements, and **no field boss may also be a plain spawner**.
+
+    The two patterns overlap by construction — every field boss sheet is a
+    `BP_PalSpawner_Sheets_…` — so `palspawner` carries a negative lookahead. The
+    alternative was relying on first-match-wins over `--targets` order, which
+    would have made the split depend on a command line.
+
+    The naming is the other half: `BP_PalSpawner_Sheets_81_1_grass_FBOSS_23` on a
+    popup tells a player nothing and `Univolt` tells them everything. 97 of 99
+    resolve; the two that do not are left unnamed rather than guessed at.
+    """
+    worldobjects.reset_for_tests()
+    try:
+        bosses = worldobjects.load()["groups"]["fieldboss"]["objects"]
+        spawners = worldobjects.load()["groups"]["palspawner"]["objects"]
+
+        assert len(bosses) == 99
+        assert all("FBOSS" in o["cls"].upper() for o in bosses)
+        assert not any("FBOSS" in o["cls"].upper() for o in spawners), (
+            "a field boss must not also be counted as a plain spawn point"
+        )
+
+        named = [o for o in bosses if o.get("species")]
+        assert len(named) == 97
+        # Every resolved species is a boss form. This is the check that the
+        # `FBOSS` naming convention means what it appears to — it was found by
+        # class name, and confirmed by what the name tables independently say.
+        assert all(o["species"].lower().startswith("boss_") for o in named)
+        assert len({o["species"] for o in named}) == 69
     finally:
         worldobjects.reset_for_tests()

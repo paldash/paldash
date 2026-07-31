@@ -49,25 +49,41 @@ interface Props {
 }
 
 /**
+ * How much bigger every category marker is than its original size.
+ *
+ * One constant rather than twenty-five edited numbers, because the *relative*
+ * sizes below are deliberate — a palbox outranks a farm plot — and bumping them
+ * individually is how that ordering quietly gets lost.
+ *
+ * The original values were tuned as "the map should read as data, not
+ * decoration", which overshot: at 3-8 px, on a textured satellite image, most
+ * markers were genuinely hard to find. Restraint about *colour* is what keeps a
+ * map readable; being too small to see is not restraint.
+ */
+const MARKER_SCALE = 1.6;
+
+const px = (size: number) => Math.round(size * MARKER_SCALE);
+
+/**
  * Marker styling per category. Muted and consistent — the map should read as
  * data, not decoration.
  */
 const CATEGORY_STYLE: Record<string, { color: string; size: number; label: string }> = {
-  chest:       { color: '#c9973f', size: 6, label: 'Chest' },
-  fishingJunk: { color: '#5f6b73', size: 4, label: 'Fishing junk' },
-  oilrigChest: { color: '#d97757', size: 7, label: 'Oil rig crate' },
-  oreNode:     { color: '#8a8378', size: 5, label: 'Ore / mining node' },
-  drop:        { color: '#6d747e', size: 4, label: 'Dropped item' },
-  palbox:      { color: '#5b9dd9', size: 8, label: 'Palbox' },
-  breeding:    { color: '#8d84c7', size: 7, label: 'Breeding farm' },
-  statue:      { color: '#4d9e75', size: 8, label: 'Statue' },
-  crafting:    { color: '#a1a7b0', size: 5, label: 'Crafting' },
-  production:  { color: '#6d747e', size: 5, label: 'Production' },
-  farm:        { color: '#7fa05b', size: 5, label: 'Farm plot' },
-  storage:     { color: '#c25757', size: 5, label: 'Storage' },
-  comfort:     { color: '#6d747e', size: 4, label: 'Comfort' },
-  egg:         { color: '#c9973f', size: 6, label: 'Egg' },
-  defense:     { color: '#b0553f', size: 5, label: 'Defense' },
+  chest:       { color: '#c9973f', size: px(6), label: 'Chest' },
+  fishingJunk: { color: '#5f6b73', size: px(4), label: 'Fishing junk' },
+  oilrigChest: { color: '#d97757', size: px(7), label: 'Oil rig crate' },
+  oreNode:     { color: '#8a8378', size: px(5), label: 'Ore / mining node' },
+  drop:        { color: '#6d747e', size: px(4), label: 'Dropped item' },
+  palbox:      { color: '#5b9dd9', size: px(8), label: 'Palbox' },
+  breeding:    { color: '#8d84c7', size: px(7), label: 'Breeding farm' },
+  statue:      { color: '#4d9e75', size: px(8), label: 'Statue' },
+  crafting:    { color: '#a1a7b0', size: px(5), label: 'Crafting' },
+  production:  { color: '#6d747e', size: px(5), label: 'Production' },
+  farm:        { color: '#7fa05b', size: px(5), label: 'Farm plot' },
+  storage:     { color: '#c25757', size: px(5), label: 'Storage' },
+  comfort:     { color: '#6d747e', size: px(4), label: 'Comfort' },
+  egg:         { color: '#c9973f', size: px(6), label: 'Egg' },
+  defense:     { color: '#b0553f', size: px(5), label: 'Defense' },
 };
 
 /**
@@ -137,6 +153,29 @@ function playerIcon(name: string): L.DivIcon {
   });
 }
 
+/**
+ * A field boss: the Pal's own artwork in a red ring.
+ *
+ * DOM markers are the expensive kind, which is why the static layer uses canvas
+ * circles — but there are **99 of these in the entire world**, so the rule that
+ * keeps 24,359 ore nodes cheap does not apply. They are also the single most
+ * "where is it" marker on the map, which is what artwork is for.
+ *
+ * Falls back to a plain ring when the species could not be resolved (2 of 73
+ * sheets) or has no icon, rather than rendering a broken image.
+ */
+function bossIcon(icon: string | undefined, size: number): L.DivIcon {
+  const art = icon
+    ? `<img src="${icon}" alt="" style="width:100%;height:100%;object-fit:contain">`
+    : '';
+  return L.divIcon({
+    className: 'boss-pin',
+    html: `<span class="boss-pin-ring">${art}</span>`,
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2],
+  });
+}
+
 /** An image pin that falls back to a CSS marker when the artwork is absent. */
 function pinIcon(src: string, size: number, fallbackClass: string): L.DivIcon {
   return L.divIcon({
@@ -163,17 +202,19 @@ function pinIcon(src: string, size: number, fallbackClass: string): L.DivIcon {
  * terrain features rather than anything anyone owns.
  */
 const STATIC_STYLE: Record<string, { color: string; size: number; label: string }> = {
-  ore:      { color: '#8a8378', size: 4, label: 'Ore / mineral node' },
-  treasure: { color: '#c9973f', size: 5, label: 'Treasure chest' },
-  fishing:  { color: '#5f6b73', size: 4, label: 'Fishing spot' },
-  oilrig:   { color: '#d97757', size: 6, label: 'Oil field' },
-  // Spawners are the densest category by far (13,851 of them), so they are
-  // drawn smallest and dimmest — a hotspot is useful as a cloud, not as
-  // 13,000 individually legible pins.
-  palspawner: { color: '#6f9e6a', size: 3, label: 'Pal spawn point' },
-  dungeon:  { color: '#9a6fb0', size: 5, label: 'Dungeon' },
-  effigy:   { color: '#c7b04a', size: 5, label: 'Lifmunk effigy' },
-  npc:      { color: '#c9a227', size: 5, label: 'NPC / camp' },
+  ore:      { color: '#8a8378', size: px(4), label: 'Ore / mineral node' },
+  treasure: { color: '#c9973f', size: px(5), label: 'Treasure chest' },
+  fishing:  { color: '#5f6b73', size: px(4), label: 'Fishing spot' },
+  oilrig:   { color: '#d97757', size: px(6), label: 'Oil field' },
+  // Spawners are the densest category by far (13,851 of them), so they stay the
+  // smallest and dimmest — a hotspot is useful as a cloud, not as 13,000
+  // individually legible pins. Scaled with everything else so the *ordering*
+  // holds; it is still the bottom of it.
+  palspawner: { color: '#6f9e6a', size: px(3), label: 'Pal spawn point' },
+  dungeon:  { color: '#9a6fb0', size: px(5), label: 'Dungeon' },
+  effigy:   { color: '#c7b04a', size: px(5), label: 'Lifmunk effigy' },
+  npc:      { color: '#c9a227', size: px(5), label: 'NPC / camp' },
+  fieldboss: { color: '#d14b4b', size: px(9), label: 'Field boss' },
 };
 
 
@@ -475,8 +516,29 @@ export default function MapInner({
       const color = kindColor(object.cls, style.color);
       const shape = markerShape(object.category);
 
+      // Field bosses get the Pal's own artwork. 99 in the world, so the
+      // DOM-marker cost that rules artwork out everywhere else is irrelevant
+      // here — and these are the markers people are actually hunting for.
+      if (object.category === 'fieldboss') {
+        const label = object.speciesName || prettyClass(object.cls);
+        L.marker(worldToMap(object.x, object.y, region), {
+          icon: bossIcon(object.icon, px(26)),
+          zIndexOffset: 700,
+        })
+          .bindPopup(() => {
+            const c = worldToGameMap(object.x, object.y);
+            return `<div style="min-width:170px">
+               <div style="font-weight:600;margin-bottom:3px">${escapeHtml(label)}</div>
+               <div style="font-size:12px;color:#d14b4b">Field boss &middot; drops Ancient Technology</div>
+               <div style="font-size:11px;color:#6d747e;margin-top:4px">${c.x}, ${c.y}</div>
+             </div>`;
+          })
+          .addTo(group);
+        continue;
+      }
+
       // Ore and spawners stay canvas circles no matter what: there are 24,359
-      // and 13,851 of them, DOM markers at that count jank the browser, and at
+      // and 13,752 of them, DOM markers at that count jank the browser, and at
       // that density shape is indistinguishable anyway.
       if (shape !== 'circle' && object.category !== 'ore' && object.category !== 'palspawner') {
         L.marker(worldToMap(object.x, object.y, region), {
@@ -503,10 +565,14 @@ export default function MapInner({
       L.circleMarker(worldToMap(object.x, object.y, region), {
         renderer: rendererRef.current ?? undefined,
         radius: style.size / 2,
-        color,
-        weight: 0,
+        // A dark edge, not `weight: 0`. This was the bigger half of the
+        // legibility problem: a 55%-opacity fill with no outline dissolves into
+        // a textured satellite image at any size, so enlarging alone would not
+        // have fixed it. The stroke is what separates a marker from terrain.
+        color: 'rgba(0,0,0,.55)',
+        weight: 1,
         fillColor: color,
-        fillOpacity: 0.55,
+        fillOpacity: 0.85,
       })
         // Built on open, not on draw. This layer is rebuilt on every pan and
         // can hold 2,000 markers, so eagerly formatting 2,000 popups meant
@@ -595,11 +661,14 @@ export default function MapInner({
       const found = point.discovered;
 
       L.circleMarker(worldToMap(point.x, point.y, region), {
-        radius: 4,
-        color: found ? '#4d9e75' : '#8d84c7',
+        radius: px(4) / 2 + 2,
+        // A dark edge on both states. An uncollected effigy at 25% fill and a
+        // matching outline was nearly invisible, which defeated the point — the
+        // ones you have *not* found are the ones you are looking for.
+        color: 'rgba(0,0,0,.55)',
         weight: 1,
         fillColor: found ? '#4d9e75' : '#8d84c7',
-        fillOpacity: found ? 0.85 : 0.25,
+        fillOpacity: found ? 0.9 : 0.5,
       })
         .bindPopup(
           `<div style="min-width:150px">

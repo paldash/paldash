@@ -154,6 +154,10 @@ Three things worth knowing:
 So a player **can never hide from staff**, and **equal rank is concealed** —
 peers are exactly who a privacy setting is for.
 
+**You never hide from your own guild**, whatever the mode. A guild shares a
+palbox and shares bases; concealing a shared asset from the people who share it
+is not privacy, it is breakage. These settings are about strangers.
+
 | Mode | Hides |
 |---|---|
 | `off` | Nothing |

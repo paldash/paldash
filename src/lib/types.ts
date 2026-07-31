@@ -690,6 +690,12 @@ export interface StaticWorldObject {
   y: number;
   z: number;
   landmass: string;
+  /** Field bosses only: the `BOSS_…` species the spawner sheet references. */
+  species?: string;
+  /** That species resolved to what a player reads, e.g. `Univolt`. */
+  speciesName?: string;
+  /** The Pal's own artwork, resolved at request time. */
+  icon?: string;
 }
 
 /** A viewport query's answer, which reports what it left out. */

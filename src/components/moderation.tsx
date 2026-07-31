@@ -136,11 +136,14 @@ export default function Moderation() {
         </div>
       ) : (
         <div style={{ marginBottom: 14 }}>
-          {onlinePlayers.map((player) => {
+          {onlinePlayers.map((player, i) => {
             const uid = player.userId || player.playerId;
             return (
               <div
-                key={uid}
+                // Same collision as the Overview list: both ids can come back
+                // empty, and a shared key silently renders one row for several
+                // players. The index is only ever the last resort.
+                key={uid || `${player.name}-${i}`}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0',
                   borderBottom: '1px solid var(--border-primary)',

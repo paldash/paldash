@@ -134,6 +134,8 @@ export interface AccessPolicyInfo {
   levels: { id: string; label: string; description: string }[];
   visibilityKeys: string[];
   discoveryLevels: { id: string; label: string; description: string }[];
+  /** The same three values described for world objects, not for discoveries. */
+  worldObjectLevels?: { id: string; label: string; description: string }[];
   /**
    * Per-category discovery dials, resolved to the level actually in force.
    *

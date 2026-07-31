@@ -266,6 +266,9 @@ DEFAULT_WORLD_OBJECT_LEVELS: dict[str, str] = {
     # merchant is a service you go to rather than loot you find first, and the
     # camps are hostile — knowing where they are is a warning, not a spoiler.
     "npc": "everyone",
+    # Field bosses default open: they are fixed, named, once-per-world
+    # encounters rather than a farming atlas, and every wiki lists them.
+    "fieldboss": "everyone",
 }
 
 GUEST_VISIBILITY_KEYS = (
@@ -432,29 +435,61 @@ def default_policy() -> dict[str, Any]:
     }
 
 
-def _describe_discovery_levels() -> list[dict[str, Any]]:
-    """The threshold choices, for a UI to render. Roles come from `roles.py`."""
+def _describe_threshold_levels(
+    everyone: str, below: str, nobody: str
+) -> list[dict[str, Any]]:
+    """
+    The `everyone` / role / `nobody` ladder, described for one specific dial.
+
+    **The vocabulary is shared; the wording must not be.** Both the discovery
+    dials and the world-object dials use these three kinds of value, so the
+    world-object section simply reused the discovery descriptions — which meant
+    picking a threshold for *ore nodes* explained itself as "anyone who can see
+    the map also sees undiscovered fast-travel points and effigies". The setting
+    worked; the sentence under it described a different setting entirely.
+    """
     import roles
 
-    out: list[dict[str, Any]] = [{
-        "id": "everyone", "label": "Everyone",
-        "description": "Anyone who can see the map, including guests, also sees "
-                       "undiscovered fast-travel points and effigies.",
-    }]
+    out: list[dict[str, Any]] = [
+        {"id": "everyone", "label": "Everyone", "description": everyone}
+    ]
     for name in roles.ASSIGNABLE_ROLES:
         role = roles.ROLES[name]
         out.append({
             "id": name,
             "label": f"{role['label']} and above",
-            "description": f"Ranks below {role['label']} see only what they have "
-                           "found themselves.",
+            "description": below.format(role=role["label"]),
         })
-    out.append({
-        "id": "nobody", "label": "Nobody",
-        "description": "Undiscovered locations are never sent to any session. "
-                       "Everyone sees only their own discoveries.",
-    })
+    out.append({"id": "nobody", "label": "Nobody", "description": nobody})
     return out
+
+
+def _describe_discovery_levels() -> list[dict[str, Any]]:
+    """Threshold choices for the fast-travel / effigy dials."""
+    return _describe_threshold_levels(
+        everyone="Anyone who can see the map, including guests, also sees "
+                 "locations nobody has found yet.",
+        below="Ranks below {role} see only what they have found themselves.",
+        nobody="Undiscovered locations are never sent to any session. Everyone "
+               "sees only their own discoveries.",
+    )
+
+
+def _describe_world_object_levels() -> list[dict[str, Any]]:
+    """
+    Threshold choices for the static world-object categories.
+
+    Worded about *this category* rather than about discoveries — these come
+    straight from the game files and have no per-player found/not-found state, so
+    "what they have found themselves" was never true of them.
+    """
+    return _describe_threshold_levels(
+        everyone="Anyone who can see the map, including guests, sees every one "
+                 "of these that exists in the game.",
+        below="{role} and above see them. Ranks below get nothing — the category "
+              "is not listed to them either.",
+        nobody="Never shown to anyone, at any rank.",
+    )
 
 
 def _describe_base_visibility() -> list[dict[str, Any]]:
@@ -807,6 +842,8 @@ def describe() -> dict[str, Any]:
         ],
         "visibilityKeys": list(GUEST_VISIBILITY_KEYS),
         "discoveryLevels": _describe_discovery_levels(),
+        # Same three values, different subject — see `_describe_threshold_levels`.
+        "worldObjectLevels": _describe_world_object_levels(),
         # The per-category dials, with the level each currently resolves to.
         # Sent resolved rather than as raw overrides so the UI shows what is in
         # force, not a blank where it inherits.

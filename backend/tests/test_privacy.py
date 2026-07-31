@@ -271,3 +271,100 @@ def test_bases_only_is_offered_to_the_ui_with_an_explanation():
     assert "bases_only" in modes
     assert modes["bases_only"]["label"]
     assert "position" in modes["bases_only"]["description"].lower()
+
+
+# ─── You never hide from your own guild ───────────────────
+#
+# The rule `baseprivacy.py` had and this module did not. Combined with
+# `DEFAULT_MODE` being the most private option, the effect on a fresh server was
+# that two friends in one guild, both on defaults, could not see each other's
+# base, each other's position, or each other at all — and nothing looked broken,
+# the map was simply empty.
+
+
+@pytest.fixture
+def one_guild(monkeypatch):
+    """Alice and Carol share a guild; Dave is in his own."""
+    import savecache
+
+    monkeypatch.setattr(
+        savecache, "get_section",
+        lambda name: [
+            {"id": "g1", "name": "Ours", "members": [
+                {"uid": SAVE_UID_A, "name": "Alice"},
+                {"uid": SAVE_UID_C, "name": "Carol"},
+            ]},
+            {"id": "g2", "name": "Theirs", "members": [
+                {"uid": SAVE_UID_B, "name": "Dave"},
+            ]},
+        ] if name == "guilds" else [],
+    )
+
+
+def test_guildmates_see_each_other_on_the_default(fresh_db, one_guild):
+    """
+    Two friends, one guild, nobody has touched a setting. This is the exact
+    case that broke, and the one a fresh server starts in.
+    """
+    accounts.create_user("alice", PASSWORD, "player", steam_uid=SAVE_UID_A)
+    accounts.create_user("carol", PASSWORD, "player", steam_uid=SAVE_UID_C)
+
+    hidden = privacy.hidden_uids("player", "alice")
+    assert privacy.normalise_uid(SAVE_UID_C) not in hidden["players"]
+    assert privacy.normalise_uid(SAVE_UID_C) not in hidden["bases"]
+    assert privacy.normalise_uid(SAVE_UID_C) not in hidden["guilds"]
+
+
+def test_someone_in_another_guild_is_still_hidden(fresh_db, one_guild):
+    """The exemption must not become 'privacy does nothing'."""
+    accounts.create_user("alice", PASSWORD, "player", steam_uid=SAVE_UID_A)
+    accounts.create_user("dave", PASSWORD, "player", steam_uid=SAVE_UID_B)
+
+    hidden = privacy.hidden_uids("player", "alice")
+    assert privacy.normalise_uid(SAVE_UID_B) in hidden["players"]
+
+
+def test_the_exemption_works_when_the_viewers_own_privacy_is_off(fresh_db, one_guild):
+    """
+    `all_settings()` only returns accounts with privacy *on*, so a viewer who
+    opted out is absent from it — and still has a guild whose members must stay
+    visible. Resolved through `_linked_uid` for exactly this case.
+    """
+    accounts.create_user("alice", PASSWORD, "player", steam_uid=SAVE_UID_A)
+    accounts.create_user("carol", PASSWORD, "player", steam_uid=SAVE_UID_C)
+    privacy.set_mode("alice", "off")
+
+    hidden = privacy.hidden_uids("player", "alice")
+    assert privacy.normalise_uid(SAVE_UID_C) not in hidden["players"]
+
+
+def test_an_unparsed_world_falls_back_to_the_plain_rank_rule(fresh_db, monkeypatch):
+    """
+    No guild data means the exemption cannot apply, and it must fail towards
+    *more* privacy rather than less — the safe direction for concealment.
+    """
+    import savecache
+
+    monkeypatch.setattr(savecache, "get_section", lambda name: [])
+    accounts.create_user("alice", PASSWORD, "player", steam_uid=SAVE_UID_A)
+    accounts.create_user("carol", PASSWORD, "player", steam_uid=SAVE_UID_C)
+
+    hidden = privacy.hidden_uids("player", "alice")
+    assert privacy.normalise_uid(SAVE_UID_C) in hidden["players"]
+
+
+def test_a_guildmate_is_visible_even_at_the_widest_mode(fresh_db, one_guild):
+    """
+    `guild` mode hides a shared asset. Hiding it from the people who share it is
+    not privacy, it is breakage — which is why the exemption sits above the mode
+    check rather than being special-cased per mode.
+    """
+    accounts.create_user("alice", PASSWORD, "player", steam_uid=SAVE_UID_A)
+    accounts.create_user("carol", PASSWORD, "player", steam_uid=SAVE_UID_C)
+    privacy.set_mode("carol", "guild")
+
+    hidden = privacy.hidden_uids("player", "alice")
+    assert not any(
+        privacy.normalise_uid(SAVE_UID_C) in hidden[key]
+        for key in ("players", "bases", "guilds")
+    )

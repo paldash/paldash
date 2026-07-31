@@ -35,8 +35,8 @@
  "worldobjects.json.gz": {
   "source": "Pal-LinuxServer.pak (MainGrid streaming cells)",
   "gameBuild": "24370498",
-  "regenerateWith": "python3 scripts/extract-world-objects.py --targets ore,treasure,fishing,oilrig,palspawner,dungeon,npc --out backend/data/worldobjects.json.gz",
-  "note": "51,921 objects: 24,359 ore, 8,386 chests, 2,757 fishing spots, 185 oil fields, 13,851 Pal spawners, 2,163 dungeons, 220 NPC spawners and camps. Effigies are deliberately excluded — they have their own bundle carrying the GUIDs saves key on, and including them here would double-draw them on the map. Tower bosses are NOT here either: they are fast-travel points, the eight named '… Tower Entrance' (see gamedata.fast_travel_kind). The most update-sensitive artifact here: terrain edits move these."
+  "regenerateWith": "python3 scripts/extract-world-objects.py --targets ore,treasure,fishing,oilrig,palspawner,dungeon,npc,fieldboss --out backend/data/worldobjects.json.gz",
+  "note": "51,921 objects: 24,359 ore, 8,386 chests, 2,757 fishing spots, 185 oil fields, 13,752 Pal spawners, 2,163 dungeons, 220 NPC spawners and camps, 99 field bosses. Field bosses are the alpha Pals that drop Ancient Technology Points; they carry a resolved `species` (97 of 99 named, 69 distinct) and are excluded from palspawner by a negative lookahead so an object lands in exactly one group. Effigies are deliberately excluded — they have their own bundle carrying the GUIDs saves key on. Tower bosses are NOT here either: they are fast-travel points, the eight named '… Tower Entrance' (see gamedata.fast_travel_kind). The most update-sensitive artifact here: terrain edits move these."
  },
  "habitats.json.gz": {
   "source": "Pal-LinuxServer.pak (spawner blueprint name tables + placed spawner actors)",

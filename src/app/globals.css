@@ -531,3 +531,19 @@ html, body {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ─── Field boss markers ────────────────────────────────
+   The Pal's own artwork in a red ring. Only 99 exist, so these can afford to be
+   DOM markers with real art where the 24,359 ore nodes cannot. */
+.boss-pin { pointer-events: auto; }
+.boss-pin-ring {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: rgba(15, 17, 21, 0.72);
+  border: 2px solid #d14b4b;
+  box-shadow: 0 0 8px rgba(209, 75, 75, 0.55), 0 1px 3px rgba(0, 0, 0, 0.7);
+  overflow: hidden;
+}

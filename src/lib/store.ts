@@ -195,6 +195,8 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
     'static:dungeon': false,
     'static:palspawner': false,
     'static:npc': false,
+    // On by default: 99 markers, and the thing people most want a map for.
+    'static:fieldboss': true,
   },
   toggleMapLayer: (layer) =>
     set((state) => ({

@@ -77,11 +77,29 @@ TARGETS: dict[str, dict] = {
     },
     "palspawner": {
         "label": "Pal spawners",
-        "pattern": re.compile(r"^BP_PalSpawner\w*$"),
+        # Field bosses excluded explicitly rather than by target ordering — see
+        # `fieldboss` above.
+        "pattern": re.compile(r"^BP_PalSpawner(?!_Sheets_\w*FBOSS)\w*$"),
     },
     "oilrig": {
         "label": "Oil fields",
         "pattern": re.compile(r"^BP_LevelObject_Oil\w*$"),
+    },
+    # The alpha Pals that drop Ancient Technology Points.
+    #
+    # They were already extracted — as 99 of the 13,851 `palspawner` placements,
+    # indistinguishable from ordinary spawn points and therefore unfindable. They
+    # are their own category because they are their own *thing*: a fixed, named,
+    # once-per-world encounter rather than a respawning population.
+    #
+    # `palspawner` below carries a negative lookahead for the same pattern, so an
+    # object lands in exactly one group regardless of the order `--targets` names
+    # them in. Relying on first-match-wins would have made the split depend on a
+    # command line.
+    "fieldboss": {
+        "label": "Field bosses",
+        "pattern": re.compile(r"^BP_PalSpawner_Sheets_\w*FBOSS\w*$"),
+        "prefixes": ["BP_PalSpawner_Sheets"],
     },
     # Merchants, wandering traders and the NPC camps. `Mono` is the game's own
     # prefix for the standing NPC spawners; the camps are the hostile ones.
@@ -152,6 +170,55 @@ def list_classes(pak: Pak, needle: str) -> None:
     print(f"{len(counts)} classes matching {needle!r} (value = cells containing it)")
     for name, n in counts.most_common(60):
         print(f"  {n:>5}  {name}")
+
+
+def name_field_bosses(pak: Pak, objects: list[dict]) -> dict[str, str]:
+    """
+    Field-boss spawner sheet -> the boss species it spawns.
+
+    The same name-table trick `extract-pal-habitats.py` uses, and it works for
+    the same reason: a package's properties are cooked with unversioned names and
+    cannot be decoded, but its **name table is plainly serialised**. Intersecting
+    a sheet's name table with the known species list gives what it references.
+
+    **The `BOSS_` prefix is the verification, not the search key.** These sheets
+    were found by their `FBOSS` class name, which is a naming convention and
+    could mean anything. That 71 of 73 independently resolve to a species the
+    game data spells `BOSS_…` is what confirms the convention means what it looks
+    like. A sheet resolving to no boss is left unnamed rather than guessed at.
+
+    A sheet often names two species — the boss and its minion or base form
+    (`BOSS_QueenBee` + `SoldierBee`, `BOSS_KingAlpaca` + `Alpaca`). The prefixed
+    one is the encounter; the other is scenery.
+    """
+    sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(
+        os.path.abspath(__file__))), "backend"))
+    try:
+        import gamedata
+    except Exception as e:      # noqa: BLE001 - naming is a bonus, not the data
+        print(f"warning: cannot name field bosses ({e})", file=sys.stderr)
+        return {}
+
+    species = {k.lower(): k for k in (gamedata.load().get("pals") or {})}
+    wanted = {o["cls"] for o in objects}
+    names: dict[str, str] = {}
+
+    for path in pak.files:
+        if not path.endswith(".uasset") or "/Spawner/" not in path:
+            continue
+        cls = os.path.splitext(os.path.basename(path))[0]
+        if cls not in wanted:
+            continue
+        try:
+            package = upackage.read(pak.read(path))
+        except Exception:       # noqa: BLE001 - one unreadable sheet is not fatal
+            continue
+        found = sorted({species[n.lower()] for n in package.names
+                        if n.lower() in species})
+        boss = next((f for f in found if f.lower().startswith("boss_")), None)
+        if boss:
+            names[cls] = boss
+    return names
 
 
 def extract(pak: Pak, wanted: list[str]) -> dict:
@@ -231,6 +298,19 @@ def extract(pak: Pak, wanted: list[str]) -> dict:
                     "landmass": "worldtree" if x > 300_000 else "palpagos",
                 })
                 break
+
+    # Field bosses carry the species they spawn, because "BP_PalSpawner_Sheets_
+    # 81_1_grass_FBOSS_23" on a map popup tells a player nothing and "Kirin"
+    # tells them everything.
+    if "fieldboss" in wanted and found["fieldboss"]:
+        boss_names = name_field_bosses(pak, found["fieldboss"])
+        for obj in found["fieldboss"]:
+            species = boss_names.get(obj["cls"])
+            if species:
+                obj["species"] = species
+        print(f"named {len(boss_names)} of "
+              f"{len({o['cls'] for o in found['fieldboss']})} field boss sheets",
+              file=sys.stderr)
 
     return {
         "cellsParsed": cells_parsed,

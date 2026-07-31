@@ -141,6 +141,17 @@ export default function BaseViewer() {
         </div>
       </div>
 
+      {/* Said in the page, not only in a tooltip. Two people independently read
+          "I cannot see my friend's base" as the dashboard being broken, and the
+          setting that causes it lives on a tab a Player cannot open. */}
+      {!maySeeDetail && (
+        <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+          You are seeing your own guild&apos;s bases. Whether players see other
+          guilds&apos; bases is a server setting an Administrator controls on the
+          Access tab.
+        </p>
+      )}
+
       {full.length > 0 && (
         <div className="notice notice-warn">
           <AlertTriangle size={14} style={{ display: 'inline', verticalAlign: '-2px', marginRight: 6 }} />

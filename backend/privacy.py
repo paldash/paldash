@@ -197,6 +197,47 @@ def all_settings() -> list[dict[str, Any]]:
 # ─── Application ─────────────────────────────────────────
 
 
+def _linked_uid(username: str) -> str:
+    """
+    One account's linked character uid, normalised.
+
+    Needed because `all_settings()` only returns accounts with privacy *on*, so
+    a viewer whose own setting is `off` is absent from it — and that viewer still
+    has a guild whose members must stay visible to them.
+    """
+    row = db.connect().execute(
+        "SELECT steam_uid FROM users WHERE username = ? COLLATE NOCASE", (username,)
+    ).fetchone()
+    return normalise_uid(row["steam_uid"]) if row else ""
+
+
+def _guildmates(viewer_uid: str) -> set[str]:
+    """
+    Every uid sharing a guild with the viewer, including their own.
+
+    Imported lazily: `savecache` is a heavy module and `privacy` is on the
+    request path for things that never touch a parsed world.
+
+    Empty when the world has not been parsed, which fails towards *more* privacy
+    — the exemption simply does not apply and the normal rank rule stands. That
+    is the safe direction for a concealment feature.
+    """
+    if not viewer_uid:
+        return set()
+    import savecache
+
+    mates: set[str] = set()
+    for guild in savecache.get_section("guilds"):
+        members = {
+            normalise_uid(m.get("uid"))
+            for m in (guild.get("members") or [])
+            if m.get("uid")
+        }
+        if viewer_uid in members:
+            mates |= members
+    return mates
+
+
 def hidden_uids(viewer_role: str, viewer_username: str = "") -> dict[str, set[str]]:
     """
     Player uids this viewer must not see, split by what is concealed.
@@ -206,17 +247,50 @@ def hidden_uids(viewer_role: str, viewer_username: str = "") -> dict[str, set[st
 
     A viewer never hides from themselves; the whole point is that you can still
     see your own things.
+
+    **Nor from their own guild, and the absence of that rule was a real bug.**
+    `baseprivacy.py` already reasoned it out — "a guild always sees its own
+    bases; without that, hiding a base would hide it from yourself and your
+    guildmates, which reads as data loss rather than as a privacy setting" — and
+    this module never got the same treatment. Combined with `DEFAULT_MODE`
+    being the *most* private option, the effect on a fresh server was that two
+    friends in one guild, both on defaults, could not see each other's base, each
+    other's position, or each other at all. Nothing looked broken; the map was
+    simply empty.
+
+    A guild shares a palbox and shares bases. Concealing a shared asset from the
+    people who share it is not privacy, it is breakage. These settings are about
+    strangers, which is what "peers" was always meant to mean.
     """
     players: set[str] = set()
     bases: set[str] = set()
     guilds: set[str] = set()
 
-    for entry in all_settings():
+    settings = all_settings()
+    if not settings:
+        return {"players": players, "bases": bases, "guilds": guilds}
+
+    # The viewer's own uid, from the same rows — no second query, and no
+    # dependency on `accounts` here.
+    viewer_uid = ""
+    if viewer_username:
+        for entry in settings:
+            if entry["username"].lower() == viewer_username.lower():
+                viewer_uid = normalise_uid(entry["steamUid"])
+                break
+        else:
+            viewer_uid = _linked_uid(viewer_username)
+
+    mates = _guildmates(viewer_uid)
+
+    for entry in settings:
         uid = normalise_uid(entry["steamUid"])
         if not uid:
             continue                       # no linked character, nothing to hide
         if viewer_username and entry["username"].lower() == viewer_username.lower():
             continue                       # never hide someone from themselves
+        if uid in mates:
+            continue                       # never hide from your own guild
         if not conceals(viewer_role, entry["role"], entry["mode"]):
             continue
 

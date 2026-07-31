@@ -325,8 +325,15 @@ export default function ServerOverview() {
             <span className="badge badge-online" style={{ marginLeft: 8 }}>{onlinePlayers.length}</span>
           </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-            {onlinePlayers.map(p => (
-              <div key={p.userId} className="glass-card" style={{
+            {/* A composite key, not `p.userId`.
+                The game's REST API returns an empty `userId` for players in
+                some states, and guests have it stripped as PII — so several
+                rows shared the key `""`, React reconciled them as one element,
+                and the list rendered a single player while the count beside it
+                (an array length) correctly said three. The count being right is
+                what made it look like a data problem rather than a render one. */}
+            {onlinePlayers.map((p, i) => (
+              <div key={p.userId || p.playerId || `${p.name}-${i}`} className="glass-card" style={{
                 padding: '8px 14px', display: 'flex', alignItems: 'center', gap: 8
               }}>
                 <span className="status-dot online" />

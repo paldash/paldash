@@ -1195,13 +1195,27 @@ def get_world_objects(
     # named means "everything", which must still mean everything *this viewer* may
     # see, and a count taken before that filter would promise points that zooming
     # in never reveals.
-    return worldobjects.query(
+    result = worldobjects.query(
         category=category,
         min_x=minX, min_y=minY, max_x=maxX, max_y=maxY,
         kinds=[k for k in kinds.split(",") if k],
         allowed=allowed,
         limit=limit,
     )
+
+    # Field bosses carry the species they spawn; resolve it to what a player
+    # reads. Done here rather than baked into the bundle so refreshing the game
+    # data updates the names without a re-extraction — the same reason
+    # `/api/items` resolves item names at request time.
+    #
+    # `character()`, not `pal()`: these are `BOSS_` variants, and the bundled
+    # tables spell them inconsistently enough that an exact lookup drops some.
+    for point in result["points"]:
+        species = point.get("species")
+        if species:
+            point["speciesName"] = gamedata.character_name(species)
+            point["icon"] = (gamedata.describe_pal(species) or {}).get("icon")
+    return result
 
 
 @app.get("/api/world/objects/categories")

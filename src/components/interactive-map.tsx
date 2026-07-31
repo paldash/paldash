@@ -25,12 +25,22 @@ const MapComponent = dynamic(() => import('./map-inner'), { ssr: false });
  * statues are static level actors, so their positions ship with the dashboard as
  * bundled game data. Everything else is read out of the world.
  */
-const LAYERS: { id: string; label: string; color: string; group: 'live' | 'world' | 'static' | 'base' }[] = [
+const LAYERS: { id: string; label: string; color: string; group: 'live' | 'discovery' | 'world' | 'static' | 'base' }[] = [
   { id: 'players', label: 'Players', color: '#5b9dd9', group: 'live' },
   { id: 'bases', label: 'Bases', color: '#c9973f', group: 'live' },
 
-  { id: 'fastTravel', label: 'Fast travel', color: '#e0c060', group: 'world' },
-  { id: 'effigies', label: 'Effigies', color: '#8d84c7', group: 'world' },
+  // Their own group, because they are neither of the other two and sat under
+  // "From the save" claiming to be something they are not. Positions ship with
+  // the dashboard (extracted from the pak); the save contributes only which ones
+  // *you* have found. The comment above said exactly this while the group label
+  // said otherwise.
+  //
+  // The group also maps one-to-one onto `discoveryCategoryVisibility`, so what
+  // an operator sets on the Access tab and what a player sees here are named the
+  // same thing.
+  { id: 'fastTravel', label: 'Fast travel', color: '#e0c060', group: 'discovery' },
+  { id: 'effigies', label: 'Effigies', color: '#8d84c7', group: 'discovery' },
+
   { id: 'chest', label: 'Chests', color: '#c9973f', group: 'world' },
   { id: 'oreNode', label: 'Ore nodes', color: '#8a8378', group: 'world' },
   { id: 'oilrigChest', label: 'Oil rig', color: '#d97757', group: 'world' },
@@ -49,6 +59,10 @@ const LAYERS: { id: string; label: string; color: string; group: 'live' | 'world
   { id: 'static:dungeon', label: 'Dungeons', color: '#9a6fb0', group: 'static' },
   { id: 'static:palspawner', label: 'Pal spawns', color: '#7fa05b', group: 'static' },
   { id: 'static:npc', label: 'NPCs & camps', color: '#c9a227', group: 'static' },
+  // The alpha Pals that drop Ancient Technology Points. 99 in the world, named
+  // and drawn with the Pal's own artwork — they were previously indistinguishable
+  // from the other 13,851 spawn points.
+  { id: 'static:fieldboss', label: 'Field bosses', color: '#d14b4b', group: 'static' },
 
   { id: 'palbox', label: 'Palboxes', color: '#5b9dd9', group: 'base' },
   { id: 'breeding', label: 'Breeding', color: '#8d84c7', group: 'base' },

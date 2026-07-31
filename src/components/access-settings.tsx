@@ -386,8 +386,11 @@ export default function AccessSettings() {
                     </span>
                   </div>
                   <ThresholdPicker
+                    // Not `discoveryLevels`: same three values, different
+                    // subject. Reusing them explained an ore-node threshold as
+                    // being about fast-travel points and effigies.
+                    options={policy.worldObjectLevels ?? policy.discoveryLevels}
                     value={current}
-                    options={policy.discoveryLevels}
                     busy={busy}
                     onPick={(level) =>
                       apply({

@@ -195,6 +195,28 @@ and nothing caught it until someone regenerated on a live server.
 `write_json` honours the suffix and sets `mtime=0`, so unchanged input produces
 byte-identical output and a regeneration can be **diffed** rather than trusted.
 
+## Field bosses were hiding inside the spawner count
+
+The alpha Pals that drop Ancient Technology Points were extracted all along — as
+99 of the 13,851 `palspawner` placements, indistinguishable from ordinary spawn
+points and therefore unfindable. They are now their own category, **named**.
+
+The naming reuses the habitat trick (`extract-pal-habitats.py`): properties are
+undecodable, name tables are not, so intersecting a sheet's name table with the
+known species list says what it references. **71 of 73 sheets resolve, and every
+single one names a `BOSS_`-prefixed species** — which is the verification, not
+the search key. The sheets were found by the `FBOSS` class-name convention, and
+that they independently resolve to boss forms is what confirms the convention
+means what it looks like. A sheet often names two species (`BOSS_QueenBee` +
+`SoldierBee`); the prefixed one is the encounter.
+
+`palspawner` excludes them by **negative lookahead**, not by `--targets` ordering
+— first-match-wins would have made the split depend on a command line.
+
+**Level is not available.** It lives in the spawner's unversioned properties, and
+the bundled tables carry a boss's name, icon, rarity and description but no
+level. Name and artwork are what the data supports; do not invent the rest.
+
 ## Spawn habitats come from name tables, not from properties
 
 `scripts/extract-pal-habitats.py`. Spawner actors placed in the world name a
@@ -797,6 +819,22 @@ me" therefore has more than one honest meaning: `off`, `player`, `player_bases`
 lowercased; `Level.sav` stores dashed lowercase GUIDs. Comparing them raw matches
 nothing and fails *silently* — privacy hides nobody while every setting still
 reads as enabled. Use `privacy.normalise_uid`.
+
+**You never hide from your own guild, and the absence of that rule broke a live
+server.** `baseprivacy.py` had reasoned it out — "a guild always sees its own
+bases; without that, a guild master hiding a base would hide it from themselves
+and their guildmates, which reads as data loss rather than as a privacy setting"
+— and `privacy.py` never got the same treatment. Combined with `DEFAULT_MODE`
+being the *most* private option, two friends in one guild on default settings
+could not see each other's base, each other's position, or each other at all.
+Nothing errored; the map was simply empty, which is why it read as a broken
+dashboard rather than as a setting.
+
+A guild shares a palbox and shares bases. Concealing a shared asset from the
+people who share it is not privacy, it is breakage. The exemption sits *above*
+the mode check in `hidden_uids`, not per-mode, because it is true of every mode.
+It fails towards **more** privacy: an unparsed world means no guild data, so the
+exemption does not apply and the plain rank rule stands.
 
 **Filter in two places.** Save-derived data goes through the backend endpoints;
 **live positions come from the game's REST API through the Next.js proxy**. A
