@@ -103,13 +103,21 @@ export interface BaseCamp {
   z: number;
   radius: number;
   /**
+   * Pals actually **working at this base**, from its own worker container.
+   *
+   * Safe to sum across bases. 165 of 1,905 on the reference world — most Pals
+   * sit in a palbox, which is a guild-level thing rather than a base one.
+   */
+  palCount?: number;
+  /**
    * Pals in this base's **guild**, not at this base.
    *
-   * Guild bases share a palbox and the save has no per-base Pal attribution, so
-   * this is a guild total repeated on each of its bases — never sum it across
-   * bases, or a guild with three bases reports three times its Pals.
+   * A guild total repeated on each of its bases — never sum it across bases, or
+   * a guild with three bases reports three times its Pals. Optional because a
+   * cache written before the field existed does not carry it; the backend
+   * discards such a cache now, and `?? 0` is the belt to that braces.
    */
-  guildPalCount: number;
+  guildPalCount?: number;
   containerIds: string[];
   storedItemCount?: number;
   usedSlots?: number;
@@ -984,6 +992,14 @@ export interface FastTravelPoint {
   x: number;
   y: number;
   z: number;
+  /**
+   * `tower` (a boss arena), `watchtower`, or `travel`.
+   *
+   * Derived from the name in `backend/gamedata.py`. The eight tower bosses were
+   * always in this list and drawn identically to the other 166, which is why
+   * "there are no towers on the map" was both a fair complaint and not true.
+   */
+  kind?: 'tower' | 'watchtower' | 'travel';
 }
 
 /** One item type, totalled server-wide and resolved against the bundled game data. */
@@ -1206,6 +1222,8 @@ export interface BreedingStep {
 export interface ReachableTargets {
   maxDepth: number;
   ownedSpecies: number;
+  /** Whether the search only used pairs this owner can physically make. */
+  genderAware?: boolean;
   targets: (PalSummary & { depth: number; steps: BreedingStep[] })[];
 }
 

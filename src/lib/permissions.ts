@@ -138,10 +138,15 @@ const ROUTES: RouteRule[] = [
   { pattern: /^privacy\/bases\/[A-Za-z0-9-]+$/, methods: ['POST'], capability: CAPABILITIES.VIEW_BASIC, feature: null },
   { pattern: /^roles$/, methods: ['GET'], capability: CAPABILITIES.VIEW_BASIC, feature: FEATURES.SERVER_STATUS },
 
-  // Storage is VIEW_DETAIL, unlike plain `bases` above — the base list is a map
-  // pin, its storage is a full inventory readout.
-  { pattern: /^bases\/storage$/, methods: ['GET'], capability: CAPABILITIES.VIEW_DETAIL, feature: FEATURES.ITEMS },
-  { pattern: /^bases\/[A-Za-z0-9-]+\/storage$/, methods: ['GET'], capability: CAPABILITIES.VIEW_DETAIL, feature: FEATURES.ITEMS },
+  // VIEW_SELF, scoped by the backend to the caller's own guild's bases. Your
+  // own base's contents are something you can walk up to in game, and gating
+  // them at VIEW_DETAIL left a Player seeing their guild's *total* Wood on the
+  // Items tab but not which of their own chests it was in.
+  //
+  // Still narrower than the plain `bases` list above, which is a map pin —
+  // `baseVisibility` opening the map does NOT hand out other guilds' contents.
+  { pattern: /^bases\/storage$/, methods: ['GET'], capability: CAPABILITIES.VIEW_SELF, feature: FEATURES.ITEMS },
+  { pattern: /^bases\/[A-Za-z0-9-]+\/storage$/, methods: ['GET'], capability: CAPABILITIES.VIEW_SELF, feature: FEATURES.ITEMS },
   // Literal `export/verify` before the `export/{kind}` pattern: verify is a POST
   // and must not be reachable as a GET export of a kind called "verify".
   { pattern: /^export\/verify$/, methods: ['POST'], capability: CAPABILITIES.VIEW_DETAIL, feature: null },
@@ -177,7 +182,12 @@ const ROUTES: RouteRule[] = [
   { pattern: /^palcheck\/scan$/, methods: ['GET'], capability: CAPABILITIES.VIEW_DETAIL, feature: null },
   { pattern: /^palcheck\/repair\/preview$/, methods: ['POST'], capability: CAPABILITIES.SAVE_EDIT_FULL, feature: null },
   { pattern: /^palcheck\/repair$/, methods: ['POST'], capability: CAPABILITIES.SAVE_EDIT_FULL, feature: null },
-  { pattern: /^export\/(world|player|guild|base|container|pal)$/, methods: ['GET'], capability: CAPABILITIES.VIEW_DETAIL, feature: null },
+  // `pal` and `player` sit at VIEW_SELF because exporting *your own* character
+  // is the same class of act as reading your own palbox. The backend does the
+  // ownership check — this allowlist only decides whether the request may reach
+  // it at all, and it cannot tell whose id is in the query string.
+  { pattern: /^export\/(player|pal)$/, methods: ['GET'], capability: CAPABILITIES.VIEW_SELF, feature: null },
+  { pattern: /^export\/(world|guild|base|container)$/, methods: ['GET'], capability: CAPABILITIES.VIEW_DETAIL, feature: null },
   { pattern: /^reports$/, methods: ['GET'], capability: CAPABILITIES.VIEW_DETAIL, feature: FEATURES.ITEMS },
   { pattern: /^reports\/[a-z-]+$/, methods: ['GET'], capability: CAPABILITIES.VIEW_DETAIL, feature: FEATURES.ITEMS },
   { pattern: /^items\/scopes$/, methods: ['GET'], capability: CAPABILITIES.VIEW_SELF, feature: FEATURES.ITEMS },
@@ -190,9 +200,17 @@ const ROUTES: RouteRule[] = [
   // feature, and the backend decides whose Pals it actually reads.
   { pattern: /^breeding\/[a-z]+$/, methods: ['GET'], capability: CAPABILITIES.VIEW_SELF, feature: FEATURES.BREEDING },
   { pattern: /^players$/, methods: ['GET'], capability: CAPABILITIES.VIEW_DETAIL, feature: null },
-  { pattern: /^players\/[A-Za-z0-9-]+$/, methods: ['GET'], capability: CAPABILITIES.VIEW_DETAIL, feature: null },
-  { pattern: /^progress$/, methods: ['GET'], capability: CAPABILITIES.VIEW_DETAIL, feature: null },
-  { pattern: /^inventory\/[A-Za-z0-9-]+$/, methods: ['GET'], capability: CAPABILITIES.VIEW_DETAIL, feature: null },
+  // VIEW_SELF for your own uid only; the backend rejects anyone else's.
+  { pattern: /^players\/[A-Za-z0-9-]+$/, methods: ['GET'], capability: CAPABILITIES.VIEW_SELF, feature: null },
+  // VIEW_SELF: the backend narrows this to the caller's own row below
+  // VIEW_DETAIL rather than refusing, so a Player can see their own
+  // progression. The denominators are still computed across everyone —
+  // narrowing those would leak how much the players you cannot see have found.
+  { pattern: /^progress$/, methods: ['GET'], capability: CAPABILITIES.VIEW_SELF, feature: null },
+  // Same scoping as base storage above: a Player reaches containers belonging
+  // to their own guild's bases and nothing else. The backend enforces it — this
+  // allowlist cannot tell whose container an id names.
+  { pattern: /^inventory\/[A-Za-z0-9-]+$/, methods: ['GET'], capability: CAPABILITIES.VIEW_SELF, feature: null },
 
   // ─── Writes ───
   { pattern: /^refresh$/, methods: ['POST'], capability: CAPABILITIES.VIEW_BASIC, feature: null },

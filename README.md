@@ -61,6 +61,7 @@ container traps that only show up on a real build.
 |---|---|
 | `docs/DEPLOYMENT.md` | How to run it, and how to ship it as an image |
 | `docs/CONFIGURATION.md` | Every environment variable, every option, and what each means |
+| `docs/ROLES.md` | Who can do what: roles, capabilities, visibility settings, privacy |
 | `docs/ARCHITECTURE.md` | How the codebase is put together, and why |
 | `docs/FEATURES.md` | What exists today — read before concluding something is unbuilt |
 | `docs/STATUS.md` | Current state, measured numbers, open items |
@@ -570,13 +571,16 @@ build radius, and live player positions polled from the REST API.
 
 From the game pak, bundled so nothing is fetched at runtime:
 
-- **35,687 static world objects** — 24,359 ore nodes, 8,386 chests, 2,757 fishing
-  spots, 185 oil fields. Far too many to draw at once, so they are viewport-culled
-  and capped at 2,000 markers.
+- **51,921 static world objects** — 24,359 ore nodes, 13,851 Pal spawn points,
+  8,386 chests, 2,757 fishing spots, 2,163 dungeon objects, 220 NPC spawners and
+  camps, 185 oil fields. Far too many to draw at once, so they are
+  viewport-culled and capped at 2,000 markers.
 - **All 396 effigies**, each with the instance GUID save files key on — which is
   what makes "which have I not found yet" answerable rather than just "here they
   all are".
-- **174 fast-travel points**, validated 117/117 against a real player's unlocks.
+- **174 fast-travel points**, validated 117/117 against a real player's unlocks —
+  split into 8 tower bosses, 22 watchtowers and 144 ordinary points, because all
+  174 drawn identically is why the towers looked missing.
 
 Icons for Pals, items, elements and NPCs install from the reference archive:
 

@@ -41,7 +41,7 @@ interface Props {
   /**
    * The visible area in world coordinates, after a pan or zoom settles.
    *
-   * Reported rather than fetched here because the static-object set is 35,687
+   * Reported rather than fetched here because the static-object set is 51,921
    * strong and has to be queried by viewport — the map owns the viewport, and the
    * parent owns the data.
    */
@@ -96,6 +96,39 @@ const PIN = {
   palbox: '/icons/structures/T_icon_buildObject_PalBoxV2.webp',
 } as const;
 
+/**
+ * A live player: the pin, plus a pulsing halo, plus a name label.
+ *
+ * Separate from `pinIcon` because a player is the one marker on this map that
+ * **moves and is being looked for**. Everything else is scenery you scan for at
+ * leisure; a live position is the answer to "where is everyone", and a 20px
+ * static pin lost that against a busy map — especially zoomed out, where it is
+ * 20px against the whole of Palpagos.
+ *
+ * **Scaling is CSS, not a re-render.** `--player-scale` is set on the map
+ * container by the zoom handler, so zooming re-scales markers through the
+ * compositor instead of rebuilding them. With `zoomSnap: 0` a single pinch
+ * settles many times, and recreating markers on each settle is exactly the cost
+ * the static layer's debounce exists to avoid.
+ *
+ * The icon is deliberately NOT sized here for that reason — `iconSize` and
+ * `iconAnchor` stay at the unscaled values, and CSS `transform-origin: center`
+ * keeps the visual centre on the anchor at every scale.
+ */
+function playerIcon(name: string): L.DivIcon {
+  return L.divIcon({
+    className: 'player-pin',
+    html:
+      `<span class="player-pin-halo"></span>` +
+      `<img src="${PIN.player}" alt="" class="player-pin-img" ` +
+      `onerror="this.replaceWith(Object.assign(document.createElement('div'),` +
+      `{className:'player-marker-dot'}))">` +
+      `<span class="player-pin-name">${escapeHtml(name)}</span>`,
+    iconSize: [22, 22],
+    iconAnchor: [11, 11],
+  });
+}
+
 /** An image pin that falls back to a CSS marker when the artwork is absent. */
 function pinIcon(src: string, size: number, fallbackClass: string): L.DivIcon {
   return L.divIcon({
@@ -132,6 +165,7 @@ const STATIC_STYLE: Record<string, { color: string; size: number; label: string 
   palspawner: { color: '#6f9e6a', size: 3, label: 'Pal spawn point' },
   dungeon:  { color: '#9a6fb0', size: 5, label: 'Dungeon' },
   effigy:   { color: '#c7b04a', size: 5, label: 'Lifmunk effigy' },
+  npc:      { color: '#c9a227', size: 5, label: 'NPC / camp' },
 };
 
 
@@ -258,6 +292,31 @@ export default function MapInner({
     map.on('zoomend', reportSoon);
     report();
 
+    // Live-player markers grow as you zoom out.
+    //
+    // A fixed 20px pin is fine at zoom 4 and nearly invisible at -3, where it is
+    // 20px against an entire landmass — which is the zoom people are actually at
+    // when they ask "where is everyone". Scaling up as you zoom out inverts that:
+    // the marker keeps roughly the same *screen* prominence at every zoom.
+    //
+    // Written to a CSS variable rather than into each icon so this runs on
+    // `zoom` (every frame of the gesture, cheap: one style write) instead of on
+    // `zoomend` after a rebuild. Markers are never recreated.
+    const container = map.getContainer();
+    const applyScale = () => {
+      const zoom = map.getZoom();
+      // 2.6x at fully zoomed out, tapering to 1x by about zoom 2. Measured by
+      // eye against the Palpagos texture rather than derived — the useful
+      // constraint is "findable without covering the terrain".
+      const scale = Math.min(2.6, Math.max(1, 2.6 - 0.28 * (zoom + 3)));
+      container.style.setProperty('--player-scale', scale.toFixed(2));
+      // Names are unreadable at a distance and clutter the map; they earn their
+      // space only once you are close enough to care which player is which.
+      container.classList.toggle('show-player-names', zoom >= 0);
+    };
+    map.on('zoom', applyScale);
+    applyScale();
+
     mapRef.current = map;
 
     return () => {
@@ -369,7 +428,7 @@ export default function MapInner({
   // ─── Static world objects (pak-derived, viewport-scoped) ─
   //
   // These are every ore node, chest and fishing spot the game ships, not the
-  // handful a save happens to have state for — 35,687 in total, which is why the
+  // handful a save happens to have state for — 51,921 in total, which is why the
   // parent fetches only what is in view. Drawn smaller and dimmer than
   // save-derived markers, because "a rock exists here" is background information
   // next to "someone's palbox is here".
@@ -454,9 +513,19 @@ export default function MapInner({
       ? discoveries.fastTravel.points
       : fastTravel.map((p) => ({ ...p, discovered: true }));
 
+    // The same per-kind filter every other layer has. Tower entrances, watch-
+    // towers and ordinary points share one layer and one marker, so "show me
+    // only the towers" had no expression here while it worked for ore.
+    const off = kindsOff.fastTravel ?? [];
+
     for (const point of points.filter((p) => transform.contains(p.x, p.y))) {
+      const kind = point.kind ?? 'travel';
+      if (off.includes(kind)) continue;
+
       const coords = worldToGameMap(point.x, point.y);
       const found = point.discovered;
+      const label =
+        kind === 'tower' ? 'Tower boss' : kind === 'watchtower' ? 'Watchtower' : 'Fast travel';
 
       L.marker(worldToMap(point.x, point.y, region), {
         // The game's own fast-travel art is a dark stone plinth, which is
@@ -466,24 +535,26 @@ export default function MapInner({
         // real artwork is not automatically the better choice at marker size.
         icon: L.divIcon({
           className: 'fasttravel-marker',
-          html: `<div class="fasttravel-marker-icon"${found ? '' : ' style="opacity:.35;filter:grayscale(1)"'}></div>`,
+          html: `<div class="fasttravel-marker-icon is-${kind}"${found ? '' : ' style="opacity:.35;filter:grayscale(1)"'}></div>`,
           iconSize: [12, 12],
           iconAnchor: [6, 6],
         }),
-        zIndexOffset: found ? 500 : 400,
+        // Towers above everything else in the layer: there are eight of them
+        // among 174 and they are what people are looking for.
+        zIndexOffset: (found ? 500 : 400) + (kind === 'tower' ? 60 : 0),
       })
         .bindPopup(
           `<div style="min-width:160px">
              <div style="font-weight:600;margin-bottom:3px">${escapeHtml(point.name ?? '')}</div>
              <div style="font-size:12px;color:${found ? '#4d9e75' : '#a1a7b0'}">
-               ${found ? 'Fast travel — unlocked' : 'Fast travel — not yet found'}
+               ${label} — ${found ? 'unlocked' : 'not yet found'}
              </div>
              <div style="font-size:11px;color:#6d747e;margin-top:4px">${coords.x}, ${coords.y}</div>
            </div>`
         )
         .addTo(group);
     }
-  }, [fastTravel, discoveries, layers.fastTravel, region]);
+  }, [fastTravel, discoveries, layers.fastTravel, kindsOff, region]);
 
   // ─── Effigies ───────────────────────────────────────────
   useEffect(() => {
@@ -542,7 +613,7 @@ export default function MapInner({
         .bindPopup(
           `<div style="min-width:180px">
              <div style="font-weight:600;margin-bottom:3px">${escapeHtml(base.guildName)}</div>
-             <div style="font-size:12px;color:#a1a7b0">Guild Pals: ${base.guildPalCount}</div>
+             <div style="font-size:12px;color:#a1a7b0">${base.palCount ?? 0} Pals working &middot; ${base.guildPalCount ?? 0} in guild</div>
              <div style="font-size:11px;color:#6d747e;margin-top:4px">${coords.x}, ${coords.y}</div>
            </div>`
         )
@@ -564,7 +635,7 @@ export default function MapInner({
     for (const player of here) {
       const coords = worldToGameMap(player.location_x, player.location_y);
       L.marker(worldToMap(player.location_x, player.location_y, region), {
-        icon: pinIcon(PIN.player, 20, 'player-marker-dot'),
+        icon: playerIcon(player.name),
         zIndexOffset: 1000,
       })
         .bindPopup(

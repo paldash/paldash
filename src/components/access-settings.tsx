@@ -187,6 +187,52 @@ export default function AccessSettings() {
         </div>
       </div>
 
+      {/* ─── Visibility presets ───
+          These stay five independent settings on purpose — see
+          `policy.VISIBILITY_PRESETS` for why a single "openness" dial cannot
+          work. A preset is a starting point that writes all four and then gets
+          out of the way; nothing below is locked afterwards. */}
+      <div className="glass-card" style={{ padding: 16 }}>
+        <div className="section-title" style={{ marginBottom: 4 }}>
+          <Compass size={14} /> Visibility preset
+        </div>
+        <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 12 }}>
+          A starting point for the four settings below. They stay independently
+          adjustable afterwards — real servers disagree across these, not along
+          them, so there is no single dial that gets everyone right.
+        </p>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          {(policy.visibilityPresets ?? []).map((preset) => (
+            <button
+              key={preset.id}
+              className="btn"
+              disabled={busy}
+              style={{
+                flex: '1 1 200px',
+                textAlign: 'left',
+                padding: '10px 12px',
+                alignItems: 'flex-start',
+                flexDirection: 'column',
+                gap: 3,
+                borderColor: preset.active ? 'var(--border-accent)' : 'var(--border-primary)',
+                background: preset.active ? 'var(--bg-card-hover)' : 'transparent',
+              }}
+              onClick={() => apply({ visibilityPreset: preset.id })}
+            >
+              <span style={{ fontSize: 12, fontWeight: 600 }}>
+                {preset.label}
+                {preset.active && (
+                  <span className="badge" style={{ marginLeft: 6 }}>current</span>
+                )}
+              </span>
+              <span style={{ fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'normal' }}>
+                {preset.description}
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* ─── Undiscovered content ─── */}
       <div className="glass-card" style={{ padding: 16 }}>
         <div className="section-title" style={{ marginBottom: 4 }}>

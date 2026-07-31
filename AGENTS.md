@@ -114,6 +114,28 @@ exercise the real pipeline against a real world.
 - Player `.sav` filenames are uppercase undashed hex; `Level.sav` stores
   lowercase dashed GUIDs. Match via `savefiles.get_player_sav_path`.
 
+## The tower bosses were never missing from the map
+
+They are fast-travel points. Eight of the 174, named `… Tower Entrance`, and they
+rendered as the same gold diamond as the other 166 — so "the map doesn't show
+towers" was a fair complaint about a map that was showing all eight.
+
+`gamedata.fast_travel_kind` splits the layer into `tower` (8), `watchtower` (22)
+and `travel` (144), each independently filterable and drawn differently. The
+eight are exactly Palworld's eight tower bosses, which is the check that the name
+rule picks out the right thing rather than merely something.
+
+**Do not go looking for them in the pak.** There is no `BP_Tower*` world actor.
+Grepping for "Tower" finds fortress set-dressing and
+`BP_LevelObject_TowerLockBarrier`, which looks like the answer and is not:
+extracted, it gives 108 objects in **64 clusters across the whole map** against a
+game with 8 towers. It is the sealed-door lock minigame. The count check is the
+transferable part — a category whose size disagrees with what the game has is
+wrong however plausible its class name reads.
+
+The classification is **English-dependent** and fails safe: an unrecognised name
+is a plain travel point, which is what all 174 were before.
+
 ## The map has two regions, not one
 
 `src/lib/map-coordinates.ts`. Palworld 1.0's landmasses are **separate maps with
@@ -247,6 +269,46 @@ a ceiling only ever packs items into fewer slots, while lowering one could
 require *more* slots than a container already uses. So a stack larger than the
 game's own cap — modded, or from an older version — is preserved rather than
 split. `test_saveedit.py` pins all three cases.
+
+## Which base a Pal works at — the WorkerDirector names its container
+
+This file previously said per-base Pal attribution was unavailable, and shipped a
+**guild** total stamped onto every base. On the reference world that summed to
+**5,152 across eleven bases, against 1,905 Pals in the world** — a count larger
+than the population it counts.
+
+It is available. `BaseCampSaveData[].WorkerDirector.RawData` is an opaque
+ByteProperty, but its layout is fixed: **118 bytes, the base camp id at offset 0
+and the worker container id at 98**. `parser.extract_base_workers` reads it, and
+resolves **11 of 11** bases on the reference world.
+
+Reading a `ByteProperty` at a measured offset is only defensible with a
+verification attached, so the decoded id **must resolve to a real entry in
+`CharacterContainerSaveData`** or it is dropped. A layout change therefore yields
+*nothing*, and per-base counts fall back to the guild figure — never a confident
+wrong answer about whose Pal is where.
+
+The independent check that the field means what it looks like: all 23 character
+containers on the reference world now classify, and they classify **by capacity
+without being told to**.
+
+| Kind | Count | `SlotNum` | Source |
+|---|---:|---|---|
+| Palbox | 5 | 960 | player save `PalStorageContainerId` |
+| Party | 5 | 5 | player save `OtomoCharacterContainerId` |
+| Base workers | 11 | 20/16/13/8 | `WorkerDirector`, offset 98 |
+| Orphaned | 2 | 5 | none — one still holds a Pal |
+
+Eleven bases, eleven worker containers, and every one of them lands in the
+20/16/13/8 group rather than on a palbox or a party. **165 of 1,905 Pals are
+deployed at a base**; the rest are in palboxes, which is a guild-level thing.
+
+So `palCount` (this base) and `guildPalCount` (this base's guild, repeated on
+each of its bases) are both present and named for what they are. Never sum the
+second.
+
+Those two orphaned five-slot containers are why Pal `location` has an `other`
+value. It is a real state, not a parse failure.
 
 ## Bases own containers — via the object, not the guild
 
@@ -412,7 +474,31 @@ Sessions are server-side and revocable; passwords are scrypt-hashed; sign-in is
 throttled per IP and per username. Every mutating action is audited
 (`backend/audit.py`) — add an `audit.record` call to any new one.
 
-Remaining gaps are catalogued in `docs/AUDIT.md` §5.
+**"The backend authenticates for itself" was an aspiration in eleven places.**
+A sweep of all 112 routes found `/api/refresh`, `/api/progress`,
+`/api/inventory/{id}`, `/api/players/{uid}`, `/api/settings/ini`,
+`/api/world/fasttravel`, `/api/world/reference`, `/api/roles`, `/api/policy`,
+`/api/reports` and the breeding reference routes with **no `authz.require` at
+all** — reachable only through the proxy, and therefore trusting exactly what
+this section says not to trust. Two of them were also filter bypasses:
+`/api/inventory/{id}` returned any container's contents by id, going around every
+base-privacy check built on top of it, and `/api/players/{uid}` returned players
+the roster had hidden. When you add a route, add `authz.require` *and* the
+allowlist entry; neither substitutes for the other.
+
+**A filter applied to one of two endpoints serving the same data is not a
+filter.** `/api/world/discoveries` dropped undiscovered locations server-side
+while `/api/world/fasttravel` returned all 174 to anyone — and the map reads the
+second whenever the first is unavailable, so `discoveryVisibility` did nothing.
+
+**`/api/refresh` is the expensive one.** A parse is the heaviest thing this
+dashboard can do to a machine also running a game server. One parse at a time was
+enforced; *back-to-back* parses were not, because the 15-minute floor only
+applied to automatic parses and the Refresh button posts `force=true`. Forcing
+now needs an account and respects `PARSE_FORCE_MIN_INTERVAL` (120s).
+
+Remaining gaps are catalogued in `docs/AUDIT.md` §5. Roles, capabilities and the
+visibility settings are documented for operators in `docs/ROLES.md`.
 
 ## Reference data
 
@@ -464,6 +550,25 @@ A slot-edit document names **only the patched slots**. `plan_container_import`
 leaves unnamed indices alone, so a partial document is a first-class thing: an
 unrecognised item elsewhere in the chest cannot block an edit that never touched
 it, and a stale view of the rest cannot revert someone else's change.
+
+## Breeding routes are gender-aware, but only on what you own
+
+`possible_offspring` always enforced gender; `breeding_paths` and
+`indirect_targets` did not, and said so in a docstring. That was survivable while
+the planner ran over a whole server's Pals and stopped being so when it was
+scoped to one palbox, where single-gender species are common.
+
+**The constraint binds on owned species only, and that is not a shortcut.**
+Parents are not consumed, so any pair that works once works again — an
+*intermediate* can be re-bred until it comes out the gender the next step needs.
+An owned species cannot: if your only Relaxaurus is male, no amount of breeding
+turns it female. So a route is blocked exactly when a step pairs two species you
+already own whose genders do not oppose. `breeding._pairable` is that test, shared
+with the one-step view so the two cannot disagree.
+
+An unreachable target re-runs the search **without** the constraint to say which
+kind of unreachable it is. "Reachable by species but not with your genders" and
+"not reachable at all" call for completely different actions from the player.
 
 ## EXP-vs-level is one-sided, and that was measured
 
@@ -693,6 +798,16 @@ and save editing all work on real identities regardless.
 
 No TTLs. A time-based cache is wrong in both directions here — stale while the
 world has already changed, and re-doing work while it hasn't.
+
+**The on-disk parse cache carries a schema version, because it outlives the code
+that wrote it.** `level_cache.json` survives an upgrade, and a newer dashboard
+reading an older payload does not raise — it reads a field that is not there.
+Renaming the per-base Pal count produced `undefined` in the API and a literal
+**"NaN"** on the Bases tab of a server whose only mistake was upgrading without
+re-parsing, with nothing anywhere saying why. `parse_worker.SCHEMA_VERSION` is
+bumped whenever a field is added, removed or renamed, and `savecache` discards a
+mismatched cache rather than adapting it. One extra parse is the cheap side of
+that trade.
 
 **What was actually slow, measured on the reference world:**
 

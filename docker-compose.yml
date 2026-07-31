@@ -58,8 +58,13 @@ services:
       - palworld
     ports:
       - "3000:3000"   # UI. Put this behind a reverse proxy / VPN if it is not LAN-only.
-      # Port 8400 (the save backend) is deliberately NOT published. It has no
-      # auth of its own and binds to loopback inside the container.
+      # Port 8400 (the save backend) is deliberately NOT published; it binds to
+      # loopback inside the container.
+      #
+      # It does authenticate for itself — every route resolves the session token
+      # against SQLite rather than trusting the proxy — so this is defence in
+      # depth, not the only defence. Keep it unpublished anyway: there is no
+      # reason to expose a second listener.
     volumes:
       # SAME host directory the server uses. The dashboard reads save files
       # straight off it.

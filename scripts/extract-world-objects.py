@@ -83,12 +83,39 @@ TARGETS: dict[str, dict] = {
         "label": "Oil fields",
         "pattern": re.compile(r"^BP_LevelObject_Oil\w*$"),
     },
+    # Merchants, wandering traders and the NPC camps. `Mono` is the game's own
+    # prefix for the standing NPC spawners; the camps are the hostile ones.
+    "npc": {
+        "label": "NPCs & camps",
+        "pattern": re.compile(r"^BP_(MonoNPCSpawner\w*|NPCCampSpawner\w*)$"),
+        # Explicit, because the derived prefilter cannot handle an alternation
+        # at the front: splitting this pattern yields the literal `BP_`, which
+        # matches every cell in the game and turns a targeted run into a full
+        # 9,978-package walk. It still *works* — it is only ever a pre-filter —
+        # so the failure is silent and costs minutes.
+        "prefixes": ["BP_MonoNPCSpawner", "BP_NPCCampSpawner"],
+    },
     "effigy": {
         "label": "Effigies",
         "pattern": re.compile(r"^BP_(LevelObject_Relic\w*|RelicObject)$"),
     },
 }
 
+# TOWERS ARE NOT IN HERE, AND LOOKING FOR THEM COST AN AFTERNOON
+# ---------------------------------------------------------------
+# There is no `BP_Tower*` world actor. Grepping the pak for "Tower" finds
+# fortress set-dressing meshes and `BP_LevelObject_TowerLockBarrier` — which
+# looks exactly like the answer and is not. Extracted, it yields 108 objects in
+# **64 clusters spread across the whole map**, against a game with 8 tower
+# bosses; it is the sealed-door lock minigame, placed at caves and gates.
+#
+# The tower bosses were already bundled, in the fast-travel table, as the eight
+# points named `… Tower Entrance` (`gamedata.fast_travel_kind`). They rendered
+# identically to the other 166 points, which is why the map appeared not to show
+# them.
+#
+# The transferable lesson is the count check: a category whose size disagrees
+# with what the game has is wrong however plausible its class name reads.
 _ACTOR_RE = re.compile(rb"BP_[A-Za-z0-9_]{3,60}_C_UAID_")
 
 
@@ -133,10 +160,18 @@ def extract(pak: Pak, wanted: list[str]) -> dict:
     # something we care about. Parsing 9,977 packages we do not need is the
     # difference between seconds and minutes.
     prefilters = {
-        name: sorted({p.split("\\w")[0].lstrip("^").split("(")[0]
-                      for p in [patterns[name].pattern]})
+        name: TARGETS[name].get("prefixes")
+        or sorted({p.split("\\w")[0].lstrip("^").split("(")[0]
+                   for p in [patterns[name].pattern]})
         for name in wanted
     }
+    for name, prefixes in prefilters.items():
+        # A prefilter that degenerates to something this short matches every
+        # package and silently disables the optimisation. Better to say so than
+        # to spend ten minutes wondering why a targeted run walks the whole pak.
+        if any(len(p) < 8 for p in prefixes):
+            print(f"warning: {name!r} has a weak prefilter {prefixes}; "
+                  f"add an explicit 'prefixes' entry to TARGETS", file=sys.stderr)
     grid = occupied_cells(pak)
 
     found: dict[str, list[dict]] = {name: [] for name in wanted}

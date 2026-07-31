@@ -355,6 +355,34 @@ def effigies() -> list[dict[str, Any]]:
     return _effigies
 
 
+def fast_travel_kind(name: str) -> str:
+    """
+    `tower`, `watchtower` or `travel` for one fast-travel point.
+
+    **The tower bosses are already in this table and nothing said so.** All 174
+    points rendered as one identical gold marker, so "where are the towers" had
+    no answer on a map that was in fact showing all eight of them — the eight
+    named `… Tower Entrance`. Splitting the layer by kind was the fix; extracting
+    anything new from the pak was not needed and would have been the wrong tree.
+
+    Classified from the localized name rather than from an id, because the name
+    is the only field that distinguishes them — the keys are opaque hex. That
+    means this is **English-dependent**, and it fails to the safe side: an
+    unrecognised name is a plain travel point, which is what every point was
+    before this existed.
+
+    The distinction matters because they are different things: a Tower Entrance
+    is a boss arena you clear once, a Watchtower is scenery with a statue at the
+    bottom, and neither is the other.
+    """
+    lowered = name.lower()
+    if lowered.endswith("tower entrance"):
+        return "tower"
+    if "watchtower" in lowered:
+        return "watchtower"
+    return "travel"
+
+
 def fast_travel_points() -> list[dict[str, Any]]:
     """
     All 174 fast-travel points with world coordinates and localized names.
@@ -362,9 +390,15 @@ def fast_travel_points() -> list[dict[str, Any]]:
     Coordinates share the save's world space, so they feed the existing map
     transform unchanged. Covers both landmasses — 17 of these sit on the World
     Tree side.
+
+    Measured split: **8 tower entrances, 22 watchtowers, 144 ordinary points** —
+    and the eight are exactly Palworld's eight tower bosses, which is the check
+    that the name rule is picking out the right thing rather than merely
+    something.
     """
     return [
-        {"key": key, **value} for key, value in sorted(load().get("fastTravel", {}).items())
+        {"key": key, "kind": fast_travel_kind(str(value.get("name") or "")), **value}
+        for key, value in sorted(load().get("fastTravel", {}).items())
     ]
 
 

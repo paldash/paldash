@@ -44,6 +44,37 @@ function normaliseUid(value: unknown): string {
   return String(value ?? '').replace(/-/g, '').toLowerCase();
 }
 
+/**
+ * Whether a live player row is one of the hidden uids.
+ *
+ * **The two sides speak different dialects, and comparing them with `===`
+ * matched nothing — so live-position privacy never worked.** The save (and
+ * therefore `/api/privacy/hidden`) gives a full Palworld uid,
+ * `22b22b02-0000-0000-0000-000000000000`, which normalises to 32 characters.
+ * The game's REST API gives `playerId` as just the leading `22B22B02`, and
+ * `userId` as a Steam id in `steam_1100001...` form — a different identifier
+ * entirely.
+ *
+ * A Palworld player uid is a Steam ID32 followed by zeros, so the short form is
+ * a genuine prefix of the long one and a prefix test is exact rather than fuzzy.
+ * `userId` is checked too, since a hidden account may be keyed either way.
+ *
+ * This failed **open**: a player who asked to be hidden vanished from the
+ * save-derived map and went on showing as a live dot on the same screen, which
+ * is precisely the failure `backend/privacy.py` says filtering in two places
+ * exists to prevent.
+ */
+function isHidden(hidden: Set<string>, player: Record<string, unknown>): boolean {
+  if (!hidden.size) return false;
+  const short = normaliseUid(player.playerId);
+  const account = normaliseUid(player.userId);
+  for (const uid of hidden) {
+    if (short && uid.startsWith(short)) return true;
+    if (account && account.endsWith(uid)) return true;
+  }
+  return false;
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ path: string[] }> }
@@ -148,9 +179,7 @@ async function proxyRequest(
       // who hid themselves would disappear from the save-derived map and keep
       // showing as a live dot on the same screen.
       if (hidden.size) {
-        players = players.filter(
-          (p) => !hidden.has(normaliseUid(p.userId ?? p.playerId))
-        );
+        players = players.filter((p) => !isHidden(hidden, p));
       }
 
       // Guests get to see who is online and where, but not their IPs or IDs.

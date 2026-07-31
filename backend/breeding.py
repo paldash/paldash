@@ -337,7 +337,33 @@ def _owned_pool(owned_species: Iterable[str]) -> set[str]:
     return {c for c in (canonical_species(s) for s in owned_species) if c in known}
 
 
-def _expand(pool: set[str], max_depth: int) -> tuple[dict[str, tuple[str, str]], dict[str, int]]:
+def _pairable(a: str, b: str, genders: dict[str, dict[str, int]]) -> bool:
+    """
+    Whether two species can actually be put in a breeding pen together.
+
+    A pair needs one male and one female. Same-species pairs need both genders
+    of that species; different-species pairs need opposite genders across the
+    two. This is the same rule `possible_offspring` applies — shared, so the
+    route search and the one-step view cannot disagree about what is possible.
+
+    A species with no gender entry is one the player does not own, which only
+    happens for a bred *intermediate*; see `_expand` for why that is unrestricted.
+    """
+    have_a, have_b = genders.get(a), genders.get(b)
+    if have_a is None or have_b is None:
+        return True
+    if a == b:
+        return have_a["male"] > 0 and have_a["female"] > 0
+    return bool(
+        (have_a["male"] and have_b["female"]) or (have_a["female"] and have_b["male"])
+    )
+
+
+def _expand(
+    pool: set[str],
+    max_depth: int,
+    genders: Optional[dict[str, dict[str, int]]] = None,
+) -> tuple[dict[str, tuple[str, str]], dict[str, int]]:
     """
     Breadth-first over the pair table from an owned pool.
 
@@ -348,6 +374,26 @@ def _expand(pool: set[str], max_depth: int) -> tuple[dict[str, tuple[str, str]],
 
     Shared by the single-target search and the reachability listing so there is
     one implementation of the traversal rather than two that can disagree.
+
+    GENDER
+    ------
+    `genders` is `{species: {"male": n, "female": n}}` for what the player
+    **owns**. Pass it and the search will not propose a pair the player cannot
+    physically make; omit it and the search is about species reachability alone.
+
+    **The constraint binds on owned species only, and that is not a shortcut.**
+    Parents are not consumed by breeding, so any pair that works once works
+    again — which means an *intermediate* species can be re-bred until it comes
+    out the gender the next step needs. An owned species cannot: if the only
+    Relaxaurus you have is male, no amount of breeding turns it female. So a
+    route is blocked exactly when a step pairs two species you already own
+    whose genders do not oppose (or self-pairs a species you own only one
+    gender of), which is what `_pairable` tests.
+
+    Without this the planner would route a player through pairs they can never
+    make, and scoping breeding to a player's own palbox made that far more than
+    theoretical: a personal box is small and single-gender species in it are
+    common, where a whole server's Pals almost always cover both.
     """
     pairs = _breeding()["pairs"]
     origin: dict[str, tuple[str, str]] = {}
@@ -362,6 +408,8 @@ def _expand(pool: set[str], max_depth: int) -> tuple[dict[str, tuple[str, str]],
 
         for i, a in enumerate(current):
             for b in current[i:]:
+                if genders is not None and not _pairable(a, b, genders):
+                    continue
                 child = pairs.get(_pair_key(a, b))
                 if child and child not in reached and child not in new:
                     new.add(child)
@@ -373,6 +421,31 @@ def _expand(pool: set[str], max_depth: int) -> tuple[dict[str, tuple[str, str]],
         reached |= new
 
     return origin, depth
+
+
+def gender_pool(pals: Iterable[dict]) -> dict[str, dict[str, int]]:
+    """
+    `{species: {"male": n, "female": n}}` for a set of Pals, canonicalised.
+
+    Canonicalised at this boundary for the same reason `_owned_pool` is: the
+    save spells species inconsistently against the pair table, and an exact
+    match silently drops eight real Pals — which here would read as "you own no
+    female Sheepball" and block routes that are perfectly achievable.
+
+    An unknown gender counts as **neither**. Guessing would produce a route the
+    player cannot make, and this is the half of the planner where being wrong is
+    expensive: a plan is followed, a listing is only read.
+    """
+    pool: dict[str, dict[str, int]] = {}
+    for pal in pals:
+        key = canonical_species(pal.get("speciesId") or "")
+        entry = pool.setdefault(key, {"male": 0, "female": 0})
+        gender = pal.get("gender")
+        if gender == "Male":
+            entry["male"] += 1
+        elif gender == "Female":
+            entry["female"] += 1
+    return pool
 
 
 def _unwind(target: str, origin: dict[str, tuple[str, str]]) -> list[dict[str, Any]]:
@@ -398,38 +471,71 @@ def _unwind(target: str, origin: dict[str, tuple[str, str]]) -> list[dict[str, A
     return steps
 
 
-def breeding_paths(target: str, owned_species: list[str], max_depth: int = MAX_PATH_DEPTH) -> dict[str, Any]:
+def breeding_paths(
+    target: str,
+    owned_species: list[str],
+    max_depth: int = MAX_PATH_DEPTH,
+    genders: Optional[dict[str, dict[str, int]]] = None,
+) -> dict[str, Any]:
     """
     Shortest breeding route from what you own to a target Pal.
 
-    Gender is ignored here (a route is about species reachability); the
-    single-step offspring view is the one that enforces it.
+    Pass `genders` (from `gender_pool`) and the route will only use pairs the
+    player can actually put in a pen — see `_expand`. Without it the answer is
+    about species reachability alone, which is the right question when the pool
+    is a whole server's Pals and the wrong one for a single palbox.
+
+    `genderAware` travels with the answer so the UI can say which question it
+    asked. An unreachable-because-of-gender result is a different thing from an
+    unreachable-at-all one, and the fix for it (catch or trade for the opposite
+    gender) is worth naming rather than leaving as a dead end.
     """
     target = canonical_species(target)
     pool = _owned_pool(owned_species)
+    aware = genders is not None
 
     if not pool:
-        return {"target": target, "reachable": False, "reason": "No breedable Pals owned", "steps": []}
+        return {"target": target, "reachable": False, "genderAware": aware,
+                "reason": "No breedable Pals owned", "steps": []}
     if target in pool:
-        return {"target": target, "reachable": True, "alreadyOwned": True, "steps": []}
+        return {"target": target, "reachable": True, "genderAware": aware,
+                "alreadyOwned": True, "steps": []}
 
-    origin, depth = _expand(pool, max_depth)
+    origin, depth = _expand(pool, max_depth, genders)
     if target not in depth:
+        reason = f"Not reachable within {max_depth} breeding steps from your current Pals"
+        if aware:
+            # Was it the gender constraint, or the species themselves? Re-running
+            # without it is the only honest way to tell, and the two call for
+            # completely different actions from the player.
+            _, ignoring = _expand(pool, max_depth)
+            if target in ignoring:
+                reason = (
+                    "Reachable by species, but not with the genders you own — "
+                    "some step needs two Pals you only have one gender of. "
+                    "Catching or trading for the opposite gender opens it up."
+                )
         return {
             "target": target,
             "reachable": False,
-            "reason": f"Not reachable within {max_depth} breeding steps from your current Pals",
+            "genderAware": aware,
+            "reason": reason,
             "steps": [],
         }
     return {
         "target": target,
         "reachable": True,
+        "genderAware": aware,
         "alreadyOwned": False,
         "steps": _unwind(target, origin),
     }
 
 
-def indirect_targets(owned_species: Iterable[str], max_depth: int = MAX_PATH_DEPTH) -> dict[str, Any]:
+def indirect_targets(
+    owned_species: Iterable[str],
+    max_depth: int = MAX_PATH_DEPTH,
+    genders: Optional[dict[str, dict[str, int]]] = None,
+) -> dict[str, Any]:
     """
     Every Pal reachable by breeding but **not** obtainable in one step.
 
@@ -455,9 +561,10 @@ def indirect_targets(owned_species: Iterable[str], max_depth: int = MAX_PATH_DEP
     """
     pool = _owned_pool(owned_species)
     if not pool:
-        return {"maxDepth": max_depth, "ownedSpecies": 0, "targets": []}
+        return {"maxDepth": max_depth, "ownedSpecies": 0,
+                "genderAware": genders is not None, "targets": []}
 
-    origin, depth = _expand(pool, max_depth)
+    origin, depth = _expand(pool, max_depth, genders)
 
     targets = []
     for species in depth:
@@ -475,6 +582,7 @@ def indirect_targets(owned_species: Iterable[str], max_depth: int = MAX_PATH_DEP
     return {
         "maxDepth": max_depth,
         "ownedSpecies": len(pool),
+        "genderAware": genders is not None,
         "targets": targets,
     }
 

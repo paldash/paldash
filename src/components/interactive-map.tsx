@@ -2,14 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import MapLayersPanel from '@/components/map-layers-panel';
-import { prettyClass } from '@/lib/pretty-class';
 import { useDashboardStore } from '@/lib/store';
 import { formatCoords, getRegion, MAP_REGIONS, type MapRegion } from '@/lib/map-coordinates';
 import {
   getMapObjects, getFastTravelPoints, getDiscoveries,
   getStaticWorldObjects, getStaticWorldSummary,
 } from '@/lib/save-api';
-import { Layers, Crosshair, RefreshCw, Search, Info } from 'lucide-react';
+import { Crosshair, RefreshCw, Search, Info } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import BuildBanner from './build-banner';
 import type {
@@ -44,6 +43,12 @@ const LAYERS: { id: string; label: string; color: string; group: 'live' | 'world
   { id: 'static:treasure', label: 'All chests', color: '#c9973f', group: 'static' },
   { id: 'static:fishing', label: 'Fishing spots', color: '#5f6b73', group: 'static' },
   { id: 'static:oilrig', label: 'Oil fields', color: '#d97757', group: 'static' },
+  // Extracted all along and never given a toggle, so 2,163 dungeon objects and
+  // 13,851 spawners sat in the bundle unreachable. A category the backend
+  // withholds still gets no toggle — `visibleStaticIds` filters this list.
+  { id: 'static:dungeon', label: 'Dungeons', color: '#9a6fb0', group: 'static' },
+  { id: 'static:palspawner', label: 'Pal spawns', color: '#7fa05b', group: 'static' },
+  { id: 'static:npc', label: 'NPCs & camps', color: '#c9a227', group: 'static' },
 
   { id: 'palbox', label: 'Palboxes', color: '#5b9dd9', group: 'base' },
   { id: 'breeding', label: 'Breeding', color: '#8d84c7', group: 'base' },
@@ -228,6 +233,19 @@ export default function InteractiveMap() {
     }
     if (effigyKinds.size) byCategory.set('effigies', effigyKinds);
 
+    // Fast travel splits three ways — tower boss, watchtower, ordinary — and
+    // the eight tower entrances were the ones people were actually hunting for.
+    // Counted off `discoveries` when it is available so the numbers match the
+    // markers drawn, which are the discovery-filtered set.
+    const travelKinds = new Map<string, number>();
+    const travelPoints = discoveries?.fastTravel.points ?? fastTravel;
+    for (const point of travelPoints) {
+      if (!transform.contains(point.x, point.y)) continue;
+      const kind = point.kind ?? 'travel';
+      travelKinds.set(kind, (travelKinds.get(kind) ?? 0) + 1);
+    }
+    if (travelKinds.size) byCategory.set('fastTravel', travelKinds);
+
     return [...byCategory.entries()].map(([id, kinds]) => ({
       id,
       label: id,
@@ -236,7 +254,7 @@ export default function InteractiveMap() {
         .map(([cls, count]) => ({ cls, count }))
         .sort((a, b) => b.count - a.count),
     }));
-  }, [mapObjects, discoveries, transform]);
+  }, [mapObjects, discoveries, fastTravel, transform]);
 
   // Search across fast-travel names and base/guild names.
   const results = useMemo(() => {
@@ -267,45 +285,6 @@ export default function InteractiveMap() {
     setFlyTo({ x, y, nonce: flyNonce.current });
     setQuery('');
   };
-
-  const renderGroup = (group: 'live' | 'world' | 'static' | 'base') =>
-    LAYERS.filter((l) => l.group === group)
-      // A static category the server withholds gets no toggle either. Leaving the
-      // button visible would offer a layer that always comes back empty, and would
-      // itself say the category exists — which is what withholding it was for.
-      .filter((l) => l.group !== 'static' || visibleStaticIds.has(l.id.slice(7)))
-      .map((layer) => {
-      const active = mapLayers[layer.id];
-      const count = counts[layer.id] ?? 0;
-      return (
-        <button
-          key={layer.id}
-          className="btn"
-          style={{
-            padding: '3px 9px',
-            fontSize: 11,
-            background: active ? 'var(--bg-card-hover)' : 'transparent',
-            color: active ? 'var(--text-primary)' : 'var(--text-muted)',
-            borderColor: active ? layer.color : 'var(--border-primary)',
-            opacity: count ? 1 : 0.45,
-          }}
-          onClick={() => toggleMapLayer(layer.id)}
-          title={`${count} ${layer.label.toLowerCase()} on ${transform.label}`}
-        >
-          <span
-            style={{
-              width: 7,
-              height: 7,
-              borderRadius: '50%',
-              background: active ? layer.color : 'var(--text-muted)',
-              display: 'inline-block',
-            }}
-          />
-          {layer.label}
-          <span className="mono" style={{ opacity: 0.6 }}>{count}</span>
-        </button>
-      );
-    });
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -428,81 +407,22 @@ export default function InteractiveMap() {
         onSetKinds={setStaticKindsOff}
       />
 
-      {staticWanted && (
-        <>
-          <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-            {/* Saying what is not shown, rather than showing a slice as the whole.
-                Zoom is the fix, so the message names it. */}
-            {staticInfo?.truncated
-              ? `Showing ${staticObjects.length} of ${staticInfo.inView.toLocaleString()} static objects in view — zoom in to see the rest.`
-              : `Showing ${staticObjects.length.toLocaleString()} static objects in view` +
-                (staticSummary ? ` of ${staticSummary.objects.toLocaleString()} in the world.` : '.')}
-            {' '}Positions come from the game files and are the same for everyone.
-          </div>
+      {/* What is loaded versus what exists. Saying what is *not* shown, rather
+          than presenting a slice as the whole; zoom is the fix, so it is named.
 
-          {/* Per-kind filters. "Ore" is 17 different rocks and someone hunting
-              coal does not want copper, so each category's classes are individually
-              selectable — only for categories actually switched on, since a filter
-              for a hidden layer is noise. */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {(staticSummary?.categories ?? [])
-              .filter((c) => mapLayers[`static:${c.id}`])
-              .map((category) => {
-                const off = staticKindsOff[category.id] ?? [];
-                const allOff = off.length >= category.kinds.length;
-                return (
-                  <div key={category.id} className="glass-card" style={{ padding: '8px 10px' }}>
-                    <div style={{
-                      display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6,
-                      fontSize: 11, color: 'var(--text-secondary)',
-                    }}>
-                      <strong style={{ fontWeight: 600 }}>{category.label}</strong>
-                      <span style={{ color: 'var(--text-muted)' }}>
-                        {category.kinds.length - off.length}/{category.kinds.length} kinds
-                      </span>
-                      <button
-                        className="btn btn-ghost"
-                        style={{ padding: '1px 7px', fontSize: 10, marginLeft: 'auto' }}
-                        onClick={() =>
-                          setStaticKindsOff(
-                            category.id,
-                            allOff ? [] : category.kinds.map((k) => k.cls)
-                          )
-                        }
-                      >
-                        {allOff ? 'All' : 'None'}
-                      </button>
-                    </div>
-                    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                      {category.kinds.map((kind) => {
-                        const on = !off.includes(kind.cls);
-                        return (
-                          <button
-                            key={kind.cls}
-                            className="btn"
-                            style={{
-                              padding: '2px 8px',
-                              fontSize: 10,
-                              background: on ? 'var(--bg-card-hover)' : 'transparent',
-                              color: on ? 'var(--text-primary)' : 'var(--text-muted)',
-                              borderColor: on ? 'var(--border-accent)' : 'var(--border-primary)',
-                            }}
-                            onClick={() => toggleStaticKind(category.id, kind.cls)}
-                            title={kind.cls}
-                          >
-                            {prettyClass(kind.cls)}
-                            <span style={{ color: 'var(--text-muted)', marginLeft: 4 }}>
-                              {kind.count.toLocaleString()}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })}
-          </div>
-        </>
+          The stack of per-kind filter cards that used to sit here is gone. The
+          layers panel above does the same job for **both** groups, and this
+          block only ever rendered for the game-file categories — so ore had
+          sub-filters in two places while chests from the save had them in one,
+          which read as the save layers being less capable than they were. */}
+      {staticWanted && (
+        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+          {staticInfo?.truncated
+            ? `Showing ${staticObjects.length} of ${staticInfo.inView.toLocaleString()} static objects in view — zoom in to see the rest.`
+            : `Showing ${staticObjects.length.toLocaleString()} static objects in view` +
+              (staticSummary ? ` of ${staticSummary.objects.toLocaleString()} in the world.` : '.')}
+          {' '}Positions come from the game files and are the same for everyone.
+        </div>
       )}
 
       {/* Above the calibration notice: "this data may be from a different patch"

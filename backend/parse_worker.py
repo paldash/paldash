@@ -29,6 +29,18 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Shape of the payload this worker writes. Bump it whenever a field is added,
+# removed or renamed.
+#
+# The disk cache (`savecache._CACHE_FILE`) survives an upgrade, and an upgraded
+# dashboard reading an older payload does not fail — it reads a field that is not
+# there. Renaming the per-base Pal count produced `undefined` in the API and
+# **"NaN" on the Bases tab** on a server that had simply not re-parsed since the
+# update, with nothing anywhere saying why. `savecache` now discards a cache
+# whose schema does not match this, so the worst case is one re-parse instead of
+# a wrong number.
+SCHEMA_VERSION = 2
+
 
 def lower_priority() -> None:
     """Drop to idle CPU/IO priority so the game server always wins."""
@@ -47,6 +59,44 @@ def lower_priority() -> None:
         pass
 
 
+def _player_container_roles(players: list[dict]) -> dict[str, str]:
+    """
+    `{character_container_id: "palbox" | "party"}` across every player.
+
+    The ids live in the *player* saves, not in `Level.sav`, so this opens each
+    one — ~100 KB apiece, and this is the worker, already off the request path.
+
+    Best effort by design: a player whose `.sav` is missing or unreadable simply
+    leaves their containers unclassified, which shows up as `other` rather than
+    failing a parse the rest of the dashboard depends on.
+    """
+    from parser import extract_player_save, load_gvas
+    from savefiles import get_player_sav_path
+
+    roles: dict[str, str] = {}
+    for player in players:
+        uid = str(player.get("uid") or "")
+        if not uid:
+            continue
+        try:
+            path = get_player_sav_path(uid)
+            gvas = load_gvas(path) if path else None
+            if gvas is None:
+                continue
+            info = extract_player_save(gvas, uid)
+        except Exception as e:  # noqa: BLE001 - one bad save must not lose the rest
+            logger.warning("Could not read player save for %s: %s", uid[:8], e)
+            continue
+        for field, role in (
+            ("palStorageContainerId", "palbox"),
+            ("otomoCharacterContainerId", "party"),
+        ):
+            container_id = str(info.get(field) or "").lower()
+            if container_id:
+                roles[container_id] = role
+    return roles
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", required=True, help="path to write the JSON result")
@@ -58,6 +108,7 @@ def main() -> int:
     # Imported after the priority drop so even module import is niced.
     from parser import (
         extract_base_camps,
+        extract_base_workers,
         extract_characters,
         extract_container_ownership,
         extract_containers,
@@ -102,19 +153,40 @@ def main() -> int:
     base_storage = summarise_base_storage(containers, ownership, bases) if args.items else []
     storage_by_base = {s["baseId"]: s for s in base_storage}
 
+    # Which character container belongs to which base, and therefore where each
+    # Pal actually is. See `extract_base_workers` — this used to be documented as
+    # unobtainable, and the `guildPalCount` fallback below exists because of that.
+    worker_containers = extract_base_workers(gvas)
+    player_containers = _player_container_roles(players)
+
+    for pal in pals:
+        container_id = str(pal.get("containerId") or "").lower()
+        base_id = worker_containers.get(container_id)
+        if base_id:
+            pal["location"] = "base"
+            pal["baseId"] = base_id
+        else:
+            # `other` is a real state, not a parse failure: the reference world
+            # has two orphaned five-slot containers, one still holding a Pal,
+            # that belong to no live player or base.
+            pal["location"] = player_containers.get(container_id, "other")
+            pal["baseId"] = ""
+
+    pals_at_base: dict[str, int] = {}
+    for pal in pals:
+        if pal["baseId"]:
+            pals_at_base[pal["baseId"]] = pals_at_base.get(pal["baseId"], 0) + 1
+
     for base in bases:
-        # A GUILD figure, and named as one.
+        # Two figures, because they answer two questions and conflating them is
+        # what produced the original bug.
         #
-        # It was `palCount` on the base, which read as "Pals at this base" and
-        # was not: every base in a guild got the guild's whole total, so the
-        # Bases tab summed 100 Pals across three bases into 300.
-        #
-        # Per-base attribution is not available. Pals live in character
-        # containers (palboxes), `extract_container_ownership` maps *item*
-        # containers to bases, and guild bases share a palbox anyway — so
-        # "which base is this Pal at" has no answer in the save. Reporting the
-        # guild total once, honestly labelled, is the whole of what the data
-        # supports.
+        # `palCount` is the Pals *assigned to work at this base*, from its own
+        # worker container. `guildPalCount` is every Pal the owning guild has
+        # anywhere, which is a guild-level number that every base in the guild
+        # legitimately shares — so summing it across bases triples a three-base
+        # guild's total. The Bases tab counts it once per guild for that reason.
+        base["palCount"] = pals_at_base.get(base["id"], 0)
         base["guildPalCount"] = sum(
             1 for p in pals if p.get("guildId") == base.get("guildId")
         )
@@ -143,6 +215,7 @@ def main() -> int:
 
     result = {
         "ok": True,
+        "schema": SCHEMA_VERSION,
         "levelPath": level_path,
         "worldDir": world_dir,
         "levelSizeMb": round(size_mb, 1),

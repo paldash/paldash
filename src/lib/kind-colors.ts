@@ -30,6 +30,14 @@ const NAMED: [string, string][] = [
   ['Ice', '#a8d8e8'],
   ['Sand', '#d9c9a0'],
 
+  // ─── Fast travel, which is three different things in one list ───
+  // `watchtower` must come before `tower`: matching is by substring and
+  // first-hit-wins, so the other order paints all 22 watchtowers in the tower
+  // boss's red — which is precisely the confusion this split exists to end.
+  ['watchtower', '#8fc4e0'],
+  ['tower', '#c25757'],
+  ['travel', '#e0c060'],
+
   // ─── Chests, which vary by biome rather than contents ───
   ['DarkIslandDrop', '#8d6fb0'],
   ['WorldTreeDrop', '#d9b44a'],
@@ -101,6 +109,11 @@ const SHAPES: Record<string, MarkerShape> = {
   egg: 'diamond',
   statue: 'triangle',
   effigies: 'triangle',
+  // Bundled game data. Diamond because that is the marker on the map, and a
+  // chip that does not match its marker is worse than no chip.
+  fastTravel: 'diamond',
+  npc: 'square',
+  palspawner: 'circle',
 };
 
 export function markerShape(category: string): MarkerShape {

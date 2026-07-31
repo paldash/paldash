@@ -11,7 +11,22 @@
  * Falls back to the raw class rather than an empty string: an unrecognised
  * prefix should read as an odd name, not as a blank row.
  */
+/**
+ * Kinds that are already plain words, not Blueprint class names.
+ *
+ * The save- and bundle-derived layers reuse the same per-kind chips as the
+ * pak-derived ones, but their "class" is a short tag we assign. Running `tower`
+ * through the Blueprint stripper leaves it unchanged, which is fine — it is the
+ * capitalisation and the "boss" that need saying.
+ */
+const PLAIN: Record<string, string> = {
+  tower: 'Tower boss',
+  watchtower: 'Watchtower',
+  travel: 'Fast travel',
+};
+
 export function prettyClass(cls: string): string {
+  if (PLAIN[cls]) return PLAIN[cls];
   return (
     cls
       .replace(/^BP_(PalMapObjectSpawnerTreasureBox|PalMapObjectSpawner|MapObject|LevelObject|PalSpawner|Dungeon)_?/, '')

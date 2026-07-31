@@ -23,9 +23,14 @@ export default function BaseViewer() {
   const [busy, setBusy] = useState(false);
 
   const maySeeDetail = capabilities.includes(CAPABILITIES.VIEW_DETAIL);
+  // Storage is VIEW_SELF now — the backend scopes it to your own guild's bases.
+  // Gating the fetch on VIEW_DETAIL meant a Player saw "0 items stored" for
+  // bases that are theirs, which reads as an empty world rather than as a
+  // permission they do not have. Bulk exports stay VIEW_DETAIL.
+  const maySeeStorage = capabilities.includes(CAPABILITIES.VIEW_SELF);
 
   useEffect(() => {
-    if (!backendOnline || !maySeeDetail) return;
+    if (!backendOnline || !maySeeStorage) return;
     let cancelled = false;
 
     getBaseStorage()
@@ -35,7 +40,7 @@ export default function BaseViewer() {
       });
 
     return () => { cancelled = true; };
-  }, [backendOnline, maySeeDetail]);
+  }, [backendOnline, maySeeStorage]);
 
   const runExport = useCallback(async (download: () => Promise<void>) => {
     setBusy(true);
@@ -82,6 +87,7 @@ export default function BaseViewer() {
   const storageById = new Map(storage.map((s) => [s.baseId, s]));
   const storedTotal = storage.reduce((acc, s) => acc + s.itemCount, 0);
   const full = storage.filter((s) => s.fillPercent >= NEARLY_FULL);
+  const deployedPals = bases.reduce((acc, b) => acc + (b.palCount ?? 0), 0);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -99,18 +105,25 @@ export default function BaseViewer() {
         </div>
         <div className="stat-card">
           <div className="stat-value" style={{ color: 'var(--accent-emerald)' }}>
-            {/* Once per guild. Summing the per-base figure counted a
-                  guild's Pals once for every base it owns. */}
-            {[...new Map(bases.map((b) => [b.guildId, b.guildPalCount])).values()]
-              .reduce((acc, n) => acc + n, 0)}
+            {/* Pals working at a base. Safe to sum — each base owns its own
+                worker container, so nothing is counted twice. */}
+            {deployedPals.toLocaleString()}
           </div>
-          <div className="stat-label">Total Base Pals</div>
+          <div className="stat-label" title="Pals assigned to work at a base. Pals in a palbox are counted under Guild Pals instead.">
+            Pals Working at Bases
+          </div>
         </div>
         <div className="stat-card">
           <div className="stat-value" style={{ color: 'var(--accent-cyan)' }}>
-            {storedTotal.toLocaleString()}
+            {/* An em dash, not 0 — "we did not ask" and "there is nothing"
+                must not share a representation. */}
+            {maySeeStorage ? storedTotal.toLocaleString() : '—'}
           </div>
-          <div className="stat-label">Items Stored in Bases</div>
+          <div className="stat-label">
+            {maySeeStorage
+              ? (maySeeDetail ? 'Items Stored in Bases' : 'Items in Your Bases')
+              : 'Storage — sign in to see'}
+          </div>
         </div>
       </div>
 
@@ -203,7 +216,11 @@ export default function BaseViewer() {
 
               <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
                 <Stat icon={<Users size={12} style={{ color: 'var(--accent-cyan)' }} />}
-                      text={`${base.guildPalCount} guild Pals`} />
+                      text={`${base.palCount ?? 0} Pals working`}
+                      title="Pals assigned to this base's worker container." />
+                <Stat icon={<Users size={12} style={{ color: 'var(--accent-purple)' }} />}
+                      text={`${base.guildPalCount ?? 0} in guild`}
+                      title="Every Pal this guild owns, palboxes included. Shared across the guild's bases — do not add these up." />
                 <Stat icon={<Package size={12} style={{ color: 'var(--accent-amber)' }} />}
                       text={`${store?.containerCount ?? base.containerIds.length} Containers`} />
                 {store && (
@@ -288,9 +305,9 @@ export default function BaseViewer() {
   );
 }
 
-function Stat({ icon, text }: { icon: React.ReactNode; text: string }) {
+function Stat({ icon, text, title }: { icon: React.ReactNode; text: string; title?: string }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }} title={title}>
       {icon}
       <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{text}</span>
     </div>

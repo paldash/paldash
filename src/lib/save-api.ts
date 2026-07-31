@@ -137,6 +137,15 @@ export interface AccessPolicyInfo {
   baseVisibilityLevels: { id: string; label: string; description: string }[];
   scopeLevels: { id: string; label: string; description: string }[];
   worldObjectCategories: { id: string; label: string; count: number }[];
+  /** Named starting points for the four visibility thresholds. */
+  visibilityPresets?: {
+    id: string;
+    label: string;
+    description: string;
+    values: Record<string, string>;
+    /** Computed, not stored — it is true when every value still matches. */
+    active: boolean;
+  }[];
   allowedCapabilities: string[];
 }
 
@@ -152,6 +161,7 @@ export async function setAccessPolicy(update: {
   serverTotalsVisibility?: string;
   allPalsVisibility?: string;
   worldObjectVisibility?: Record<string, string>;
+  visibilityPreset?: string;
 }): Promise<AccessPolicyInfo> {
   return saveFetch('/policy', { method: 'POST', body: JSON.stringify(update) });
 }
@@ -217,6 +227,18 @@ export interface PalRecord {
   /** Species work levels from bundled game data, e.g. `{Mining: 3}`. */
   workSuitabilities?: Record<string, number>;
   rarity?: number;
+  /**
+   * Where the Pal physically is.
+   *
+   * `base` means assigned to a base's worker container — see
+   * `parser.extract_base_workers`. `other` is a real state: the reference world
+   * has orphaned containers belonging to no live player or base.
+   */
+  location?: 'palbox' | 'party' | 'base' | 'other';
+  /** The base it works at, when `location` is `base`. */
+  baseId?: string;
+  /** That base's display name, joined at request time. */
+  baseName?: string;
 }
 
 /**
@@ -419,7 +441,7 @@ export async function applyPalRepair(
   });
 }
 
-export type ExportKind = 'world' | 'player' | 'guild' | 'base' | 'container';
+export type ExportKind = 'world' | 'player' | 'guild' | 'base' | 'container' | 'pal';
 
 /**
  * Download a structured export. Same download-via-fetch approach as reports, so
@@ -528,8 +550,8 @@ export async function getMapObjects(category?: string): Promise<MapObject[]> {
 /**
  * Static pak-derived world objects inside a bounding box.
  *
- * The box is required in practice: there are 35,687 of these, and asking for all
- * of them is asking the browser to draw 35,687 markers. The response reports
+ * The box is required in practice: there are 51,921 of these, and asking for all
+ * of them is asking the browser to draw 51,921 markers. The response reports
  * `inView` and `truncated` so the caller can say what it is not showing.
  */
 export async function getStaticWorldObjects(box: {

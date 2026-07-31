@@ -24,6 +24,7 @@ from fastapi import HTTPException, Request
 import accounts
 import audit
 import policy as policy_module
+import privacy
 import roles
 
 logger = logging.getLogger(__name__)
@@ -122,3 +123,23 @@ def require_user(request: Request, capability: str) -> dict[str, Any]:
     if not user or not user.get("username"):
         raise HTTPException(401, "Sign in to do this.")
     return user
+
+
+def linked_uid(user: Optional[dict[str, Any]]) -> str:
+    """
+    The character uid an account is linked to, normalised, or "".
+
+    One accessor because the field has **two spellings and both look right**:
+    `steam_uid` is the database column, `steamUid` is what
+    `accounts._row_to_user` actually returns. Reading the column name off a
+    resolved user gets `None` every time, and every caller that did so failed
+    silently — `get_discoveries` decided nobody had discovered anything (which
+    emptied the map's fast-travel layer under the default policy), and
+    `/api/privacy/me` told every account it had no linked character.
+
+    Normalised here as well, because the *other* half of that trap is comparing
+    a dash-stripped account uid against the dashed one `Level.sav` stores.
+    """
+    if not user:
+        return ""
+    return privacy.normalise_uid(user.get("steamUid"))

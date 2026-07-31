@@ -596,6 +596,78 @@ def extract_container_ownership(gvas: Any) -> dict[str, dict]:
     return ownership
 
 
+# Byte offset of the worker container GUID inside `WorkerDirector.RawData`.
+# Measured across all 11 reference-world bases; the blob is 118 bytes and the
+# base camp's own id sits at 0.
+_WORKER_GUID_OFFSET = 98
+
+
+def extract_base_workers(gvas: Any) -> dict[str, str]:
+    """
+    `{character_container_id: base_camp_id}` — which base each Pal works at.
+
+    This was previously documented here as impossible. It is not: every base's
+    `WorkerDirector` names the character container holding its workers, and the
+    join is exact rather than spatial. Measured on the reference world: **11 of
+    11 bases resolve, one container each**, and those eleven are exactly the
+    20/16/13/8-slot containers that are neither a palbox (960) nor a party (5).
+
+    **`WorkerDirector.RawData` is an opaque ByteProperty, so this reads it by
+    offset.** The blob is 118 bytes with a fixed layout — the base camp id at 0,
+    the worker container id at 98. Those offsets are *measured*, not looked up,
+    which is the same footing `scripts/upackage.py` stands on and carries the
+    same obligation: verify, do not assume. So the decoded id must resolve to a
+    real entry in `CharacterContainerSaveData`, and a blob of the wrong length is
+    skipped. A game update that changes the layout therefore yields **nothing**,
+    which degrades per-base counts to the guild figure they came from — never a
+    confident wrong answer about whose Pal is where.
+
+    GUID byte order is `u32le`, the same convention `extract-effigies.py`
+    documents: four little-endian uint32s printed big-endian.
+    """
+    import struct
+
+    world = _world_save_data(gvas)
+
+    known: set[str] = set()
+    for entry in _v(world, "CharacterContainerSaveData", "value", default=[]) or []:
+        container_id = str(_v(entry, "key", "ID", "value") or "").lower()
+        if container_id:
+            known.add(container_id)
+
+    def _guid_at(blob: bytes, offset: int) -> str:
+        a, b, c, d = struct.unpack_from("<4I", blob, offset)
+        return "%08x-%04x-%04x-%04x-%04x%08x" % (
+            a, b >> 16, b & 0xFFFF, c >> 16, c & 0xFFFF, d
+        )
+
+    workers: dict[str, str] = {}
+    camps = _v(world, "BaseCampSaveData", "value", default=[]) or []
+    for entry in camps if isinstance(camps, list) else []:
+        raw = _v(entry, "value", "RawData", "value")
+        if not isinstance(raw, dict):
+            continue
+        base_id = str(raw.get("id") or "")
+        blob = _v(entry, "value", "WorkerDirector", "value", "RawData", "value", "values")
+        if not isinstance(blob, (bytes, bytearray)) or len(blob) < _WORKER_GUID_OFFSET + 16:
+            continue
+        container_id = _guid_at(bytes(blob), _WORKER_GUID_OFFSET)
+        # The verification, and the whole reason reading at an offset is
+        # acceptable here: a wrong offset produces a GUID that resolves to
+        # nothing, so it is dropped rather than attributed.
+        if base_id and container_id in known:
+            workers[container_id] = base_id
+
+    if camps and not workers:
+        logger.warning(
+            "No base worker containers resolved across %d bases — the "
+            "WorkerDirector layout may have changed; per-base Pal counts will "
+            "be unavailable",
+            len(camps),
+        )
+    return workers
+
+
 def summarise_base_storage(
     containers: dict[str, list[dict]],
     ownership: dict[str, dict],

@@ -192,6 +192,9 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
     'static:treasure': false,
     'static:fishing': false,
     'static:oilrig': false,
+    'static:dungeon': false,
+    'static:palspawner': false,
+    'static:npc': false,
   },
   toggleMapLayer: (layer) =>
     set((state) => ({

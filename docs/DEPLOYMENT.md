@@ -194,6 +194,28 @@ Keep `.env` out of git. It holds your admin and server passwords, and
 `settings_ini.SECRET_KEYS` masks them in the API and the audit log precisely
 because they should never be reachable from the UI either.
 
+### Upgrading the dashboard without touching the game server
+
+```bash
+git pull
+docker compose up -d --build --no-deps dashboard
+```
+
+**`--no-deps` is the part that matters.** The dashboard declares
+`depends_on: palworld`, and without it Compose is free to recreate the server
+container alongside — disconnecting whoever is playing. Naming the service is not
+enough on its own.
+
+The dashboard holds no game state, so a rebuild costs your players nothing: live
+data comes from the game's REST API and everything else is re-read from the save.
+The parse cache and the accounts database live on named volumes and survive.
+
+One thing to expect on the first load after an upgrade: **the world re-parses.**
+The on-disk parse cache carries a schema version, and a cache written by an older
+build is discarded rather than served with fields the new code expects to find.
+Press Refresh, or wait for the next parse.
+
+
 ---
 
 ## 8. Keeping it light

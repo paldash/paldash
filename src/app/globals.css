@@ -373,6 +373,86 @@ html, body {
   border: 1.5px solid #0f1115;
   transform: rotate(45deg);
 }
+/* A tower boss is a destination, not a bus stop. Bigger, red, and round so it
+   reads as a different class of thing at a glance rather than as a gold diamond
+   you have to hover to identify — which is what all eight of them were. */
+.fasttravel-marker-icon.is-tower {
+  width: 13px;
+  height: 13px;
+  margin: -0.5px;
+  background: #c25757;
+  border-width: 2px;
+  border-radius: 50%;
+  transform: none;
+  box-shadow: 0 0 6px rgba(194, 87, 87, 0.6);
+}
+.fasttravel-marker-icon.is-watchtower {
+  background: #8fc4e0;
+}
+/* ─── Live player markers ───────────────────────────────
+   Scaled by `--player-scale`, which the map sets from the zoom level (see
+   `map-inner.tsx`). `transform-origin: center` is what keeps the visual centre
+   on Leaflet's anchor point at every scale — without it a scaled marker drifts
+   away from the position it is reporting, which is worse than being small. */
+.player-pin {
+  --player-scale: 1;
+  position: relative;
+  display: grid;
+  place-items: center;
+  transform: scale(var(--player-scale));
+  transform-origin: center;
+  /* `will-change` and not a transition: the scale changes every frame of a
+     pinch, and a transition would make it lag the map it is drawn on. */
+  will-change: transform;
+  pointer-events: none;
+}
+.player-pin > * {
+  grid-area: 1 / 1;
+  pointer-events: auto;
+}
+.player-pin-img {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.75));
+}
+/* The halo is what makes a player findable on a busy map. It sits *behind* the
+   pin and pulses, because motion is the one channel nothing else on this map
+   uses — every other marker is static, so anything moving is a person. */
+.player-pin-halo {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: rgba(91, 157, 217, 0.28);
+  box-shadow: 0 0 0 2px rgba(91, 157, 217, 0.85), 0 0 14px rgba(91, 157, 217, 0.7);
+  animation: player-pulse 2.2s ease-out infinite;
+}
+@keyframes player-pulse {
+  0%   { transform: scale(0.72); opacity: 0.95; }
+  70%  { transform: scale(1.5);  opacity: 0; }
+  100% { transform: scale(1.5);  opacity: 0; }
+}
+/* Respect a reduced-motion preference: keep the halo, drop the animation. It is
+   a visibility aid, so removing it entirely would take away the fix. */
+@media (prefers-reduced-motion: reduce) {
+  .player-pin-halo { animation: none; opacity: 0.9; }
+}
+.player-pin-name {
+  position: absolute;
+  top: 100%;
+  margin-top: 2px;
+  white-space: nowrap;
+  font-size: 10px;
+  font-weight: 600;
+  color: #eef2f6;
+  background: rgba(15, 17, 21, 0.82);
+  border: 1px solid rgba(91, 157, 217, 0.5);
+  border-radius: 3px;
+  padding: 0 4px;
+  display: none;
+}
+.show-player-names .player-pin-name { display: block; }
+
 .poi-marker-icon {
   width: 10px;
   height: 10px;

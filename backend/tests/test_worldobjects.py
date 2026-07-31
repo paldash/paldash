@@ -276,6 +276,15 @@ def test_the_bundled_data_has_the_documented_shape():
     (`scripts/extract-pal-habitats.py`), and dungeons were already extractable
     but had never been included.
 
+    Regenerated again the same day to add `npc` (merchants and hostile camps):
+    51,701 -> 51,921. Every pre-existing category came back **byte-identical**,
+    which is the property `jsonout.write_json` exists to give — a regeneration
+    can be diffed rather than trusted.
+
+    **Tower bosses are not a category here** and looking for them in the pak is
+    a dead end: they are fast-travel points, the eight named `… Tower Entrance`.
+    See `gamedata.fast_travel_kind`.
+
     **`effigy` is deliberately absent** even though the extractor can produce it.
     Effigies have their own bundle carrying the instance GUIDs saves key on,
     which is what makes "which have I not found" answerable; the world-object
@@ -284,11 +293,11 @@ def test_the_bundled_data_has_the_documented_shape():
     worldobjects.reset_for_tests()
     try:
         totals = worldobjects.totals()
-        assert totals["objects"] == 51_701
+        assert totals["objects"] == 51_921
         by_category = {c["id"]: c["count"] for c in worldobjects.categories()}
         assert by_category == {
             "ore": 24_359, "treasure": 8_386, "fishing": 2_757, "oilrig": 185,
-            "palspawner": 13_851, "dungeon": 2_163,
+            "palspawner": 13_851, "dungeon": 2_163, "npc": 220,
         }
         assert "effigy" not in by_category
     finally:
@@ -298,7 +307,7 @@ def test_the_bundled_data_has_the_documented_shape():
 def test_a_realistic_viewport_query_is_cheap():
     """
     The reason the grid exists. A pan happens constantly, so the per-request cost
-    has to be a rounding error rather than a scan of 51,701 objects.
+    has to be a rounding error rather than a scan of 51,921 objects.
     """
     import time
 

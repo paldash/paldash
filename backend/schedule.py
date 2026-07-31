@@ -234,7 +234,7 @@ def _loop() -> None:
             # monthly and the check itself is ~0.05 ms — the interval is set by how
             # often it is *worth* looking, not by what it costs.
             #
-            # It only ever *notices*. Re-extracting 35,687 positions from 9,977 cell
+            # It only ever *notices*. Re-extracting 51,921 positions from 9,977 cell
             # packages is minutes of work beside a live server, so that stays an
             # operator decision.
             gameversion.poll()

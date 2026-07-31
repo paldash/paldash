@@ -1,17 +1,17 @@
 """
-The 35,687 static world objects, served by viewport.
+The 51,921 static world objects, served by viewport.
 
 Ore nodes, treasure chests, fishing spots and oil fields extracted from the game
 pak (`scripts/extract-world-objects.py`). Positions are static per game build, so
 this is bundled data rather than anything read from a save.
 
-**Why the query takes a bounding box.** 35,687 markers is not a rendering
+**Why the query takes a bounding box.** 51,921 markers is not a rendering
 problem to solve on the client — it is a number no map should ever be asked to
 draw. Culling has to happen before markers exist, and the cheapest place to do
 that is where the data already is. A pan sends one small request instead of the
 browser holding and re-filtering the whole set.
 
-**The grid is built once, on first use.** A linear scan of 35,687 objects per pan
+**The grid is built once, on first use.** A linear scan of 51,921 objects per pan
 is ~10 ms of pure waste; bucketing them into 25,600-unit cells makes a viewport
 query proportional to what is *in view*. That cell size is not arbitrary — it is
 the game's own World Partition cell size, the same constant that placed the World
@@ -253,7 +253,7 @@ def query(
         if len(cols) * len(rows) <= _cell_budget():
             cells = [(col, row) for col in cols for row in rows]
 
-    # Hoisted out of the per-object loop: converting the same four bounds 35,687
+    # Hoisted out of the per-object loop: converting the same four bounds 51,921
     # times is pure overhead in the degenerate whole-world case.
     bounds = (
         None if unbounded
@@ -270,7 +270,7 @@ def query(
         # caller that deselected every kind means exactly that.
         wanted = per_category.get(name, global_kinds)
         # Generators, not lists: the fallback path visits every object in the
-        # category, and materialising 35,687 of them just to filter them was
+        # category, and materialising 51,921 of them just to filter them was
         # measurably slower than the linear scan it replaces.
         candidates = (
             (obj for bucket in buckets.values() for obj in bucket)

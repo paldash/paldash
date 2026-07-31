@@ -38,7 +38,7 @@ Legend: ✅ works · 🟡 works with a caveat · 🔴 not built · ⚪ out of sc
 | Interactive map, both landmasses | ✅ | Palpagos + World Tree as separate framings |
 | 174 fast-travel points | ✅ | Validated 117/117 against a real player's unlocks |
 | Bases, chests, palboxes, farms, production, defences | ✅ | ~3,400 placed objects, layered |
-| Static world objects | ✅ | **35,687** from the game pak — 24,359 ore, 8,386 chests, 2,757 fishing spots, 185 oil. Viewport-culled, capped at 2,000 drawn |
+| Static world objects | ✅ | **51,921** from the game pak — 24,359 ore, 13,851 Pal spawns, 8,386 chests, 2,163 dungeon objects, 2,757 fishing spots, 220 NPCs/camps, 185 oil. Viewport-culled, capped at 2,000 drawn |
 | Per-kind layer toggles | ✅ | Every category subdivides by kind (each ore type, each chest type), and an admin policy sets which categories each role may see — including whether they are listed at all |
 | Effigies | ✅ | All 396, with the GUIDs saves key on, so the map can show which ones a given player still needs |
 | Smooth zoom | ✅ | Continuous (`zoomSnap: 0`). Leaflet's default snaps to whole levels — a 2x jump per wheel notch on a single-image map |
@@ -58,6 +58,7 @@ Legend: ✅ works · 🟡 works with a caveat · 🔴 not built · ⚪ out of sc
 | Guilds, bases, players, Pals | ✅ | |
 | Item containers & slot contents | ✅ | 11,639 containers, 8.3 M items on the reference world |
 | Per-base storage attribution | ✅ | **Phase 5.** Exact join, not spatial |
+| Per-base **Pal** attribution | ✅ | 2026-07-30. Each base's `WorkerDirector` names its worker container; 11/11 resolve on the reference world, 165 of 1,905 Pals deployed. Previously documented as impossible, and shipped as a guild total stamped on every base — which summed to 5,152 against 1,905 Pals |
 | Player progression / completion | ✅ | Exact denominators from bundled data |
 | Pre-1.0 (`PlZ` / zlib) saves | 🟡 | `palsav` supports it; no sample to verify against |
 | Uid remap for co-op / another server | ✅ | **Phase 9** (`soloexport.py`). Writes a *copy*, so it is the one save feature safe to run while the server is up. Matches uids by value, not by key name — a key list misses 1,836 references |
@@ -70,7 +71,7 @@ Legend: ✅ works · 🟡 works with a caveat · 🔴 not built · ⚪ out of sc
 |---|---|---|
 | Server-wide item totals | ✅ | 645 item types |
 | Friendly names for items/Pals/NPCs | ✅ | Case-insensitive by necessity |
-| Per-base inventory breakdown | ✅ | **Phase 5** |
+| Per-base inventory breakdown | ✅ | **Phase 5.** `VIEW_SELF` for your own guild's bases since 2026-07-30 — a Player could see their guild's *total* Wood on the Items tab but not which of their own chests it was in. `baseVisibility` does not widen it: a map pin and an inventory are different disclosures |
 | Per-container detail & fill levels | ✅ | **Phase 5** |
 | Near-full base warnings | ✅ | **Phase 5**, 90 % threshold |
 | Reports: CSV / JSON / TXT | ✅ | **Phase 5**, 4 report types |
@@ -113,8 +114,10 @@ Merging variants is what keeps their Paldeck entry mapped anyway.
 | Breeding calculator | ✅ | 46,655 parent pairs |
 | Special combinations | ✅ | Correct by construction (full pair table, not a formula reimplementation) |
 | Palbox-driven suggestions | ✅ | Works from what players actually own |
-| Breeding path search | ✅ | Depth-capped BFS to protect CPU |
+| Breeding path search | ✅ | Depth-capped BFS to protect CPU. **Gender-aware** since 2026-07-30: it will not route through a pair you cannot make. The constraint binds on species you *own* only — a bred intermediate can be re-rolled until the gender is right, an owned Pal cannot |
+| Scoped to your own palbox | ✅ | A plain Player gets the planner over their own Pals (`VIEW_SELF`); `allPalsVisibility` (default `trusted`) decides who sees everyone's. "Only ones I don't have" is on by default |
 | Reachable-with-an-extra-step list | ✅ | Everything obtainable via an intermediate, shortest route each. Counts **breedings**, not BFS generations — a Pal can be two generations deep and need three pairings |
+| Unreachable, and *why* | ✅ | "Reachable by species but not with the genders you own" is reported separately from "not reachable at all" — they call for opposite actions |
 | Inheritance odds | ✅ | |
 | Dataset currency | ✅ | **Merged 2026-07-28**: 305 Pals, +Astralym (#204), +1,803 pairs. See the merge note below |
 

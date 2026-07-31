@@ -68,9 +68,27 @@ makes the UI say so instead of offering buttons that will fail.
 
 ## 3. Who sees what
 
-All three use the same vocabulary: `everyone`, a **role name** meaning that rank
-and above, or a sentinel. Roles, least to most privileged: `readonly`, `player`,
-`trusted`, `moderator`, `admin`, `owner`.
+All of these use the same vocabulary: `everyone`, a **role name** meaning that
+rank and above, or a sentinel. Roles, least to most privileged: `readonly`,
+`player`, `trusted`, `moderator`, `admin`, `owner`.
+
+`docs/ROLES.md` covers roles and capabilities in full; this section is the
+environment variables.
+
+**Why these stay separate settings.** They are not points on one "openness" axis,
+so a single dial cannot serve them. A completionist co-op group wants every ore
+node shown (no spoiler concern) and every base hidden (six strangers on a rented
+box); a competitive server wants exactly the opposite. There is no ordering of
+values that makes both right.
+
+The Access tab therefore offers **presets** — *Private / friends*, *Community
+server*, *Competitive / PvP* — which write all four thresholds at once and then
+get out of the way. Nothing is locked afterwards; each dial stays independently
+adjustable, and the "current" marker is recomputed from the values rather than
+stored, so changing one dial does not leave a preset badge lying about.
+
+Environment variables remain a **ceiling the web UI cannot raise**, presets
+included.
 
 ### `DISCOVERY_VISIBILITY` — `everyone` · role name · **`trusted`** · `nobody`
 
@@ -83,6 +101,13 @@ always sees their own discoveries; this only governs the undiscovered half.
 
 Filtering happens server-side. A UI that received everything and hid some would
 be handing out the answers in the network tab.
+
+Below any of these thresholds the backend **scopes rather than refuses** — you
+get your own guild's totals instead of the server's, your own palbox instead of
+everyone's. An empty tab teaches nothing.
+
+Staff with `players.moderate` are exempt from all of them. Moderation cannot work
+through a filter, and this saves anyone maintaining an exemption list.
 
 ### `BASE_VISIBILITY` — `everyone` · role name · **`own`**
 
@@ -103,7 +128,7 @@ account to take effect.
 
 ### `WORLD_OBJECT_VISIBILITY` — JSON object, default `{}`
 
-Per-category thresholds for the **35,687 static objects** extracted from the game
+Per-category thresholds for the **51,921 static objects** extracted from the game
 files — ore, chests, fishing spots, oil, spawners, dungeons. Same vocabulary,
 per category:
 
@@ -199,7 +224,8 @@ backup, not 168.
 |---|---|---|
 | `PARSE_ENABLED` | `true` | `false` disables `Level.sav` parsing entirely. Live REST features keep working. |
 | `PARSE_AUTO` | `false` | Nothing parses on its own. A parse happens when someone presses Refresh. |
-| `PARSE_MIN_INTERVAL_SECONDS` | `900` | Floor between parses. |
+| `PARSE_MIN_INTERVAL_SECONDS` | `900` | Floor between *automatic* parses. Refresh bypasses it — see the next row. |
+| `PARSE_FORCE_MIN_INTERVAL_SECONDS` | `120` | Floor between **manual** Refresh parses. Stops several people pressing Refresh from queueing full parses of an unchanged save nose-to-tail. |
 | `PARSE_TIMEOUT_SECONDS` | `600` | Hard kill for the parse subprocess. |
 | `PARSE_INCLUDE_ITEMS` | `true` | Decode container contents. Costs time and memory; `false` loses the Items tab. |
 | `PARSE_MAX_SIZE_MB` | `1024` | Refuse absurdly large saves rather than exhaust memory. |
@@ -211,6 +237,16 @@ Load-aware throttling **fails open**, unlike the corruption guard: no data, a
 stale sample, an unreachable server and a missing table all read as "fine to
 parse". Refusing to write destroys nothing; refusing to parse forever merely
 breaks the dashboard.
+
+**Who can trigger a parse.** Anyone who can see the dashboard, guests included —
+it is how the data gets there. Three things stop that becoming a problem:
+
+- Only **one parse runs at a time**; a concurrent request is told so.
+- **Forcing requires an account.** A guest's request is subject to the normal
+  interval and "has the save even changed" checks, which `force` skips.
+- Back-to-back forced parses are held off by `PARSE_FORCE_MIN_INTERVAL_SECONDS`.
+  The one-at-a-time rule stops parses *overlapping*; without this they simply
+  queued nose-to-tail instead.
 
 ---
 

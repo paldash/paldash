@@ -213,6 +213,10 @@ DEFAULT_WORLD_OBJECT_LEVELS: dict[str, str] = {
     # same reasoning as chests.
     "palspawner": "trusted",
     "dungeon": "trusted",
+    # Merchants and NPC camps. Open by default, unlike the three above: a
+    # merchant is a service you go to rather than loot you find first, and the
+    # camps are hostile — knowing where they are is a warning, not a spoiler.
+    "npc": "everyone",
 }
 
 GUEST_VISIBILITY_KEYS = (
@@ -590,6 +594,94 @@ def _world_object_categories() -> list[dict[str, Any]]:
         return []
 
 
+# ─── Visibility presets ──────────────────────────────────
+#
+# WHY THESE STAY FIVE SETTINGS AND NOT ONE
+# ----------------------------------------
+# Collapsing them into a single "openness" dial is tempting and wrong, because
+# they are not points on one axis. They answer four different questions:
+#
+#   discoveryVisibility     — is showing unexplored map a *spoiler*?
+#   baseVisibility          — is another guild's location *private*?
+#   serverTotals/allPals    — is another guild's *inventory* private?
+#   worldObjectVisibility   — is a full resource map a spoiler?
+#
+# Real servers disagree across them, not along them. A completionist co-op group
+# wants every ore node shown (no spoiler concern) and every base hidden (six
+# strangers on a rented box). A competitive server wants the exact opposite. A
+# single dial forces one of those two to be wrong, and there is no ordering of
+# the values that makes both right.
+#
+# So the settings stay independent and the *starting points* get named. A preset
+# writes all five and then gets out of the way — nothing is locked, and the UI
+# goes on showing each dial with whatever it now holds. That is the difference
+# between a preset and a mode.
+VISIBILITY_PRESETS: dict[str, dict[str, Any]] = {
+    "private": {
+        "label": "Private / friends",
+        "description": (
+            "Everyone sees everything. For a handful of people who already talk "
+            "to each other and are playing the same save together."
+        ),
+        "values": {
+            "discoveryVisibility": "everyone",
+            "baseVisibility": "everyone",
+            "serverTotalsVisibility": "everyone",
+            "allPalsVisibility": "everyone",
+        },
+    },
+    "community": {
+        "label": "Community server",
+        "description": (
+            "The default. Players get their own things and the shared world; "
+            "other guilds' bases, Pals and inventories need Trusted or above."
+        ),
+        "values": {
+            "discoveryVisibility": DEFAULT_DISCOVERY,
+            "baseVisibility": DEFAULT_BASE_VISIBILITY,
+            "serverTotalsVisibility": DEFAULT_SERVER_TOTALS,
+            "allPalsVisibility": DEFAULT_ALL_PALS,
+        },
+    },
+    "competitive": {
+        "label": "Competitive / PvP",
+        "description": (
+            "Nothing about another guild is visible, and the map gives away "
+            "nothing a player has not personally found. Staff still see all."
+        ),
+        "values": {
+            "discoveryVisibility": "nobody",
+            "baseVisibility": "own",
+            "serverTotalsVisibility": "own",
+            "allPalsVisibility": "own",
+        },
+    },
+}
+
+
+def describe_presets() -> list[dict[str, Any]]:
+    """
+    The presets, each annotated with whether it is what the server currently has.
+
+    `active` is computed rather than stored. Storing "which preset is selected"
+    would make the individual dials lie the moment one of them was changed — and
+    changing them individually afterwards is the entire point of a preset.
+    """
+    current = load_policy()
+    out = []
+    for preset_id, preset in VISIBILITY_PRESETS.items():
+        out.append({
+            "id": preset_id,
+            "label": preset["label"],
+            "description": preset["description"],
+            "values": preset["values"],
+            "active": all(
+                current.get(key) == value for key, value in preset["values"].items()
+            ),
+        })
+    return out
+
+
 def describe() -> dict[str, Any]:
     """Policy plus the metadata the settings UI needs to render itself."""
     policy = load_policy()
@@ -620,7 +712,8 @@ def describe() -> dict[str, Any]:
         # The categories to offer a dial for come from the bundled data rather
         # than a list here, so new extracted content is configurable without a
         # code change. Imported lazily: policy is loaded on paths that have no
-        # business touching a 486 KB data bundle.
+        # business touching a 717 KB data bundle.
         "worldObjectCategories": _world_object_categories(),
+        "visibilityPresets": describe_presets(),
         "allowedCapabilities": allowed_capabilities(),
     }

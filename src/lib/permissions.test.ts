@@ -78,7 +78,7 @@ describe('describeSavePath', () => {
       ['edit/pal/import', 'POST', CAPABILITIES.SAVE_EDIT_FULL],
       ['edit/pal/import/preview', 'POST', CAPABILITIES.SAVE_EDIT_FULL],
       // A Pal export is a read, at the same gate as every other export.
-      ['export/pal', 'GET', CAPABILITIES.VIEW_DETAIL],
+      ['export/pal', 'GET', CAPABILITIES.VIEW_SELF],
       ['palcheck/scan', 'GET', CAPABILITIES.VIEW_DETAIL],
       ['palcheck/repair', 'POST', CAPABILITIES.SAVE_EDIT_FULL],
       ['palcheck/repair/preview', 'POST', CAPABILITIES.SAVE_EDIT_FULL],
@@ -210,21 +210,28 @@ describe('describeSavePath', () => {
   });
 
   describe('per-base storage and reports (Phase 5)', () => {
-    it('allows the storage routes as detail reads', () => {
-      expect(describeSavePath('bases/storage', 'GET')).toMatchObject({
-        allowed: true,
-        capability: CAPABILITIES.VIEW_DETAIL,
-      });
-      expect(describeSavePath('bases/abcd-1234/storage', 'GET')).toMatchObject({
-        allowed: true,
-        capability: CAPABILITIES.VIEW_DETAIL,
-      });
+    it('lets a Player reach storage, for the backend to scope', () => {
+      // Your own base's contents are something you can walk up to in game, and
+      // gating this at VIEW_DETAIL left a Player seeing their guild's *total*
+      // Wood on the Items tab but not which of their own chests it was in.
+      //
+      // The allowlist cannot tell whose base an id names, so it only decides
+      // whether the request reaches the backend — `_own_guild_base_ids` there
+      // narrows the list to the caller's own guilds below VIEW_DETAIL.
+      for (const path of ['bases/storage', 'bases/abcd-1234/storage', 'inventory/abcd-1234']) {
+        expect(describeSavePath(path, 'GET')).toMatchObject({
+          allowed: true,
+          capability: CAPABILITIES.VIEW_SELF,
+        });
+      }
     });
 
-    it('treats base storage as more sensitive than the base list', () => {
-      // `bases` is a map pin; `bases/storage` is a full inventory readout.
+    it('still keeps storage above the anonymous base list', () => {
+      // `bases` is a map pin a guest can be shown; storage is an inventory
+      // readout that needs a linked account at minimum. The gap narrowed from
+      // VIEW_BASIC->VIEW_DETAIL to VIEW_BASIC->VIEW_SELF; it did not close.
       expect(describeSavePath('bases', 'GET').capability).toBe(CAPABILITIES.VIEW_BASIC);
-      expect(describeSavePath('bases/storage', 'GET').capability).toBe(CAPABILITIES.VIEW_DETAIL);
+      expect(describeSavePath('bases/storage', 'GET').capability).toBe(CAPABILITIES.VIEW_SELF);
     });
 
     it('allows report listing and rendering', () => {
@@ -240,13 +247,29 @@ describe('describeSavePath', () => {
     });
 
     it('allows the structured export routes', () => {
-      for (const kind of ['world', 'player', 'guild', 'base', 'container']) {
+      for (const kind of ['world', 'guild', 'base', 'container']) {
         expect(describeSavePath(`export/${kind}`, 'GET')).toMatchObject({
           allowed: true,
           capability: CAPABILITIES.VIEW_DETAIL,
         });
       }
       expect(describeSavePath('export/verify', 'POST').allowed).toBe(true);
+    });
+
+    it('lets a plain Player reach their own character and Pal exports', () => {
+      // Exporting *your own* character is the same class of act as reading your
+      // own palbox, and a Player who cannot get their Pals out has no way to
+      // move a character between servers without asking an admin.
+      //
+      // This allowlist cannot tell whose id is in the query string, so it only
+      // decides whether the request reaches the backend at all — `_owns_export_subject`
+      // there rejects anyone else's id, and fails closed on an unlinked account.
+      for (const kind of ['player', 'pal']) {
+        expect(describeSavePath(`export/${kind}`, 'GET')).toMatchObject({
+          allowed: true,
+          capability: CAPABILITIES.VIEW_SELF,
+        });
+      }
     });
 
     it('refuses unknown export kinds and wrong methods', () => {

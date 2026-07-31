@@ -1,8 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Search, RefreshCw, PawPrint, ArrowUpDown } from 'lucide-react';
-import { getPals, type PalRecord } from '@/lib/save-api';
+import { Search, RefreshCw, PawPrint, ArrowUpDown, Download } from 'lucide-react';
+import { getPals, downloadExport, type PalRecord } from '@/lib/save-api';
 import GameIcon from '@/components/game-icon';
 
 /**
@@ -42,6 +42,14 @@ const WORK_LABELS: Record<string, string> = {
   MonsterFarm: 'Farming',
 };
 
+/** `location` -> what to show in the table. */
+const WHERE_LABELS: Record<string, string> = {
+  palbox: 'Palbox',
+  party: 'Party',
+  base: 'Base',
+  other: 'Unassigned',
+};
+
 export default function MyPals() {
   const [pals, setPals] = useState<PalRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -57,6 +65,8 @@ export default function MyPals() {
   const [work, setWork] = useState('');
   const [minWork, setMinWork] = useState(1);
   const [alphaOnly, setAlphaOnly] = useState(false);
+  const [where, setWhere] = useState('');
+  const [exporting, setExporting] = useState('');
   const [sort, setSort] = useState<SortKey>('level');
   const [descending, setDescending] = useState(true);
 
@@ -112,6 +122,7 @@ export default function MyPals() {
       if (passive && !(p.passiveSkillNames ?? []).includes(passive)) return false;
       if (work && workLevel(p, work) < minWork) return false;
       if (alphaOnly && !p.isBoss) return false;
+      if (where && (p.location ?? 'other') !== where) return false;
       return true;
     });
 
@@ -213,6 +224,16 @@ export default function MyPals() {
           </span>
         </Field>
 
+        <Field label="Where" hint="Palbox, active party, or assigned to work at a base">
+          <select className="select" style={{ width: 130 }} value={where} onChange={(e) => setWhere(e.target.value)}>
+            <option value="">Anywhere</option>
+            <option value="palbox">Palbox</option>
+            <option value="party">Party</option>
+            <option value="base">Working at a base</option>
+            <option value="other">Unassigned</option>
+          </select>
+        </Field>
+
         <label style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: 'var(--text-secondary)' }}>
           <input type="checkbox" checked={alphaOnly} onChange={(e) => setAlphaOnly(e.target.checked)} />
           Alpha only
@@ -221,7 +242,8 @@ export default function MyPals() {
         <button className="btn btn-ghost" style={{ marginLeft: 'auto', fontSize: 11 }}
                 onClick={() => {
                   setQuery(''); setMinLevel(0); setGender(''); setElement('');
-                  setMinRank(0); setMinIv(0); setPassive(''); setWork(''); setAlphaOnly(false);
+                  setMinRank(0); setMinIv(0); setPassive(''); setWork('');
+                  setAlphaOnly(false); setWhere('');
                 }}>
           Clear filters
         </button>
@@ -241,8 +263,10 @@ export default function MyPals() {
               <SortHead label="HP" k="hp" sort={sort} desc={descending} set={setSort} flip={setDescending} />
               <SortHead label="Atk" k="attack" sort={sort} desc={descending} set={setSort} flip={setDescending} />
               <SortHead label="Def" k="defense" sort={sort} desc={descending} set={setSort} flip={setDescending} />
+              <th>Where</th>
               <th>Passives</th>
               {work && <SortHead label={WORK_LABELS[work]} k="work" sort={sort} desc={descending} set={setSort} flip={setDescending} />}
+              <th />
             </tr>
           </thead>
           <tbody>
@@ -273,9 +297,39 @@ export default function MyPals() {
                 <td className="mono">{p.ivs?.attack ?? '—'}</td>
                 <td className="mono">{p.ivs?.defense ?? '—'}</td>
                 <td style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
+                  {WHERE_LABELS[p.location ?? 'other'] ?? '—'}
+                  {p.location === 'base' && p.baseName && (
+                    <span style={{ color: 'var(--text-muted)', marginLeft: 4 }}>{p.baseName}</span>
+                  )}
+                </td>
+                <td style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
                   {(p.passiveSkillNames ?? []).join(', ') || '—'}
                 </td>
                 {work && <td className="mono">{workLevel(p, work) || '—'}</td>}
+                <td>
+                  {/* One Pal, as the same document `saveexport` already emits
+                      inside a player export — so "back this up before I edit
+                      it" and "move it to another server" are one file. */}
+                  <button
+                    className="btn btn-ghost"
+                    style={{ padding: '2px 6px', fontSize: 10 }}
+                    disabled={exporting === p.instanceId}
+                    title="Download this Pal as a checksummed JSON document"
+                    onClick={async () => {
+                      setExporting(p.instanceId);
+                      setError(null);
+                      try {
+                        await downloadExport('pal', p.instanceId);
+                      } catch (e) {
+                        setError(e instanceof Error ? e.message : 'Export failed');
+                      } finally {
+                        setExporting('');
+                      }
+                    }}
+                  >
+                    <Download size={10} />
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>

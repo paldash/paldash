@@ -7,7 +7,7 @@ so the tests that matter are about the split:
   * `fingerprint()` reads two local files and **makes no network call**. It runs
     every minute; a round trip to the game server there would be a network
     dependency on a heartbeat.
-  * `poll()` only ever *notices*. Re-extracting 35,687 positions from 9,977 cell
+  * `poll()` only ever *notices*. Re-extracting 51,921 positions from 9,977 cell
     packages is minutes of work next to a live game server, so it stays an
     operator decision.
   * A missing signal is `unknown`, never `current`. Asserting a match nobody

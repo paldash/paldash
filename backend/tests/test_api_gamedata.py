@@ -135,16 +135,34 @@ def test_mapobjects_endpoint_adds_structure_names(client, fake_parse, staff):
 # ─── Static world data ───────────────────────────────────────────
 
 
-def test_fast_travel_endpoint(client):
-    body = client.get("/api/world/fasttravel").json()
+def test_fast_travel_endpoint(client, staff):
+    body = client.get("/api/world/fasttravel", headers=staff).json()
     assert len(body["points"]) == 174
+    assert body["filtered"] is False
     names = {p["name"] for p in body["points"]}
     assert "Hill of Beginnings" in names
     assert all("x" in p and "y" in p for p in body["points"])
 
 
-def test_reference_endpoint_exposes_exact_totals(client):
-    body = client.get("/api/world/reference").json()
+def test_fast_travel_respects_discovery_visibility(client):
+    """
+    The other half of `discoveryVisibility`, and the half that was missing.
+
+    `/api/world/discoveries` dropped undiscovered points server-side while this
+    endpoint returned all 174 to anyone — and the map reads this one whenever
+    the discovery call is unavailable. Filtering in one of two endpoints serving
+    the same data filters nothing.
+
+    A guest has no character, so nothing is discovered and nothing comes back.
+    `filtered` says so rather than leaving an empty list to read as missing data.
+    """
+    body = client.get("/api/world/fasttravel").json()
+    assert body["filtered"] is True
+    assert body["points"] == []
+
+
+def test_reference_endpoint_exposes_exact_totals(client, staff):
+    body = client.get("/api/world/reference", headers=staff).json()
     assert body["totals"]["technologyPoints"] == 1413
     assert body["totals"]["ancientTechnologyPoints"] == 185
     assert body["workSuitability"]

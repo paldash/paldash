@@ -35,19 +35,19 @@
  "worldobjects.json.gz": {
   "source": "Pal-LinuxServer.pak (MainGrid streaming cells)",
   "gameBuild": "24370498",
-  "regenerateWith": "python3 scripts/extract-world-objects.py --targets ore,treasure,fishing,oilrig,palspawner,dungeon --out backend/data/worldobjects.json.gz",
-  "note": "51,701 objects: 24,359 ore, 8,386 chests, 2,757 fishing spots, 185 oil fields, 13,851 Pal spawners, 2,163 dungeons. Effigies are deliberately excluded \u2014 they have their own bundle carrying the GUIDs saves key on, and including them here would double-draw them on the map. The most update-sensitive artifact here: terrain edits move these."
+  "regenerateWith": "python3 scripts/extract-world-objects.py --targets ore,treasure,fishing,oilrig,palspawner,dungeon,npc --out backend/data/worldobjects.json.gz",
+  "note": "51,921 objects: 24,359 ore, 8,386 chests, 2,757 fishing spots, 185 oil fields, 13,851 Pal spawners, 2,163 dungeons, 220 NPC spawners and camps. Effigies are deliberately excluded — they have their own bundle carrying the GUIDs saves key on, and including them here would double-draw them on the map. Tower bosses are NOT here either: they are fast-travel points, the eight named '… Tower Entrance' (see gamedata.fast_travel_kind). The most update-sensitive artifact here: terrain edits move these."
  },
  "habitats.json.gz": {
   "source": "Pal-LinuxServer.pak (spawner blueprint name tables + placed spawner actors)",
   "gameBuild": "24370498",
   "regenerateWith": "python3 scripts/extract-pal-habitats.py --out backend/data/habitats.json.gz",
-  "note": "348 species -> the streaming cells their spawners occupy. Derived by intersecting each spawner sheet's NAME TABLE with the known species list, because the blueprints are cooked with unversioned properties and cannot be decoded. 13,440 of 13,851 spawners attributed (97.0%). Encounter-only forms (_Oilrig, _Tower) legitimately have none \u2014 they are placed by encounter logic, not by world spawners, which is why the Paldeck merges variants into one entry and unions their ranges. Depends on worldobjects.json.gz being regenerated first, with palspawner in --targets."
+  "note": "348 species -> the streaming cells their spawners occupy. Derived by intersecting each spawner sheet's NAME TABLE with the known species list, because the blueprints are cooked with unversioned properties and cannot be decoded. 13,440 of 13,851 spawners attributed (97.0%). Encounter-only forms (_Oilrig, _Tower) legitimately have none — they are placed by encounter logic, not by world spawners, which is why the Paldeck merges variants into one entry and unions their ranges. Depends on worldobjects.json.gz being regenerated first, with palspawner in --targets."
  },
  "icons/": {
   "source": "PalWorldSaveTools-main.zip resources/icons (MIT, (c) 2026 Pylar)",
   "gameBuild": "24370498",
   "regenerateWith": "python3 scripts/install-icons.py",
-  "note": "1,409 icons (pals, items, elements, npcs) into public/icons/, filenames preserved so the `icon` paths already recorded in gamedata.json.gz resolve directly. A game update adding Pals or items adds icons; existing ones rarely change. Underlying artwork is Pocketpair's \u2014 see docs/LICENSING.md."
+  "note": "1,409 icons (pals, items, elements, npcs) into public/icons/, filenames preserved so the `icon` paths already recorded in gamedata.json.gz resolve directly. A game update adding Pals or items adds icons; existing ones rarely change. Underlying artwork is Pocketpair's — see docs/LICENSING.md."
  }
 }

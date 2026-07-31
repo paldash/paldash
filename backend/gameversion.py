@@ -3,7 +3,7 @@ Which Palworld build is installed, and whether the bundled data still matches it
 
 The dashboard ships three files derived from game content: `gamedata.json.gz`
 (items, Pals, skills), `effigies.json.gz` (396 positions and GUIDs) and
-`worldobjects.json.gz` (35,687 positions). All three are **static per game build**.
+`worldobjects.json.gz` (51,921 positions). All three are **static per game build**.
 A content update can move an ore node, add a Pal, or rename a settings key, and
 nothing in the save file says so — the dashboard would keep confidently reporting
 last patch's world.
@@ -195,7 +195,7 @@ def fingerprint() -> dict[str, Any]:
 
     This is the one that runs on a timer. Measured at well under a millisecond,
     which is what makes "check every minute, diff only when it changes" a sensible
-    shape — the expensive part (re-extracting 35,687 positions from 9,977 cell
+    shape — the expensive part (re-extracting 51,921 positions from 9,977 cell
     packages) is prompted by a change here rather than performed on a schedule.
 
     Deliberately excludes `game_version()`. That is an HTTP request to the game

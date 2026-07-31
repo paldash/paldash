@@ -34,6 +34,8 @@ export default function BreedingPlanner() {
     reachable: boolean;
     alreadyOwned?: boolean;
     reason?: string;
+    /** Whether the search only used pairs this owner can actually make. */
+    genderAware?: boolean;
     steps: { parentA: PalSummary; parentB: PalSummary; child: PalSummary }[];
   } | null>(null);
 
@@ -169,6 +171,16 @@ export default function BreedingPlanner() {
                   <span style={{ color: 'var(--accent)' }}>{step.child.name}</span>
                 </div>
               ))}
+              {/* Said once, at the end, because it qualifies the whole route.
+                  A plan is followed step by step, and finding out at step three
+                  that it was never possible is the failure this avoids. */}
+              {path.genderAware && (
+                <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
+                  Every step uses a pair you can actually make — the Pals you own
+                  are matched by gender, and bred intermediates can be re-rolled
+                  until the gender is right.
+                </p>
+              )}
             </div>
           )}
         </div>

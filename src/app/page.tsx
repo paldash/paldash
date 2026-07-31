@@ -44,9 +44,18 @@ const TABS: {
   { id: 'overview', label: 'Overview', icon: <Monitor size={15} /> },
   { id: 'map', label: 'Map', icon: <Map size={15} /> },
   { id: 'bases', label: 'Bases', icon: <Building2 size={15} /> },
-  { id: 'items', label: 'Items', icon: <Package size={15} />, requires: CAPABILITIES.VIEW_DETAIL },
+  // VIEW_SELF for the same reason as Breeding: `/api/items` scopes to the
+  // caller's own guilds below the `serverTotalsVisibility` threshold, so a
+  // Player has something real to see here — their guild's storage, not the
+  // server's.
+  { id: 'items', label: 'Items', icon: <Package size={15} />, requires: CAPABILITIES.VIEW_SELF },
   { id: 'players', label: 'Players', icon: <Users size={15} />, requires: CAPABILITIES.VIEW_DETAIL },
-  { id: 'breeding', label: 'Breeding', icon: <Egg size={15} />, requires: CAPABILITIES.VIEW_DETAIL },
+  // VIEW_SELF, matching the backend. `/api/breeding/*` and `/api/pals` moved
+  // down to VIEW_SELF so a Player gets a planner over their own palbox, but
+  // this gate stayed on VIEW_DETAIL — so the endpoints were reachable and the
+  // tab that reaches them was invisible. A UI gate that is stricter than the
+  // API it guards is not "safe", it is a feature nobody can find.
+  { id: 'breeding', label: 'Breeding', icon: <Egg size={15} />, requires: CAPABILITIES.VIEW_SELF },
   // VIEW_BASIC, unlike Breeding: the Paldeck is reference data about the game
   // rather than a readout of this server's Pals, so it needs no parsed world and
   // discloses nothing a wiki would not.

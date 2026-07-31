@@ -78,8 +78,8 @@ dangerous ones are separated from the safe ones on purpose.**
 |---|---|
 | `parser.py` | GVAS → dicts. Owns the field-shape helpers (`_num`, `_slot`, `_v`) |
 | `savefiles.py` | Path resolution, torn-read guard, atomic write, player-save index |
-| `savecache.py` | Parse generation counter, load-aware throttling |
-| `parse_worker.py` | The parse itself, in a niced subprocess with a timeout |
+| `savecache.py` | Parse generation counter, load-aware throttling, disk-cache **schema check** |
+| `parse_worker.py` | The parse itself, in a niced subprocess with a timeout. Owns `SCHEMA_VERSION` |
 | `viewcache.py` | Memoises derived views; keyed on the parse generation or a file stamp, never a clock |
 | `gamedata.py` | Internal id → what players see, case-insensitively |
 
@@ -191,7 +191,7 @@ LAN.
 | File | Size | Contents |
 |---|---:|---|
 | `gamedata.json.gz` | 215 KB | 2,466 items, 753 Pals, 1,905 passives, 588 techs, 174 fast-travel points |
-| `worldobjects.json.gz` | 486 KB | 35,687 static objects — ore, chests, fishing spots, oil |
+| `worldobjects.json.gz` | 717 KB | 51,921 static objects — ore, spawners, chests, dungeons, fishing, oil, NPCs |
 | `pal_breeding.json.gz` | 253 KB | Full combi table |
 | `effigies.json.gz` | 15 KB | 396 effigies **with the GUIDs saves key on** |
 | `pal_db.json.gz` | 29 KB | Per-Pal stats |

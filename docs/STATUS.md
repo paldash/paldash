@@ -68,9 +68,10 @@ cannot give:
 
 - the World Partition cell grid, which fixed the World Tree map
 - all **396 effigies** with the GUIDs saves key on
-- **35,687 world objects** — 24,359 ore nodes, 8,386 chests, 2,757 fishing spots,
-  185 oil fields — now rendered on the map with viewport culling, per-kind
-  toggles, and an admin policy controlling which categories each role may see
+- **51,921 world objects** — 24,359 ore nodes, 13,851 Pal spawn points, 8,386
+  chests, 2,163 dungeon objects, 2,757 fishing spots, 220 NPC spawners and camps,
+  185 oil fields — rendered with viewport culling, per-kind toggles, and an admin
+  policy controlling which categories each role may see
 
 Positions are static per game build; the save supplies the *state* (mined,
 looted, respawning) and updates on a normal parse refresh.
@@ -130,7 +131,10 @@ Every one of these is measured against real data, not quoted.
 |---|---:|---|
 | Streaming cell size | 25,600 | 174/174 fast-travel points land on an occupied cell |
 | Effigies | 396 | Package export map; 37/37 collected ones verified against a save |
-| Static world objects | 35,687 | Pak extraction; bundled at 486 KB |
+| Static world objects | 51,921 | Pak extraction; bundled at 717 KB |
+| Pals working at a base | 165 of 1,905 | `WorkerDirector` container join; 11/11 bases resolve |
+| Character containers classified | 21 of 23 | 5 palboxes, 5 parties, 11 base workers; 2 orphaned |
+| Tower bosses | 8 | Fast-travel points named `… Tower Entrance`; **not** a pak category |
 | Fast-travel points | 174 | Bundled data; joins to saves 117/117, 92/92, 11/11, 78/78, 64/64 |
 | Level cap | 80 | 1.0 raised it from 65. **Not** the 100 rows in `palExpTable` |
 | Max equipped moves | 3 | Never exceeded across 1,905 Pals |
@@ -282,7 +286,7 @@ Running this against a live server found what the test suite could not.
 
 **The extractors wrote plain JSON to a `.gz` path.** `--out effigies.json.gz`
 produced an uncompressed file, while every loader reads with `gzip.open`, so the
-map silently lost its effigies and all 35,687 world objects. The committed
+map silently lost its effigies and all 51,921 world objects. The committed
 bundles had been gzipped by a separate step, so the scripts never round-tripped
 their own output. Fixed in `scripts/jsonout.py`, which also pins `mtime=0` so a
 regeneration is diffable.

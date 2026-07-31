@@ -40,6 +40,18 @@ PARSE_ENABLED = os.environ.get("PARSE_ENABLED", "true").lower() != "false"
 # the dashboard completely idle between explicit requests.
 PARSE_AUTO = os.environ.get("PARSE_AUTO", "false").lower() == "true"
 PARSE_MIN_INTERVAL = int(os.environ.get("PARSE_MIN_INTERVAL_SECONDS", "900"))  # 15 min
+# The floor a *forced* parse (someone pressed Refresh) still respects.
+#
+# `PARSE_MIN_INTERVAL` above only ever applied to automatic parses, and the
+# Refresh button posts `force=true` — so the 15-minute floor was bypassed by the
+# one caller most likely to hit it repeatedly. One parse at a time was enforced,
+# but the moment it finished the next click started another, and on a busy
+# dashboard several people pressing Refresh produced a continuous parse loop
+# against the same unchanged save.
+#
+# Deliberately short. The operator asked and is watching, so this is about
+# stopping a stampede, not about making them wait.
+PARSE_FORCE_MIN_INTERVAL = int(os.environ.get("PARSE_FORCE_MIN_INTERVAL_SECONDS", "120"))
 PARSE_TIMEOUT = int(os.environ.get("PARSE_TIMEOUT_SECONDS", "600"))  # 10 min
 PARSE_INCLUDE_ITEMS = os.environ.get("PARSE_INCLUDE_ITEMS", "true").lower() == "true"
 # Refuse to parse absurdly large saves unless explicitly raised.
@@ -90,12 +102,39 @@ def generation() -> int:
     return int(_state["generation"])
 
 
+def _cache_schema() -> int:
+    """The payload shape this build expects, read from the worker it spawns."""
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    try:
+        import parse_worker
+
+        return int(parse_worker.SCHEMA_VERSION)
+    except Exception:  # noqa: BLE001 - a missing worker is a bigger problem elsewhere
+        return 0
+
+
 def _load_from_disk() -> None:
     if not os.path.exists(_CACHE_FILE):
         return
     try:
         with open(_CACHE_FILE) as f:
             cached = json.load(f)
+
+        # A cache written by an older build is discarded, not adapted.
+        #
+        # The alternative is serving a payload missing fields this build reads,
+        # which does not raise anywhere — it surfaces as `undefined` in the API
+        # and "NaN" in the UI, on a server whose only mistake was upgrading
+        # without re-parsing. One extra parse is the cheap side of that trade.
+        expected = _cache_schema()
+        if cached.get("ok") and int(cached.get("schema") or 0) != expected:
+            logger.info(
+                "Discarding save cache written by an older build (schema %s, "
+                "expected %s) — the world will be re-parsed",
+                cached.get("schema") or "none", expected,
+            )
+            return
+
         if cached.get("ok"):
             _state["data"] = cached
             _state["parsedAt"] = cached.get("parsedAt", 0.0)
@@ -324,6 +363,21 @@ def request_parse(force: bool = False) -> dict[str, Any]:
                     "reason": f"Last parse was {int(age)}s ago; minimum interval is "
                               f"{PARSE_MIN_INTERVAL}s",
                 }
+        elif age is not None and age < PARSE_FORCE_MIN_INTERVAL:
+            # The "already running" check above stops parses *overlapping*; this
+            # stops them queueing nose-to-tail. Without it, three people pressing
+            # Refresh in the same minute produced three consecutive full parses of
+            # a save that had not changed between them.
+            wait = int(PARSE_FORCE_MIN_INTERVAL - age)
+            return {
+                "started": False,
+                "cooldown": True,
+                "retryAfterSeconds": wait,
+                "reason": (
+                    f"A parse finished {int(age)}s ago. Refresh is available again "
+                    f"in {wait}s — the data on screen is from that parse."
+                ),
+            }
 
         _state["running"] = True
         _state["startedAt"] = time.time()
