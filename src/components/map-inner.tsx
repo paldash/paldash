@@ -111,19 +111,27 @@ const PIN = {
  * settles many times, and recreating markers on each settle is exactly the cost
  * the static layer's debounce exists to avoid.
  *
- * The icon is deliberately NOT sized here for that reason — `iconSize` and
- * `iconAnchor` stay at the unscaled values, and CSS `transform-origin: center`
- * keeps the visual centre on the anchor at every scale.
+ * **The scale goes on an inner wrapper, never on the root.** Leaflet positions
+ * `.player-pin` with an *inline* `transform: translate3d(…)`, and an inline
+ * style beats a stylesheet rule — so a `transform: scale()` written against the
+ * root silently does nothing, which is exactly what the first version did. The
+ * wrapper is a separate element precisely so the two transforms cannot fight.
+ *
+ * `iconSize` and `iconAnchor` stay at the unscaled values, and the wrapper is
+ * centred on them with `transform-origin: center`, so growing the marker does
+ * not drift it off the position it is reporting.
  */
 function playerIcon(name: string): L.DivIcon {
   return L.divIcon({
     className: 'player-pin',
     html:
+      `<span class="player-pin-inner">` +
       `<span class="player-pin-halo"></span>` +
       `<img src="${PIN.player}" alt="" class="player-pin-img" ` +
       `onerror="this.replaceWith(Object.assign(document.createElement('div'),` +
       `{className:'player-marker-dot'}))">` +
-      `<span class="player-pin-name">${escapeHtml(name)}</span>`,
+      `<span class="player-pin-name">${escapeHtml(name)}</span>` +
+      `</span>`,
     iconSize: [22, 22],
     iconAnchor: [11, 11],
   });
@@ -299,22 +307,41 @@ export default function MapInner({
     // when they ask "where is everyone". Scaling up as you zoom out inverts that:
     // the marker keeps roughly the same *screen* prominence at every zoom.
     //
-    // Written to a CSS variable rather than into each icon so this runs on
-    // `zoom` (every frame of the gesture, cheap: one style write) instead of on
-    // `zoomend` after a rebuild. Markers are never recreated.
+    // Written to a CSS variable so markers are never recreated to re-scale.
+    //
+    // **On `zoomend`, not `zoom`, and that is the whole point.** Writing a
+    // custom property and toggling a class on `.leaflet-container` invalidates
+    // style for the entire map subtree — every pane, every marker. Doing that on
+    // `zoom`, which fires on every frame of the animation, made the map visibly
+    // lurch sideways mid-gesture and snap back when it settled. The scale does
+    // not need to be continuous: markers holding their previous size for the
+    // duration of a zoom is both cheaper and calmer.
+    //
+    // The redundancy guard matters for the same reason — `zoomSnap: 0` settles
+    // several times per gesture, and most of those settles do not change the
+    // bucket the scale falls in.
     const container = map.getContainer();
+    let lastScale = '';
+    let lastNames: boolean | null = null;
     const applyScale = () => {
       const zoom = map.getZoom();
       // 2.6x at fully zoomed out, tapering to 1x by about zoom 2. Measured by
       // eye against the Palpagos texture rather than derived — the useful
       // constraint is "findable without covering the terrain".
-      const scale = Math.min(2.6, Math.max(1, 2.6 - 0.28 * (zoom + 3)));
-      container.style.setProperty('--player-scale', scale.toFixed(2));
+      const scale = Math.min(2.6, Math.max(1, 2.6 - 0.28 * (zoom + 3))).toFixed(2);
+      if (scale !== lastScale) {
+        container.style.setProperty('--player-scale', scale);
+        lastScale = scale;
+      }
       // Names are unreadable at a distance and clutter the map; they earn their
       // space only once you are close enough to care which player is which.
-      container.classList.toggle('show-player-names', zoom >= 0);
+      const names = zoom >= 0;
+      if (names !== lastNames) {
+        container.classList.toggle('show-player-names', names);
+        lastNames = names;
+      }
     };
-    map.on('zoom', applyScale);
+    map.on('zoomend', applyScale);
     applyScale();
 
     mapRef.current = map;

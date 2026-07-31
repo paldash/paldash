@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Search, RefreshCw, PawPrint, ArrowUpDown, Download } from 'lucide-react';
 import { getPals, downloadExport, type PalRecord } from '@/lib/save-api';
+import { useDashboardStore } from '@/lib/store';
 import GameIcon from '@/components/game-icon';
 
 /**
@@ -51,6 +52,10 @@ const WHERE_LABELS: Record<string, string> = {
 };
 
 export default function MyPals() {
+  // An account with no linked character legitimately owns nothing *here*, and
+  // the honest empty list is indistinguishable from a broken one. Saying which
+  // it is turns "the dashboard is broken" into a one-line fix an admin can do.
+  const linked = !!useDashboardStore((s) => s.user?.steamUid);
   const [pals, setPals] = useState<PalRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -159,6 +164,14 @@ export default function MyPals() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {!linked && (
+        <div className="notice notice-warn" style={{ fontSize: 12 }}>
+          <strong>This account is not linked to a character.</strong> Everything
+          scoped to &ldquo;you&rdquo; — your Pals, your breeding planner, your
+          discoveries — has nothing to resolve to, so it comes back empty. An
+          Administrator links it from the <strong>Players</strong> tab.
+        </div>
+      )}
       <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
         <div style={{ position: 'relative', flex: 1, minWidth: 180 }}>
           <Search size={13} style={{ position: 'absolute', left: 10, top: 9, color: 'var(--text-muted)' }} />

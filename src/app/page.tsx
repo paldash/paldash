@@ -364,12 +364,34 @@ export default function Home() {
             )}
             {store.backendOnline && store.cacheStatus && (
               <>
-                <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                {/* Three states, not two. "Re-parsing after an update" and
+                    "nobody has parsed yet" both show an empty dashboard, and
+                    conflating them is what made an upgrade look like data loss:
+                    every tab went blank with the status line calmly reporting
+                    "Save not parsed yet" on a server that had been running for
+                    weeks. */}
+                <span
+                  style={{
+                    fontSize: 11,
+                    color: store.cacheStatus.schemaStale && !store.cacheStatus.hasData
+                      ? 'var(--accent-amber)'
+                      : 'var(--text-muted)',
+                  }}
+                  title={
+                    store.cacheStatus.schemaStale && !store.cacheStatus.hasData
+                      ? 'The dashboard was updated and the cached world no longer matches ' +
+                        'the shape it expects, so it was discarded. A re-parse starts ' +
+                        'automatically; press Refresh if it does not.'
+                      : undefined
+                  }
+                >
                   {store.cacheStatus.parsing
                     ? 'Parsing save…'
                     : store.cacheStatus.hasData
                       ? `Save data ${formatAge(store.cacheStatus.ageSeconds)}`
-                      : 'Save not parsed yet'}
+                      : store.cacheStatus.schemaStale
+                        ? 'Re-parsing after update — no world data yet'
+                        : 'Save not parsed yet'}
                 </span>
                 <button
                   className="btn btn-ghost"

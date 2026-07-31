@@ -136,6 +136,30 @@ wrong however plausible its class name reads.
 The classification is **English-dependent** and fails safe: an unrecognised name
 is a plain travel point, which is what all 174 were before.
 
+## Map work on `zoom` is work on every animation frame
+
+`map-inner.tsx`. Live-player markers scale with zoom through a `--player-scale`
+custom property on the map container. The first version updated it on Leaflet's
+`zoom` event, reasoning that one style write per frame is cheap.
+
+It is not, because of *where* it writes. Setting a custom property on
+`.leaflet-container` invalidates style for the whole map subtree (custom
+properties inherit), and `classList.toggle` on it invalidates selector matching
+for every descendant. Doing that per frame made the map **visibly lurch sideways
+mid-zoom and snap back on settle**.
+
+Both now run on `zoomend`, behind a guard that skips the write when the value has
+not changed — `zoomSnap: 0` settles several times per gesture and most settles
+land in the same bucket. Marker size holding steady during a zoom is both cheaper
+and calmer than tracking it continuously.
+
+**And the scale must go on a child, not the marker root.** Leaflet positions
+`.player-pin` with an *inline* `transform: translate3d(…)`; an inline style beats
+a stylesheet rule, so a `transform: scale()` written against the root is silently
+discarded — the first version paid the whole reflow cost and never scaled
+anything. `.player-pin-inner` exists so the positioning transform and the scaling
+transform cannot compete for the same property.
+
 ## The map has two regions, not one
 
 `src/lib/map-coordinates.ts`. Palworld 1.0's landmasses are **separate maps with
@@ -800,14 +824,30 @@ No TTLs. A time-based cache is wrong in both directions here — stale while the
 world has already changed, and re-doing work while it hasn't.
 
 **The on-disk parse cache carries a schema version, because it outlives the code
-that wrote it.** `level_cache.json` survives an upgrade, and a newer dashboard
+that wrote it — and discarding it is only HALF the fix.** `level_cache.json` survives an upgrade, and a newer dashboard
 reading an older payload does not raise — it reads a field that is not there.
 Renaming the per-base Pal count produced `undefined` in the API and a literal
 **"NaN"** on the Bases tab of a server whose only mistake was upgrading without
 re-parsing, with nothing anywhere saying why. `parse_worker.SCHEMA_VERSION` is
 bumped whenever a field is added, removed or renamed, and `savecache` discards a
-mismatched cache rather than adapting it. One extra parse is the cheap side of
-that trade.
+mismatched cache rather than adapting it.
+
+**Shipping only the discard was worse than the bug it fixed.** `PARSE_AUTO` is
+false by default — nothing re-parses on its own — so throwing the cache away left
+a live server's entire dashboard empty: no Pals, no bases, no breeding, for every
+role, with no error and no path back except a human happening to press Refresh.
+A stale number is bad; an empty dashboard that never recovers is worse.
+
+So the discard sets `_state["schemaStale"]`, `status()` reports it, the UI says
+"Re-parsing after update" instead of the identical-looking "Save not parsed yet",
+and `recover_stale_schema()` forces a parse from the lifespan hook **regardless of
+`PARSE_AUTO`** — that setting means "do not parse speculatively", and rebuilding a
+cache we just deleted is not speculative. It runs from the lifespan hook rather
+than at import because `request_parse` reads the metrics table, which `db.init()`
+has not created yet.
+
+The general rule: **invalidation without a rebuild path is not invalidation, it is
+deletion.** `test_savecache_schema.py` pins both halves together.
 
 **What was actually slow, measured on the reference world:**
 

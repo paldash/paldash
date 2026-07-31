@@ -953,6 +953,15 @@ export interface CacheStatus {
   lastError: string | null;
   lastDurationSec: number | null;
   minIntervalSeconds: number;
+  /**
+   * The on-disk cache was discarded because an upgrade changed the payload
+   * shape, and no parse has replaced it yet.
+   *
+   * Distinct from plain `!hasData`, which also covers "nobody has ever pressed
+   * Refresh". The two need different reassurance, and shipping the discard
+   * without this left a live server looking empty with nothing saying why.
+   */
+  schemaStale?: boolean;
   levelSizeMb?: number;
   counts: Record<string, number>;
 }

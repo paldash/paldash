@@ -16,7 +16,7 @@ import GameIcon from '@/components/game-icon';
  * reachability question.
  */
 export default function BreedingPlanner() {
-  const { guilds } = useDashboardStore();
+  const { guilds, user } = useDashboardStore();
   const [owner, setOwner] = useState<string>('');
   const [palbox, setPalbox] = useState<PalboxSummary | null>(null);
   const [offspring, setOffspring] = useState<OffspringOption[]>([]);
@@ -101,6 +101,16 @@ export default function BreedingPlanner() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {/* Same reason as My Pals: below `allPalsVisibility` the planner is scoped
+          to your own palbox, and an account with no linked character resolves to
+          nobody — so a correct empty planner and a broken one look identical. */}
+      {!user?.steamUid && (
+        <div className="notice notice-warn" style={{ fontSize: 12 }}>
+          <strong>This account is not linked to a character.</strong> The planner
+          works from the Pals you own, so it has nothing to plan with. An
+          Administrator links it from the <strong>Players</strong> tab.
+        </div>
+      )}
       {/* Controls */}
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
         <select className="select" style={{ width: 220 }} value={owner} onChange={(e) => setOwner(e.target.value)}>

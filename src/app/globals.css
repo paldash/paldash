@@ -391,22 +391,29 @@ html, body {
 }
 /* ─── Live player markers ───────────────────────────────
    Scaled by `--player-scale`, which the map sets from the zoom level (see
-   `map-inner.tsx`). `transform-origin: center` is what keeps the visual centre
-   on Leaflet's anchor point at every scale — without it a scaled marker drifts
-   away from the position it is reporting, which is worse than being small. */
+   `map-inner.tsx`).
+
+   The scale lives on `.player-pin-inner`, NOT on `.player-pin`. Leaflet
+   positions the marker root with an inline `transform: translate3d(…)`, and an
+   inline style wins over a stylesheet rule — a `transform` written against the
+   root is silently discarded. Two elements, so the positioning transform and the
+   scaling transform never compete for the same property. */
 .player-pin {
   --player-scale: 1;
-  position: relative;
-  display: grid;
-  place-items: center;
-  transform: scale(var(--player-scale));
-  transform-origin: center;
-  /* `will-change` and not a transition: the scale changes every frame of a
-     pinch, and a transition would make it lag the map it is drawn on. */
-  will-change: transform;
   pointer-events: none;
 }
-.player-pin > * {
+/* Anchored to the centre of the 22x22 icon box so scaling grows outward from
+   the reported position rather than dragging the marker off it. */
+.player-pin-inner {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: grid;
+  place-items: center;
+  transform: translate(-50%, -50%) scale(var(--player-scale));
+  transform-origin: center;
+}
+.player-pin-inner > * {
   grid-area: 1 / 1;
   pointer-events: auto;
 }

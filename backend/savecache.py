@@ -94,6 +94,11 @@ _state: dict[str, Any] = {
     # parse instead of once per request — and there is no invalidation call
     # anywhere to forget, because replacing the data *is* the invalidation.
     "generation": 0,
+    # Set when the on-disk cache was thrown away because an upgrade changed the
+    # payload shape. Cleared by the first successful parse. Exists so "there is
+    # no data" can say *why*, and so startup knows it must parse even when
+    # PARSE_AUTO is off.
+    "schemaStale": False,
 }
 
 
@@ -125,14 +130,28 @@ def _load_from_disk() -> None:
         # The alternative is serving a payload missing fields this build reads,
         # which does not raise anywhere — it surfaces as `undefined` in the API
         # and "NaN" in the UI, on a server whose only mistake was upgrading
-        # without re-parsing. One extra parse is the cheap side of that trade.
+        # without re-parsing.
+        #
+        # **Discarding is only half the job, and shipping only that half broke a
+        # live server.** `PARSE_AUTO` is false by default, so nothing re-parses
+        # on its own: throwing the cache away left the entire dashboard empty —
+        # no Pals, no bases, no breeding, for every role — with no error and no
+        # path back except somebody happening to press Refresh. A stale number is
+        # bad; an empty dashboard that never recovers is worse.
+        #
+        # So the flag below is set, `status()` reports it, and the app kicks a
+        # parse at startup regardless of `PARSE_AUTO`. Not started here, because
+        # this runs at *import* time: `request_parse` consults the metrics table
+        # through `db`, which the lifespan hook has not initialised yet.
         expected = _cache_schema()
         if cached.get("ok") and int(cached.get("schema") or 0) != expected:
-            logger.info(
-                "Discarding save cache written by an older build (schema %s, "
-                "expected %s) — the world will be re-parsed",
+            logger.warning(
+                "Save cache was written by an older build (schema %s, expected "
+                "%s). Discarding it and re-parsing — the dashboard will have no "
+                "world data until that finishes.",
                 cached.get("schema") or "none", expected,
             )
+            _state["schemaStale"] = True
             return
 
         if cached.get("ok"):
@@ -177,6 +196,10 @@ def status() -> dict[str, Any]:
         # So the UI can say "deferred because the server is busy" rather than
         # leaving Refresh looking like it silently did nothing.
         "loadAware": PARSE_LOAD_AWARE,
+        # Why the world is empty, when it is. Without this the upgrade case is
+        # indistinguishable from "nobody has ever pressed Refresh", and the two
+        # need different reassurance.
+        "schemaStale": bool(_state["schemaStale"]),
         "load": load_verdict(),
         "levelSizeMb": data.get("levelSizeMb"),
         "counts": data.get("counts", {}),
@@ -229,6 +252,7 @@ def _run_worker() -> None:
             _state["lastError"] = None
             _state["lastDurationSec"] = round(duration, 1)
             _state["generation"] += 1
+            _state["schemaStale"] = False
 
         try:
             os.replace(out_path, _CACHE_FILE)
@@ -405,3 +429,32 @@ def get_section(name: str, auto: bool = True) -> list:
         return []
     value = data.get(name)
     return value if isinstance(value, list) else []
+
+
+def recover_stale_schema() -> Optional[dict[str, Any]]:
+    """
+    Rebuild data thrown away because an upgrade changed the payload shape.
+
+    Called once from the app's lifespan hook, after `db.init()` — `request_parse`
+    reads the metrics table to decide whether the game server is too busy, and at
+    import time that table does not exist yet.
+
+    **Forced, and deliberately not gated on `PARSE_AUTO`.** That setting means
+    "do not parse speculatively"; this is not speculative. The cache was
+    discarded a moment ago and there is nothing to serve, so the choice is
+    between one parse now and a dashboard that stays empty until a human notices
+    and presses Refresh. Everything else still applies: one parse at a time, the
+    size limit, and the load check — a struggling game server still wins, and the
+    flag stays set so the next start tries again.
+    """
+    if not _state["schemaStale"] or _state["data"] is not None:
+        return None
+    logger.info("Re-parsing after an upgrade changed the save cache format")
+    result = request_parse(force=True)
+    if not result.get("started"):
+        logger.warning(
+            "Could not start the post-upgrade re-parse (%s). The dashboard has "
+            "no world data until a parse succeeds — press Refresh.",
+            result.get("reason"),
+        )
+    return result

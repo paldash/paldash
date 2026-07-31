@@ -93,6 +93,9 @@ async def _lifespan(_app: FastAPI) -> AsyncIterator[None]:
     schedule_module.start()
     # After db.init(), because the first sample writes a row.
     metrics.start()
+    # After db.init(): this consults the metrics table to decide whether the
+    # game server is too busy to parse.
+    savecache.recover_stale_schema()
     created = accounts.bootstrap_from_env()
     if created:
         audit.record(
