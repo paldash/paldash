@@ -61,7 +61,14 @@ export default function HabitatMap({
         alt=""
         width={size}
         height={size}
-        style={{ display: 'block', borderRadius: 6, opacity: 0.75 }}
+        // A missing map texture leaves a plain panel with the range boxes still
+        // drawn over it, rather than a broken-image glyph. The boxes are the
+        // information; the texture is orientation.
+        onError={(e) => {
+          e.currentTarget.style.visibility = 'hidden';
+        }}
+        style={{ display: 'block', borderRadius: 6, opacity: 0.75,
+                 background: 'var(--bg-input)' }}
       />
       <svg
         width={size}

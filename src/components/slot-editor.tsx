@@ -1,7 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Boxes, ShieldCheck, AlertTriangle, Lock, Trash2 } from 'lucide-react';
+import { Boxes, ShieldCheck, AlertTriangle, Lock, Trash2, Search } from 'lucide-react';
+import GameIcon from '@/components/game-icon';
 import {
   getBaseStorage, getContainerContents, getItemTotals, previewSlotEdit, applySlotEdit,
 } from '@/lib/save-api';
@@ -25,14 +26,19 @@ import type {
  */
 export default function SlotEditor({ canEdit }: { canEdit: boolean }) {
   const [bases, setBases] = useState<BaseStorage[]>([]);
+  const [baseId, setBaseId] = useState('');
   const [containerId, setContainerId] = useState('');
   const [slots, setSlots] = useState<InventorySlot[]>([]);
   const [edits, setEdits] = useState<Record<number, SlotPatch>>({});
-  const [knownItems, setKnownItems] = useState<{ id: string; name: string }[]>([]);
+  const [knownItems, setKnownItems] = useState<
+    { id: string; name: string; icon: string; maxStack: number }[]
+  >([]);
   const [plan, setPlan] = useState<SlotEditPlan | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
+  const [slotQuery, setSlotQuery] = useState('');
+  const [emptyOnly, setEmptyOnly] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -44,7 +50,9 @@ export default function SlotEditor({ canEdit }: { canEdit: boolean }) {
         // 2,466-item catalogue — the backend validates against that, and this is
         // only here so the common case does not need typing an internal id.
         setKnownItems(
-          (totals.items ?? []).map((i) => ({ id: i.itemId, name: i.name }))
+          (totals.items ?? []).map((i) => ({
+            id: i.itemId, name: i.name, icon: i.icon, maxStack: i.maxStack,
+          }))
         );
       })
       .catch((e: unknown) => {
@@ -53,13 +61,45 @@ export default function SlotEditor({ canEdit }: { canEdit: boolean }) {
     return () => { cancelled = true; };
   }, []);
 
+  /**
+   * Containers in the *chosen base only*.
+   *
+   * This used to be every container in the world in one flat `<select>` — 262
+   * entries across 11 bases on a mature save, which is a scroll rather than a
+   * choice. The thing a person knows is which base they want, so that is asked
+   * first.
+   */
   const containers = useMemo(() => {
-    const out: { container: BaseContainer; base: BaseStorage }[] = [];
-    for (const base of bases) {
-      for (const container of base.containers ?? []) out.push({ container, base });
+    const base = bases.find((b) => b.baseId === baseId);
+    if (!base) return [] as { container: BaseContainer; base: BaseStorage }[];
+    return (base.containers ?? []).map((container) => ({ container, base }));
+  }, [bases, baseId]);
+
+  /**
+   * Name **or** id -> the catalogue row, case-insensitively.
+   *
+   * The API needs `AIcore`; a person knows "AI Core". Accepting either and
+   * showing what resolved makes a wrong entry visible before preview instead of
+   * surfacing as a rejection after it.
+   */
+  const itemIndex = useMemo(() => {
+    const byId = new Map<string, (typeof knownItems)[number]>();
+    const byName = new Map<string, (typeof knownItems)[number]>();
+    for (const item of knownItems) {
+      byId.set(item.id.toLowerCase(), item);
+      if (item.name) byName.set(item.name.toLowerCase(), item);
     }
-    return out;
-  }, [bases]);
+    return { byId, byName };
+  }, [knownItems]);
+
+  const resolveItem = useCallback(
+    (typed: string) => {
+      const key = typed.trim().toLowerCase();
+      if (!key) return null;
+      return itemIndex.byId.get(key) ?? itemIndex.byName.get(key) ?? null;
+    },
+    [itemIndex]
+  );
 
   const loadContainer = useCallback(async (id: string) => {
     setContainerId(id);
@@ -67,6 +107,7 @@ export default function SlotEditor({ canEdit }: { canEdit: boolean }) {
     setPlan(null);
     setError(null);
     setDone(null);
+    setSlotQuery('');
     if (!id) { setSlots([]); return; }
 
     setBusy(true);
@@ -105,6 +146,19 @@ export default function SlotEditor({ canEdit }: { canEdit: boolean }) {
       return p.itemId !== wasId || p.stackCount !== wasCount;
     });
   }, [edits, slots]);
+
+  const visibleSlots = useMemo(() => {
+    const q = slotQuery.trim().toLowerCase();
+    return slots.filter((slot) => {
+      if (emptyOnly && !slot.isEmpty) return false;
+      if (!q) return true;
+      return (
+        (slot.itemName ?? '').toLowerCase().includes(q) ||
+        (slot.itemId ?? '').toLowerCase().includes(q) ||
+        String(slot.slotIndex) === q
+      );
+    });
+  }, [slots, slotQuery, emptyOnly]);
 
   const preview = async () => {
     setBusy(true); setError(null); setDone(null);
@@ -146,7 +200,7 @@ export default function SlotEditor({ canEdit }: { canEdit: boolean }) {
   return (
     <div className="glass-card" style={{ padding: 16 }}>
       <div className="section-title" style={{ marginBottom: 10 }}>
-        <Boxes size={14} /> Inventory slot editor
+        <Boxes size={14} /> Base inventory editor
         {patches.length > 0 && (
           <span className="badge" style={{ marginLeft: 'auto' }}>
             {patches.length} slot{patches.length === 1 ? '' : 's'} edited
@@ -168,37 +222,89 @@ export default function SlotEditor({ canEdit }: { canEdit: boolean }) {
         </div>
       )}
 
-      <select
-        className="input"
-        style={{ width: '100%', maxWidth: 560, marginBottom: 12 }}
-        value={containerId}
-        onChange={(e) => loadContainer(e.target.value)}
-        disabled={busy}
-      >
-        <option value="">Pick a container…</option>
-        {containers.map(({ container, base }) => (
-          <option key={container.containerId} value={container.containerId}>
-            {base.baseName} — {container.kindName || container.kind}{' '}
-            ({container.usedSlots}/{container.totalSlots} slots)
-          </option>
-        ))}
-      </select>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+        <select
+          className="input"
+          style={{ width: 250 }}
+          value={baseId}
+          onChange={(e) => { setBaseId(e.target.value); loadContainer(''); }}
+          disabled={busy}
+        >
+          <option value="">Pick a base…</option>
+          {bases.map((base) => (
+            <option key={base.baseId} value={base.baseId}>
+              {/* Guild first. Most bases have never been renamed in game, so
+                  `baseName` is our positional fallback ("Base 3") — which says
+                  nothing about *whose* it is, and whose is the thing you need to
+                  know before editing someone's chest. */}
+              {base.guildName || 'Unknown guild'} · {base.baseName || base.baseId.slice(0, 8)}
+              {' '}— {base.containerCount} containers, {base.itemCount.toLocaleString()} items
+            </option>
+          ))}
+        </select>
+
+        <select
+          className="input"
+          style={{ width: 330 }}
+          value={containerId}
+          onChange={(e) => loadContainer(e.target.value)}
+          disabled={busy || !baseId}
+        >
+          <option value="">{baseId ? 'Pick a container…' : 'Pick a base first'}</option>
+          {containers.map(({ container }) => (
+            <option key={container.containerId} value={container.containerId}>
+              {container.kindName || container.kind}{' '}
+              ({container.usedSlots}/{container.totalSlots} slots
+              {container.itemCount ? `, ${container.itemCount.toLocaleString()} items` : ''})
+            </option>
+          ))}
+        </select>
+      </div>
 
       {containerId && slots.length > 0 && (
         <>
           <datalist id="slot-editor-items">
+            {/* Name as the *value*: that is what a person knows, and
+                `resolveItem` maps it back to the id the API needs. Typing a raw
+                id still works — both are indexed. */}
             {knownItems.map((i) => (
-              <option key={i.id} value={i.id}>{i.name}</option>
+              <option key={i.id} value={i.name || i.id}>{i.id}</option>
             ))}
           </datalist>
 
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8, flexWrap: 'wrap' }}>
+            <div style={{ position: 'relative', flex: 1, minWidth: 180 }}>
+              <Search size={13} style={{ position: 'absolute', left: 10, top: 9, color: 'var(--text-muted)' }} />
+              <input
+                className="input"
+                style={{ paddingLeft: 30 }}
+                placeholder="Filter slots by item or slot number…"
+                value={slotQuery}
+                onChange={(e) => setSlotQuery(e.target.value)}
+              />
+            </div>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: 'var(--text-secondary)' }}>
+              <input type="checkbox" checked={emptyOnly} onChange={(e) => setEmptyOnly(e.target.checked)} />
+              Empty only
+            </label>
+            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+              {visibleSlots.length} of {slots.length}
+            </span>
+          </div>
+
           <div style={{
-            maxHeight: 340, overflowY: 'auto',
+            maxHeight: 420, overflowY: 'auto',
             border: '1px solid var(--border-primary)', borderRadius: 6,
           }}>
-            {slots.map((slot) => {
+            {visibleSlots.map((slot) => {
               const edit = edits[slot.slotIndex];
               const locked = slot.maxDurability > 0 || slot.durability > 0;
+              const typed = edit ? edit.itemId : (slot.isEmpty ? '' : slot.itemId);
+              const resolved = resolveItem(typed);
+              const count = edit ? edit.stackCount : (slot.isEmpty ? 0 : slot.stackCount);
+              // Shown before the backend refuses it, rather than after.
+              const ceiling = resolved?.maxStack || slot.maxStack || 0;
+              const over = ceiling > 0 && count > ceiling;
               return (
                 <div
                   key={slot.slotIndex}
@@ -216,6 +322,7 @@ export default function SlotEditor({ canEdit }: { canEdit: boolean }) {
                   {locked ? (
                     <>
                       <Lock size={12} style={{ color: 'var(--accent-amber)' }} />
+                      <GameIcon src={slot.icon} size={20} />
                       <span style={{ flex: 1 }}>{slot.itemName || slot.itemId}</span>
                       <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
                         has durability — cannot be overwritten without orphaning its record
@@ -223,20 +330,44 @@ export default function SlotEditor({ canEdit }: { canEdit: boolean }) {
                     </>
                   ) : (
                     <>
+                      {/* The icon tracks what is *typed*, not what is stored, so
+                          a mistyped name goes blank before you press preview. */}
+                      <GameIcon src={resolved?.icon || (typed ? undefined : slot.icon)} size={20} />
                       <input
                         className="input"
                         list="slot-editor-items"
-                        style={{ flex: 1, minWidth: 120, fontSize: 12, padding: '3px 6px' }}
+                        style={{ flex: 1, minWidth: 110, fontSize: 12, padding: '3px 6px' }}
                         placeholder="(empty)"
-                        value={edit ? edit.itemId : (slot.isEmpty ? '' : slot.itemId)}
-                        onChange={(e) => patch(slot.slotIndex, { itemId: e.target.value })}
+                        value={typed}
+                        title={resolved
+                          ? `${resolved.name} (${resolved.id})`
+                          : 'Not an item in this world — the backend validates against the full catalogue'}
+                        onChange={(e) => {
+                          const next = resolveItem(e.target.value);
+                          // Store the id once the text resolves; otherwise keep
+                          // exactly what was typed and let the backend rule on
+                          // it, since it knows all 2,466 items and this list
+                          // only knows the ones present in this world.
+                          patch(slot.slotIndex, { itemId: next ? next.id : e.target.value });
+                        }}
                       />
+                      <span style={{
+                        width: 120, fontSize: 11,
+                        color: typed && !resolved ? 'var(--accent-amber)' : 'var(--text-muted)',
+                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                      }}>
+                        {typed ? (resolved ? resolved.name : 'not in this world') : ''}
+                      </span>
                       <input
                         className="input"
                         type="number"
                         min={0}
-                        style={{ width: 84, fontSize: 12, padding: '3px 6px' }}
-                        value={edit ? edit.stackCount : (slot.isEmpty ? 0 : slot.stackCount)}
+                        style={{
+                          width: 84, fontSize: 12, padding: '3px 6px',
+                          borderColor: over ? 'var(--accent-amber)' : undefined,
+                        }}
+                        value={count}
+                        title={ceiling ? `Game stack ceiling: ${ceiling.toLocaleString()}` : undefined}
                         onChange={(e) =>
                           patch(slot.slotIndex, { stackCount: e.target.valueAsNumber || 0 })
                         }
@@ -254,6 +385,11 @@ export default function SlotEditor({ canEdit }: { canEdit: boolean }) {
                 </div>
               );
             })}
+            {visibleSlots.length === 0 && (
+              <div style={{ padding: 16, textAlign: 'center', fontSize: 12, color: 'var(--text-muted)' }}>
+                No slots matched that filter.
+              </div>
+            )}
           </div>
 
           <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>

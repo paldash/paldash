@@ -232,11 +232,20 @@ export default function InteractiveMap() {
    */
   const saveCategories = useMemo(() => {
     const byCategory = new Map<string, Map<string, number>>();
+    // The friendly name the backend already resolved for each kind. A save calls
+    // every minable node `DamagableRock…` regardless of what it yields, so
+    // prettifying the class gave seventeen chips all reading "Damagable Rock"
+    // while the popups beside them correctly said Copper, Coal and Sulfur. The
+    // label has to come from the same place the popup gets it.
+    const kindLabel = new Map<string, string>();
     for (const object of mapObjects) {
       if (!transform.contains(object.x, object.y)) continue;
       const kinds = byCategory.get(object.category) ?? new Map<string, number>();
       kinds.set(object.kind, (kinds.get(object.kind) ?? 0) + 1);
       byCategory.set(object.category, kinds);
+      if (object.name && !kindLabel.has(object.kind)) {
+        kindLabel.set(object.kind, object.name);
+      }
     }
     // Effigies are their own layer and carry a kind from the extraction.
     const effigyKinds = new Map<string, number>();
@@ -265,7 +274,7 @@ export default function InteractiveMap() {
       label: id,
       count: [...kinds.values()].reduce((a, b) => a + b, 0),
       kinds: [...kinds.entries()]
-        .map(([cls, count]) => ({ cls, count }))
+        .map(([cls, count]) => ({ cls, count, label: kindLabel.get(cls) }))
         .sort((a, b) => b.count - a.count),
     }));
   }, [mapObjects, discoveries, fastTravel, transform]);

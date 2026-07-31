@@ -16,7 +16,16 @@ export interface StaticCategory {
   id: string;
   label: string;
   count: number;
-  kinds: { cls: string; count: number }[];
+  /**
+   * `cls` is the identity the filter keys on; `label` is what to show.
+   *
+   * They differ for save-derived layers. A save calls every minable node
+   * `DamagableRock…` whatever it yields, so the chips all read "Damagable Rock"
+   * while the popups — which resolve the friendly name through `gamedata` —
+   * correctly said Copper, Coal, Sulfur. The label has to come from the same
+   * place the popup gets it, not from prettifying the class.
+   */
+  kinds: { cls: string; count: number; label?: string }[];
 }
 
 const GROUP_LABEL: Record<LayerDef['group'], string> = {
@@ -195,13 +204,18 @@ export default function MapLayersPanel({
                         >
                           <input type="checkbox" checked={isOn} readOnly style={{ pointerEvents: 'none' }} />
                           {art ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                              src={art}
-                              alt=""
-                              // Explicit style, not attributes: the source art
-                              // is up to 512px and attributes lose to CSS.
-                              style={{ width: 16, height: 16, objectFit: 'contain', flexShrink: 0 }}
+                            // A background image, not an `<img>`: a failed load
+                            // then shows the colour swatch behind it rather than
+                            // the browser's broken-file glyph. Same reason the
+                            // map pins do it — an `<img>` needs an `onError` to
+                            // avoid that glyph, and this list is one of several
+                            // places that was missing one.
+                            <span
+                              style={{
+                                width: 16, height: 16, flexShrink: 0,
+                                borderRadius: 2,
+                                background: `url('${art}') center/contain no-repeat, ${layer.color}`,
+                              }}
                             />
                           ) : (
                             <span
@@ -303,7 +317,7 @@ export default function MapLayersPanel({
                                       ),
                                     }}
                                   />
-                                  {prettyClass(kind.cls)}
+                                  {kind.label || prettyClass(kind.cls)}
                                 </button>
                               );
                             })}

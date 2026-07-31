@@ -143,9 +143,10 @@ function playerIcon(name: string): L.DivIcon {
     html:
       `<span class="player-pin-inner">` +
       `<span class="player-pin-halo"></span>` +
-      `<img src="${PIN.player}" alt="" class="player-pin-img" ` +
-      `onerror="this.replaceWith(Object.assign(document.createElement('div'),` +
-      `{className:'player-marker-dot'}))">` +
+      // Background image for the same reason as `pinIcon`: an `<img>` that fails
+      // shows a broken-file glyph, and the inline `onerror` that would prevent
+      // it is CSP-blockable. `.player-marker-dot` shows through underneath.
+      `<span class="player-marker-dot player-pin-img"></span>` +
       `<span class="player-pin-name">${escapeHtml(name)}</span>` +
       `</span>`,
     iconSize: [22, 22],
@@ -165,8 +166,10 @@ function playerIcon(name: string): L.DivIcon {
  * sheets) or has no icon, rather than rendering a broken image.
  */
 function bossIcon(icon: string | undefined, size: number): L.DivIcon {
+  // Background image, not `<img>` — see `pinIcon`. A boss whose species did not
+  // resolve simply shows the ring with nothing in it.
   const art = icon
-    ? `<img src="${icon}" alt="" style="width:100%;height:100%;object-fit:contain">`
+    ? `<span class="boss-pin-art" style="background-image:url('${icon}')"></span>`
     : '';
   return L.divIcon({
     className: 'boss-pin',
@@ -176,21 +179,33 @@ function bossIcon(icon: string | undefined, size: number): L.DivIcon {
   });
 }
 
-/** An image pin that falls back to a CSS marker when the artwork is absent. */
+/**
+ * An image pin that degrades to a CSS marker when the artwork will not load.
+ *
+ * **A `background-image`, not an `<img>`, and that is the whole point.** An
+ * `<img>` whose source fails renders the browser's broken-file glyph, and the
+ * only way to avoid that is an `onerror` handler — which, written inline into a
+ * `divIcon`'s HTML, is exactly the thing a Content-Security-Policy blocks. So
+ * the failure mode was: image fails, handler never runs, torn-paper icon on the
+ * map, and no way to tell from the server side that anything was wrong.
+ *
+ * A background-image cannot do that. If it loads you see the art; if it does not
+ * you see the fallback class underneath it, which is a styled div that was going
+ * to be the answer anyway. No JavaScript, no handler, nothing to block.
+ *
+ * Size stays in the inline style: the source art is up to 512x512 and HTML
+ * attributes lose to any stylesheet rule that touches the element — one that did
+ * put 512px statues on the map, which also made every marker look wildly
+ * off-centre when zoomed out because the visual centre was nowhere near the
+ * anchor point.
+ */
 function pinIcon(src: string, size: number, fallbackClass: string): L.DivIcon {
   return L.divIcon({
     className: 'game-pin',
     html:
-      `<img src="${src}" alt="" ` +
-      // Size in the inline style, not only as width/height attributes. The
-      // source art is up to 512x512 and HTML attributes lose to any stylesheet
-      // rule that touches `img`; one that did put 512px statues on the map,
-      // which also made every marker look wildly off-centre when zoomed out
-      // because the visual centre was nowhere near the 9px anchor point.
-      `style="display:block;width:${size}px;height:${size}px;` +
-      `object-fit:contain;filter:drop-shadow(0 1px 2px rgba(0,0,0,.6))" ` +
-      `onerror="this.replaceWith(Object.assign(document.createElement('div'),` +
-      `{className:'${fallbackClass}'}))">`,
+      `<span class="${fallbackClass} game-pin-art" ` +
+      `style="width:${size}px;height:${size}px;` +
+      `background-image:url('${src}')"></span>`,
     iconSize: [size, size],
     iconAnchor: [size / 2, size / 2],
   });

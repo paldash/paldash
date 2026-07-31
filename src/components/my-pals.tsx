@@ -5,6 +5,7 @@ import { Search, RefreshCw, PawPrint, ArrowUpDown, Download } from 'lucide-react
 import { getPals, downloadExport, type PalRecord } from '@/lib/save-api';
 import { useDashboardStore } from '@/lib/store';
 import GameIcon from '@/components/game-icon';
+import { getWorkTypes, orderedWork, type WorkType } from '@/lib/work-types';
 
 /**
  * A player's own Pals, as a table you can actually work with.
@@ -25,22 +26,31 @@ import GameIcon from '@/components/game-icon';
  * question the browser can answer instantly.
  */
 
-type SortKey = 'level' | 'name' | 'rank' | 'hp' | 'attack' | 'defense' | 'work';
+type SortKey = 'level' | 'name' | 'rank' | 'hp' | 'attack' | 'defense' | 'work' | 'ivs';
 
+/**
+ * Fallback only. The real list — names, icons and the game's own ordering —
+ * comes from `lib/work-types.ts`, which reads the bundled table.
+ *
+ * This copy was the whole list, hand-written, alphabetically unrelated to the
+ * game's order and with shortened names ("Electricity", "Farming") that do not
+ * match what a player reads in game. Kept as a fallback so a clone with no
+ * bundled data still has a working filter.
+ */
 const WORK_LABELS: Record<string, string> = {
   EmitFlame: 'Kindling',
   Watering: 'Watering',
   Seeding: 'Planting',
-  GenerateElectricity: 'Electricity',
+  GenerateElectricity: 'Generating Electricity',
   Handcraft: 'Handiwork',
   Collection: 'Gathering',
   Deforest: 'Lumbering',
   Mining: 'Mining',
-  OilExtraction: 'Oil',
-  ProductMedicine: 'Medicine',
-  Cool: 'Cooling',
   Transport: 'Transporting',
-  MonsterFarm: 'Farming',
+  MonsterFarm: 'Ranching',
+  ProductMedicine: 'Medicine Production',
+  OilExtraction: 'Oil Extraction',
+  Cool: 'Cooling',
 };
 
 /** `location` -> what to show in the table. */
@@ -72,6 +82,8 @@ export default function MyPals() {
   const [alphaOnly, setAlphaOnly] = useState(false);
   const [where, setWhere] = useState('');
   const [exporting, setExporting] = useState('');
+  // The game's own work list: display names, icons, and its ordering.
+  const [workTypes, setWorkTypes] = useState<WorkType[]>([]);
   const [sort, setSort] = useState<SortKey>('level');
   const [descending, setDescending] = useState(true);
 
@@ -91,6 +103,10 @@ export default function MyPals() {
     load();
   }, [load]);
 
+  useEffect(() => {
+    getWorkTypes().then(setWorkTypes).catch(() => undefined);
+  }, []);
+
   // Options come from what you actually own, not from the full 753-species
   // table — a dropdown offering elements none of your Pals have is a list of
   // ways to get an empty result.
@@ -106,6 +122,12 @@ export default function MyPals() {
       passives: [...passives].sort(),
     };
   }, [pals]);
+
+  const workLabel = useCallback(
+    (id: string) =>
+      workTypes.find((w) => w.id === id)?.label ?? WORK_LABELS[id] ?? id,
+    [workTypes]
+  );
 
   const iv = (pal: PalRecord, key: string) => pal.ivs?.[key] ?? 0;
   const workLevel = (pal: PalRecord, key: string) =>
@@ -139,6 +161,11 @@ export default function MyPals() {
         case 'attack': return iv(p, 'attack');
         case 'defense': return iv(p, 'defense');
         case 'work': return work ? workLevel(p, work) : p.level;
+        // Total IVs, which is the "best overall" question. Deliberately a sum
+        // and not a weighted score: weighting HP against Attack depends on what
+        // the Pal is *for*, and inventing a weighting would bury that choice in
+        // a sort nobody can see the workings of.
+        case 'ivs': return iv(p, 'hp') + iv(p, 'attack') + iv(p, 'defense');
         default: return p.level;
       }
     };
@@ -228,7 +255,10 @@ export default function MyPals() {
           <span style={{ display: 'inline-flex', gap: 4 }}>
             <select className="select" style={{ width: 130 }} value={work} onChange={(e) => setWork(e.target.value)}>
               <option value="">Any</option>
-              {Object.entries(WORK_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+              {(workTypes.length
+                ? workTypes.map((w) => [w.id, w.label] as const)
+                : Object.entries(WORK_LABELS)
+              ).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
             </select>
             <select className="select" style={{ width: 60 }} value={minWork}
                     disabled={!work} onChange={(e) => setMinWork(Number(e.target.value))}>
@@ -276,9 +306,11 @@ export default function MyPals() {
               <SortHead label="HP" k="hp" sort={sort} desc={descending} set={setSort} flip={setDescending} />
               <SortHead label="Atk" k="attack" sort={sort} desc={descending} set={setSort} flip={setDescending} />
               <SortHead label="Def" k="defense" sort={sort} desc={descending} set={setSort} flip={setDescending} />
+              <SortHead label="ΣIV" k="ivs" sort={sort} desc={descending} set={setSort} flip={setDescending} />
+              <th title="Work suitabilities, in the game's own order">Work</th>
               <th>Where</th>
               <th>Passives</th>
-              {work && <SortHead label={WORK_LABELS[work]} k="work" sort={sort} desc={descending} set={setSort} flip={setDescending} />}
+              {work && <SortHead label={workLabel(work)} k="work" sort={sort} desc={descending} set={setSort} flip={setDescending} />}
               <th />
             </tr>
           </thead>
@@ -309,6 +341,30 @@ export default function MyPals() {
                 <td className="mono">{p.ivs?.hp ?? '—'}</td>
                 <td className="mono">{p.ivs?.attack ?? '—'}</td>
                 <td className="mono">{p.ivs?.defense ?? '—'}</td>
+                <td className="mono">
+                  {(p.ivs?.hp ?? 0) + (p.ivs?.attack ?? 0) + (p.ivs?.defense ?? 0)}
+                </td>
+                <td>
+                  {/* Game order, not strongest-first. Someone scanning several
+                      rows compares the same slot in the same place each time,
+                      which per-row sorting destroys. Sorting by *strength* is
+                      what the column headers do, across Pals. */}
+                  <span style={{ display: 'inline-flex', gap: 4, alignItems: 'center' }}>
+                    {orderedWork(p.workSuitabilities, workTypes).map(({ type, level }) => (
+                      <span
+                        key={type.id}
+                        title={`${type.label} ${level}`}
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: 1 }}
+                      >
+                        <GameIcon src={type.icon} size={14} />
+                        <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>{level}</span>
+                      </span>
+                    ))}
+                    {orderedWork(p.workSuitabilities, workTypes).length === 0 && (
+                      <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>—</span>
+                    )}
+                  </span>
+                </td>
                 <td style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
                   {WHERE_LABELS[p.location ?? 'other'] ?? '—'}
                   {p.location === 'base' && p.baseName && (

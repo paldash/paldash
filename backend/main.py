@@ -1917,9 +1917,23 @@ def get_inventory(container_id: str, request: Request) -> dict:
             "PARSE_INCLUDE_ITEMS=true.",
         )
     used = sum(1 for s in slots if not s.get("isEmpty"))
+    # Names and icons resolved here rather than baked into the parse, for the
+    # same reason `/api/items` does it: refreshing the bundled game data then
+    # updates every readout without re-parsing a 55 MB world. The parser writes
+    # `itemName` as the raw id, which is a placeholder, not an answer.
+    enriched = []
+    for slot in slots:
+        item_id = slot.get("itemId") or ""
+        details = gamedata.describe_item(item_id) if item_id else {}
+        enriched.append({
+            **slot,
+            "itemName": details.get("name") or item_id,
+            "icon": details.get("icon") or "",
+            "maxStack": details.get("maxStack") or 0,
+        })
     return {
         "containerId": container_id,
-        "slots": slots,
+        "slots": enriched,
         "capacity": len(slots),
         "usedSlots": used,
     }
@@ -2260,10 +2274,23 @@ class RenameRequest(BaseModel):
 
 @app.patch("/api/backups/{backup_id}")
 def rename_backup_route(backup_id: str, req: RenameRequest, request: Request) -> dict:
-    authz.require_user(request, roles_module.BACKUP_MANAGE)
+    """
+    Re-describe a backup.
+
+    Audited, because it mutates state a restore decision is made from. A backup
+    labelled "before the big edit" that someone quietly relabels is exactly the
+    kind of thing an operator needs to be able to look up afterwards — and this
+    was the one mutating route in the file with no `audit.record` at all.
+    """
+    user = authz.require_user(request, roles_module.BACKUP_MANAGE)
     renamed = backup_module.rename_backup(backup_id, req.description)
     if not renamed:
         raise HTTPException(404, f"Backup {backup_id} not found")
+    audit.record(
+        audit.BACKUP_RENAME, username=user["username"], role=user["role"],
+        target=backup_id, detail={"description": req.description},
+        ip=authz.client_ip(request),
+    )
     return renamed
 
 

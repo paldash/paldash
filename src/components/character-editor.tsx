@@ -41,6 +41,8 @@ export default function CharacterEditor({ canEdit }: { canEdit: boolean }) {
   const [pals, setPals] = useState<PalRecord[]>([]);
   const [players, setPlayers] = useState<PlayerSaveData[]>([]);
   const [search, setSearch] = useState('');
+  // Whose Pals to show. 1,905 Pals in one list is not a chooser.
+  const [owner, setOwner] = useState('');
   const [selected, setSelected] = useState<Subject | null>(null);
   const [draft, setDraft] = useState<Record<string, FieldValue>>({});
   const [plan, setPlan] = useState<EditPlan | null>(null);
@@ -48,14 +50,16 @@ export default function CharacterEditor({ canEdit }: { canEdit: boolean }) {
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
 
+  // Players are loaded in both modes: in `player` mode they are the subjects,
+  // and in `pal` mode they are how you narrow 1,905 Pals down to one owner's.
   useEffect(() => {
     let cancelled = false;
-    Promise.all([getEditSchema(mode), mode === 'pal' ? getPals() : getSavePlayers()])
-      .then(([s, subjects]) => {
+    Promise.all([getEditSchema(mode), getPals(), getSavePlayers()])
+      .then(([s, palList, playerList]) => {
         if (cancelled) return;
         setSchema(s);
-        if (mode === 'pal') setPals(subjects as PalRecord[]);
-        else setPlayers(subjects as PlayerSaveData[]);
+        setPals(palList);
+        setPlayers(playerList);
       })
       .catch((e: unknown) => {
         if (!cancelled) setError(e instanceof Error ? e.message : 'Could not load the editor');
@@ -79,9 +83,40 @@ export default function CharacterEditor({ canEdit }: { canEdit: boolean }) {
   // Both subject types collapse to the same shape so one list and one form
   // serve both. Seeds carry only fields the save actually stores — the backend
   // refuses to create an absent property, so offering it would be a dead end.
+  /**
+   * Owners to offer, from the Pals actually present.
+   *
+   * Built from `pals` rather than from the player list so an owner uid with no
+   * matching player record still appears — those Pals exist and would otherwise
+   * be unreachable through the picker.
+   */
+  const owners = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const pal of pals) {
+      const uid = (pal.ownerUid || '').toLowerCase();
+      if (uid) counts.set(uid, (counts.get(uid) ?? 0) + 1);
+    }
+    const nameOf = new Map(
+      players.map((p) => [(p.uid || '').replace(/-/g, '').toLowerCase(), p.name])
+    );
+    return [...counts.entries()]
+      .map(([uid, count]) => ({
+        uid,
+        count,
+        name: nameOf.get(uid.replace(/-/g, '')) || `${uid.slice(0, 8)}…`,
+      }))
+      .sort((a, b) => b.count - a.count);
+  }, [pals, players]);
+
   const subjects: Subject[] = useMemo(() => {
     if (mode === 'pal') {
-      return pals.map((p) => {
+      // Narrowed to one owner when chosen. An admin editing "someone's Pal"
+      // knows whose before they know which, and 1,905 rows in one search box
+      // makes that the wrong way round.
+      const scoped = owner
+        ? pals.filter((p) => (p.ownerUid || '').toLowerCase() === owner)
+        : pals;
+      return scoped.map((p) => {
         const seed: Record<string, FieldValue> = {
           nickname: p.nickname ?? '',
           level: p.level ?? 1,
@@ -114,7 +149,7 @@ export default function CharacterEditor({ canEdit }: { canEdit: boolean }) {
       if (typeof ancient === 'number') seed.ancientTechnologyPoints = ancient;
       return { id: p.uid, title: p.name || p.uid, subtitle: `Lv ${p.level}`, seed };
     });
-  }, [mode, pals, players]);
+  }, [mode, pals, players, owner]);
 
   const matches = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -252,6 +287,23 @@ export default function CharacterEditor({ canEdit }: { canEdit: boolean }) {
       <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'flex-start' }}>
         {/* ─── Pick a Pal ─── */}
         <div style={{ flex: '1 1 260px', minWidth: 240 }}>
+          {/* Owner first, then the Pal. Same reasoning as the base inventory
+              editor's base-then-container step: the thing an admin knows is
+              whose Pal they were asked about, and a single search box over
+              1,905 of them makes that the wrong way round. */}
+          {mode === 'pal' && owners.length > 1 && (
+            <select
+              className="select"
+              style={{ width: '100%', marginBottom: 8 }}
+              value={owner}
+              onChange={(e) => { setOwner(e.target.value); setSelected(null); }}
+            >
+              <option value="">Everyone&apos;s Pals ({pals.length.toLocaleString()})</option>
+              {owners.map((o) => (
+                <option key={o.uid} value={o.uid}>{o.name} — {o.count.toLocaleString()} Pals</option>
+              ))}
+            </select>
+          )}
           <div style={{ position: 'relative', marginBottom: 8 }}>
             <Search
               size={13}

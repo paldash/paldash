@@ -1,9 +1,25 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { getWorkTypes, orderedWork, type WorkType } from '@/lib/work-types';
 import { BookOpen, Search, RefreshCw, MapPin } from 'lucide-react';
 import { getPaldeck, getPaldeckEntry } from '@/lib/save-api';
 import GameIcon from '@/components/game-icon';
+
+/**
+ * The raw stat keys read as code (`meleeAttack`, `craftSpeed`). These are the
+ * names the game shows.
+ */
+const STAT_LABELS: Record<string, string> = {
+  hp: 'HP',
+  meleeAttack: 'Melee Attack',
+  shotAttack: 'Ranged Attack',
+  defense: 'Defense',
+  craftSpeed: 'Work Speed',
+  atk: 'Attack',
+  def: 'Defense',
+  craft: 'Work Speed',
+};
 import HabitatMap from '@/components/habitat-map';
 import type { PaldeckEntry, PaldeckListing, PaldeckDetail } from '@/lib/types';
 
@@ -28,6 +44,7 @@ export default function Paldeck() {
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [onlyWithHabitat, setOnlyWithHabitat] = useState(false);
+  const [workTypes, setWorkTypes] = useState<WorkType[]>([]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -44,6 +61,10 @@ export default function Paldeck() {
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    getWorkTypes().then(setWorkTypes).catch(() => undefined);
+  }, []);
 
   const [detailError, setDetailError] = useState<string | null>(null);
 
@@ -247,13 +268,53 @@ export default function Paldeck() {
                 </div>
               )}
 
+              {/* Work suitabilities, with the game's own icons and in the
+                  game's own order — which is the order a player already reads
+                  on a Pal's page in game. */}
+              {(() => {
+                const work = orderedWork(
+                  selected.work as Record<string, number> | undefined,
+                  workTypes
+                );
+                if (!work.length) return null;
+                return (
+                  <div style={{ marginBottom: 10 }}>
+                    <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>
+                      Work suitability
+                    </div>
+                    <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                      {work.map(({ type, level }) => (
+                        <span
+                          key={type.id}
+                          title={`${type.label} — level ${level}`}
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12 }}
+                        >
+                          <GameIcon src={type.icon} size={18} />
+                          <span style={{ color: 'var(--text-secondary)' }}>{type.label}</span>
+                          <span className="mono" style={{ color: 'var(--text-primary)' }}>{level}</span>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
+
               {selected.stats && Object.keys(selected.stats).length > 0 && (
-                <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', fontSize: 12 }}>
-                  {Object.entries(selected.stats).map(([k, v]) => (
-                    <span key={k} style={{ color: 'var(--text-secondary)' }}>
-                      {k} <span className="mono" style={{ color: 'var(--text-primary)' }}>{v}</span>
+                <div>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>
+                    Base stats
+                    <span title="The species' base values. A specific Pal's actual numbers also depend on its level, IVs, condense rank and passives — the multipliers for those are not in any data this project bundles, so they are deliberately not shown rather than estimated.">
+                      {' '}(species)
                     </span>
-                  ))}
+                  </div>
+                  <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', fontSize: 12 }}>
+                    {Object.entries(selected.stats).map(([k, v]) => (
+                      <span key={k} style={{ color: 'var(--text-secondary)' }}>
+                        {STAT_LABELS[k] ?? k}{' '}
+                        <span className="mono" style={{ color: 'var(--text-primary)' }}>{v}</span>
+                      </span>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>

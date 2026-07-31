@@ -232,11 +232,15 @@ export interface InventoryInfo {
 export interface InventorySlot {
   slotIndex: number;
   itemId: string;
+  /** Resolved at request time, so refreshing game data updates it. */
   itemName: string;
   stackCount: number;
   durability: number;
   maxDurability: number;
   isEmpty: boolean;
+  icon?: string;
+  /** The game's real stack ceiling; 0 when unknown. */
+  maxStack?: number;
 }
 
 export interface PalInfo {

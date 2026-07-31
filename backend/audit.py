@@ -49,6 +49,7 @@ SETTINGS_PRESET = "settings.preset"
 BACKUP_CREATE = "backup.create"
 BACKUP_RESTORE = "backup.restore"
 BACKUP_DELETE = "backup.delete"
+BACKUP_RENAME = "backup.rename"
 
 SAVE_SORT = "save.sort"
 SAVE_EDIT = "save.edit"

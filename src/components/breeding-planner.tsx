@@ -120,7 +120,7 @@ export default function BreedingPlanner() {
             labelling the result wrongly. `mayScopeToOthers` comes from the
             response rather than being inferred from the role, because the
             threshold is a server policy the client does not otherwise know. */}
-        {palbox?.mayScopeToOthers ? (
+        {palbox?.mayScopeToOthers && players.length > 1 ? (
           <select className="select" style={{ width: 220 }} value={owner} onChange={(e) => setOwner(e.target.value)}>
             <option value="">All Pals on the server</option>
             {players.map((p) => (
@@ -130,9 +130,13 @@ export default function BreedingPlanner() {
         ) : (
           <span
             className="badge"
-            title="This server limits the planner to your own Pals. An Administrator can widen it on the Access tab."
+            title={
+              palbox?.mayScopeToOthers
+                ? 'You are the only player with Pals here, so "everyone" and "you" are the same set.'
+                : 'This server limits the planner to your own Pals. An Administrator can widen it on the Access tab.'
+            }
           >
-            Your Pals
+            {palbox?.mayScopeToOthers ? 'All Pals' : 'Your Pals'}
           </span>
         )}
 

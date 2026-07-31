@@ -68,7 +68,11 @@ ARCHIVE = os.path.join(ROOT, "refs", "PalWorldSaveTools-main.zip")
 OUT_DIR = os.path.join(ROOT, "public", "icons")
 
 # Categories installed unless --all is passed. See the module docstring.
-DEFAULT_CATEGORIES = ("pals", "items", "elements", "npcs", "game")
+# `ui` carries the 13 work-suitability icons the game itself uses (Kindling,
+# Mining, Transporting…). 60 files / ~0.2 MB, and without them the Paldeck and
+# the My Pals work filter show work types as bare text while every other kind of
+# thing in this app has artwork.
+DEFAULT_CATEGORIES = ("pals", "items", "elements", "npcs", "game", "ui")
 
 # Individual icons pulled out of categories that are otherwise too large to
 # justify. `structures` is 534 files / 3.34 MB and the map draws its own markers

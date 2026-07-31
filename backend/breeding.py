@@ -299,6 +299,28 @@ def possible_offspring(pals: Iterable[dict]) -> list[dict[str, Any]]:
     species = {s["internalName"]: s for s in summary["species"]}
     names = sorted(species)
 
+    # "Owned" is judged against EVERYTHING you have, not the breedable subset.
+    #
+    # `summarize_palbox` drops Pals that cannot breed — which is every alpha and
+    # boss form — so using its species list to answer "do you already have one of
+    # these" reported Kingpaca, Elizabee, Sweepa and Astegon as things the player
+    # lacked while they sat in their palbox. With the default "only ones I don't
+    # have" filter on, those are exactly the rows that survive it: removing them
+    # is the filter's whole purpose.
+    #
+    # Measured on one reference player: 559 Pals, 163 distinct species, of which
+    # **42 are unbreedable** — and 10 surfaced in the offspring list as unowned.
+    #
+    # The pairing below still uses the breedable set only, because an alpha
+    # genuinely cannot go in a breeding pen. It was only the *label* that was
+    # wrong. Canonicalised, because this is compared against pair-table spellings
+    # and the save disagrees with them on eight species.
+    owned_species = {
+        canonical_species(p.get("speciesId") or "")
+        for p in pals
+        if p.get("speciesId")
+    }
+
     results: dict[str, dict[str, Any]] = {}
 
     def record(child: str, a: str, b: str) -> None:
@@ -324,7 +346,7 @@ def possible_offspring(pals: Iterable[dict]) -> list[dict[str, Any]]:
                 record(child, a, b)
 
     for entry in results.values():
-        entry["owned"] = entry["internalName"] in species
+        entry["owned"] = entry["internalName"] in owned_species
         entry["pairCount"] = len(entry["fromPairs"])
         entry["fromPairs"] = entry["fromPairs"][:12]
 
