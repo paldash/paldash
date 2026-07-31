@@ -134,6 +134,19 @@ export interface AccessPolicyInfo {
   levels: { id: string; label: string; description: string }[];
   visibilityKeys: string[];
   discoveryLevels: { id: string; label: string; description: string }[];
+  /**
+   * Per-category discovery dials, resolved to the level actually in force.
+   *
+   * `inherited` means no override is set and the category follows
+   * `discoveryVisibility` — sent so the UI can show what applies rather than a
+   * blank that looks unset.
+   */
+  discoveryCategories?: {
+    id: string;
+    label: string;
+    level: string;
+    inherited: boolean;
+  }[];
   baseVisibilityLevels: { id: string; label: string; description: string }[];
   scopeLevels: { id: string; label: string; description: string }[];
   worldObjectCategories: { id: string; label: string; count: number }[];
@@ -161,6 +174,7 @@ export async function setAccessPolicy(update: {
   serverTotalsVisibility?: string;
   allPalsVisibility?: string;
   worldObjectVisibility?: Record<string, string>;
+  discoveryCategoryVisibility?: Record<string, string>;
   visibilityPreset?: string;
 }): Promise<AccessPolicyInfo> {
   return saveFetch('/policy', { method: 'POST', body: JSON.stringify(update) });

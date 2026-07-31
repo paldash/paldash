@@ -113,7 +113,8 @@ server is run. Each takes the same vocabulary: `everyone`, a **role name**
 
 | Setting | Default | Governs |
 |---|---|---|
-| `discoveryVisibility` | `trusted` | Seeing locations **nobody has found yet** |
+| `discoveryVisibility` | `trusted` | Seeing locations **nobody has found yet** — the default for both categories below |
+| `discoveryCategoryVisibility` | inherits | Per category: `fastTravel` and `effigies`, separately settable |
 | `baseVisibility` | `own` | Seeing **other guilds'** bases |
 | `serverTotalsVisibility` | `admin` | **Server-wide** item totals vs your own guild's |
 | `allPalsVisibility` | `trusted` | **Everyone's** Pals in the planner vs your own |

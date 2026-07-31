@@ -109,6 +109,25 @@ everyone's. An empty tab teaches nothing.
 Staff with `players.moderate` are exempt from all of them. Moderation cannot work
 through a filter, and this saves anyone maintaining an exemption list.
 
+### `DISCOVERY_CATEGORY_VISIBILITY` — per-category overrides
+
+```
+DISCOVERY_CATEGORY_VISIBILITY=effigies:nobody,fastTravel:everyone
+```
+
+Categories: `fastTravel`, `effigies`. Anything unset inherits
+`DISCOVERY_VISIBILITY`, so setting neither keeps the pre-split behaviour exactly.
+
+**They are separate because they are not equivalent.** A fast-travel point is
+navigation infrastructure — revealing one costs an operator almost nothing and
+saves a player a lot of walking. An effigy is a collectible, and a complete map
+of all 396 removes the hunt outright. Grouping them forced an operator who wanted
+convenient travel and an intact collectathon to pick one.
+
+It is also the same argument that already made `WORLD_OBJECT_VISIBILITY`
+per-category; keeping discovery content grouped while splitting ore from chests
+would just be inconsistent.
+
 ### `BASE_VISIBILITY` — `everyone` · role name · **`own`**
 
 Who sees guild bases they are not a member of.

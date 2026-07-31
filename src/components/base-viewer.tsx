@@ -88,6 +88,10 @@ export default function BaseViewer() {
   const storedTotal = storage.reduce((acc, s) => acc + s.itemCount, 0);
   const full = storage.filter((s) => s.fillPercent >= NEARLY_FULL);
   const deployedPals = bases.reduce((acc, b) => acc + (b.palCount ?? 0), 0);
+  const scopeHint = maySeeDetail
+    ? undefined
+    : 'This server shows you your own guild\u2019s bases. An Administrator sets who ' +
+      'sees everyone\u2019s on the Access tab.';
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -95,13 +99,23 @@ export default function BaseViewer() {
 
       {/* Summary */}
       <div className="dashboard-grid grid-4">
+        {/* "Total" is a claim about the server, and below VIEW_DETAIL these
+            lists are filtered to what this viewer may see — by `baseVisibility`,
+            by per-player privacy, and by per-base visibility. Labelling a
+            filtered count as a total is the same class of mistake the breeding
+            planner's "All Pals on the server" header made: the number is right
+            and the word above it is wrong, so nothing looks broken. */}
         <div className="stat-card">
           <div className="stat-value" style={{ color: 'var(--accent-amber)' }}>{bases.length}</div>
-          <div className="stat-label">Total Bases</div>
+          <div className="stat-label" title={scopeHint}>
+            {maySeeDetail ? 'Total Bases' : 'Bases You Can See'}
+          </div>
         </div>
         <div className="stat-card">
           <div className="stat-value" style={{ color: 'var(--accent-purple)' }}>{guilds.length}</div>
-          <div className="stat-label">Guilds</div>
+          <div className="stat-label" title={scopeHint}>
+            {maySeeDetail ? 'Guilds' : 'Your Guilds'}
+          </div>
         </div>
         <div className="stat-card">
           <div className="stat-value" style={{ color: 'var(--accent-emerald)' }}>
@@ -109,8 +123,8 @@ export default function BaseViewer() {
                 worker container, so nothing is counted twice. */}
             {deployedPals.toLocaleString()}
           </div>
-          <div className="stat-label" title="Pals assigned to work at a base. Pals in a palbox are counted under Guild Pals instead.">
-            Pals Working at Bases
+          <div className="stat-label" title="Pals assigned to work at a base. Pals in a palbox are counted under guild Pals instead.">
+            {maySeeDetail ? 'Pals Working at Bases' : 'Pals Working at Your Bases'}
           </div>
         </div>
         <div className="stat-card">

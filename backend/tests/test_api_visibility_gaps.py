@@ -329,3 +329,111 @@ def test_trusted_still_sees_every_visible_bases_storage(client, trusted, owner):
     client.post("/api/policy", json={"baseVisibility": "everyone"}, headers=owner)
     ids = {s["baseId"] for s in client.get("/api/bases/storage", headers=trusted).json()}
     assert "base-theirs" in ids
+
+
+# ─── Fast travel and effigies are separately settable ─────
+
+
+def _set(client, owner, **update):
+    res = client.post("/api/policy", json=update, headers=owner)
+    assert res.status_code == 200, res.text
+    return res.json()
+
+
+def test_the_two_discovery_categories_inherit_by_default(client, owner):
+    """
+    A policy written before the split must behave exactly as it did. The
+    override map starts empty and both categories resolve to
+    `discoveryVisibility`.
+    """
+    body = client.get("/api/policy", headers=owner).json()
+    levels = {c["id"]: c for c in body["discoveryCategories"]}
+    assert set(levels) == {"fastTravel", "effigies"}
+    assert all(c["inherited"] for c in levels.values())
+    assert all(c["level"] == body["discoveryVisibility"] for c in levels.values())
+
+
+def test_effigies_can_be_closed_while_fast_travel_stays_open(client, alice, owner):
+    """
+    The reason for splitting them. A fast-travel point is navigation
+    infrastructure; a complete map of all 396 effigies removes the hunt. An
+    operator should not have to trade one for the other.
+    """
+    _set(client, owner, discoveryVisibility="everyone")
+    _set(client, owner, discoveryCategoryVisibility={"effigies": "nobody"})
+
+    body = client.get("/api/world/discoveries", headers=alice).json()
+    assert body["showsUndiscoveredByCategory"] == {"fastTravel": True, "effigies": False}
+    # All 174 travel points, but only the effigies this player actually found.
+    assert len(body["fastTravel"]["points"]) == 174
+    assert all(p["discovered"] for p in body["effigies"]["points"])
+
+
+def test_the_reverse_split_works_too(client, alice, owner):
+    _set(client, owner, discoveryVisibility="everyone")
+    _set(client, owner, discoveryCategoryVisibility={"fastTravel": "nobody"})
+
+    body = client.get("/api/world/discoveries", headers=alice).json()
+    assert body["showsUndiscoveredByCategory"] == {"fastTravel": False, "effigies": True}
+    assert [p["key"] for p in body["fastTravel"]["points"]] == [FOUND_KEY]
+    assert len(body["effigies"]["points"]) == 396
+
+
+def test_the_plain_fast_travel_list_follows_its_own_category(client, alice, owner):
+    """
+    The second endpoint again. Splitting the setting is worthless if
+    `/api/world/fasttravel` keeps answering to the combined one.
+    """
+    _set(client, owner, discoveryVisibility="nobody")
+    _set(client, owner, discoveryCategoryVisibility={"fastTravel": "everyone"})
+
+    body = client.get("/api/world/fasttravel", headers=alice).json()
+    assert body["filtered"] is False
+    assert len(body["points"]) == 174
+
+
+def test_the_legacy_flag_is_only_true_when_both_are_open(client, alice, owner):
+    """
+    `showsUndiscovered` predates the split and callers still read it. It must not
+    report a blanket yes when only one half is open.
+    """
+    _set(client, owner, discoveryVisibility="everyone")
+    _set(client, owner, discoveryCategoryVisibility={"effigies": "nobody"})
+    assert client.get("/api/world/discoveries", headers=alice).json()["showsUndiscovered"] is False
+
+    _set(client, owner, discoveryCategoryVisibility={"effigies": "everyone"})
+    assert client.get("/api/world/discoveries", headers=alice).json()["showsUndiscovered"] is True
+
+
+def test_an_unknown_discovery_category_is_refused(client, owner):
+    res = client.post("/api/policy",
+                      json={"discoveryCategoryVisibility": {"treasure": "nobody"}},
+                      headers=owner)
+    assert res.status_code == 400
+    assert "treasure" in res.text
+
+
+def test_an_unknown_level_for_a_known_category_is_refused(client, owner):
+    res = client.post("/api/policy",
+                      json={"discoveryCategoryVisibility": {"effigies": "sometimes"}},
+                      headers=owner)
+    assert res.status_code == 400
+
+
+# ─── Headers must not claim a scope they do not have ──────
+
+
+def test_the_palbox_reports_the_scope_it_actually_covered(client, alice, owner):
+    """
+    The planner's owner selector read "All Pals on the server" while showing a
+    Player their own palbox. The data was right and the header was a lie, which
+    is worse than either alone — nothing looks broken.
+    """
+    assert client.get("/api/breeding/palbox", headers=alice).json()["scope"] == "own"
+    assert client.get("/api/breeding/palbox", headers=owner).json()["scope"] == "server"
+
+
+def test_a_player_is_told_they_cannot_scope_to_others(client, alice, owner):
+    """What the UI uses to hide a control that would do nothing."""
+    assert client.get("/api/breeding/palbox", headers=alice).json()["mayScopeToOthers"] is False
+    assert client.get("/api/breeding/palbox", headers=owner).json()["mayScopeToOthers"] is True

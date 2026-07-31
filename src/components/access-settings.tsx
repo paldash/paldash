@@ -243,12 +243,51 @@ export default function AccessSettings() {
           whether or not anyone has found them. This decides who sees the ones they
           have not. Everyone always sees their own discoveries.
         </p>
+        <div style={{ marginBottom: 6, fontSize: 11, color: 'var(--text-muted)' }}>
+          Default for both
+        </div>
         <ThresholdPicker
           value={policy.discoveryVisibility}
           options={policy.discoveryLevels}
           busy={busy}
           onPick={(level) => apply({ discoveryVisibility: level })}
         />
+
+        {/* Split, for the same reason the world-object categories below are
+            split: they are not equivalent. A fast-travel point is navigation
+            infrastructure and costs almost nothing to reveal; a complete map of
+            all 396 effigies removes the hunt outright. An operator who wants
+            convenient travel and an intact collectathon had to choose. */}
+        {(policy.discoveryCategories ?? []).length > 0 && (
+          <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {(policy.discoveryCategories ?? []).map((category) => (
+              <div key={category.id}>
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4,
+                  fontSize: 12, color: 'var(--text-secondary)',
+                }}>
+                  <strong style={{ fontWeight: 600 }}>{category.label}</strong>
+                  {category.inherited && (
+                    <span
+                      className="badge"
+                      title="No override set — this follows the default above."
+                    >
+                      inherited
+                    </span>
+                  )}
+                </div>
+                <ThresholdPicker
+                  value={category.level}
+                  options={policy.discoveryLevels}
+                  busy={busy}
+                  onPick={(level) =>
+                    apply({ discoveryCategoryVisibility: { [category.id]: level } })
+                  }
+                />
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* ─── Guild bases ─── */}
@@ -321,6 +360,15 @@ export default function AccessSettings() {
             loot solution while a fishing-spot map is a convenience.
             {' '}<strong>A category someone may not see is not listed to them either</strong>,
             so they are not told what they are missing.
+          </p>
+          <p style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 12 }}>
+            {/* Effigies look like they belong in this list and are not in it,
+                which reads as an omission. Saying where they actually live is
+                cheaper than moving them — they are discovery content, keyed on
+                the GUIDs saves record, and governed above. */}
+            Fast-travel points and Lifmunk effigies are not here: they are
+            discovery content — the save records which ones you personally found —
+            so they are governed by <strong>Undiscovered locations</strong> above.
           </p>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>

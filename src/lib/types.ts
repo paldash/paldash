@@ -1213,6 +1213,17 @@ export interface PalboxSummary {
   speciesCount: number;
   totalBreedable: number;
   skippedUnbreedable: number;
+  /**
+   * What "these Pals" actually covered: `own`, `server`, or `player:<uid>`.
+   *
+   * Reported rather than inferred, because below `allPalsVisibility` the backend
+   * pins the request to the caller regardless of what was asked — so a client
+   * that assumes its own request was honoured labels the result wrongly.
+   */
+  scope?: string;
+  /** Whether this caller may scope to someone other than themselves at all. */
+  mayScopeToOthers?: boolean;
+  linkedToPlayer?: boolean;
 }
 
 /** One breeding step: two parents and what they produce. */

@@ -479,6 +479,9 @@ class PolicyUpdate(BaseModel):
     serverTotalsVisibility: Optional[str] = None
     allPalsVisibility: Optional[str] = None
     worldObjectVisibility: Optional[dict[str, str]] = None
+    # Per-category overrides for fast travel vs effigies. Declared here or
+    # Pydantic drops it silently — the trap this class's docstring names.
+    discoveryCategoryVisibility: Optional[dict[str, str]] = None
     # A named starting point for the four visibility thresholds. Expanded into
     # those same four fields below rather than stored, so nothing downstream has
     # to know presets exist and the individual dials stay the source of truth.
@@ -1028,14 +1031,9 @@ def get_fast_travel_points(request: Request) -> dict[str, Any]:
     }
 
 
-def _may_see_undiscovered(request: Request) -> bool:
+def _may_see_undiscovered(request: Request, category: str = "fastTravel") -> bool:
     role, _ = _viewer(request)
-    return policy_module.may_see_undiscovered(
-        role,
-        policy_module.load_policy().get(
-            "discoveryVisibility", policy_module.DEFAULT_DISCOVERY
-        ),
-    )
+    return policy_module.may_see_undiscovered_category(role, category)
 
 
 def _own_discovered_keys(request: Request, category: str) -> set[str]:
@@ -1266,10 +1264,15 @@ def get_discoveries(request: Request, uid: str = Query("")) -> dict[str, Any]:
     hid some of it would be handing out the answers in the network tab.
     """
     user = authz.require_user(request, roles_module.VIEW_BASIC)
-    visibility = policy_module.load_policy().get(
-        "discoveryVisibility", policy_module.DEFAULT_DISCOVERY
-    )
-    may_see_undiscovered = policy_module.may_see_undiscovered(user["role"], visibility)
+    current = policy_module.load_policy()
+    # Per category, because fast travel and effigies are different things: one is
+    # navigation infrastructure, the other is a collectathon a full map ruins.
+    # `discoveryVisibility` remains the fallback for both.
+    levels = policy_module.discovery_category_levels(current)
+    may_see = {
+        category: policy_module.may_see_undiscovered(user["role"], level)
+        for category, level in levels.items()
+    }
 
     # Whose discoveries to fold in. A caller without VIEW_DETAIL may only ask
     # about themselves, so a Player cannot enumerate someone else's progress.
@@ -1318,26 +1321,36 @@ def get_discoveries(request: Request, uid: str = Query("")) -> dict[str, Any]:
             str(k).upper() for k in ((progress.get("effigies") or {}).get("keys") or [])
         )
 
-    def mark(entries: list[dict], key_field: str, found: set[str]) -> list[dict]:
+    def mark(entries: list[dict], key_field: str, found: set[str],
+             show_undiscovered: bool) -> list[dict]:
         out = []
         for entry in entries:
             discovered = str(entry.get(key_field, "")).upper() in found
-            if not discovered and not may_see_undiscovered:
+            if not discovered and not show_undiscovered:
                 continue
             out.append({**entry, "discovered": discovered})
         return out
 
     try:
-        travel = mark(gamedata.fast_travel_points(), "key", found_travel)
-        effigies = mark(gamedata.effigies(), "guid", found_effigies)
+        travel = mark(gamedata.fast_travel_points(), "key", found_travel,
+                      may_see["fastTravel"])
+        effigies = mark(gamedata.effigies(), "guid", found_effigies,
+                        may_see["effigies"])
     except gamedata.GameDataUnavailable as e:
         raise HTTPException(503, str(e))
 
     return {
         "scope": uid or ("all" if can_see_others else "self"),
         "linkedToPlayer": bool(own_uid) or can_see_others,
-        "discoveryVisibility": visibility,
-        "showsUndiscovered": may_see_undiscovered,
+        "discoveryVisibility": current.get(
+            "discoveryVisibility", policy_module.DEFAULT_DISCOVERY
+        ),
+        "discoveryLevels": levels,
+        # Kept for callers that predate the split. True only when *both*
+        # categories are open, so nothing reads it as a blanket yes when only
+        # one half is.
+        "showsUndiscovered": all(may_see.values()),
+        "showsUndiscoveredByCategory": may_see,
         "fastTravel": {
             "total": len(gamedata.fast_travel_points()),
             "found": len(found_travel),
@@ -1974,10 +1987,31 @@ def _breeding_owner(request: Request, owner: Optional[str]) -> Optional[str]:
 
 @app.get("/api/breeding/palbox")
 def breeding_palbox(request: Request, owner: Optional[str] = None) -> dict:
+    """
+    The caller's breedable species, and **what "the caller's" resolved to**.
+
+    `scope` travels with the answer for the same reason `/api/items` reports one:
+    below `allPalsVisibility` the request is silently pinned to the caller's own
+    character, and a UI that does not know that labels the result wrongly. The
+    planner's owner selector read "All Pals on the server" while showing one
+    Player their own palbox — the data was right and the header was a lie, which
+    is worse than either being wrong on its own, because nothing looks broken.
+    """
     try:
-        return breeding.summarize_palbox(_pals_for(_breeding_owner(request, owner)))
+        summary = breeding.summarize_palbox(
+            _pals_for(_breeding_owner(request, owner))
+        )
     except breeding.BreedingDataError as e:
         raise HTTPException(503, str(e))
+
+    may_see_all = _may_see_all_pals(request)
+    own_uid, _ = _own_identity(request)
+    return {
+        **summary,
+        "mayScopeToOthers": may_see_all,
+        "scope": ("server" if not owner else f"player:{owner}") if may_see_all else "own",
+        "linkedToPlayer": bool(own_uid),
+    }
 
 
 @app.get("/api/breeding/offspring")

@@ -113,12 +113,28 @@ export default function BreedingPlanner() {
       )}
       {/* Controls */}
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-        <select className="select" style={{ width: 220 }} value={owner} onChange={(e) => setOwner(e.target.value)}>
-          <option value="">All Pals on the server</option>
-          {players.map((p) => (
-            <option key={p.uid} value={p.uid}>{p.name}</option>
-          ))}
-        </select>
+        {/* The selector only appears for callers who can actually use it.
+            Below `allPalsVisibility` the backend pins every request to the
+            caller, so this rendered a one-option dropdown reading "All Pals on
+            the server" over a Player's own palbox — a control that did nothing,
+            labelling the result wrongly. `mayScopeToOthers` comes from the
+            response rather than being inferred from the role, because the
+            threshold is a server policy the client does not otherwise know. */}
+        {palbox?.mayScopeToOthers ? (
+          <select className="select" style={{ width: 220 }} value={owner} onChange={(e) => setOwner(e.target.value)}>
+            <option value="">All Pals on the server</option>
+            {players.map((p) => (
+              <option key={p.uid} value={p.uid}>{p.name}</option>
+            ))}
+          </select>
+        ) : (
+          <span
+            className="badge"
+            title="This server limits the planner to your own Pals. An Administrator can widen it on the Access tab."
+          >
+            Your Pals
+          </span>
+        )}
 
         <div style={{ position: 'relative', flex: 1, minWidth: 200 }}>
           <Search size={13} style={{ position: 'absolute', left: 10, top: 9, color: 'var(--text-muted)' }} />

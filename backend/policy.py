@@ -67,6 +67,28 @@ LEVEL_CAPABILITIES: dict[str, list[str]] = {
 DISCOVERY_SENTINELS = ("everyone", "nobody")
 DEFAULT_DISCOVERY = "trusted"
 
+# The two kinds of discoverable location, separately settable.
+#
+# `discoveryVisibility` above stays the default for both; these are overrides,
+# so an existing policy keeps working and nothing changes silently.
+#
+# **They are split for the same reason `worldObjectVisibility` is per-category:
+# they are not equivalent.** A fast-travel point is navigation infrastructure —
+# knowing where one is costs an operator almost nothing and saves a player a lot
+# of walking. An effigy is a collectible, and a complete map of all 396 removes
+# the hunt entirely. Grouping them forced an operator who wanted convenient
+# travel and an intact collectathon to choose one.
+#
+# Keeping them grouped while ore, chests, dungeons and fishing spots each get
+# their own dial would also just be inconsistent: the argument for splitting
+# those is word-for-word the argument here.
+DISCOVERY_CATEGORIES: tuple[str, ...] = ("fastTravel", "effigies")
+
+DISCOVERY_CATEGORY_LABELS: dict[str, str] = {
+    "fastTravel": "Fast-travel points",
+    "effigies": "Lifmunk effigies",
+}
+
 # Who may see guild bases they are not a member of.
 #
 #   everyone      — anyone who can see the map
@@ -173,6 +195,33 @@ def is_discovery_level(value: Any) -> bool:
     )
 
 
+def discovery_category_levels(policy: Optional[dict[str, Any]] = None) -> dict[str, str]:
+    """
+    The effective threshold per discovery category.
+
+    Falls back to the single `discoveryVisibility` for any category with no
+    override, which is what keeps a policy written before the split working
+    exactly as it did.
+    """
+    current = policy if policy is not None else load_policy()
+    fallback = current.get("discoveryVisibility", DEFAULT_DISCOVERY)
+    overrides = current.get("discoveryCategoryVisibility") or {}
+    return {
+        category: (overrides.get(category)
+                   if is_discovery_level(overrides.get(category))
+                   else fallback)
+        for category in DISCOVERY_CATEGORIES
+    }
+
+
+def may_see_undiscovered_category(
+    role: str, category: str, policy: Optional[dict[str, Any]] = None
+) -> bool:
+    """Whether `role` may see undiscovered entries of one category."""
+    levels = discovery_category_levels(policy)
+    return may_see_undiscovered(role, levels.get(category, DEFAULT_DISCOVERY))
+
+
 def may_see_undiscovered(role: str, level: str) -> bool:
     """Whether `role` clears the configured threshold."""
     import roles
@@ -261,6 +310,36 @@ def _env_discovery() -> str:
     return level
 
 
+def _env_discovery_categories() -> dict[str, str]:
+    """
+    Per-category overrides from `DISCOVERY_CATEGORY_VISIBILITY`.
+
+        DISCOVERY_CATEGORY_VISIBILITY=effigies:nobody,fastTravel:everyone
+
+    Absent categories inherit `DISCOVERY_VISIBILITY`, so setting neither keeps the
+    pre-split behaviour exactly. Case-insensitive on the category name, because
+    `fasttravel` is the spelling an operator will reach for first.
+    """
+    fold = {c.lower(): c for c in DISCOVERY_CATEGORIES}
+    levels: dict[str, str] = {}
+    raw = os.environ.get("DISCOVERY_CATEGORY_VISIBILITY", "").strip()
+    for pair in raw.split(","):
+        if not pair.strip():
+            continue
+        category, _, level = pair.partition(":")
+        canonical = fold.get(category.strip().lower())
+        level = level.strip().lower()
+        if not canonical or not is_discovery_level(level):
+            logger.warning(
+                "Ignoring DISCOVERY_CATEGORY_VISIBILITY entry %r; expected "
+                "<category>:<level> with category in %s and level in %s",
+                pair, ", ".join(DISCOVERY_CATEGORIES), ", ".join(discovery_choices()),
+            )
+            continue
+        levels[canonical] = level
+    return levels
+
+
 def _env_base_visibility() -> str:
     level = os.environ.get("BASE_VISIBILITY", DEFAULT_BASE_VISIBILITY).strip().lower()
     if not is_base_visibility(level):
@@ -336,6 +415,7 @@ def default_policy() -> dict[str, Any]:
         "securityLevel": _env_level(),
         "discoveryVisibility": _env_discovery(),
         "baseVisibility": _env_base_visibility(),
+        "discoveryCategoryVisibility": _env_discovery_categories(),
         "serverTotalsVisibility": _env_scope("SERVER_TOTALS_VISIBILITY", DEFAULT_SERVER_TOTALS),
         "allPalsVisibility": _env_scope("ALL_PALS_VISIBILITY", DEFAULT_ALL_PALS),
         "worldObjectVisibility": _env_world_object_levels(),
@@ -454,6 +534,11 @@ def load_policy() -> dict[str, Any]:
             for field in ("serverTotalsVisibility", "allPalsVisibility"):
                 if is_scope_level(stored.get(field)):
                     policy[field] = stored[field]
+            categories = stored.get("discoveryCategoryVisibility")
+            if isinstance(categories, dict):
+                for category, level in categories.items():
+                    if category in DISCOVERY_CATEGORIES and is_discovery_level(level):
+                        policy["discoveryCategoryVisibility"][category] = level
             world_objects = stored.get("worldObjectVisibility")
             if isinstance(world_objects, dict):
                 # Merged over the defaults rather than replacing them, so a
@@ -529,6 +614,21 @@ def save_policy(update: dict[str, Any]) -> dict[str, Any]:
                     f"Known: {', '.join(base_visibility_choices())}"
                 )
             current[field] = value
+
+    categories = update.get("discoveryCategoryVisibility")
+    if isinstance(categories, dict):
+        for category, level in categories.items():
+            if category not in DISCOVERY_CATEGORIES:
+                raise ValueError(
+                    f"Unknown discovery category: {category}. "
+                    f"Known: {', '.join(DISCOVERY_CATEGORIES)}"
+                )
+            if not is_discovery_level(level):
+                raise ValueError(
+                    f"Unknown visibility for '{category}': {level}. "
+                    f"Known: {', '.join(discovery_choices())}"
+                )
+            current.setdefault("discoveryCategoryVisibility", {})[category] = level
 
     world_objects = update.get("worldObjectVisibility")
     if isinstance(world_objects, dict):
@@ -707,6 +807,18 @@ def describe() -> dict[str, Any]:
         ],
         "visibilityKeys": list(GUEST_VISIBILITY_KEYS),
         "discoveryLevels": _describe_discovery_levels(),
+        # The per-category dials, with the level each currently resolves to.
+        # Sent resolved rather than as raw overrides so the UI shows what is in
+        # force, not a blank where it inherits.
+        "discoveryCategories": [
+            {
+                "id": category,
+                "label": DISCOVERY_CATEGORY_LABELS.get(category, category),
+                "level": level,
+                "inherited": category not in (policy.get("discoveryCategoryVisibility") or {}),
+            }
+            for category, level in discovery_category_levels(policy).items()
+        ],
         "baseVisibilityLevels": _describe_base_visibility(),
         "scopeLevels": _describe_scope_levels(),
         # The categories to offer a dial for come from the bundled data rather
