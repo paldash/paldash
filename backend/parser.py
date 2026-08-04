@@ -337,61 +337,149 @@ def extract_characters(gvas: Any) -> tuple[list[dict], list[dict]]:
             )
             continue
 
-        character_id = str(_prop(obj, "CharacterID", "") or "")
-        if not character_id:
-            continue
-
-        gender_raw = _enum(obj, "Gender")
-        gender = "Female" if gender_raw.endswith("Female") else "Male" if gender_raw else "Unknown"
-
-        passives = _v(obj, "PassiveSkillList", "value", "values", default=[]) or []
-        # `EquipWaza` is an EnumProperty whose values all carry an `EPalWazaID::`
-        # prefix; the bundled activeSkills table is keyed without it. Strip here
-        # so everything downstream — names, the editor, validation — speaks one
-        # language. `MasteredWaza` is deliberately not read: it is absent on
-        # 1,563 of the reference world's 1,905 Pals.
-        equipped = _v(obj, "EquipWaza", "value", "values", default=[]) or []
-
-        pals.append(
-            {
-                "instanceId": instance_id,
-                "ownerUid": str(_prop(obj, "OwnerPlayerUId", "") or player_uid),
-                "characterId": character_id,
-                "isBoss": character_id.startswith("BOSS_"),
-                "speciesId": character_id[5:] if character_id.startswith("BOSS_") else character_id,
-                "nickname": str(_prop(obj, "NickName", "") or ""),
-                "gender": gender,
-                "level": _num(obj, "Level", 1),
-                "exp": _num(obj, "Exp", 0),
-                "rank": _num(obj, "Rank", 1) or 1,
-                "hp": _num(obj, "Hp", 0),
-                "ivs": {
-                    label: _num(obj, prop, 0) for label, prop in _TALENTS if prop in obj
-                },
-                # Everything below feeds `palstats.py`. Read here rather than
-                # re-parsed there, because the whole world is already open.
-                "soulRanks": {
-                    label: _num(obj, prop, 0) for label, prop in _SOUL_RANKS if prop in obj
-                },
-                # Trust, which the game shows as the heart meter. Absent on a Pal
-                # nobody has bonded with, which is genuinely zero rather than
-                # unknown.
-                "friendshipPoint": _num(obj, "FriendshipPoint", 0),
-                # The gold "lucky" variant. Distinct from `isBoss` (the alpha
-                # forms): a lucky Pal keeps its ordinary species id, so this flag
-                # is the only thing that says so.
-                "isLucky": bool(_prop(obj, "IsRarePal", False)),
-                "passiveSkills": [str(p) for p in passives],
-                "activeSkills": [
-                    str(w).split("::", 1)[-1] for w in equipped
-                ] if "EquipWaza" in obj else None,
-                "containerId": str(_slot(obj, "ContainerId", "value", "ID", "value") or ""),
-                "slotIndex": int(_slot(obj, "SlotIndex", "value") or 0),
-                "guildId": str(raw.get("group_id") or ""),
-            }
-        )
+        pal = _pal_record(obj, instance_id, player_uid, str(raw.get("group_id") or ""))
+        if pal is not None:
+            pals.append(pal)
 
     return players, pals
+
+
+def _pal_record(
+    obj: dict, instance_id: str, player_uid: str, guild_id: str
+) -> Optional[dict]:
+    """
+    One Pal, from its `SaveParameter`.
+
+    Split out of `extract_characters` because the same struct appears in a
+    second place the parser now reads: a player's Dimensional Pal Storage lives
+    in its own file (`<UID>_dps.sav`) rather than in `CharacterSaveParameterMap`,
+    and a Pal in one was invisible to every count in this dashboard. Two readers
+    for one struct is how the two drift, and the fields here feed breeding, the
+    editor and `palstats` alike.
+    """
+    character_id = str(_prop(obj, "CharacterID", "") or "")
+    if not character_id:
+        return None
+
+    gender_raw = _enum(obj, "Gender")
+    gender = "Female" if gender_raw.endswith("Female") else "Male" if gender_raw else "Unknown"
+
+    passives = _v(obj, "PassiveSkillList", "value", "values", default=[]) or []
+    # `EquipWaza` is an EnumProperty whose values all carry an `EPalWazaID::`
+    # prefix; the bundled activeSkills table is keyed without it. Strip here
+    # so everything downstream — names, the editor, validation — speaks one
+    # language. `MasteredWaza` is deliberately not read: it is absent on
+    # 1,563 of the reference world's 1,905 Pals.
+    equipped = _v(obj, "EquipWaza", "value", "values", default=[]) or []
+
+    return (
+        {
+            "instanceId": instance_id,
+            "ownerUid": str(_prop(obj, "OwnerPlayerUId", "") or player_uid),
+            "characterId": character_id,
+            "isBoss": character_id.startswith("BOSS_"),
+            "speciesId": character_id[5:] if character_id.startswith("BOSS_") else character_id,
+            "nickname": str(_prop(obj, "NickName", "") or ""),
+            "gender": gender,
+            "level": _num(obj, "Level", 1),
+            "exp": _num(obj, "Exp", 0),
+            "rank": _num(obj, "Rank", 1) or 1,
+            "hp": _num(obj, "Hp", 0),
+            "ivs": {
+                label: _num(obj, prop, 0) for label, prop in _TALENTS if prop in obj
+            },
+            # Everything below feeds `palstats.py`. Read here rather than
+            # re-parsed there, because the whole world is already open.
+            "soulRanks": {
+                label: _num(obj, prop, 0) for label, prop in _SOUL_RANKS if prop in obj
+            },
+            # Trust, which the game shows as the heart meter. Absent on a Pal
+            # nobody has bonded with, which is genuinely zero rather than
+            # unknown.
+            "friendshipPoint": _num(obj, "FriendshipPoint", 0),
+            # The gold "lucky" variant. Distinct from `isBoss` (the alpha
+            # forms): a lucky Pal keeps its ordinary species id, so this flag
+            # is the only thing that says so.
+            "isLucky": bool(_prop(obj, "IsRarePal", False)),
+            "passiveSkills": [str(p) for p in passives],
+            "activeSkills": [
+                str(w).split("::", 1)[-1] for w in equipped
+            ] if "EquipWaza" in obj else None,
+            "containerId": str(_slot(obj, "ContainerId", "value", "ID", "value") or ""),
+            "slotIndex": int(_slot(obj, "SlotIndex", "value") or 0),
+            "guildId": guild_id,
+        }
+    )
+
+    return players, pals
+
+
+def extract_dimension_storage(gvas: Any, owner_uid: str) -> list[dict]:
+    """
+    Pals in one player's Dimensional Pal Storage — a **separate save file**.
+
+    This is the fourth place a Pal can be and the only one that is not in
+    `Level.sav` at all. It lives in `Players/<UID>_dps.sav`, whose single
+    property is a `SaveParameterArray` of `PalDimensionPalStorageSaveParameter`
+    — 9,600 slots, each an ordinary `SaveParameter` plus its own `InstanceId`.
+    Nothing in this project had ever opened that file.
+
+    So a Pal moved into Dimensional Pal Storage did not merely land in an
+    unrecognised container: it **vanished from every count in the dashboard**.
+    The report that found this was a player being shown breeding routes to a
+    Lamball while six of their own sat in storage — and the planner was working
+    correctly on the data it had, which is why it took a file listing rather
+    than a code read to spot.
+
+    Measured on the live world: two of five players have the file, holding 53
+    and 2 Pals against 9,600 slots. **Empty slots are the overwhelming majority
+    and they are not absent** — every slot is materialised, with an empty
+    `SaveParameter`, so the occupied test is a real `CharacterID` rather than a
+    length check.
+
+    `containerId` is deliberately left empty. These Pals are not in
+    `CharacterContainerSaveData`, and inventing an id would let anything that
+    joins on one — base attribution, the slot editor, `palclone` — believe it
+    could address them.
+    """
+    slots = _v(getattr(gvas, "properties", {}) or {},
+               "SaveParameterArray", "value", "values", default=[]) or []
+
+    pals: list[dict] = []
+    for slot in slots if isinstance(slots, list) else []:
+        obj = _v(slot, "SaveParameter", "value")
+        if not isinstance(obj, dict) or not obj:
+            continue
+
+        # AN EMPTY SLOT IS NOT AN ABSENT SLOT, AND IT IS NOT BLANK EITHER.
+        # All 9,600 are materialised, and a free one carries the *string*
+        # "None" as its CharacterID — so a plain truthiness test on the id
+        # accepts every one of them. The first version of this returned 9,600
+        # Pals per player, which is not a subtle failure but would have become
+        # one the moment anything summed it.
+        species = str(_prop(obj, "CharacterID", "") or "")
+        if not species or species == "None":
+            continue
+
+        instance_id = str(_v(slot, "InstanceId", "value", default="") or "")
+        pal = _pal_record(obj, instance_id, owner_uid, "")
+        if pal is None:
+            continue
+
+        # The file is per player, so its contents belong to that player even
+        # where the record's own OwnerPlayerUId is blank — which it is for a Pal
+        # that was placed there straight from a capture.
+        if not str(pal.get("ownerUid") or "").strip("0-"):
+            pal["ownerUid"] = owner_uid
+        pal["location"] = "dimension"
+        # Named as well as typed, so the breeding planner's "where is this
+        # parent" note reads "in Dimensional Pal Storage" rather than "in
+        # dimension". Same field the guild-built stores use.
+        pal["storageKind"] = "Dimensional Pal Storage"
+        pal["containerId"] = ""
+        pals.append(pal)
+
+    return pals
 
 
 # ─── Player save files ───────────────────────────────────────────

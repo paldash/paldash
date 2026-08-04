@@ -163,6 +163,42 @@ def get_player_sav_path(uid: str, world_dir: Optional[str] = None) -> Optional[s
     return _player_index(players_dir).get(safe_uid.replace("-", "").lower())
 
 
+def list_player_dps_paths(world_dir: Optional[str] = None) -> dict[str, str]:
+    """
+    `{dashed lowercase uid: path}` for every `<UID>_dps.sav` present.
+
+    Dimensional Pal Storage is a per-player file beside the player save, and only
+    players who have actually built one have it — two of five on the reference
+    deployment. An absent file is the ordinary case, not an error.
+
+    The uid is rebuilt into the dashed lowercase form `Level.sav` uses, because
+    that is what every caller compares against. Returning the filename spelling
+    would reintroduce exactly the case/dash mismatch `get_player_sav_path`
+    documents.
+    """
+    world_dir = world_dir or get_default_world_dir()
+    if not world_dir:
+        return {}
+
+    players_dir = os.path.join(world_dir, "Players")
+    try:
+        names = os.listdir(players_dir)
+    except OSError:
+        return {}
+
+    out: dict[str, str] = {}
+    for name in names:
+        if not name.endswith("_dps.sav"):
+            continue
+        hexuid = name[: -len("_dps.sav")].replace("-", "").lower()
+        if len(hexuid) != 32 or not all(c in "0123456789abcdef" for c in hexuid):
+            continue
+        dashed = (f"{hexuid[0:8]}-{hexuid[8:12]}-{hexuid[12:16]}"
+                  f"-{hexuid[16:20]}-{hexuid[20:32]}")
+        out[dashed] = os.path.join(players_dir, name)
+    return out
+
+
 def find_settings_ini() -> Optional[str]:
     """
     Locate PalWorldSettings.ini. Explicit env wins, otherwise walk up from the

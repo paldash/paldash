@@ -66,6 +66,11 @@ const WHERE_LABELS: Record<string, string> = {
   // read as "Unassigned", which is how Pals sitting in plain sight in someone's
   // base looked like a parse failure.
   storage: 'Pal storage',
+  // Its own value, not a flavour of `storage`, because it is not even in
+  // Level.sav: Dimensional Pal Storage is a separate per-player file
+  // (`<UID>_dps.sav`) that this dashboard did not read at all, so these Pals
+  // were missing from every count rather than mislabelled.
+  dimension: 'Dimensional Pal Storage',
   other: 'Unassigned',
 };
 
@@ -306,6 +311,7 @@ export default function MyPals() {
             <option value="party">Party</option>
             <option value="base">Working at a base</option>
             <option value="storage">Pal storage</option>
+            <option value="dimension">Dimensional Pal Storage</option>
             <option value="other">Unassigned</option>
           </select>
         </Field>

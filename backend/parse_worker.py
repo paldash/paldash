@@ -39,7 +39,7 @@ logger = logging.getLogger(__name__)
 # update, with nothing anywhere saying why. `savecache` now discards a cache
 # whose schema does not match this, so the worst case is one re-parse instead of
 # a wrong number.
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 
 
 def lower_priority() -> None:
@@ -112,6 +112,7 @@ def main() -> int:
         extract_characters,
         extract_container_ownership,
         extract_containers,
+        extract_dimension_storage,
         extract_guilds,
         extract_map_objects,
         extract_pal_storage,
@@ -119,7 +120,11 @@ def main() -> int:
         load_gvas,
         summarise_base_storage,
     )
-    from savefiles import get_default_world_dir, get_level_sav_path
+    from savefiles import (
+        get_default_world_dir,
+        get_level_sav_path,
+        list_player_dps_paths,
+    )
 
     world_dir = get_default_world_dir()
     level_path = get_level_sav_path(world_dir)
@@ -188,6 +193,28 @@ def main() -> int:
             # classifies.
             pal["location"] = player_containers.get(container_id, "other")
             pal["baseId"] = ""
+
+    # Dimensional Pal Storage is not in Level.sav at all — it is a per-player
+    # file, and a Pal moved into one was missing from every count here rather
+    # than merely mislabelled. Appended after the loop above because these Pals
+    # have no container to classify; `extract_dimension_storage` stamps their
+    # location itself.
+    #
+    # Best-effort per file: one unreadable `_dps.sav` must not cost the whole
+    # parse, because the rest of the world is still perfectly good data.
+    dimension_pals = 0
+    for uid, path in list_player_dps_paths(world_dir).items():
+        dps = load_gvas(path)
+        if dps is None:
+            logger.warning("Could not read Dimensional Pal Storage for %s", uid[:8])
+            continue
+        stored = extract_dimension_storage(dps, uid)
+        for pal in stored:
+            pal["baseId"] = ""
+        pals.extend(stored)
+        dimension_pals += len(stored)
+    if dimension_pals:
+        logger.info("Read %d Pals from Dimensional Pal Storage", dimension_pals)
 
     pals_at_base: dict[str, int] = {}
     for pal in pals:
