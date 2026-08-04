@@ -29,6 +29,15 @@ THIS IS THE FIVE-MINUTE EXPERIMENT THAT ANSWERS IT
 3. Stop the server again and copy `Level.sav` a second time.
 4. Run this against the two files.
 
+**OR SKIP THE GAMEPLAY ENTIRELY.** Either argument may be a dashboard backup
+archive (`.tar.gz`) instead of a `Level.sav`, so two backups taken either side of
+an ordinary play session answer the same question for free — anyone who crafted,
+looted or repaired equipment in between created records. It is a *less clean*
+experiment: several ids appear at once and each has to be read separately rather
+than there being one obvious new one. But the number this is waiting for is
+copies **per new id**, and that is legible either way. Take the controlled
+single-craft only if the archives disagree with each other.
+
 What the output tells you:
 
   * how many records the new item added (**the number the refusal is waiting
@@ -51,8 +60,56 @@ import argparse
 import collections
 import os
 import sys
+import tarfile
+import tempfile
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "backend"))
+
+
+def level_sav_from(path: str, workdir: str) -> str:
+    """
+    A path to a readable `Level.sav`, whether `path` is one or is a backup.
+
+    Accepting the archive matters more than it looks: it means the question can
+    be answered from two backups somebody already has, instead of requiring them
+    to stop a live server twice and play in between. The archive is opened
+    read-only and extracted into a caller-owned temporary directory — nothing
+    here writes near a real save.
+    """
+    # A world directory is the shape the server's own rotating snapshots take
+    # (`<world>/backup/world/<timestamp>/`), so accepting one is not a
+    # convenience — it is the form the inputs actually arrive in. Checking it
+    # first also keeps `is_tarfile` away from a directory, which raises
+    # IsADirectoryError rather than returning False.
+    if os.path.isdir(path):
+        inner = os.path.join(path, "Level.sav")
+        if not os.path.exists(inner):
+            raise SystemExit(f"{path}: a directory with no Level.sav in it")
+        return inner
+
+    if not tarfile.is_tarfile(path):
+        return path
+
+    with tarfile.open(path, "r:gz") as tar:
+        members = [m for m in tar.getmembers()
+                   if m.isfile() and os.path.basename(m.name) == "Level.sav"]
+        if not members:
+            raise SystemExit(f"{path}: a tar archive with no Level.sav in it")
+        if len(members) > 1:
+            raise SystemExit(f"{path}: {len(members)} Level.sav entries — not a world backup")
+
+        member = members[0]
+        # Flatten the archive path. A member name is attacker-controlled in the
+        # general case and this script may be pointed at any file someone was
+        # given; extracting to a basename cannot escape the temp directory.
+        target = os.path.join(workdir, f"{os.path.basename(path)}.Level.sav")
+        source = tar.extractfile(member)
+        if source is None:
+            raise SystemExit(f"{path}: could not read {member.name}")
+        with source, open(target, "wb") as out:
+            while chunk := source.read(1 << 20):
+                out.write(chunk)
+        return target
 
 
 def load(path: str):
@@ -84,13 +141,20 @@ def fingerprint(record: dict) -> str:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("before", help="Level.sav from before the in-game action")
-    parser.add_argument("after", help="Level.sav from after it")
+    parser.add_argument("before",
+                        help="Level.sav, or a backup .tar.gz, from before the action")
+    parser.add_argument("after", help="the same, from after it")
     args = parser.parse_args()
 
     import dynamicitem as di
 
-    before_world, after_world = load(args.before), load(args.after)
+    with tempfile.TemporaryDirectory(prefix="dynitem-diff-") as workdir:
+        before_world = load(level_sav_from(args.before, workdir))
+        after_world = load(level_sav_from(args.after, workdir))
+    return report(di, before_world, after_world)
+
+
+def report(di, before_world, after_world) -> int:
     before = di.index_by_local_id(before_world)
     after = di.index_by_local_id(after_world)
 

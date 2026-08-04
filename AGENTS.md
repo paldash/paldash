@@ -429,35 +429,104 @@ ownership from it, and a non-root process cannot fix it afterwards.
 Still broken: `STOP_COMMAND`/`START_COMMAND` invoke `docker`, which is not
 installed in the runtime image.
 
-## A durability record is not one record — it is sixteen
+## The sixteen duplicate durability records were an artifact of one file
+
+**This section used to be titled "A durability record is not one record — it is
+sixteen", and it was wrong about the game.** It is worth reading as a warning
+about reference data before it is read as a fact about saves.
 
 `backend/dynamicitem.py`. Equipment carries a per-instance record in
 `DynamicItemSaveData`, and the container slot points at it by
 `dynamic_id.local_id_in_created_world`. Durability lives there, not in the slot.
 
-**A local id does not identify one record.** Measured on the reference world:
-**32,446 records, 2,052 distinct ids** — 2,022 ids appear exactly **16** times,
-twelve appear 6 times, one appears 5, seventeen appear once. Every copy of an id
-is byte-for-byte identical.
+`refworld` shows **32,446 records against 2,052 distinct ids** — 2,022 ids
+appearing exactly 16 times, twelve 6 times, one 5, seventeen once, every copy
+byte-identical. That was measured correctly and reasoned about at length: whether
+they were orphans (they are not — 1,487 of the sixteen-copy ids are referenced by
+live container slots), and what a create path could safely append when the count
+is 1, 5, 6 or 16 with no pattern. `can_create()` refused on exactly that basis.
 
-**They are not orphans, and an earlier note here said they were.** The reasoning
-was that 30,866 of the records are eggs, far more than the world has eggs. That
-inference is wrong: joining the ids against the slots that reference them shows
-**1,487 of the 2,022 sixteen-copy ids are pointed at by a real container slot**,
-as are all 17 one-copy ids and all 12 six-copy ids, with **zero** slot references
-resolving to no record at all. The duplicated records are live.
+**The count is 1. Always. Measured on the same world's own history**
+(2026-08-04):
 
-So the mystery is not "why sixteen copies of junk" but "why does a live item have
-1, 5, 6 or 16 copies". The copy count is not a constant, which is also why
-`apply_durability` writes **every** copy and treats a count that changed between
-plan and apply as a refusal — there is no safe number to assume.
+| Snapshot | records | ids | copies per id |
+|---|---:|---:|---|
+| server backup 2026.07.22 | 571 | 571 | `{1: 571}` |
+| server backup 2026.07.27 | 1,675 | 1,675 | `{1: 1675}` |
+| server backup 2026.07.28 ×5 | 2,001–2,051 | same | `{1: n}` |
+| the live world | 324 | 324 | `{1: 324}` |
+| **`refworld`** | **32,446** | **2,052** | **`{1: 17, 5: 1, 6: 12, 16: 2022}`** |
 
-The first version keyed one id to one record and its own smoke test caught the
-consequence in a minute: the plan read one copy, the apply re-looked-up the id
-and mutated a *different* copy, and the value appeared not to change. Editing 1
-of 16 silently would have been worse than that visible failure — the game may
-read any of them. **Every copy is written, and a copy count that changed between
-plan and apply is a refusal.**
+Nine snapshots in the server's own lineage, one per id, every time. And
+`refworld` is **the same world** — identical guild ids (`bfac34db`, `49923822`,
+…) — sitting at the same moment as a server backup that has 2,051 ids to its
+2,052. So `refworld` is a *processed* copy, and whatever processed it multiplied
+the records. The game did not.
+
+**Creation was directly observed, 2,262 times.** Diffing snapshots a week apart
+adds 2,017 new ids and the current world another 245; every one arrives as
+**exactly one record** — eggs, armour and weapons alike. That is not an inference
+from a static count, it is the game creating items and being watched do it.
+
+So a create path is a deep copy of a same-type record plus **one** append.
+`scripts/diff-dynamic-items.py` is the tool; it takes a `Level.sav`, a world
+directory or a backup `.tar.gz`, and the last of those is why this got settled
+without anyone stopping a server: the answer was already sitting in the rotating
+backups.
+
+`apply_durability` still writes **every** copy an id resolves to and still
+refuses when the count changes between plan and apply. That is now belt and
+braces rather than the core defence, and it costs nothing: on a real save the
+loop runs once. The first version keyed one id to one record and its own smoke
+test caught the consequence in a minute — the plan read one copy, the apply
+mutated a different one, and the value appeared not to change. Keep it.
+
+**The transferable lesson is about `refworld`, not about durability.** A single
+reference file was treated as ground truth about the format for months, and one
+of its properties was an artifact of its own provenance.
+
+`scripts/verify-figures.py` is the response: it re-derives the figures below
+across any number of worlds and marks the rows where they disagree. Run it
+against `refworld`, a couple of `refs/palworld/.../backup/world/` snapshots in
+chronological order, and the live world. The **shape** of a disagreement is what
+identifies it — an artifact is a step change at one file with the rest agreeing;
+drift is a monotonic trend across time-ordered snapshots.
+
+### What that check confirmed, and what it corrected (2026-08-04)
+
+Four worlds: `refworld`, two server snapshots a week apart, and the live world.
+
+**Confirmed, and now resting on more than one file:**
+
+| Figure | Result |
+|---|---|
+| `WorkerDirector` blob = 118 bytes, container id at offset 98 | **44 of 44 bases** resolve across all four worlds, including a 16-base one |
+| Character slot entries == characters (no empty slots to fill) | true on all four — `palclone` appends, correctly |
+| Every item slot carries `slot_index` | 0 missing of 18,728 / 6,065 / 18,490 / 22,215 |
+| Slot references resolving to no durability record | **0** on all four |
+| One durability record per id | every world except `refworld` |
+
+**Corrected: the 20/16/13/8 worker-container capacities are `refworld`'s, not a
+rule.** The live world's character containers include capacity **25**, and the
+07-22 snapshot has 10s and 14s. The table further down is a description of one
+world at one moment. What generalises is that worker containers are *neither* 960
+(palbox) *nor* 5 (party), which is the check `extract_base_workers` actually
+performs.
+
+**And `extract_pal_storage` classified a structure it was never told about.** It
+keys on the `CharacterContainer` module type rather than a list of names, and on
+the live world that picked up two `DismantlingConveyor` ("Pal Disassembly
+Conveyor") alongside four `PalBooth` — a kind absent from `refworld` entirely.
+That is the design working rather than a lucky guess.
+
+**One trap the script itself fell into, worth more than the figures.** Its first
+version used the full `PALWORLD_CUSTOM_PROPERTIES` everywhere and reported
+**0 of 11** worker containers on `refworld`, where 11 of 11 is correct. The full
+set *decodes* `WorkerDirector.RawData` into a struct instead of leaving it opaque
+bytes, so the offset read finds nothing. Nothing was broken — the module logged
+its warning and returned nothing, exactly as designed — but a verification script
+using the wrong reader **manufactures a regression**, which is worse than having
+no script. `load()` now parses each world twice and says why.
 
 `describe()` attaches the item's **factory-fresh durability** from the bundled
 data (669 of the 948 items with a dynamic record have one; the rest are
