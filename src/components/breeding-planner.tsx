@@ -212,9 +212,11 @@ export default function BreedingPlanner() {
                   <span style={{ color: 'var(--text-muted)', width: 20 }}>{i + 1}.</span>
                   <GameIcon src={step.parentA.icon} size={20} />
                   <span>{step.parentA.name}</span>
+                  <WhereNote species={step.parentA.internalName} palbox={palbox} />
                   <span style={{ color: 'var(--text-muted)' }}>+</span>
                   <GameIcon src={step.parentB.icon} size={20} />
                   <span>{step.parentB.name}</span>
+                  <WhereNote species={step.parentB.internalName} palbox={palbox} />
                   <ArrowRight size={13} style={{ color: 'var(--text-muted)' }} />
                   <GameIcon src={step.child.icon} size={20} />
                   <span style={{ color: 'var(--accent)' }}>{step.child.name}</span>
@@ -353,6 +355,49 @@ export default function BreedingPlanner() {
  * not shown raw: a uid tells the reader nothing, and the point of the line is to
  * stop a correctly narrow answer from reading as a wrong one.
  *
+ * The shared count is named for the opposite reason. The total legitimately
+ * exceeds what is in the palbox — base workers and Pals in a shared store count,
+ * because anyone in the guild can take one out and breed it — and an unexplained
+ * larger number reads as a miscount rather than as a fuller answer.
+ */
+
+/**
+ * Where a parent actually is, when it is not in the palbox.
+ *
+ * A breeding plan is a set of instructions. The parents it names are counted
+ * from everything a player can breed with, which correctly includes Pals working
+ * at a base and Pals in a guild's shared store — anyone in the guild can take one
+ * out. But "pair your two Lamballs" is a bad instruction if one of them is
+ * standing in a base three valleys away, and a player looking at their palbox and
+ * not finding it there reasonably concludes the planner is wrong about what they
+ * own.
+ *
+ * So: silent when every copy is in the palbox, which is the ordinary case, and
+ * explicit the moment it is not. Named by the structure where the game gives one
+ * ("Dimensional Pal Storage") rather than by the word `storage`, which does not
+ * tell anyone where to walk.
+ */
+function WhereNote({ species, palbox }: { species?: string; palbox: PalboxSummary | null }) {
+  if (!species || !palbox) return null;
+  const entry = palbox.species.find((s) => s.internalName === species);
+  const locations = entry?.locations;
+  if (!locations) return null;
+
+  const elsewhere = Object.entries(locations).filter(([where]) => where !== 'palbox');
+  if (elsewhere.length === 0) return null;
+
+  const label = elsewhere
+    .map(([where, n]) => `${n} ${where === 'base' ? 'at a base' : `in ${where}`}`)
+    .join(', ');
+
+  return (
+    <span style={{ fontSize: 11, color: 'var(--text-muted)' }} title="Breedable, but not in your palbox">
+      ({label})
+    </span>
+  );
+}
+
+/**
  * The shared count is named for the opposite reason. The total legitimately
  * exceeds what is in the palbox — base workers and Pals in a shared store count,
  * because anyone in the guild can take one out — and an unexplained larger number

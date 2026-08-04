@@ -138,3 +138,45 @@ def test_pair_order_does_not_matter():
 
 def test_an_unknown_pal_predicts_nothing():
     assert breeding.predict_child("NotARealPal", "Alpaca") is None
+
+
+# ─── Where a countable parent actually is ────────────────────────
+
+
+def _pal(species, gender, **extra):
+    return {
+        "speciesId": species, "gender": gender, "level": 10, "rank": 1,
+        "instanceId": f"{species}-{gender}-{extra.get('location', 'palbox')}",
+        "ivs": {}, "passiveSkills": [], **extra,
+    }
+
+
+def test_a_species_records_where_its_copies_are():
+    """
+    The count includes base workers and shared-store Pals because they are
+    breedable. The note is what stops that being a surprise: "pair your two
+    Lamballs" is a bad instruction if one is standing in a base.
+    """
+    summary = breeding.summarize_palbox([
+        _pal("SheepBall", "Male", location="palbox"),
+        _pal("SheepBall", "Female", location="base"),
+    ])
+    entry = next(s for s in summary["species"] if s["internalName"] == "SheepBall")
+    assert entry["count"] == 2
+    assert entry["locations"] == {"palbox": 1, "base": 1}
+
+
+def test_a_stored_pal_is_named_by_its_structure_not_by_the_word_storage():
+    """`storage` does not tell anyone where to walk; the structure name does."""
+    summary = breeding.summarize_palbox([
+        _pal("SheepBall", "Male", location="storage",
+             storageKind="Dimensional Pal Storage"),
+    ])
+    entry = next(s for s in summary["species"] if s["internalName"] == "SheepBall")
+    assert entry["locations"] == {"Dimensional Pal Storage": 1}
+
+
+def test_an_individual_carries_its_own_location():
+    summary = breeding.summarize_palbox([_pal("SheepBall", "Male", location="base")])
+    entry = next(s for s in summary["species"] if s["internalName"] == "SheepBall")
+    assert entry["individuals"][0]["location"] == "base"

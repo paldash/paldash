@@ -1232,12 +1232,26 @@ export interface PalboxSpecies extends PalSummary {
   maxLevel: number;
   bestIvs: Record<string, number>;
   passives: { id: string; name: string; count: number }[];
+  /**
+   * Where the copies of this species are, e.g. `{ palbox: 3, base: 1 }`.
+   *
+   * A parent counted here is not necessarily in the palbox: base workers and
+   * Pals in a guild's shared store are breedable and are counted for that
+   * reason. But a breeding plan is a set of instructions, and "pair your two
+   * Lamballs" is a bad one if a Lamball is standing in a base three valleys
+   * away. Keyed by the structure's own name where there is one
+   * ("Dimensional Pal Storage"), because the word `storage` does not tell
+   * anyone where to walk.
+   */
+  locations?: Record<string, number>;
   individuals: {
     instanceId: string;
     nickname: string;
     gender: string;
     level: number;
     rank: number;
+    location?: string;
+    storageKind?: string;
     ivs: Record<string, number>;
     passives: { id: string; name: string }[];
   }[];

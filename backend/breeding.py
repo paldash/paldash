@@ -240,6 +240,19 @@ def summarize_palbox(pals: Iterable[dict]) -> dict[str, Any]:
                 "bestIvs": {"hp": 0, "melee": 0, "shot": 0, "defense": 0},
                 "maxLevel": 0,
                 "passives": {},
+                # Where the copies of this species actually are.
+                #
+                # A parent counted here may not be in the palbox: base workers
+                # and the contents of a guild's Pal stores are breedable — anyone
+                # in the guild can take one out — and they are counted for that
+                # reason. But a plan is a set of instructions, and "pair your two
+                # Lamballs" is a bad instruction if one of them is standing in a
+                # base three valleys away, or sitting in a Flea Market stall.
+                #
+                # So the count includes them and the note says where, rather than
+                # the planner quietly meaning something different from the palbox
+                # the player is looking at.
+                "locations": {},
                 "individuals": [],
             },
         )
@@ -260,6 +273,12 @@ def summarize_palbox(pals: Iterable[dict]) -> dict[str, Any]:
         for passive in pal.get("passiveSkills") or []:
             entry["passives"][passive] = entry["passives"].get(passive, 0) + 1
 
+        # `storage` is named by its structure ("Dimensional Pal Storage", "Flea
+        # Market (Pals)") rather than by the word `storage`, which tells a player
+        # nothing about where to walk.
+        where = str(pal.get("storageKind") or pal.get("location") or "") or "unknown"
+        entry["locations"][where] = entry["locations"].get(where, 0) + 1
+
         entry["individuals"].append(
             {
                 "instanceId": pal.get("instanceId"),
@@ -267,6 +286,8 @@ def summarize_palbox(pals: Iterable[dict]) -> dict[str, Any]:
                 "gender": gender,
                 "level": pal.get("level", 0),
                 "rank": pal.get("rank", 1),
+                "location": pal.get("location") or "",
+                "storageKind": pal.get("storageKind") or "",
                 "ivs": pal.get("ivs", {}),
                 "passives": [
                     {"id": p, "name": passive_name(p)} for p in (pal.get("passiveSkills") or [])
