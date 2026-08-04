@@ -94,15 +94,38 @@ const PALPAGOS: RegionTransform = {
  * bounds moves markers by a mean of 80px on X and 196px on Y (max 467px)
  * against the old guess.
  *
- * STILL NOT `calibrated: true`, AND THAT IS DELIBERATE
- * ----------------------------------------------------
- * The extent is now real. One assumption remains: that the World Tree image
- * uses the same axis orientation as Palpagos (image X from world Y, image Y
- * from world X negated). Nothing has been checked against a known pixel
- * position on this landmass, so a flip or a transpose would still go unnoticed.
- * The moment anybody builds a base or opens a chest up there, the save yields
- * real positions and this can be *fitted* rather than derived — replace the
- * four constants and set the flag.
+ * THE ORIENTATION IS NO LONGER AN ASSUMPTION (measured 2026-08-04)
+ * ----------------------------------------------------------------
+ * This used to say a flip or a transpose would go unnoticed. It would not.
+ * `scripts/fit-worldtree-objects.py` settles it from a live world: 52 real
+ * object positions on this landmass, scored against the texture's land mask
+ * across all 8 orientations. Chests, drops and placed objects sit on *land* —
+ * you cannot open a chest in the ocean — so unlike the streaming-cell
+ * silhouette that `fit-worldtree.py` tried, this is a real land signal.
+ *
+ *     identity          on land  53.8%   <- the convention below
+ *     transpose+rot90   on land  38.5%
+ *     ...
+ *     transpose+rot180  on land   5.8%
+ *
+ * It wins by 0.154, and the control passes: the same procedure recovers
+ * Palpagos' independently-confirmed orientation first, by 0.134. So the axis
+ * convention here is measured, not inherited from Palpagos on faith.
+ *
+ * STILL NOT `calibrated: true`, AND THAT IS STILL DELIBERATE
+ * ----------------------------------------------------------
+ * Orientation was the larger unknown, not the only one. *Precision* is
+ * unestablished, and the same script says why it cannot establish it: refining
+ * the extent against 52 land observations resolves to about 0.12 of the map,
+ * ~490 px of 4,096. That figure is the measured noise floor — a known-correct
+ * Palpagos transform, refined on random 52-point subsamples, wanders by a mean
+ * of 0.090 and a max of 0.120. A suggested World Tree correction of 0.100 is
+ * therefore not a correction, and must not be applied.
+ *
+ * **More chests will not fix this.** They only ever say "on land". Calibration
+ * needs the other kind of ground truth: a world position whose *pixel* position
+ * is independently known, which is exactly what Palpagos' 157 fast-travel
+ * points provided.
  *
  * Regenerate the bounds with `scripts/palpak.py` after a game update;
  * a new landmass will show up as a new cell cluster.
@@ -131,10 +154,14 @@ function worldTreeFromCellGrid(): RegionTransform {
     imgYOffset,
     contains: (worldX) => worldX > WORLD_TREE_X_THRESHOLD,
     calibrated: false,
+    // Narrower than it was, because the orientation question is now answered.
+    // Telling people placement might be mirrored when it measurably is not
+    // costs trust in the rest of the map for no reason.
     note:
-      'World Tree positions are derived from the game’s streaming-cell grid, so the ' +
-      'landmass extent is exact — but the image orientation has never been checked ' +
-      'against a known point up here, so treat placement as close rather than certain.',
+      'World Tree placement is accurate to roughly a few hundred pixels: the landmass ' +
+      'extent comes from the game’s streaming-cell grid and the orientation is ' +
+      'confirmed against real object positions, but no known pixel position exists up ' +
+      'here to fit the exact scale against.',
   };
 }
 
