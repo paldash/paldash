@@ -698,6 +698,90 @@ def extract_base_workers(gvas: Any) -> dict[str, str]:
     return workers
 
 
+_CHARACTER_CONTAINER_MODULE = "CharacterContainer"
+
+
+def extract_pal_storage(gvas: Any) -> dict[str, dict]:
+    """
+    `{character_container_id: {kind, kindName, baseCampId, guildId}}` for Pals
+    held by a *placed structure* rather than by a player or a base's workforce.
+
+    This closes the gap that produced `location: "other"`. A Pal sits in one of
+    four kinds of place, and only three were recognised: a player's palbox, their
+    party, or a base's worker container. The fourth is a structure the guild
+    built that stores Pals — and the save records it plainly, through the same
+    module map `extract_container_ownership` already walks for chests:
+
+        MapObjectSaveData[]
+          -> ConcreteModel.ModuleMap["…::CharacterContainer"]
+             .RawData.target_container_id
+          -> CharacterContainerSaveData[].key.ID
+
+    **No byte offsets here.** `extract_base_workers` reads `WorkerDirector` at a
+    measured offset because that blob is opaque; this module's `RawData` decodes
+    to a named `target_container_id` field, so the same fact is available without
+    the assumption. Where the game gives a name, take the name.
+
+    Measured on the reference world: **2 of 2** `CharacterContainer` modules
+    resolve, both `PalBooth` — the game's own tables call it "Flea Market
+    (Pals)" — each with its own five-slot container, and both attribute to a
+    real base. Those two are exactly the pair this file used to call "orphaned
+    containers with no live owner". They were never orphans; nothing had looked
+    at the module map for them.
+
+    **The reference world cannot exercise the case that matters most**, and that
+    is worth stating rather than hiding. It has one `DimensionPalStorage` and
+    three `GlobalPalStorage` objects, all with an *empty* `ModuleMap` — nobody
+    stored a Pal in them, so the game has not created their containers yet. A
+    world where someone has will resolve them here automatically: the join keys
+    on the module type, not on a list of structure names, so a Pal-holding
+    structure this code has never heard of still classifies.
+
+    Verification is the same obligation `extract_base_workers` carries: an id
+    that does not resolve in `CharacterContainerSaveData` is dropped, so a
+    changed layout yields nothing rather than a confident wrong answer.
+    """
+    import gamedata
+
+    world = _world_save_data(gvas)
+
+    known: set[str] = set()
+    for entry in _v(world, "CharacterContainerSaveData", "value", default=[]) or []:
+        container_id = str(_v(entry, "key", "ID", "value") or "").lower()
+        if container_id:
+            known.add(container_id)
+
+    storage: dict[str, dict] = {}
+    entries = _v(world, "MapObjectSaveData", "value", "values", default=[]) or []
+    for entry in entries if isinstance(entries, list) else []:
+        modules = _v(entry, "ConcreteModel", "value", "ModuleMap", "value", default=[]) or []
+        for module in modules if isinstance(modules, list) else []:
+            if _CHARACTER_CONTAINER_MODULE not in str(module.get("key") or ""):
+                continue
+            container_id = str(
+                _v(module, "value", "RawData", "value", "target_container_id") or ""
+            ).lower()
+            if not container_id or container_id not in known:
+                continue
+
+            raw = _v(entry, "Model", "value", "RawData", "value")
+            raw = raw if isinstance(raw, dict) else {}
+            base_camp = str(raw.get("base_camp_id_belong_to") or "")
+            kind = str(_v(entry, "MapObjectId", "value", default="") or "")
+
+            storage[container_id] = {
+                "kind": kind,
+                "kindName": gamedata.structure_name(kind),
+                "baseCampId": "" if base_camp in ("", "None", ZERO_GUID) else base_camp,
+                # The guild, not the base — a Pal in a shared store belongs to
+                # everyone in the guild, which is what makes it breedable for a
+                # member who is not the one who caught it.
+                "guildId": str(raw.get("group_id_belong_to") or ""),
+            }
+
+    return storage
+
+
 def summarise_base_storage(
     containers: dict[str, list[dict]],
     ownership: dict[str, dict],

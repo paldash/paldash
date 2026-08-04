@@ -256,12 +256,16 @@ export interface PalRecord {
    * Where the Pal physically is.
    *
    * `base` means assigned to a base's worker container — see
-   * `parser.extract_base_workers`. `other` is a real state: the reference world
-   * has orphaned containers belonging to no live player or base.
+   * `parser.extract_base_workers`. `storage` means held by a structure the
+   * guild built for the purpose (Dimensional Pal Storage, Global Pal Storage,
+   * a Flea Market stand) — see `parser.extract_pal_storage`. `other` is what is
+   * left: a container nothing references any more.
    */
-  location?: 'palbox' | 'party' | 'base' | 'other';
-  /** The base it works at, when `location` is `base`. */
+  location?: 'palbox' | 'party' | 'base' | 'storage' | 'other';
+  /** The base it works at or is stored at, when known. */
   baseId?: string;
+  /** Which kind of store holds it, when `location` is `storage`. */
+  storageKind?: string;
   /**
    * Calculated HP / Attack / Defense / Work Speed, and level progress.
    *

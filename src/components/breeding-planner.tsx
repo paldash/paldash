@@ -352,13 +352,22 @@ export default function BreedingPlanner() {
  * `scope` is a machine value (`own`, `server`, `player:<uid>`) and is deliberately
  * not shown raw: a uid tells the reader nothing, and the point of the line is to
  * stop a correctly narrow answer from reading as a wrong one.
+ *
+ * The shared count is named for the opposite reason. The total legitimately
+ * exceeds what is in the palbox — base workers and Pals in a shared store count,
+ * because anyone in the guild can take one out — and an unexplained larger number
+ * reads as a miscount rather than as a fuller answer.
  */
 function scopeLabel(scope: BreedingScope): string {
   const n = scope.pals;
   const count = n === undefined ? '' : `${n} Pal${n === 1 ? '' : 's'} — `;
+  // "only" carries the scope restriction and must survive when nothing is
+  // shared; when something is, naming it replaces the restriction rather than
+  // stacking on top of it.
+  const shared = scope.shared ? `, ${scope.shared} of them your guild's` : ' only';
   if (scope.scope === 'server') return `${count}everyone on this server`;
-  if (scope.scope?.startsWith('player:')) return `${count}one player's box`;
-  return `${count}your own Pals only`;
+  if (scope.scope?.startsWith('player:')) return `${count}one player's box${shared}`;
+  return `${count}your own Pals${shared}`;
 }
 
 function Stat({ label, value, hint }: { label: string; value: number; hint?: string }) {

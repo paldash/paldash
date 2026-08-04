@@ -1259,6 +1259,14 @@ export interface PalboxSummary {
    * otherwise indistinguishable from a broken one.
    */
   pals?: number;
+  /**
+   * How many of `pals` are the guild's rather than this player's own — base
+   * workers and the contents of shared Pal stores. They are legitimately part
+   * of the answer (anyone in the guild can take one out and breed it), but a
+   * total larger than the palbox needs an explanation attached or it reads as
+   * a miscount.
+   */
+  shared?: number;
 }
 
 /** The scope fields every scoped breeding endpoint returns, not just /palbox. */
@@ -1267,6 +1275,14 @@ export interface BreedingScope {
   mayScopeToOthers?: boolean;
   linkedToPlayer?: boolean;
   pals?: number;
+  /**
+   * How many of `pals` are the guild's rather than this player's own — base
+   * workers and the contents of shared Pal stores. They are legitimately part
+   * of the answer (anyone in the guild can take one out and breed it), but a
+   * total larger than the palbox needs an explanation attached or it reads as
+   * a miscount.
+   */
+  shared?: number;
 }
 
 /** One breeding step: two parents and what they produce. */

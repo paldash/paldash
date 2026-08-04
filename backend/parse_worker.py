@@ -39,7 +39,7 @@ logger = logging.getLogger(__name__)
 # update, with nothing anywhere saying why. `savecache` now discards a cache
 # whose schema does not match this, so the worst case is one re-parse instead of
 # a wrong number.
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 
 
 def lower_priority() -> None:
@@ -114,6 +114,7 @@ def main() -> int:
         extract_containers,
         extract_guilds,
         extract_map_objects,
+        extract_pal_storage,
         guild_name_map,
         load_gvas,
         summarise_base_storage,
@@ -158,17 +159,33 @@ def main() -> int:
     # unobtainable, and the `guildPalCount` fallback below exists because of that.
     worker_containers = extract_base_workers(gvas)
     player_containers = _player_container_roles(players)
+    # Pal-holding *structures* — a Dimensional Pal Storage, a Global Pal
+    # Storage, a Flea Market stand. See `extract_pal_storage`: these used to
+    # fall through to `other`, which is why a Pal in one was missing from its
+    # owner's counts and from breeding with nothing to say where it had gone.
+    storage_containers = extract_pal_storage(gvas)
 
     for pal in pals:
         container_id = str(pal.get("containerId") or "").lower()
         base_id = worker_containers.get(container_id)
+        store = storage_containers.get(container_id)
         if base_id:
             pal["location"] = "base"
             pal["baseId"] = base_id
+        elif store:
+            pal["location"] = "storage"
+            pal["baseId"] = store["baseCampId"]
+            pal["storageKind"] = store["kindName"]
+            # A structure's store is guild property, so the guild is what makes
+            # this Pal findable: it commonly has no `OwnerPlayerUId` at all, and
+            # every member can take it out.
+            if not pal.get("guildId"):
+                pal["guildId"] = store["guildId"]
         else:
-            # `other` is a real state, not a parse failure: the reference world
-            # has two orphaned five-slot containers, one still holding a Pal,
-            # that belong to no live player or base.
+            # `other` is still a real state rather than a parse failure — a
+            # container the game has kept but nothing references any more. It is
+            # now genuinely rare: every container on the reference world
+            # classifies.
             pal["location"] = player_containers.get(container_id, "other")
             pal["baseId"] = ""
 

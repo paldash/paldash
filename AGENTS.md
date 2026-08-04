@@ -343,18 +343,87 @@ without being told to**.
 | Palbox | 5 | 960 | player save `PalStorageContainerId` |
 | Party | 5 | 5 | player save `OtomoCharacterContainerId` |
 | Base workers | 11 | 20/16/13/8 | `WorkerDirector`, offset 98 |
-| Orphaned | 2 | 5 | none — one still holds a Pal |
+| Pal storage | 2 | 5 | `ModuleMap["…::CharacterContainer"]` |
 
-Eleven bases, eleven worker containers, and every one of them lands in the
-20/16/13/8 group rather than on a palbox or a party. **165 of 1,905 Pals are
-deployed at a base**; the rest are in palboxes, which is a guild-level thing.
+Eleven bases, eleven worker containers, and every one of them lands somewhere
+that is neither 960 (a palbox) nor 5 (a party). **165 of 1,905 Pals are deployed
+at a base**; the rest are in palboxes, which is a guild-level thing.
+
+**The specific figures 20/16/13/8 are this world's, not a rule** — the live world
+has capacity-25 containers and an earlier snapshot has 10s and 14s. Only the
+*neither-960-nor-5* property generalises, and that is what the code checks;
+`scripts/verify-figures.py` confirmed the join itself on 44 of 44 bases across
+four worlds.
 
 So `palCount` (this base) and `guildPalCount` (this base's guild, repeated on
 each of its bases) are both present and named for what they are. Never sum the
 second.
 
-Those two orphaned five-slot containers are why Pal `location` has an `other`
-value. It is a real state, not a parse failure.
+## The fourth kind of place a Pal can be, and it was called "orphaned"
+
+The row above used to read **Orphaned · 2 · none**, and this file said those two
+containers were why Pal `location` has an `other` value. They were never orphans.
+Nothing had looked at the module map for them.
+
+`parser.extract_pal_storage` reads the join the game already provides:
+
+    MapObjectSaveData[]
+      -> ConcreteModel.ModuleMap["…::CharacterContainer"].RawData.target_container_id
+      -> CharacterContainerSaveData[].key.ID
+
+**No byte offsets.** `extract_base_workers` reads `WorkerDirector` at a measured
+offset because that blob is opaque; this module's `RawData` decodes to a *named*
+`target_container_id`. Where the game gives a name, take the name. The
+verification obligation is the same either way: an id that does not resolve in
+`CharacterContainerSaveData` is dropped, so a layout change yields nothing rather
+than a Pal confidently placed in the wrong guild's store.
+
+Both reference-world hits are `PalBooth` — "Flea Market (Pals)" — and both
+attribute to a real base. With them classified, **every character container on
+the reference world now belongs to something**, which is the check that the
+module type means what it looks like.
+
+**The case that matters most cannot be exercised here, and that is worth saying
+rather than hiding.** The world has one `DimensionPalStorage` and three
+`GlobalPalStorage` objects, all with an *empty* `ModuleMap`: nobody stored a Pal
+in them, so the game has not created their containers yet. A world where someone
+has resolves automatically, because the join keys on the **module type** rather
+than on a list of structure names — a Pal-holding structure this code has never
+heard of still classifies. `other` survives as a real state for a container
+nothing references any more; it is now genuinely rare rather than the default
+for anything unrecognised.
+
+### An ownerless Pal belongs to the guild, not to nobody
+
+The classification was only half the bug, and the other half was worse because it
+was arithmetic. **159 of the reference world's 1,905 Pals carry no
+`OwnerPlayerUId` at all** — base workers, and anything in a shared store. Every
+Pal query filtered on that field alone, so those Pals were missing from their
+owner's My Pals list *and* from the breeding planner, which then insisted a
+player did not have species standing in their own base.
+
+They are not unowned. They belong to the **guild**: any member can walk up and
+take one out, and a Pal in a base is exactly as breedable as one in a palbox. So
+`main._scope_pals` is "your own Pals, plus the ownerless Pals of every guild you
+are in", and guild membership is read off the Pals themselves rather than looked
+up, which keeps it right for someone in more than one.
+
+A Pal carrying a *different* player's uid is never included, whatever guild it is
+in. A shared palbox is not a shared Pal.
+
+**`00000000-…` is a real value, not a sentinel this code invented** — it is what
+the parser writes when the field is absent, so "unowned" has to test for it as
+well as for the empty string. Treating it as a uid would file every base worker
+on the server under one imaginary player.
+
+**There were two copies of this filter and they had already drifted twice.**
+`/api/pals` scoped the enriched list inline while the breeding routes called the
+shared helper; the comment beside the inline one already recorded it falling
+behind on uid normalisation once. `_scope_pals` now takes the list rather than
+fetching it, so both callers pass their own copy to one rule. `shared` travels in
+the breeding scope payload for the same reason scope itself does: the total
+legitimately exceeds the palbox, and an unexplained larger number reads as a
+miscount rather than as a fuller answer.
 
 ## Bases own containers — via the object, not the guild
 

@@ -912,19 +912,16 @@ def get_pals(request: Request, owner: Optional[str] = None) -> list[dict]:
     authz.require(request, roles_module.VIEW_SELF)
     pals = viewcache.derived("pals:enriched", _enriched_pals)
 
+    # `_scope_pals`, not a filter written out here again.
+    #
+    # There used to be one, and it had already drifted twice: first on uid
+    # normalisation (the save stores dashed GUIDs, `_own_identity` returns them
+    # stripped, and comparing raw matched nothing *silently* — a scoped view that
+    # looked like "you own no Pals"), and then on shared ownership, which would
+    # have left this page hiding the base workers and stored Pals the breeding
+    # planner had just started counting.
     effective = _breeding_owner(request, owner)
-    if effective:
-        # Normalise BOTH sides. `_own_identity` returns a dash-stripped uid and
-        # the save stores a dashed one, so comparing them raw matches nothing —
-        # and matches nothing *silently*, which is how a scoped view becomes an
-        # empty view that looks like "you own no Pals". `_pals_for` already does
-        # this; the inline filter here did not.
-        key = effective.replace("-", "").lower()
-        pals = [
-            p for p in pals
-            if (p.get("ownerUid") or "").replace("-", "").lower().startswith(key)
-        ]
-    return pals
+    return _scope_pals(pals, effective, _guilds_of(effective) if effective else None)
 
 
 def _own_guild_base_ids(request: Request) -> Optional[set[str]]:
@@ -2113,17 +2110,23 @@ def _own_identity(request: Request) -> tuple[str, set[str]]:
     uid = authz.linked_uid(user)
     if not uid:
         return "", set()
+    return uid, _guilds_of(uid)
 
-    guilds = {
+
+def _guilds_of(uid: str) -> set[str]:
+    """The guild ids a character uid belongs to, from the parsed guild list."""
+    key = privacy.normalise_uid(uid)
+    if not key:
+        return set()
+    return {
         str(guild.get("id") or "")
         for guild in savecache.get_section("guilds")
-        if uid in {
+        if key in {
             privacy.normalise_uid(m.get("uid"))
             for m in (guild.get("members") or [])
             if m.get("uid")
         }
     }
-    return uid, guilds
 
 
 def _may_see_server_wide(request: Request) -> bool:
@@ -2146,12 +2149,91 @@ def _may_see_all_pals(request: Request) -> bool:
     )
 
 
-def _pals_for(owner: Optional[str]) -> list[dict]:
-    pals = savecache.get_section("pals")
+#: The uid the parser writes when a character has no `OwnerPlayerUId` at all.
+#: It is a real value in the save rather than a placeholder this code invented,
+#: which is why "unowned" has to test for it as well as for the empty string.
+_NO_OWNER = "0" * 32
+
+
+def _norm_uid(value: Any) -> str:
+    return str(value or "").replace("-", "").lower()
+
+
+def _unowned_pal(pal: dict) -> bool:
+    """
+    True for a Pal that belongs to a guild rather than to a person.
+
+    159 of the reference world's 1,905: base workers and the contents of shared
+    Pal stores. Defined once because `_pals_for` uses it to decide what to
+    include and `_breeding_scope` uses it to say how many of those there were —
+    two answers that must not be able to disagree.
+    """
+    uid = _norm_uid(pal.get("ownerUid"))
+    return not uid or uid == _NO_OWNER
+
+
+def _scope_pals(
+    pals: list[dict], owner: Optional[str], guild_ids: Optional[set[str]] = None
+) -> list[dict]:
+    """
+    Every Pal in `pals` that `owner` can actually get their hands on — theirs,
+    plus their guild's shared ones.
+
+    **A personal `OwnerPlayerUId` is not the whole of ownership**, and filtering
+    on it alone was silently losing Pals. Measured on the reference world, 159 of
+    1,905 carry no owner uid at all: they sit in a base's workforce or in a
+    structure the guild built to store Pals (a Dimensional Pal Storage, a Global
+    Pal Storage, a Flea Market stand). Those are not unowned — they belong to the
+    *guild*, every member can walk up and take one out, and they are as breedable
+    as anything in a palbox. Dropping them made the breeding planner insist a
+    player did not have species standing in their own base.
+
+    So the rule is: your own Pals, plus the ownerless Pals of every guild you are
+    in.
+
+    **Guild membership comes from the guild list, not from the Pals.** Deriving it
+    from the Pals the caller already owns is a shorter route to the same set
+    almost always, and it fails in exactly the case this whole change is about: a
+    player with everything deployed at a base owns no Pals to derive a guild
+    from, so the set comes out empty and they are shown nothing — the original
+    bug, reintroduced at the point of fixing it. `guild_ids` is the caller's real
+    membership; the Pal-derived set is only the fallback for a caller that did
+    not supply one.
+
+    A Pal with a *different* player's uid is never included, whatever guild it is
+    in — a shared palbox is not a shared Pal, and merging the two would report
+    somebody else's team as yours.
+
+    Takes the list rather than fetching it, because two endpoints scope Pals and
+    they read from different places — `/api/pals` from the enriched, name-joined
+    copy and the breeding routes from the raw section. They had a filter each,
+    and the comment beside the one in `/api/pals` already recorded that the two
+    had drifted apart once. One rule, passed the list it applies to.
+    """
     if not owner:
         return pals
+
     key = owner.replace("-", "").lower()
-    return [p for p in pals if (p.get("ownerUid") or "").replace("-", "").lower().startswith(key)]
+
+    def _owned(pal: dict) -> bool:
+        return _norm_uid(pal.get("ownerUid")).startswith(key)
+
+    guilds = set(guild_ids) if guild_ids else {
+        str(p.get("guildId") or "") for p in pals if _owned(p)
+    }
+    guilds.discard("")
+
+    return [
+        p for p in pals
+        if _owned(p) or (_unowned_pal(p) and str(p.get("guildId") or "") in guilds)
+    ]
+
+
+def _pals_for(owner: Optional[str]) -> list[dict]:
+    """`_scope_pals` over the parsed world. The breeding routes' entry point."""
+    return _scope_pals(
+        savecache.get_section("pals"), owner, _guilds_of(owner) if owner else None
+    )
 
 
 def _breeding_owner(request: Request, owner: Optional[str]) -> Optional[str]:
@@ -2186,15 +2268,24 @@ def _breeding_scope(request: Request, owner: Optional[str]) -> dict[str, Any]:
     false is the specific case people report as "it forgot my account": the
     request succeeded, the scope resolved to a character that does not exist, and
     an empty planner is indistinguishable from a broken one without this.
+
+    `shared` breaks that total down, because the answer now legitimately includes
+    Pals the player does not personally own — the guild's base workers and
+    anything in a shared Pal store (see `_pals_for`). Someone reading "614 Pals"
+    against a palbox holding 560 should be able to see where the rest came from
+    rather than suspecting the count.
     """
     may_see_all = _may_see_all_pals(request)
     own_uid, _ = _own_identity(request)
     effective = _breeding_owner(request, owner)
+    pals = _pals_for(effective)
+    shared = sum(1 for p in pals if _unowned_pal(p))
     return {
         "mayScopeToOthers": may_see_all,
         "scope": ("server" if not owner else f"player:{owner}") if may_see_all else "own",
         "linkedToPlayer": bool(own_uid),
-        "pals": len(_pals_for(effective)),
+        "pals": len(pals),
+        "shared": 0 if effective is None else shared,
     }
 
 

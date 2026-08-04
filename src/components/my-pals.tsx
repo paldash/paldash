@@ -61,6 +61,11 @@ const WHERE_LABELS: Record<string, string> = {
   palbox: 'Palbox',
   party: 'Party',
   base: 'Base',
+  // A Pal held by a structure the guild built — a Dimensional Pal Storage, a
+  // Global Pal Storage, a Flea Market stand. These used to land in `other` and
+  // read as "Unassigned", which is how Pals sitting in plain sight in someone's
+  // base looked like a parse failure.
+  storage: 'Pal storage',
   other: 'Unassigned',
 };
 
@@ -300,6 +305,7 @@ export default function MyPals() {
             <option value="palbox">Palbox</option>
             <option value="party">Party</option>
             <option value="base">Working at a base</option>
+            <option value="storage">Pal storage</option>
             <option value="other">Unassigned</option>
           </select>
         </Field>
@@ -413,6 +419,11 @@ export default function MyPals() {
                   {WHERE_LABELS[p.location ?? 'other'] ?? '—'}
                   {p.location === 'base' && p.baseName && (
                     <span style={{ color: 'var(--text-muted)', marginLeft: 4 }}>{p.baseName}</span>
+                  )}
+                  {p.location === 'storage' && (p.storageKind || p.baseName) && (
+                    <span style={{ color: 'var(--text-muted)', marginLeft: 4 }}>
+                      {[p.storageKind, p.baseName].filter(Boolean).join(' · ')}
+                    </span>
                   )}
                 </td>
                 <td style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
