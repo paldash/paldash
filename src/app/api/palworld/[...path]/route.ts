@@ -157,7 +157,17 @@ async function proxyRequest(
     // alongside rather than after it. Sequentially it added ~1 ms of loopback to
     // every live-position poll; concurrently it adds nothing, because the game
     // server's own round trip is the longer of the two and always was.
-    const needsPrivacy = endpoint === 'players';
+    // `metrics` needs the privacy set too, and that is not belt and braces.
+    //
+    // `currentplayernum` comes straight from the game and counts everyone. The
+    // player list next to it is privacy-filtered. So the overview showed "2/32"
+    // above a list containing one name — the two boxes disagreeing on screen,
+    // and the larger number quietly asserting the existence of the player who
+    // asked not to be seen.
+    //
+    // Same lesson as `/api/world/fasttravel`: a filter applied to one of two
+    // endpoints serving the same fact is not a filter.
+    const needsPrivacy = endpoint === 'players' || endpoint === 'metrics';
     const [res, hidden] = await Promise.all([
       fetch(`${PALWORLD_REST_URL}${apiPath}`, init),
       needsPrivacy ? hiddenPlayerUids(getSessionToken(request)) : Promise.resolve(new Set<string>()),
@@ -192,6 +202,28 @@ async function proxyRequest(
       }
 
       data = { ...data, players };
+    }
+
+    if (endpoint === 'metrics' && hidden.size && typeof data?.currentplayernum === 'number') {
+      // Only reached when this caller actually has someone hidden from them —
+      // which is never true for staff, who see everyone and whose `hidden` set
+      // is empty. So the extra round trip is paid exactly where correctness
+      // requires it and nowhere else, rather than on every poll by everyone.
+      const roster = await fetch(`${PALWORLD_REST_URL}/v1/api/players`, init)
+        .then((r) => (r.ok ? r.json() : null))
+        .catch(() => null);
+
+      if (Array.isArray(roster?.players)) {
+        const concealed = (roster.players as Record<string, unknown>[])
+          .filter((p) => isHidden(hidden, p)).length;
+        data = {
+          ...data,
+          currentplayernum: Math.max(0, data.currentplayernum - concealed),
+        };
+      }
+      // A failed roster fetch leaves the raw count. That is the honest failure:
+      // an over-count is a cosmetic inconsistency, while guessing a reduction
+      // would report a number no source supports.
     }
 
     return NextResponse.json(data);
