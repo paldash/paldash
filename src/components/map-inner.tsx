@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { prettyClass } from '@/lib/pretty-class';
@@ -195,7 +195,7 @@ function bossIcon(icon: string | undefined, size: number): L.DivIcon {
   // Falls back to the game's generic alpha-Pal map icon for the two of 73
   // sheets whose species did not resolve, rather than an empty ring.
   const art =
-    `<span class="boss-pin-art" style="background-image:url('${icon || PIN.fieldboss}')"></span>`;
+    `<span class="boss-pin-art" style="${artStyle(icon || PIN.fieldboss)}"></span>`;
   return L.divIcon({
     className: 'boss-pin',
     html: `<span class="boss-pin-ring">${art}</span>`,
@@ -230,11 +230,80 @@ function pinIcon(src: string, size: number, fallbackClass: string): L.DivIcon {
     html:
       `<span class="${fallbackClass} game-pin-art" ` +
       `style="width:${size}px;height:${size}px;` +
-      `background-image:url('${src}')"></span>`,
+      `${artStyle(src)}"></span>`,
     iconSize: [size, size],
     iconAnchor: [size / 2, size / 2],
   });
 }
+
+/**
+ * ARTWORK THAT LOADED. The fallback above could not fire, and this is why.
+ *
+ * `pinIcon` writes the fallback class and the `background-image` onto the same
+ * element, and `globals.css` switches the fallback's own paint off whenever that
+ * element carries a background image — added because an amber square was showing
+ * around the edges of a loaded icon, which reads as broken.
+ *
+ * But the selector is `[style*="background-image"]`, and the style is written
+ * unconditionally. So the rule matched whether or not the file existed, and a
+ * 404 gave a marker with **no artwork and no shape**: an empty 22px box. Bases
+ * vanished from the map while `/api/bases` was answering perfectly and the Bases
+ * tab listed every one of them — a rendering failure wearing the costume of a
+ * data failure, which is the same disguise `.catch(() => [])` was wearing.
+ *
+ * The fix is to find out. Each source is fetched once, and the URL is written
+ * into the marker only if it resolved. A missing file now leaves the amber
+ * square standing, which is what every comment in this file already claimed
+ * would happen.
+ *
+ * Still no inline `onerror` — that is what a CSP blocks, and avoiding it is why
+ * this is a background image rather than an `<img>` in the first place. `Image()`
+ * is script we own, running under the page's own policy.
+ */
+const artLoaded = new Map<string, boolean>();
+
+function artStyle(src: string): string {
+  return artLoaded.get(src) === false ? '' : `background-image:url('${src}')`;
+}
+
+/**
+ * Probe every pin source once, and re-render when the answers are in.
+ *
+ * Sources are known up front, so this runs once on mount rather than per marker
+ * — 6 requests, all of which the browser has cached by the second render.
+ * Unprobed sources are treated as present: the common case is that they load,
+ * and flashing every marker through its fallback on first paint would be a
+ * worse map than the one this fixes.
+ */
+function useArtwork(sources: readonly string[]): number {
+  const [settled, setSettled] = useState(0);
+
+  useEffect(() => {
+    const pending = sources.filter((s) => !artLoaded.has(s));
+    if (pending.length === 0) return;
+
+    let live = true;
+    let done = 0;
+    const finish = (src: string, ok: boolean) => {
+      artLoaded.set(src, ok);
+      done += 1;
+      if (live && done === pending.length) setSettled((n) => n + 1);
+    };
+    for (const src of pending) {
+      const probe = new Image();
+      probe.onload = () => finish(src, true);
+      probe.onerror = () => finish(src, false);
+      probe.src = src;
+    }
+    return () => {
+      live = false;
+    };
+  }, [sources]);
+
+  return settled;
+}
+
+const PIN_SOURCES = Object.values(PIN);
 
 /**
  * Static pak-derived categories. Deliberately smaller and flatter than
@@ -296,6 +365,11 @@ export default function MapInner({
   const effigyLayer = useRef<L.LayerGroup>(L.layerGroup());
   const baseLayer = useRef<L.LayerGroup>(L.layerGroup());
   const playerLayer = useRef<L.LayerGroup>(L.layerGroup());
+
+  // Redraws the artwork layers once, when the probes come back. Markers built
+  // before then assume the art is there, which is right in every case except the
+  // one this exists to survive.
+  const artSettled = useArtwork(PIN_SOURCES);
 
   // Keep the latest callback without making it an effect dependency.
   const moveRef = useRef(onMouseMove);
@@ -635,7 +709,7 @@ export default function MapInner({
         })
         .addTo(group);
     }
-  }, [staticObjects, layers, region]);
+  }, [staticObjects, layers, region, artSettled]);
 
   // ─── Fast travel (bundled game data, not from the save) ──
   //
@@ -684,7 +758,7 @@ export default function MapInner({
           className: 'fasttravel-marker',
           html:
             `<div class="fasttravel-marker-icon is-${kind}" style="` +
-            `background-image:url('${kind === 'tower' ? PIN.tower : PIN.fastTravel}')` +
+            `${artStyle(kind === 'tower' ? PIN.tower : PIN.fastTravel)}` +
             `${found ? '' : ';opacity:.4;filter:grayscale(1)'}"></div>`,
           iconSize: kind === 'tower' ? [22, 22] : [16, 16],
           iconAnchor: kind === 'tower' ? [11, 11] : [8, 8],
@@ -704,7 +778,7 @@ export default function MapInner({
         )
         .addTo(group);
     }
-  }, [fastTravel, discoveries, layers.fastTravel, kindsOff, region, hideCollected]);
+  }, [fastTravel, discoveries, layers.fastTravel, kindsOff, region, hideCollected, artSettled]);
 
   // ─── Effigies ───────────────────────────────────────────
   useEffect(() => {
@@ -787,7 +861,7 @@ export default function MapInner({
         )
         .addTo(group);
     }
-  }, [bases, layers.bases, region]);
+  }, [bases, layers.bases, region, artSettled]);
 
   // ─── Players ────────────────────────────────────────────
   useEffect(() => {
