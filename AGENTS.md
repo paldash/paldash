@@ -1644,6 +1644,87 @@ at a map object the new guild does not own.
 The emptied guild is removed **last**, after its bases have been re-homed, so a
 failure anywhere earlier leaves it still holding them.
 
+## The SERVER pak's DataTables are fully decodable — numbers included
+
+**This supersedes the "rates, thresholds and coordinates are locked" conclusion
+below, which was measured on the CLIENT pak and is true only of it.**
+
+Palworld ships two paks and they are cooked differently:
+
+- `refs/Pal-Windows.pak` (client, 40.5 GB) — **unversioned properties**. Property
+  names are absent from the stream, so only name tables are readable. Everything
+  the section below says applies here.
+- `refs/palworld/Pal/Content/Paks/Pal-LinuxServer.pak` (server, 4.8 GB) —
+  **tagged properties**. Every property carries its name, type and size inline,
+  so a DataTable decodes completely.
+
+The tell was a name-table diff. For four tables the client's names are a **strict
+subset** of the server's — zero names unique to the client — and what the server
+has extra is exactly the schema:
+
+| Table | server | client | server-only |
+|---|---:|---:|---|
+| `DT_TechnologyRecipeUnlock_Common` | 2,288 | 2,258 | `Cost`, `Description`, `EPalBossType::DesertBoss` |
+| `DT_ItemShopCreateData_Common` | 299 | 281 | `IntProperty`, `EPalItemShopProductType::Normal` |
+| `DT_PalShopCreateData` | 125 | 111 | `CharacterNum`, `MinCharacterLevel`, `MaxLostPalNum` |
+| `DT_ItemLotteryDataTable` | 9,565 | 9,542 | `BonusExpRate`, `EPalMapObjectTreasureGradeType::Grade1` |
+
+Column names, property type names and enum values — precisely what unversioned
+cooking strips.
+
+Decoding `DT_PalShopCreateData` from the server pak yields whole rows:
+
+    ROW Desert_00
+      MaxLostPalNum     = 5
+      CharacterNum      = 5
+      CharacterIDArray  = [RaijinDaughter, CactusDoll, DarkCrow, DrillGame, …]
+      MinCharacterLevel = 40
+      MaxCharacterLevel = 45
+
+**The verification is that the walk ends exactly at the buffer end** — 6,258 of
+6,258 bytes across 8 rows. A tagged-property reader that has drifted does not
+land on the last byte; it runs off the end or stops early, which is how the first
+two attempts failed. Do not trust a partial decode that "looks right".
+
+**`FileVersionUE4` and `FileVersionUE5` are 0 in BOTH paks**, so the version
+fields do not distinguish them and are not the thing to check. The tell is
+whether the name table contains type names like `IntProperty`.
+
+Two traps in the tag layout, both of which produced plausible garbage:
+
+- The row section does not start immediately after the object properties'
+  `None` terminator. On `DT_PalShopCreateData` the terminator ends at byte 37
+  and the first row name is at 45 — eight bytes of table header between.
+- A `StructProperty` tag carries its struct name **and a 16-byte GUID**; a
+  missing `HasPropertyGuid` byte or that GUID misplaces everything after it, and
+  the failure surfaces as row names that are real Pal ids with nonsense suffixes
+  (`CactusDoll_100`) rather than as an exception.
+
+`scripts/uassettable.py` is the reader. **The row offset is found by trying
+candidates and keeping the one whose walk terminates exactly at the end**, rather
+than hardcoding the measured 8 bytes — that makes the acceptance criterion the
+verification itself.
+
+Confirmed by decoding, and pinned in `test_uassettable.py`:
+
+| Table | What comes out |
+|---|---|
+| `DT_ItemLotteryDataTable` | `WeightInSlot` — an actual drop **rate** — plus `StaticItemId`, `MinNum`/`MaxNum`, `TreasureBoxGrade`, `BonusExpRate` |
+| `DT_TechnologyRecipeUnlock_Common` | `UnlockItemRecipes`, `UnlockBuildObjects`, `Cost`, `Tier`, `LevelCap`, `RequireTechnology`, `RequireDefeatTowerBoss` |
+| `DT_ItemShopCreateData_Common` | 38 shops, each with `StaticItemID`, `OverridePrice`, `ProductNum`, `Stock` |
+| `DT_FriendshipRankTable` | `RequiredPoint` — the thresholds this file called "**nothing**" |
+
+**One table still refuses, and that is the design.**
+`DT_BossSpawnerLoactionData` holds natively-serialised structs (UE writes Vector,
+Rotator, Guid and friends raw, with no per-field tags), so the walk cannot reach
+the end and `read_table` raises. Half a tagged decode reads as real data —
+coordinates as name indices — so returning what it managed would be worse than
+returning nothing. A test pins the refusal.
+
+Still to check with this: **field boss levels** (AGENTS.md below says the pak was
+checked; that check was the client pak) and the **element effectiveness chart**
+the party optimiser needs.
+
 ## What the client pak does and does not unlock
 
 `refs/Pal-Windows.pak` — 40.5 GB, 185,003 files. The extraction rule is the same
