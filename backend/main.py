@@ -924,6 +924,70 @@ def get_pals(request: Request, owner: Optional[str] = None) -> list[dict]:
     return _scope_pals(pals, effective, _guilds_of(effective) if effective else None)
 
 
+#: How low sanity has to get before it is worth telling someone about.
+#
+# Not a game constant — the save stores the number and nothing stores the
+# threshold. Chosen because a Pal below roughly this point starts refusing work,
+# and because it is where the live world's distribution actually separates: 33
+# of 2,963 Pals sit under 50 while the rest cluster in the nineties. A threshold
+# that flags a fifth of a base is a threshold nobody reads twice.
+LOW_SANITY = 50.0
+
+
+@app.get("/api/welfare")
+def get_welfare(request: Request, owner: Optional[str] = None) -> dict:
+    """
+    Pals that need attention: sick, starving, injured, or losing their minds.
+
+    All four conditions were sitting in the save the whole time and none were
+    read. On the live world that is 54 sick, 97 hungry or starving, 21 injured
+    and 33 below `LOW_SANITY` — a base quietly falling apart with nothing in the
+    dashboard to say so.
+
+    Scoped exactly like `/api/pals`, through the same helper: a Player sees
+    their own and their guild's, and nobody gets a roster of someone else's
+    struggling base as a side effect of a welfare view.
+    """
+    authz.require(request, roles_module.VIEW_SELF)
+    pals = viewcache.derived("pals:enriched", _enriched_pals)
+    effective = _breeding_owner(request, owner)
+    scoped = _scope_pals(pals, effective, _guilds_of(effective) if effective else None)
+
+    def _needs_help(pal: dict) -> list[str]:
+        problems = []
+        if pal.get("workerSick"):
+            problems.append("sick")
+        if pal.get("physicalHealth"):
+            problems.append("injured")
+        hunger = pal.get("hungerType")
+        if hunger:
+            problems.append("starving" if hunger == "Starvation" else "hungry")
+        sanity = pal.get("sanity")
+        if isinstance(sanity, (int, float)) and sanity < LOW_SANITY:
+            problems.append("lowSanity")
+        return problems
+
+    affected = []
+    counts: dict[str, int] = {}
+    for pal in scoped:
+        problems = _needs_help(pal)
+        if not problems:
+            continue
+        for problem in problems:
+            counts[problem] = counts.get(problem, 0) + 1
+        affected.append({**pal, "problems": problems})
+
+    # Worst first: a Pal with three things wrong with it is the one to open.
+    affected.sort(key=lambda p: (-len(p["problems"]), p.get("name") or ""))
+    return {
+        "counts": counts,
+        "pals": affected,
+        "scanned": len(scoped),
+        "lowSanityBelow": LOW_SANITY,
+        **_breeding_scope(request, effective),
+    }
+
+
 def _own_guild_base_ids(request: Request) -> Optional[set[str]]:
     """
     The caller's own guilds' base ids, or `None` when they may see everyone's.

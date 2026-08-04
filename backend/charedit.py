@@ -52,6 +52,32 @@ PAL_PROPERTY_MAP = {
     "ivs.hp": "Talent_HP",
     "ivs.shot": "Talent_Shot",
     "ivs.defense": "Talent_Defense",
+    # Condition and identity. All write into an existing shape like everything
+    # else here — `_write_property` still refuses to create a property.
+    "sanity": "SanityValue",
+    "fullStomach": "FullStomach",
+    "favoriteIndex": "FavoriteIndex",
+    "skinName": "SkinName",
+    "isImported": "bImportedCharacter",
+}
+
+# Fields whose fix is REMOVING the property, not writing a value.
+#
+# An affliction is a property that exists. Measured on the live world:
+# `HungerType` is present on 97 of 2,963 Pals, `WorkerSick` on 54,
+# `PhysicalHealth` on 21 — a healthy Pal does not carry the field at all. So
+# there is no "healthy" enum value to write, and `_write_property` rightly
+# refuses to invent a property on the 2,866 Pals that have none.
+#
+# Deletion is also the safe direction: the absent state is the one directly
+# observed on the overwhelming majority of a real world, rather than a value
+# this project guessed at. Curing is therefore always possible; *inflicting* is
+# not offered, which is the right asymmetry for a dashboard whose job is to fix
+# a base rather than to poison one.
+PAL_CLEARABLE = {
+    "workerSick": "WorkerSick",
+    "physicalHealth": "PhysicalHealth",
+    "hungerType": "HungerType",
 }
 
 # Schema field name -> the ArrayProperty in the save.
@@ -65,19 +91,34 @@ PAL_PROPERTY_MAP = {
 PAL_LIST_PROPERTY_MAP = {
     "passiveSkills": "PassiveSkillList",
     "activeSkills": "EquipWaza",
+    # The learned-move pool. Writable ONLY where it already exists, which is the
+    # same rule every other property here follows — `_write_list_property`
+    # refuses to create one rather than guess an `array_type`.
+    #
+    # This narrows an older blanket refusal rather than overturning it. The
+    # reason given was that the property is absent on most Pals; that is still
+    # true (present on 738 of 2,963 on the live world), but "absent on most" is
+    # an argument against *creating* it, not against editing the 25% that have
+    # it. Where it exists the shape is measured: array_type EnumProperty, values
+    # carrying the same `EPalWazaID::` prefix `EquipWaza` uses.
+    "masteredSkills": "MasteredWaza",
 }
 
 # Properties whose stored values carry an enum prefix the API strips.
-LIST_PREFIXES = {"EquipWaza": editschema.WAZA_PREFIX}
+LIST_PREFIXES = {
+    "EquipWaza": editschema.WAZA_PREFIX,
+    "MasteredWaza": editschema.WAZA_PREFIX,
+}
 
 # Fields the editor refuses to touch even though the schema can describe them.
 # Species and gender rewrite what a Pal *is*, which cascades into the Paldeck,
 # breeding eligibility and the palbox UI. Out of scope until there is a reason.
 #
-# `MasteredWaza` is not offered at all: it is absent on 1,563 of the reference
-# world's 1,905 Pals, and `_write_list_property` refuses to invent a property
-# rather than guess its array_type. Equipped moves are editable; the learned-move
-# pool is not.
+# `MasteredWaza` used to be refused outright here, on the grounds that it is
+# absent on most Pals. It is now editable WHERE PRESENT (738 of the live world's
+# 2,963), by the ordinary rule that governs every property in this module: write
+# into an existing shape, never create one. "Absent on most" was always an
+# argument against creating it, not against editing the ones that have it.
 PAL_READ_ONLY = ("speciesId", "gender")
 
 # A player is stored across TWO files, which is the whole complication:
@@ -147,6 +188,20 @@ def read_pal(obj: dict) -> dict:
         "rank": _num(obj, "Rank", 1) or 1,
         "ivs": ivs,
     }
+    # Condition and identity, present only where the save carries them. Same
+    # rule as the lists below: a property this Pal does not have cannot be
+    # written, so it must not appear editable.
+    for field, prop in PAL_PROPERTY_MAP.items():
+        if field in ("nickname", "level", "exp", "rank") or field.startswith("ivs."):
+            continue
+        if prop in obj:
+            value = _prop(obj, prop, None)
+            view[field] = value.get("value") if isinstance(value, dict) else value
+    # An affliction reads as its bare enum name, or is absent entirely — which
+    # is what healthy looks like in the save.
+    for field, prop in PAL_CLEARABLE.items():
+        if prop in obj:
+            view[field] = str(_v(obj, prop, "value", "value") or "").split("::")[-1]
     # Absent means absent, matching the scalar rule: a list this save does not
     # carry cannot be written, so it must not appear editable.
     for field, prop in PAL_LIST_PROPERTY_MAP.items():
@@ -209,6 +264,21 @@ def _write_list_property(obj: dict, prop: str, values: list) -> None:
     ]
 
 
+def _clear_property(obj: dict, prop: str) -> None:
+    """
+    Remove an affliction property, which is what curing one is.
+
+    Deleting is safe here in a way that writing would not be: the absent state
+    is directly observed on 2,866 of the live world's 2,963 Pals, so this
+    produces a record identical in shape to a Pal that was never afflicted.
+
+    Idempotent on purpose. "Cure this Pal" on a healthy Pal is a no-op rather
+    than an error, because a bulk cure across a base must not fail on the
+    healthy members of it.
+    """
+    obj.pop(prop, None)
+
+
 def _apply_pal_change(obj: dict, change: dict) -> None:
     """
     Write one planned Pal change into the save tree.
@@ -218,7 +288,9 @@ def _apply_pal_change(obj: dict, change: dict) -> None:
     skill edit in it.
     """
     field = change["field"]
-    if field in PAL_LIST_PROPERTY_MAP:
+    if field in PAL_CLEARABLE:
+        _clear_property(obj, PAL_CLEARABLE[field])
+    elif field in PAL_LIST_PROPERTY_MAP:
         _write_list_property(obj, PAL_LIST_PROPERTY_MAP[field], change["after"])
     else:
         _write_property(obj, PAL_PROPERTY_MAP[field], change["after"])

@@ -179,6 +179,10 @@ const ROUTES: RouteRule[] = [
   // Creating equipment or an egg. Same capability as a slot edit, but a distinct
   // route and a distinct audit action — this is the one operation that puts an
   // item into the world that was never obtained in it.
+  // Pals that need attention — sick, starving, injured, low sanity. Same
+  // capability as /pals because it is the same data narrowed to a problem, and
+  // it is scoped through the same helper.
+  { pattern: /^welfare$/, methods: ['GET'], capability: CAPABILITIES.VIEW_SELF, feature: null },
   { pattern: /^edit\/container\/[A-Za-z0-9-]+\/create\/preview$/, methods: ['POST'], capability: CAPABILITIES.SAVE_EDIT_FULL, feature: null },
   { pattern: /^edit\/container\/[A-Za-z0-9-]+\/create$/, methods: ['POST'], capability: CAPABILITIES.SAVE_EDIT_FULL, feature: null },
   // Guild membership. SAVE_EDIT_FULL because it rewrites Level.sav and can

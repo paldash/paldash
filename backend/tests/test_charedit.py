@@ -541,13 +541,24 @@ def test_an_absent_list_property_is_refused_not_invented():
         charedit._write_list_property(obj, "EquipWaza", ["PowerShot"])
 
 
-def test_mastered_waza_is_not_offered():
+def test_mastered_waza_is_editable_only_where_it_exists():
     """
-    Absent on 1,563 of the reference world's 1,905 Pals, so it cannot be written
-    without inventing the property. Equipped moves are editable; the learned pool
-    is not.
+    This test used to assert `MasteredWaza` was not offered at all, on the
+    grounds that it is absent on most Pals — 1,563 of the reference world's
+    1,905, and 2,225 of the live world's 2,963.
+
+    That was always an argument against CREATING the property, not against
+    editing the ones that have it, and the rule that makes the distinction is
+    the one this whole module rests on: write into an existing shape, never
+    construct one. `_write_list_property` enforces it, so the field can be
+    offered without the refusal being weakened.
     """
-    assert "MasteredWaza" not in charedit.PAL_LIST_PROPERTY_MAP.values()
+    assert charedit.PAL_LIST_PROPERTY_MAP["masteredSkills"] == "MasteredWaza"
+    with pytest.raises(charedit.EditError, match="no 'MasteredWaza'"):
+        charedit._apply_pal_change(
+            {"NickName": {"value": "x"}},
+            {"field": "masteredSkills", "after": ["AirBlade"]},
+        )
 
 
 def test_passive_skills_are_no_longer_read_only():

@@ -408,6 +408,52 @@ def _pal_record(
             "containerId": str(_slot(obj, "ContainerId", "value", "ID", "value") or ""),
             "slotIndex": int(_slot(obj, "SlotIndex", "value") or 0),
             "guildId": guild_id,
+            # ── Condition ────────────────────────────────────────
+            #
+            # AN AFFLICTION IS A PROPERTY THAT EXISTS. Measured on the live
+            # world: `HungerType` is present on 97 of 2,963 Pals, `WorkerSick`
+            # on 54, `PhysicalHealth` on 21 — a healthy Pal does not carry the
+            # field at all. So `None` here means healthy, and it is the observed
+            # state of the overwhelming majority rather than a default this code
+            # invented. It is also why curing one is a *deletion*; see
+            # `charedit.PAL_CLEARABLE`.
+            "sanity": _prop(obj, "SanityValue", None),
+            "fullStomach": _prop(obj, "FullStomach", None),
+            "hungerType": _enum(obj, "HungerType").split("::")[-1] or None,
+            "workerSick": _enum(obj, "WorkerSick").split("::")[-1] or None,
+            "physicalHealth": _enum(obj, "PhysicalHealth").split("::")[-1] or None,
+            "currentWork": _enum(obj, "CurrentWorkSuitability").split("::")[-1] or None,
+            # ── Identity and history ─────────────────────────────
+            "skinName": str(_prop(obj, "SkinName", "") or "") or None,
+            "isImported": bool(_prop(obj, "bImportedCharacter", False)),
+            "isAwakened": bool(_prop(obj, "bIsAwakening", False)),
+            "favoriteIndex": _num(obj, "FavoriteIndex", 0),
+            # Every previous owner, oldest first. Present on 100% of Pals and
+            # the only record of a trade there is.
+            "previousOwners": [
+                str(u) for u in (_v(obj, "OldOwnerPlayerUIds", "value", "values") or [])
+            ],
+            # The learned-move pool, as bare ids like `activeSkills`. Absent on
+            # 75% of Pals, which is why it is readable everywhere and writable
+            # only where it already exists.
+            "masteredSkills": [
+                str(w).split("::", 1)[-1]
+                for w in (_v(obj, "MasteredWaza", "value", "values") or [])
+            ] if "MasteredWaza" in obj else None,
+            # Work-suitability ranks the player bought with Pal Souls, and the
+            # work types they switched OFF for this Pal. Both are per-Pal
+            # decisions no species table can supply.
+            "workRanks": {
+                str(_v(e, "WorkSuitability", "value", "value") or "").split("::")[-1]:
+                    _num(e, "Rank", 0)
+                for e in (_v(obj, "GotWorkSuitabilityAddRankList", "value", "values") or [])
+                if isinstance(e, dict)
+            },
+            "workDisabled": [
+                str(w).split("::")[-1]
+                for w in (_v(obj, "WorkSuitabilityOptionInfo", "value",
+                             "OffWorkSuitabilityList", "value", "values") or [])
+            ],
         }
     )
 

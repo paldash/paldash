@@ -187,6 +187,23 @@ class Field:
         elif self.kind == "list":
             if not isinstance(value, list):
                 return "must be a list"
+        elif self.kind == "float":
+            if isinstance(value, bool) or not isinstance(value, (int, float)):
+                return "must be a number"
+            if self.minimum is not None and value < self.minimum:
+                return f"must be at least {self.minimum}"
+            if self.maximum is not None and value > self.maximum:
+                return f"must be at most {self.maximum}"
+        elif self.kind == "bool":
+            if not isinstance(value, bool):
+                return "must be true or false"
+        elif self.kind == "clear":
+            # A `clear` field has exactly one legal request: remove it. There is
+            # no healthy value to write — a Pal that is not sick has no
+            # `WorkerSick` property at all — so accepting anything else would be
+            # accepting an instruction this writer cannot carry out.
+            if value is not None:
+                return "this field can only be cleared; send null"
 
         return self.validator(value) if self.validator else None
 
@@ -225,6 +242,25 @@ def _active_skills_problem(value: Any) -> Optional[str]:
     unknown = [b for b in bare if not gamedata._lookup("activeSkills", b)]
     if unknown:
         return f"unknown active skill(s): {', '.join(unknown[:3])}"
+    return None
+
+
+def _mastered_skills_problem(value: Any) -> Optional[str]:
+    """
+    The learned-move pool. Unlike `EquipWaza` there is no size cap to enforce —
+    the live world has a Pal with six — so this checks only that every entry is
+    a move the game knows.
+    """
+    if not isinstance(value, list):
+        return "must be a list"
+    bare = [strip_waza_prefix(v) for v in value if isinstance(v, str)]
+    if len(bare) != len(value):
+        return "every learned move must be text"
+    if len(set(bare)) != len(bare):
+        return "duplicate learned moves"
+    unknown = [b for b in bare if not gamedata._lookup("activeSkills", b)]
+    if unknown:
+        return f"unknown move(s): {', '.join(unknown[:3])}"
     return None
 
 
@@ -282,6 +318,60 @@ PAL_FIELDS: dict[str, Field] = {
         )
         for iv in IV_FIELDS
     },
+    # ── Condition ────────────────────────────────────────────────
+    #
+    # The three afflictions are `clear` fields: there is no healthy value to
+    # write, because a healthy Pal has no such property at all. See
+    # `charedit.PAL_CLEARABLE` — curing is a deletion, and inflicting is not
+    # offered.
+    "workerSick": Field(
+        "workerSick", "clear", label="Sickness",
+        note="Clearing removes the property, which is exactly what a Pal that "
+             "was never sick looks like. Observed on 54 of the live world's "
+             "2,963 Pals — depression, sprains, fractures, weakness, bulimia.",
+    ),
+    "physicalHealth": Field(
+        "physicalHealth", "clear", label="Injury",
+        note="Minor or severe. Clearing heals it.",
+    ),
+    "hungerType": Field(
+        "hungerType", "clear", label="Hunger status",
+        note="Hunger or starvation. Clear this AND raise Fullness, or the game "
+             "will simply put it back at the next tick.",
+    ),
+    "sanity": Field(
+        "sanity", "float", label="Sanity (SAN)", minimum=0, maximum=100,
+        note="The game shows this as the Pal's mood. Below about 50 it starts "
+             "refusing to work; at zero it panics and runs off.",
+    ),
+    "fullStomach": Field(
+        "fullStomach", "float", label="Fullness", minimum=0,
+        note="No maximum is enforced because the ceiling is per species and per "
+             "level and is not stored anywhere in the save — the live world "
+             "ranges from 150 to 620. The game clamps an overshoot itself.",
+    ),
+    "favoriteIndex": Field(
+        "favoriteIndex", "int", label="Favourite slot", minimum=0, maximum=9,
+        note="The player's own favourites marking. 0 is not a favourite.",
+    ),
+    "skinName": Field(
+        "skinName", "string", label="Applied skin",
+        note="Editable only on a Pal that already has a skin applied — the save "
+             "has no property to write into otherwise.",
+    ),
+    "isImported": Field(
+        "isImported", "bool", label="Imported from another save",
+        note="Set by the game on a Pal brought in from elsewhere. 136 of the "
+             "live world's Pals carry it, which is why it is an advisory rather "
+             "than evidence of anything.",
+    ),
+    "masteredSkills": Field(
+        "masteredSkills", "list", label="Learned moves",
+        validator=_mastered_skills_problem,
+        note="The move pool this Pal has learned, as opposed to the three it has "
+             "equipped. Editable only where the save already carries the "
+             "property, which is 738 of the live world's 2,963 Pals.",
+    ),
 }
 
 TARGETS = {"player": PLAYER_FIELDS, "pal": PAL_FIELDS}
