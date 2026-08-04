@@ -3,7 +3,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Egg, Search, RefreshCw, ArrowRight } from 'lucide-react';
 import { getBreedingPath, getOffspring, getPalbox, getReachable } from '@/lib/save-api';
-import type { OffspringOption, PalboxSummary, PalSummary, ReachableTargets } from '@/lib/types';
+import type {
+  BreedingPath, BreedingScope, OffspringOption, PalboxSummary, ReachableTargets,
+} from '@/lib/types';
 import { useDashboardStore } from '@/lib/store';
 import GameIcon from '@/components/game-icon';
 
@@ -30,14 +32,7 @@ export default function BreedingPlanner() {
   // already in your box is mostly noise.
   const [hideOwned, setHideOwned] = useState(true);
   const [target, setTarget] = useState<string | null>(null);
-  const [path, setPath] = useState<{
-    reachable: boolean;
-    alreadyOwned?: boolean;
-    reason?: string;
-    /** Whether the search only used pairs this owner can actually make. */
-    genderAware?: boolean;
-    steps: { parentA: PalSummary; parentB: PalSummary; child: PalSummary }[];
-  } | null>(null);
+  const [path, setPath] = useState<BreedingPath | null>(null);
 
   // Guild membership is the cheapest source of player names/UIDs already loaded.
   const players = useMemo(
@@ -104,11 +99,26 @@ export default function BreedingPlanner() {
       {/* Same reason as My Pals: below `allPalsVisibility` the planner is scoped
           to your own palbox, and an account with no linked character resolves to
           nobody — so a correct empty planner and a broken one look identical. */}
-      {!user?.steamUid && (
+      {/* `linkedToPlayer` comes from the response, not from the cached session.
+          The session object is only refreshed on page load, so an account linked
+          while its owner was signed in kept reading as unlinked until they
+          reloaded — which is what "it forgot my account" looks like from the
+          player's side. The backend answers for the request being made. */}
+      {palbox && !palbox.linkedToPlayer && !palbox.mayScopeToOthers && (
         <div className="notice notice-warn" style={{ fontSize: 12 }}>
           <strong>This account is not linked to a character.</strong> The planner
           works from the Pals you own, so it has nothing to plan with. An
           Administrator links it from the <strong>Players</strong> tab.
+        </div>
+      )}
+      {/* Linked, scoped, and still empty — a different problem with a different
+          fix, and previously indistinguishable from the one above. */}
+      {palbox?.linkedToPlayer && palbox.pals === 0 && (
+        <div className="notice notice-warn" style={{ fontSize: 12 }}>
+          <strong>No Pals found for this character.</strong> The account is
+          linked, but the parsed world has nothing under that uid — either the
+          save has not been parsed since you last played, or the link points at a
+          different character.
         </div>
       )}
       {/* Controls */}
@@ -181,6 +191,15 @@ export default function BreedingPlanner() {
         <div className="glass-card" style={{ padding: 16 }}>
           <div className="section-title" style={{ marginBottom: 10 }}>
             Route to {target}
+          </div>
+          {/* Which Pals this plan was actually computed from. Every scoped
+              breeding endpoint reports it now, not just /palbox — the planner
+              shows one header over four requests, so a route found in your own
+              box under a header reading "all Pals on the server" reads as a
+              wrong answer instead of a narrow one. Especially load-bearing on
+              "not reachable", which is a claim about a specific set of Pals. */}
+          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 8 }}>
+            {scopeLabel(path)}
           </div>
           {path.alreadyOwned ? (
             <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>You already own this Pal.</p>
@@ -279,7 +298,7 @@ export default function BreedingPlanner() {
             intermediate first. Counts are <em>breedings you must perform</em>, which
             can exceed the generation count when both parents need breeding too.
             Searched {reachable.maxDepth} generations deep from{' '}
-            {reachable.ownedSpecies} owned species.
+            {reachable.ownedSpecies} owned species — {scopeLabel(reachable)}.
           </p>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -325,6 +344,21 @@ export default function BreedingPlanner() {
       )}
     </div>
   );
+}
+
+/**
+ * "Computed from N Pals — <whose>", in words a player can act on.
+ *
+ * `scope` is a machine value (`own`, `server`, `player:<uid>`) and is deliberately
+ * not shown raw: a uid tells the reader nothing, and the point of the line is to
+ * stop a correctly narrow answer from reading as a wrong one.
+ */
+function scopeLabel(scope: BreedingScope): string {
+  const n = scope.pals;
+  const count = n === undefined ? '' : `${n} Pal${n === 1 ? '' : 's'} — `;
+  if (scope.scope === 'server') return `${count}everyone on this server`;
+  if (scope.scope?.startsWith('player:')) return `${count}one player's box`;
+  return `${count}your own Pals only`;
 }
 
 function Stat({ label, value, hint }: { label: string; value: number; hint?: string }) {

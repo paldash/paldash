@@ -53,6 +53,10 @@ BACKUP_RENAME = "backup.rename"
 
 SAVE_SORT = "save.sort"
 SAVE_EDIT = "save.edit"
+# Its own action rather than a `save.edit`, because "who moved whom between
+# guilds" is a question an operator asks after a dispute — and it should be one
+# filter on the log rather than a scan through every stat change.
+GUILD_MOVE = "guild.move"
 # An export is the whole inventory, plus real Steam IDs, in one downloadable
 # file. Auditing it matters as much as auditing a write.
 EXPORT = "save.export"

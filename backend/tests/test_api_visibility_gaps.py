@@ -165,6 +165,52 @@ def test_above_the_threshold_the_full_list_comes_back(client, owner):
     assert len(body["points"]) == 174
 
 
+# ─── Effigies, which had no second endpoint at all ────────
+
+
+def test_the_effigy_list_obeys_the_same_policy(client, alice):
+    """
+    `/api/world/effigies` is the fallback `/api/world/fasttravel` has always
+    been, and it must arrive already filtered rather than trusting the map.
+
+    Alice has found no effigies and sits below the threshold, so the honest
+    answer is an empty list — not all 396.
+    """
+    body = client.get("/api/world/effigies", headers=alice).json()
+    assert body["filtered"] is True
+    assert body["points"] == []
+    # The denominator still travels, so the UI can say "0 of 396" rather than
+    # implying the world has none.
+    assert body["total"] == 396
+
+
+def test_an_owner_gets_every_effigy_from_the_plain_list(client, owner):
+    body = client.get("/api/world/effigies", headers=owner).json()
+    assert body["filtered"] is False
+    assert len(body["points"]) == 396
+
+
+def test_the_effigy_fallback_survives_what_discoveries_refuses(client):
+    """
+    Why this endpoint exists.
+
+    `/api/world/discoveries` calls `require_user`, so a guest gets 401 and the
+    map's `discoveries` goes null — taking the effigy layer with it, because it
+    had no fallback the way fast travel did. Both routes are VIEW_BASIC, so a
+    guest reaches this one whenever guest viewing is on, and gets whatever the
+    policy allows instead of nothing at all.
+    """
+    assert client.get("/api/world/discoveries").status_code == 401
+    res = client.get("/api/world/effigies")
+    assert res.status_code == 200
+    body = res.json()
+    # A guest is below every threshold and is linked to no character, so the
+    # filtered list is empty — the same honest "you have discovered nothing"
+    # answer, rather than a broken layer.
+    assert body["filtered"] is True
+    assert body["points"] == []
+
+
 # ─── Guilds, alongside bases ──────────────────────────────
 
 

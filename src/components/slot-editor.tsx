@@ -4,11 +4,12 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Boxes, ShieldCheck, AlertTriangle, Lock, Trash2, Search } from 'lucide-react';
 import GameIcon from '@/components/game-icon';
 import {
-  getBaseStorage, getContainerContents, getItemTotals, previewSlotEdit, applySlotEdit,
+  getBaseStorage, getContainerContents, getItemCatalogue, previewSlotEdit, applySlotEdit,
   getSavePlayers, getPlayerContainers, type PlayerContainer,
 } from '@/lib/save-api';
 import type {
-  BaseStorage, BaseContainer, InventorySlot, SlotPatch, SlotEditPlan, PlayerSaveData,
+  BaseStorage, BaseContainer, CatalogueItem, InventorySlot, SlotPatch, SlotEditPlan,
+  PlayerSaveData,
 } from '@/lib/types';
 
 /**
@@ -37,10 +38,26 @@ export default function SlotEditor({ canEdit }: { canEdit: boolean }) {
   const [baseId, setBaseId] = useState('');
   const [containerId, setContainerId] = useState('');
   const [slots, setSlots] = useState<InventorySlot[]>([]);
-  const [edits, setEdits] = useState<Record<number, SlotPatch>>({});
-  const [knownItems, setKnownItems] = useState<
-    { id: string; name: string; icon: string; maxStack: number }[]
-  >([]);
+  /**
+   * Pending edits, **keyed by container**.
+   *
+   * One shared map meant switching chests silently discarded whatever was typed
+   * in the previous one — the state was reset on every `loadContainer`. Since a
+   * write is per container anyway, holding them per container costs nothing and
+   * lets someone stage changes across several chests before applying.
+   */
+  const [editsByContainer, setEditsByContainer] =
+    useState<Record<string, Record<number, SlotPatch>>>({});
+  /**
+   * The game's whole item catalogue, not this world's contents.
+   *
+   * It was the world's contents, from `/api/items` — so typing a perfectly
+   * legitimate item that nobody on the server owned showed "not in this world"
+   * and no icon, while the backend (which has always validated against the full
+   * catalogue) accepted the very same input on preview. The editor was calling
+   * valid entries wrong.
+   */
+  const [knownItems, setKnownItems] = useState<CatalogueItem[]>([]);
   const [plan, setPlan] = useState<SlotEditPlan | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -50,18 +67,14 @@ export default function SlotEditor({ canEdit }: { canEdit: boolean }) {
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([getBaseStorage(), getItemTotals()])
-      .then(([storage, totals]) => {
+    Promise.all([getBaseStorage(), getItemCatalogue()])
+      .then(([storage, catalogue]) => {
         if (cancelled) return;
         setBases(storage);
-        // Item ids actually present in this world, as autocomplete. Not the full
-        // 2,466-item catalogue — the backend validates against that, and this is
-        // only here so the common case does not need typing an internal id.
-        setKnownItems(
-          (totals.items ?? []).map((i) => ({
-            id: i.itemId, name: i.name, icon: i.icon, maxStack: i.maxStack,
-          }))
-        );
+        // All 2,466 items the game has — the same set the backend validates
+        // against, so what this editor accepts and what the write path accepts
+        // are the same list rather than two that disagree.
+        setKnownItems(catalogue.items ?? []);
       })
       .catch((e: unknown) => {
         if (!cancelled) setError(e instanceof Error ? e.message : 'Could not load containers');
@@ -132,7 +145,8 @@ export default function SlotEditor({ canEdit }: { canEdit: boolean }) {
 
   const loadContainer = useCallback(async (id: string) => {
     setContainerId(id);
-    setEdits({});
+    // Deliberately NOT clearing edits: they are kept per container now, so
+    // coming back to a chest finds what was staged there.
     setPlan(null);
     setError(null);
     setDone(null);
@@ -151,16 +165,23 @@ export default function SlotEditor({ canEdit }: { canEdit: boolean }) {
     }
   }, []);
 
+  /** Edits staged for the container currently open. */
+  const edits = editsByContainer[containerId] ?? {};
+
   const patch = (index: number, next: Partial<SlotPatch>) => {
     setPlan(null);
-    setEdits((current) => {
+    setEditsByContainer((all) => {
+      const current = all[containerId] ?? {};
       const slot = slots.find((s) => s.slotIndex === index);
       const base: SlotPatch = current[index] ?? {
         slotIndex: index,
         itemId: slot?.isEmpty ? '' : (slot?.itemId ?? ''),
         stackCount: slot?.isEmpty ? 0 : (slot?.stackCount ?? 0),
       };
-      return { ...current, [index]: { ...base, ...next } };
+      return {
+        ...all,
+        [containerId]: { ...current, [index]: { ...base, ...next } },
+      };
     });
   };
 
@@ -218,6 +239,7 @@ export default function SlotEditor({ canEdit }: { canEdit: boolean }) {
         `Rollback point: ${result.backupId}.`
       );
       setPlan(null);
+      setEditsByContainer((all) => ({ ...all, [containerId]: {} }));
       await loadContainer(containerId);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Slot edit failed');
@@ -444,7 +466,7 @@ export default function SlotEditor({ canEdit }: { canEdit: boolean }) {
                         value={typed}
                         title={resolved
                           ? `${resolved.name} (${resolved.id})`
-                          : 'Not an item in this world — the backend validates against the full catalogue'}
+                          : 'No item in the game has this id or name'}
                         onChange={(e) => {
                           const next = resolveItem(e.target.value);
                           // Store the id once the text resolves; otherwise keep
@@ -459,7 +481,7 @@ export default function SlotEditor({ canEdit }: { canEdit: boolean }) {
                         color: typed && !resolved ? 'var(--accent-amber)' : 'var(--text-muted)',
                         overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                       }}>
-                        {typed ? (resolved ? resolved.name : 'not in this world') : ''}
+                        {typed ? (resolved ? resolved.name : 'unknown item') : ''}
                       </span>
                       <input
                         className="input"
@@ -495,6 +517,23 @@ export default function SlotEditor({ canEdit }: { canEdit: boolean }) {
             )}
           </div>
 
+          {/* Staged elsewhere. Keeping edits per container is only an
+              improvement if you can see that you have them — otherwise it just
+              moves the surprise. */}
+          {(() => {
+            const others = Object.entries(editsByContainer)
+              .filter(([id, e]) => id !== containerId && Object.keys(e).length > 0);
+            if (!others.length) return null;
+            const total = others.reduce((n, [, e]) => n + Object.keys(e).length, 0);
+            return (
+              <p style={{ fontSize: 11, color: 'var(--accent-amber)', marginTop: 10 }}>
+                {total} unsaved change{total === 1 ? '' : 's'} staged in{' '}
+                {others.length} other container{others.length === 1 ? '' : 's'}.
+                Each container is written separately — switch to it and apply.
+              </p>
+            );
+          })()}
+
           <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
             <button
               className="btn"
@@ -507,7 +546,7 @@ export default function SlotEditor({ canEdit }: { canEdit: boolean }) {
             <button
               className="btn btn-ghost"
               disabled={busy || patches.length === 0}
-              onClick={() => { setEdits({}); setPlan(null); }}
+              onClick={() => { setEditsByContainer((all) => ({ ...all, [containerId]: {} })); setPlan(null); }}
             >
               Discard edits
             </button>

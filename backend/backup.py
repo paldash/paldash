@@ -550,3 +550,29 @@ def guarded_save_write(reason: str, world_dir: str) -> Iterator[dict]:
     assert_writable()
 
     yield backup
+
+    # THE WORLD ON DISK JUST CHANGED, SO THE PARSE CACHE IS NOW A LIE.
+    #
+    # Only `restore` used to refresh it, so every *edit* left the cache holding
+    # the pre-edit world. The next edit was then planned against stale contents:
+    # the slot editor showed the old items, its plan hash no longer matched the
+    # live tree, and the write was refused with nothing on screen explaining
+    # why — "the save data is out of date, re-parse" as a permanent state after
+    # the first successful edit.
+    #
+    # Here rather than in each writer because this is the one function every
+    # mutation passes through, and a writer that forgot the call is exactly how
+    # this happened. It runs only on the success path: an exception propagates
+    # past this line, and a failed write leaves the cache correctly describing
+    # the unchanged world.
+    #
+    # `edit=True` bypasses the Refresh cooldown. That floor exists to stop people
+    # queueing parses of an *unchanged* save; this save demonstrably changed a
+    # moment ago, and making an operator wait two minutes between edits would
+    # reintroduce the bug it is meant to fix.
+    try:
+        import savecache
+
+        savecache.request_parse(force=True, edit=True)
+    except Exception as e:  # noqa: BLE001 - a stale cache must not fail the write
+        logger.warning("Could not re-parse after '%s': %s", reason, e)

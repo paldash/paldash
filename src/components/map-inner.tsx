@@ -14,7 +14,7 @@ import {
   type MapRegion,
 } from '@/lib/map-coordinates';
 import type {
-  Discoveries, Player, BaseCamp, MapObject, FastTravelPoint,
+  Discoveries, DiscoveryPoint, Player, BaseCamp, MapObject, FastTravelPoint,
   StaticWorldObject } from '@/lib/types';
 
 interface Props {
@@ -23,6 +23,13 @@ interface Props {
   mapObjects: MapObject[];
   fastTravel: FastTravelPoint[];
   discoveries: Discoveries | null;
+  /**
+   * Effigies without the found/not-found join — the fallback for when
+   * `discoveries` is null, which happens to every guest because that route needs
+   * a real account. Fast travel has always had `fastTravel` to fall back to;
+   * effigies had nothing, so the layer vanished with no error to follow.
+   */
+  effigies: DiscoveryPoint[];
   /** Static pak-derived objects for the current viewport. Fetched by the parent. */
   staticObjects: StaticWorldObject[];
   layers: Record<string, boolean>;
@@ -259,6 +266,7 @@ export default function MapInner({
   mapObjects,
   fastTravel,
   discoveries,
+  effigies,
   staticObjects,
   layers,
   kindsOff,
@@ -688,12 +696,23 @@ export default function MapInner({
   useEffect(() => {
     const group = effigyLayer.current;
     group.clearLayers();
-    if (!layers.effigies || !discoveries) return;
+    if (!layers.effigies) return;
+
+    // `discoveries` carries the collected/not-collected join; `effigies` is the
+    // bare point list. Falling back to the second keeps the layer on the map when
+    // the first is unavailable — and it deliberately leaves `discovered`
+    // undefined rather than defaulting it, because "we could not ask" and "you
+    // have not collected this" must not share a colour on a collectathon map.
+    const points: DiscoveryPoint[] = discoveries
+      ? discoveries.effigies.points
+      : effigies;
+    if (points.length === 0) return;
 
     const transform = getRegion(region);
-    for (const point of discoveries.effigies.points.filter((p) => transform.contains(p.x, p.y))) {
+    for (const point of points.filter((p) => transform.contains(p.x, p.y))) {
       const coords = worldToGameMap(point.x, point.y);
       const found = point.discovered;
+      const unknown = found === undefined;
 
       L.circleMarker(worldToMap(point.x, point.y, region), {
         radius: px(4) / 2 + 2,
@@ -702,21 +721,21 @@ export default function MapInner({
         // ones you have *not* found are the ones you are looking for.
         color: 'rgba(0,0,0,.55)',
         weight: 1,
-        fillColor: found ? '#4d9e75' : '#8d84c7',
-        fillOpacity: found ? 0.9 : 0.5,
+        fillColor: unknown ? '#8d84c7' : found ? '#4d9e75' : '#8d84c7',
+        fillOpacity: unknown ? 0.7 : found ? 0.9 : 0.5,
       })
         .bindPopup(
           `<div style="min-width:150px">
              <div style="font-weight:600;margin-bottom:3px">Effigy</div>
              <div style="font-size:12px;color:${found ? '#4d9e75' : '#a1a7b0'}">
-               ${found ? 'Collected' : 'Not collected'}
+               ${unknown ? 'Collection status unavailable' : found ? 'Collected' : 'Not collected'}
              </div>
              <div style="font-size:11px;color:#6d747e;margin-top:4px">${coords.x}, ${coords.y}</div>
            </div>`
         )
         .addTo(group);
     }
-  }, [discoveries, layers.effigies, region]);
+  }, [discoveries, effigies, layers.effigies, region]);
 
   // ─── Bases ──────────────────────────────────────────────
   useEffect(() => {

@@ -154,6 +154,21 @@ SECRET_KEYS = ("AdminPassword", "ServerPassword")
 # schema to keep in sync with two upstreams, so the UI instead flags the keys that
 # are env-backed on any common image and says plainly that a server configured to
 # generate its INI may revert others too.
+# thijsvanloef 0.24.0+ has `DISABLE_GENERATE_SETTINGS=true`, which stops it
+# regenerating the INI and makes everything below moot on that image. jammsen has
+# `SERVER_SETTINGS_MODE=manual` (its default). The official
+# `ghcr.io/pocketpairjp/palserver` never touches the file — it has one
+# environment variable in total.
+#
+# So on every image there is a way to own this file, and the warning names it.
+# The keys below are only *potentially* env-managed, and only when regeneration
+# is left on.
+SETTINGS_OWNERSHIP_FLAGS = {
+    "thijsvanloef/palworld-server-docker": "DISABLE_GENERATE_SETTINGS=true",
+    "jammsen/palworld-dedicated-server": "SERVER_SETTINGS_MODE=manual (default)",
+    "ghcr.io/pocketpairjp/palserver": "nothing to disable — it never rewrites it",
+}
+
 ENV_MANAGED = {
     "ServerName": "SERVER_NAME",
     "ServerDescription": "SERVER_DESCRIPTION",
@@ -339,6 +354,19 @@ def write_ini(changes: dict[str, Any], path: Optional[str] = None) -> dict[str, 
     backup_path = _backup_ini(path)
     atomic_write(path, (newline.join(lines) + newline).encode("utf-8"))
     logger.info("Wrote %d setting(s) to %s", len(applied), path)
+
+    # Baseline for the regeneration check. Recorded HERE rather than in the API
+    # route for the same reason `guarded_save_write` owns the save-side rules:
+    # every path that writes this file goes through this function, so a new
+    # writer cannot forget. `apply_preset` calls `write_ini`, so it is covered.
+    #
+    # Best-effort — a database hiccup must not fail a successful settings write.
+    try:
+        import iniwatch
+
+        iniwatch.record_our_write(path)
+    except Exception as e:  # noqa: BLE001
+        logger.warning("Could not record the INI baseline: %s", e)
 
     return {
         "applied": applied,

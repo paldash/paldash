@@ -26,7 +26,10 @@ import { getWorkTypes, orderedWork, type WorkType } from '@/lib/work-types';
  * question the browser can answer instantly.
  */
 
-type SortKey = 'level' | 'name' | 'rank' | 'hp' | 'attack' | 'defense' | 'work' | 'ivs';
+type SortKey =
+  | 'level' | 'name' | 'rank' | 'work' | 'ivs'
+  | 'ivHp' | 'ivAttack' | 'ivDefense'
+  | 'statHp' | 'statAttack' | 'statDefense' | 'statWork';
 
 /**
  * Fallback only. The real list — names, icons and the game's own ordering —
@@ -129,7 +132,25 @@ export default function MyPals() {
     [workTypes]
   );
 
-  const iv = (pal: PalRecord, key: string) => pal.ivs?.[key] ?? 0;
+  /**
+   * One IV, by the name the *save* uses.
+   *
+   * **The attack IV is stored as `shot`, not `attack`** — `Talent_Shot` in the
+   * save, `ivs.shot` through the parser, the API and `charedit`'s field map.
+   * This file asked for `ivs.attack`, which is not a key any Pal has, so the
+   * Attack column rendered "—" on all 1,905 Pals, the IV total was short by the
+   * attack IV on every row, and both the "minimum IV" filter and the Attack sort
+   * silently ignored it. Nothing errored; the column simply looked like the game
+   * had not filled it in.
+   *
+   * The `attack` fallback is kept so an older cached parse still reads.
+   */
+  const iv = (pal: PalRecord, key: string) =>
+    pal.ivs?.[key === 'attack' ? 'shot' : key] ?? pal.ivs?.[key] ?? 0;
+
+  /** A calculated stat's final value, or null when the species is unknown. */
+  const stat = (pal: PalRecord, key: 'hp' | 'attack' | 'defense' | 'workSpeed') =>
+    pal.stats?.[key]?.final ?? null;
   const workLevel = (pal: PalRecord, key: string) =>
     (pal as PalRecord & { workSuitabilities?: Record<string, number> })
       .workSuitabilities?.[key] ?? 0;
@@ -157,9 +178,15 @@ export default function MyPals() {
       switch (sort) {
         case 'name': return (p.speciesName ?? p.speciesId ?? '').toLowerCase();
         case 'rank': return p.rank ?? 1;
-        case 'hp': return iv(p, 'hp');
-        case 'attack': return iv(p, 'attack');
-        case 'defense': return iv(p, 'defense');
+        case 'ivHp': return iv(p, 'hp');
+        case 'ivAttack': return iv(p, 'attack');
+        case 'ivDefense': return iv(p, 'defense');
+        // Calculated stats. An unknown species sorts to the bottom rather than
+        // to the top, which a plain `?? 0` would do on a descending sort.
+        case 'statHp': return stat(p, 'hp') ?? -1;
+        case 'statAttack': return stat(p, 'attack') ?? -1;
+        case 'statDefense': return stat(p, 'defense') ?? -1;
+        case 'statWork': return stat(p, 'workSpeed') ?? -1;
         case 'work': return work ? workLevel(p, work) : p.level;
         // Total IVs, which is the "best overall" question. Deliberately a sum
         // and not a weighted score: weighting HP against Attack depends on what
@@ -303,9 +330,22 @@ export default function MyPals() {
               <SortHead label="Pal" k="name" sort={sort} desc={descending} set={setSort} flip={setDescending} />
               <SortHead label="Lv" k="level" sort={sort} desc={descending} set={setSort} flip={setDescending} />
               <SortHead label="★" k="rank" sort={sort} desc={descending} set={setSort} flip={setDescending} />
-              <SortHead label="HP" k="hp" sort={sort} desc={descending} set={setSort} flip={setDescending} />
-              <SortHead label="Atk" k="attack" sort={sort} desc={descending} set={setSort} flip={setDescending} />
-              <SortHead label="Def" k="defense" sort={sort} desc={descending} set={setSort} flip={setDescending} />
+              {/* Calculated stats first — they are what "is this Pal good"
+                  actually means. The save holds none of them: it stores level,
+                  IVs, condenser rank, souls and trust, and the game derives
+                  these at load, so they are computed here from the game's own
+                  formula. Marked as calculated in the tooltip rather than shown
+                  with the same authority as a level. */}
+              <SortHead label="HP" k="statHp" sort={sort} desc={descending} set={setSort} flip={setDescending} />
+              <SortHead label="Atk" k="statAttack" sort={sort} desc={descending} set={setSort} flip={setDescending} />
+              <SortHead label="Def" k="statDefense" sort={sort} desc={descending} set={setSort} flip={setDescending} />
+              <SortHead label="WS" k="statWork" sort={sort} desc={descending} set={setSort} flip={setDescending} />
+              {/* The IVs those figures were computed from. Previously the only
+                  three columns and labelled HP/Atk/Def, which read as the Pal's
+                  actual stats — they are the 0-100 talent rolls. */}
+              <SortHead label="ivHP" k="ivHp" sort={sort} desc={descending} set={setSort} flip={setDescending} />
+              <SortHead label="ivAtk" k="ivAttack" sort={sort} desc={descending} set={setSort} flip={setDescending} />
+              <SortHead label="ivDef" k="ivDefense" sort={sort} desc={descending} set={setSort} flip={setDescending} />
               <SortHead label="ΣIV" k="ivs" sort={sort} desc={descending} set={setSort} flip={setDescending} />
               <th title="Work suitabilities, in the game's own order">Work</th>
               <th>Where</th>
@@ -338,11 +378,15 @@ export default function MyPals() {
                 </td>
                 <td className="mono">{p.level}</td>
                 <td className="mono">{p.rank > 1 ? '★'.repeat(p.rank - 1) : '—'}</td>
-                <td className="mono">{p.ivs?.hp ?? '—'}</td>
-                <td className="mono">{p.ivs?.attack ?? '—'}</td>
-                <td className="mono">{p.ivs?.defense ?? '—'}</td>
+                <StatCell pal={p} which="hp" />
+                <StatCell pal={p} which="attack" />
+                <StatCell pal={p} which="defense" />
+                <StatCell pal={p} which="workSpeed" />
+                <td className="mono">{iv(p, 'hp') || '—'}</td>
+                <td className="mono">{iv(p, 'attack') || '—'}</td>
+                <td className="mono">{iv(p, 'defense') || '—'}</td>
                 <td className="mono">
-                  {(p.ivs?.hp ?? 0) + (p.ivs?.attack ?? 0) + (p.ivs?.defense ?? 0)}
+                  {iv(p, 'hp') + iv(p, 'attack') + iv(p, 'defense')}
                 </td>
                 <td>
                   {/* Game order, not strongest-first. Someone scanning several
@@ -421,6 +465,55 @@ export default function MyPals() {
         </p>
       )}
     </div>
+  );
+}
+
+/**
+ * One calculated stat, with its whole derivation in the tooltip.
+ *
+ * The breakdown is not decoration. These figures are computed rather than read
+ * from the save, and a bare number nobody can take apart is unfalsifiable — a
+ * player who believes it is wrong has no way to say *which term* is wrong, and
+ * neither has anyone reading the bug report. Hovering shows base, condenser,
+ * trust, souls and the total, which is the same breakdown the game itself shows.
+ *
+ * An em dash means the species has no entry in the bundled tables. That is the
+ * honest answer for the humans and NPCs sharing the character map with Pals:
+ * they carry IVs exactly like a Pal, so there is no structural way to tell them
+ * apart, and inventing scaling numbers would show confident stats for a
+ * merchant.
+ */
+function StatCell({
+  pal, which,
+}: {
+  pal: PalRecord;
+  which: 'hp' | 'attack' | 'defense' | 'workSpeed';
+}) {
+  const bd = pal.stats?.[which];
+  if (!bd) {
+    return (
+      <td className="mono" style={{ color: 'var(--text-muted)' }}
+          title="No stat scaling for this species — humans and NPCs share the character map with Pals.">
+        —
+      </td>
+    );
+  }
+  const lines = [
+    `Base ${bd.base.toLocaleString()}`,
+    bd.condenserMultiplier > 1
+      ? `Condenser x${bd.condenserMultiplier.toFixed(2)} -> ${bd.baseWithCondenser.toLocaleString()}`
+      : '',
+    bd.trust ? `Trust +${bd.trust.toLocaleString()}` : '',
+    bd.awakening ? `Awakening +${bd.awakening.toLocaleString()}` : '',
+    bd.soulMultiplier > 1 ? `Pal Souls x${bd.soulMultiplier.toFixed(2)}` : '',
+    `= ${bd.final.toLocaleString()}`,
+    '',
+    'Calculated from the game\u2019s formula — the save stores only the inputs.',
+  ].filter(Boolean);
+  return (
+    <td className="mono" title={lines.join('\n')}>
+      {bd.final.toLocaleString()}
+    </td>
   );
 }
 

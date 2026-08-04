@@ -335,7 +335,7 @@ def load_verdict(force: bool = False) -> dict[str, Any]:
     }
 
 
-def request_parse(force: bool = False) -> dict[str, Any]:
+def request_parse(force: bool = False, edit: bool = False) -> dict[str, Any]:
     """
     Kick off a background parse if one is warranted.
 
@@ -387,6 +387,10 @@ def request_parse(force: bool = False) -> dict[str, Any]:
                     "reason": f"Last parse was {int(age)}s ago; minimum interval is "
                               f"{PARSE_MIN_INTERVAL}s",
                 }
+        elif edit:
+            # A write just changed the world. The cooldown below is about
+            # refusing repeat parses of an *unchanged* save, which this is not.
+            pass
         elif age is not None and age < PARSE_FORCE_MIN_INTERVAL:
             # The "already running" check above stops parses *overlapping*; this
             # stops them queueing nose-to-tail. Without it, three people pressing

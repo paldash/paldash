@@ -276,12 +276,29 @@ export default function Paldeck() {
                   selected.work as Record<string, number> | undefined,
                   workTypes
                 );
-                if (!work.length) return null;
                 return (
                   <div style={{ marginBottom: 10 }}>
                     <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>
                       Work suitability
                     </div>
+                    {/* Rendered even when empty, and this is the fix rather than
+                        a nicety. The section used to `return null`, so a Pal
+                        with no work suitability showed *nothing where a heading
+                        should be* — indistinguishable from data the dashboard
+                        had failed to load, which is how it got reported.
+
+                        It is genuinely empty for exactly two released Pals,
+                        Panthalus (#203) and Astralym (#204); the other 29 forms
+                        with no work are raid, gym and unreleased entries the
+                        Paldeck does not list. The bundled table matches the
+                        game's own data table for all 753 forms with zero
+                        disagreements, so an empty set here is the answer, not a
+                        gap. */}
+                    {!work.length && (
+                      <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                        None — this Pal cannot be assigned to work at a base.
+                      </div>
+                    )}
                     <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                       {work.map(({ type, level }) => (
                         <span

@@ -29,6 +29,22 @@ services:
       - ADMIN_PASSWORD=${PALWORLD_ADMIN_PASSWORD:?set PALWORLD_ADMIN_PASSWORD in .env}
       - RCON_ENABLED=true
       - RCON_PORT=25575
+      # THE LINE THAT MAKES THE DASHBOARD'S SETTINGS TAB PERMANENT.
+      #
+      # This image regenerates PalWorldSettings.ini from the environment on every
+      # start, so without this a setting written through the dashboard survives
+      # until the next restart and is then silently reverted — worse than a
+      # refusal, because the operator watched it work.
+      #
+      # `DISABLE_GENERATE_SETTINGS=true` (image 0.24.0+) turns that off and hands
+      # ownership of the file to you. The trade is that the game-setting
+      # variables below stop doing anything: the INI is then the only source of
+      # truth, which is exactly what makes the dashboard authoritative.
+      #
+      # Leave it false and the Settings tab is a temporary override. Nothing can
+      # detect which way it is set from inside the dashboard container.
+      - DISABLE_GENERATE_SETTINGS=${DISABLE_GENERATE_SETTINGS:-true}
+
       # Required for the dashboard's live features and its safety checks.
       - REST_API_ENABLED=true
       - REST_API_PORT=8212

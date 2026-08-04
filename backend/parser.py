@@ -280,6 +280,23 @@ _TALENTS = (
     ("melee", "Talent_Melee"),
 )
 
+# Pal Soul upgrades — the statue ones, separate from the condenser `Rank`.
+#
+# **`Rank_Defence` is spelled the British way, and only that one.** `Rank_Attack`
+# and `Rank_HP` are not, and `Talent_Defense` beside it is American. Reading
+# `Rank_Defense` finds nothing and yields a silent zero: the defence souls a
+# player actually spent simply do not appear in the stat, with no error to
+# follow. Measured on the reference world — 11 Pals carry `Rank_Defence`, none
+# carry `Rank_Defense`.
+#
+# All four are absent on a Pal with no souls invested, which reads as 0.
+_SOUL_RANKS = (
+    ("hp", "Rank_HP"),
+    ("attack", "Rank_Attack"),
+    ("defense", "Rank_Defence"),
+    ("craftSpeed", "Rank_CraftSpeed"),
+)
+
 
 def extract_characters(gvas: Any) -> tuple[list[dict], list[dict]]:
     """
@@ -351,6 +368,19 @@ def extract_characters(gvas: Any) -> tuple[list[dict], list[dict]]:
                 "ivs": {
                     label: _num(obj, prop, 0) for label, prop in _TALENTS if prop in obj
                 },
+                # Everything below feeds `palstats.py`. Read here rather than
+                # re-parsed there, because the whole world is already open.
+                "soulRanks": {
+                    label: _num(obj, prop, 0) for label, prop in _SOUL_RANKS if prop in obj
+                },
+                # Trust, which the game shows as the heart meter. Absent on a Pal
+                # nobody has bonded with, which is genuinely zero rather than
+                # unknown.
+                "friendshipPoint": _num(obj, "FriendshipPoint", 0),
+                # The gold "lucky" variant. Distinct from `isBoss` (the alpha
+                # forms): a lucky Pal keeps its ordinary species id, so this flag
+                # is the only thing that says so.
+                "isLucky": bool(_prop(obj, "IsRarePal", False)),
                 "passiveSkills": [str(p) for p in passives],
                 "activeSkills": [
                     str(w).split("::", 1)[-1] for w in equipped
@@ -940,6 +970,38 @@ def extract_containers(gvas: Any) -> dict[str, list[dict]]:
                     "hasDynamicId": bool(local_id) and local_id != ZERO_GUID,
                 }
             )
+
+        # THE SAVE STORES ONLY OCCUPIED SLOTS; `SlotNum` IS THE REAL CAPACITY.
+        #
+        # Same shape as `CharacterContainerSaveData`, where "free space is
+        # SlotNum - len(slots)" is already documented — item containers do it too
+        # and this code did not account for it. Three consequences, all of which
+        # showed up in use:
+        #
+        #   * the inventory editor had no empty rows to write into, so adding an
+        #     item meant overwriting one that was already there;
+        #   * `totalSlots` was the occupied count, so `fillPercent` was ~100% for
+        #     every base on the reference world and the "90%+ full" warning fired
+        #     permanently and meant nothing;
+        #   * stored `slot_index` values are sparse, so a UI numbering rows by
+        #     position disagreed with the indices the writer uses — which is where
+        #     the out-of-range errors came from.
+        #
+        # Padding here rather than in each consumer, because the slots genuinely
+        # exist in the container; the save just declines to write empty ones.
+        capacity = _num(entry.get("value") or {}, "SlotNum", 0)
+        present = {s["slotIndex"] for s in slots}
+        for index in range(capacity):
+            if index not in present:
+                slots.append({
+                    "slotIndex": index,
+                    "itemId": "",
+                    "itemName": "",
+                    "stackCount": 0,
+                    "isEmpty": True,
+                    "hasDynamicId": False,
+                })
+        slots.sort(key=lambda s: s["slotIndex"])
 
         containers[container_id] = slots
 

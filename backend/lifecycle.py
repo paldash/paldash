@@ -118,6 +118,20 @@ def _watch_for_return() -> None:
                 _state["cameBack"] = True
                 _state["watching"] = False
             logger.info("Server came back up after shutdown")
+            # The one moment the INI question is answerable. An image that
+            # regenerates PalWorldSettings.ini does it on start, so comparing the
+            # file now against what the dashboard last wrote turns "we cannot
+            # detect this" into an observation about *this* deployment.
+            #
+            # Best-effort on purpose: this runs on the restart-watch thread and a
+            # failure here must never make a successful restart look failed.
+            try:
+                import iniwatch
+                import savefiles
+
+                iniwatch.observe_after_restart(savefiles.find_settings_ini())
+            except Exception as e:  # noqa: BLE001
+                logger.warning("INI watch could not observe the restart: %s", e)
             return
         time.sleep(10)
 

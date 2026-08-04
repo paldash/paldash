@@ -45,15 +45,29 @@ export default function BulkPalEditor({ canEdit }: { canEdit: boolean }) {
     return () => { cancelled = true; };
   }, []);
 
-  const matches = useMemo(() => {
+  /**
+   * The rows to render, and how many the cap left out.
+   *
+   * `hidden` is computed rather than inferred from `matches.length === 200`,
+   * which is wrong in both directions: it claims truncation when there are
+   * exactly 200 matches, and says nothing at all if the cap ever changes.
+   *
+   * The species id is searchable alongside the friendly name, so `SheepBall`
+   * and `Lamball` both find the same Pals — the API speaks one and players speak
+   * the other, and someone reading a species id off an export should not have to
+   * translate it first.
+   */
+  const LIST_CAP = 200;
+  const { matches, hidden } = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return pals.slice(0, 200);
-    return pals
-      .filter((p) =>
-        (p.nickname || '').toLowerCase().includes(q) ||
-        (p.speciesName || p.speciesId).toLowerCase().includes(q)
-      )
-      .slice(0, 200);
+    const all = q
+      ? pals.filter((p) =>
+          (p.nickname || '').toLowerCase().includes(q) ||
+          (p.speciesName || '').toLowerCase().includes(q) ||
+          (p.speciesId || '').toLowerCase().includes(q)
+        )
+      : pals;
+    return { matches: all.slice(0, LIST_CAP), hidden: Math.max(0, all.length - LIST_CAP) };
   }, [pals, search]);
 
   const offered = useMemo(
@@ -196,16 +210,28 @@ export default function BulkPalEditor({ canEdit }: { canEdit: boolean }) {
                   <span style={{ fontWeight: 500 }}>
                     {p.nickname || p.speciesName || p.speciesId}
                   </span>
-                  <span style={{ color: 'var(--text-muted)', marginLeft: 'auto' }}>
-                    Lv {p.level} · rank {p.rank}
+                  {/* One player usually owns several of the same species at the
+                      same level, so "Lamball · Lv 50" repeated three times is a
+                      list nobody can choose from. These are the fields that
+                      actually differ between two Pals of one species. */}
+                  <span style={{ color: 'var(--text-muted)', marginLeft: 'auto', fontSize: 11 }}>
+                    {[
+                      `Lv ${p.level}`,
+                      (p.rank ?? 1) > 1 ? `${(p.rank ?? 1) - 1}★` : '',
+                      `IV ${(p.ivs?.hp ?? 0) + (p.ivs?.shot ?? 0) + (p.ivs?.defense ?? 0)}`,
+                      p.isBoss ? 'alpha' : '',
+                      p.instanceId.slice(0, 6),
+                    ].filter(Boolean).join(' · ')}
                   </span>
                 </button>
               );
             })}
           </div>
-          {matches.length === 200 && (
+          {hidden > 0 && (
             <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6 }}>
-              Showing the first 200. Narrow the filter to reach the rest.
+              {hidden.toLocaleString()} more match and are not shown. Narrow the
+              filter to reach them — only ticked Pals are edited, so anything
+              hidden here is untouched.
             </p>
           )}
         </div>

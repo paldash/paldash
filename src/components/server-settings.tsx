@@ -204,10 +204,54 @@ export default function ServerSettings() {
         directory, not the save directory.
       </div>
 
+      {/* Measured, not guessed. The dashboard hashes this file when it writes
+          it and again once the server has restarted; if it changed and we did
+          not change it, this image regenerates its INI — a fact about THIS
+          deployment covering every key, rather than a list of the ~15 that are
+          commonly env-driven.
+
+          `unknown` shows nothing: it means "not yet observed", and dressing that
+          up as reassurance is exactly the failure the whole feature exists to
+          avoid. */}
+      {settings.iniWatch?.verdict === 'regenerated' && (
+        <div className="notice notice-warn">
+          <strong>This server rewrites PalWorldSettings.ini when it starts.</strong>{' '}
+          {settings.iniWatch.detail}
+          {settings.iniWatch.observedAt && (
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6 }}>
+              Observed {new Date(settings.iniWatch.observedAt).toLocaleString()}. On{' '}
+              <span className="mono">thijsvanloef</span> set{' '}
+              <span className="mono">DISABLE_GENERATE_SETTINGS=true</span>; on{' '}
+              <span className="mono">jammsen</span> set{' '}
+              <span className="mono">SERVER_SETTINGS_MODE=manual</span>.
+            </div>
+          )}
+        </div>
+      )}
+      {settings.iniWatch?.verdict === 'preserved' && (
+        <div className="notice" style={{ fontSize: 12 }}>
+          <strong>Your settings persist across restarts.</strong>{' '}
+          {settings.iniWatch.detail}
+        </div>
+      )}
+      {settings.iniWatch?.awaitingRestart && (
+        <div className="notice" style={{ fontSize: 12 }}>
+          Restart the server and come back — the dashboard will then be able to
+          tell you whether your change survived, instead of warning you that it
+          might not have.
+        </div>
+      )}
+
       {/* The restart that applies a change is the same restart that can undo it.
           Naming the affected keys matters: a setting silently reverted after the
-          operator watched the save succeed is worse than one that refused. */}
+          operator watched the save succeed is worse than one that refused.
+
+          Suppressed once the check above has an answer either way: a measurement
+          of this deployment beats a list of what images commonly do, and showing
+          both would leave an operator who has been told "your settings persist"
+          reading a warning that they might not. */}
       {(() => {
+        if (settings.iniWatch && settings.iniWatch.verdict !== 'unknown') return null;
         const envKeys = Object.entries(settings.options)
           .filter(([, o]) => o.envManaged)
           .map(([k, o]) => [k, o.envManaged as string] as const);

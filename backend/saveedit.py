@@ -43,6 +43,78 @@ class SaveEditError(Exception):
     """Raised when an edit is rejected, failed, or was rolled back."""
 
 
+# ─── Ordering ────────────────────────────────────────────
+
+ORDERS = ("id", "category")
+
+
+def _order_key(order: str):
+    """
+    The sort key for one item id, for the requested ordering.
+
+    `id` is alphabetical on the internal id — stable, needs no game data, and is
+    what every sort did before this existed. It is also close to useless to read:
+    `Cake`, `Charcoal`, `CommonShield`, `Coal` sit together because their *ids*
+    do, not because anything about them relates.
+
+    `category` groups by the game's own `typeA` (Material, Weapon, Consume, …)
+    and orders within a group by `sortId` — the field Palworld itself sorts
+    inventories with, so a sorted chest matches the order the game shows in the
+    player's own inventory rather than an order only this dashboard uses.
+
+    **Pal eggs get their own group, because the game's own table does not.** All
+    56 `PalEgg_*` items are `typeA: "Material"`, so grouping strictly by category
+    files a Jormuntide egg between Coal and Wood — every egg scattered through the
+    ore. They are the one thing in a chest that is not a commodity: each holds a
+    *distinct Pal*, and a player looking for one is not looking for a material.
+
+    Identified by `dynamic.type == "unknown"`, which is **exactly** those 56 items
+    and nothing else — a property of the data rather than a hand-written id list
+    or a `PalEgg_` prefix rule that a renamed asset would silently break.
+
+    They are never merged either, but that already held for a different reason:
+    each egg carries a `dynamic_id` and `_sort_container` refuses to pool those.
+    This is about where they end up, not about losing one.
+
+    **Four buckets, and the third is the subtle one.** 653 of the 2,466 items
+    carry an empty `typeA` — key items, schematics — but they still carry a
+    `sortId`, so they can be ordered the way the game orders them even with no
+    category to group under. Lumping them in with genuinely unknown ids would
+    throw that ordering away.
+
+    Unknown ids sort last of all, alphabetically. They are modded or
+    newer-than-the-bundle items, and interleaving them at `sortId` 0 would put
+    them ahead of everything — the most confusing possible place for the items
+    the dashboard understands least. `gamedata` lookups are case-insensitive, so
+    the save's inconsistent capitalisation resolves here as it does everywhere.
+    """
+    if order == "id":
+        return lambda item_id: (item_id,)
+
+    import gamedata
+
+    # Sort after every real category name, and after each other, so the buckets
+    # stay in the intended order without depending on what the game happens to
+    # have named a category.
+    EGGS = "￿0"
+    UNCATEGORISED = "￿1"
+    UNKNOWN = "￿2"
+
+    def key(item_id: str) -> tuple[str, int, str]:
+        entry = gamedata.item(item_id)
+        if not entry:
+            return (UNKNOWN, 0, item_id)
+        if (entry.get("dynamic") or {}).get("type") == "unknown":
+            return (EGGS, int(entry.get("sortId") or 0), item_id)
+        return (
+            str(entry.get("typeA") or "") or UNCATEGORISED,
+            int(entry.get("sortId") or 0),
+            item_id,
+        )
+
+    return key
+
+
 # ─── Slot helpers ────────────────────────────────────────
 
 
@@ -132,7 +204,16 @@ def _max_stacks(containers: list) -> dict[str, int]:
 # ─── The sort itself ─────────────────────────────────────
 
 
-def _sort_container(entry: dict, mode: str, merge: bool, max_stacks: dict[str, int]) -> int:
+def _sort_container(
+    entry: dict,
+    mode: str,
+    merge: bool,
+    max_stacks: dict[str, int],
+    # Defaults to the id ordering — the behaviour that predates `order` — so a
+    # caller that has not been taught about arrangement cannot accidentally
+    # rewrite a world in a new layout.
+    order_key=_order_key("id"),
+) -> int:
     """
     Reorder one container in place. Returns the number of slots changed.
 
@@ -195,7 +276,15 @@ def _sort_container(entry: dict, mode: str, merge: bool, max_stacks: dict[str, i
             "Sort would need more slots than are available — refusing to modify this container"
         )
 
-    payloads.sort(key=lambda p: (_static_id({"item": p["item"], "count": p["count"]}), -p["count"]))
+    # Ordering first, then largest stack first within an item. The second half is
+    # not cosmetic: it puts the partial stack of a merged item at the end of its
+    # run, which is where someone reaching into a chest expects the odd remainder.
+    payloads.sort(
+        key=lambda p: (
+            order_key(_static_id({"item": p["item"], "count": p["count"]})),
+            -p["count"],
+        )
+    )
 
     changed = 0
     for position, payload in zip(movable_positions, payloads):
@@ -238,6 +327,7 @@ def sort_containers(
     mode: str = "stackables",
     merge: bool = True,
     base_id: Optional[str] = None,
+    order: str = "id",
 ) -> dict[str, Any]:
     """
     Sort and optionally merge item containers.
@@ -245,6 +335,15 @@ def sort_containers(
     mode:
       "stackables" — skip anything with a dynamic_id (weapons, armour, tools)
       "all"        — also relocate durability items, carrying their links along
+
+    order:
+      "id"       — alphabetical on the internal id (what this always did)
+      "category" — grouped by the game's own item category, in the game's order
+
+    `order` is separate from `mode` because they answer different questions:
+    `mode` is about what is *safe* to move and maps to a capability, `order` is
+    only about what the result looks like. Folding them into one enum would have
+    made "sort by category" imply permission to relocate durability items.
 
     base_id scopes the sort to the containers a single base owns. Everything
     else in the world is left untouched, which is what makes this usable on a
@@ -258,6 +357,9 @@ def sort_containers(
     """
     if mode not in ("stackables", "all"):
         raise SaveEditError(f"Unknown sort mode: {mode}")
+    if order not in ORDERS:
+        raise SaveEditError(f"Unknown sort order: {order}")
+    order_key = _order_key(order)
 
     level_path = get_level_sav_path()
     if not level_path:
@@ -272,7 +374,9 @@ def sort_containers(
 
     # assert_writable + full backup; raises unless provably safe.
     scope_note = f", base {base_id}" if base_id else ""
-    with guarded_save_write(f"sort containers ({mode}{scope_note})", world_dir) as backup:
+    with guarded_save_write(
+        f"sort containers ({mode}, by {order}{scope_note})", world_dir
+    ) as backup:
         original = read_sav_bytes(level_path)
         if original is None:
             raise SaveEditError("Could not read Level.sav")
@@ -307,7 +411,7 @@ def sort_containers(
         for entry in containers:
             if in_scope is not None and _container_id_of(entry) not in in_scope:
                 continue
-            delta = _sort_container(entry, mode, merge, max_stacks)
+            delta = _sort_container(entry, mode, merge, max_stacks, order_key)
             if delta:
                 touched += 1
                 changed_slots += delta
@@ -354,6 +458,7 @@ def sort_containers(
         return {
             "ok": True,
             "mode": mode,
+            "order": order,
             "merged": merge,
             "baseId": base_id or "",
             "scope": "base" if base_id else "world",

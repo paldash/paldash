@@ -438,9 +438,19 @@ installed in the runtime image.
 **A local id does not identify one record.** Measured on the reference world:
 **32,446 records, 2,052 distinct ids** — 2,022 ids appear exactly **16** times,
 twelve appear 6 times, one appears 5, seventeen appear once. Every copy of an id
-is byte-for-byte identical. 30,866 of the records are eggs, far more than the
-world has eggs, so this looks like accumulated orphans rather than a game
-requirement.
+is byte-for-byte identical.
+
+**They are not orphans, and an earlier note here said they were.** The reasoning
+was that 30,866 of the records are eggs, far more than the world has eggs. That
+inference is wrong: joining the ids against the slots that reference them shows
+**1,487 of the 2,022 sixteen-copy ids are pointed at by a real container slot**,
+as are all 17 one-copy ids and all 12 six-copy ids, with **zero** slot references
+resolving to no record at all. The duplicated records are live.
+
+So the mystery is not "why sixteen copies of junk" but "why does a live item have
+1, 5, 6 or 16 copies". The copy count is not a constant, which is also why
+`apply_durability` writes **every** copy and treats a count that changed between
+plan and apply as a refusal — there is no safe number to assume.
 
 The first version keyed one id to one record and its own smoke test caught the
 consequence in a minute: the plan read one copy, the apply re-looked-up the id
@@ -448,6 +458,13 @@ and mutated a *different* copy, and the value appeared not to change. Editing 1
 of 16 silently would have been worse than that visible failure — the game may
 read any of them. **Every copy is written, and a copy count that changed between
 plan and apply is a refusal.**
+
+`describe()` attaches the item's **factory-fresh durability** from the bundled
+data (669 of the 948 items with a dynamic record have one; the rest are
+accessories, which do not wear out). The record itself holds only the current
+value, so without it the editor asked for a bare number with nothing to measure
+against — 1,045 is nearly new or nearly broken depending on an item the operator
+was expected to already know.
 
 **Repair works; creation is refused, and the reason is not the format.**
 Deep-copying a record of the right type solves the shape problem the way
@@ -1118,3 +1135,378 @@ normal deployment mounts only the save path, so not knowing is the *common* case
 `explains_unknown_ids` returns false for it — an unexamined server must not become a
 confident claim. UE4SS is reported separately because it loads Lua mods that leave no
 pak at all, which is a real limit on what this can see.
+
+## Pal stats are calculated, and the formula is in `refs/`
+
+The save stores only the **inputs** — level, IVs, condenser rank, soul ranks,
+trust points — and the game derives HP, Attack, Defense and Work Speed at load.
+So there is nothing to read: `backend/palstats.py` runs the same arithmetic.
+
+The formula is **not invented and not scraped from a wiki**. It is in
+`refs/PalWorldSaveTools-main.zip`, in two files that must be read together:
+`.opencode/skills/pst-stat-formula/SKILL.md` (the derivation, plus a record of
+which terms were corrected against in-game breakdowns on maxed test Pals) and
+`src/palworld_aio/utils.py` (the constants). `palstats.py` is a transcription;
+diff against that implementation if a game update moves a number. Its own
+documented tolerance is ±1–2 on the trust and awakening terms at some boundaries,
+which is why every figure is labelled `calculated: true` in the payload and the
+UI never shows one with the same authority as a level.
+
+    base      = additive_const + floor(scaling × K × level × (1+IV) × (1+condenser))
+    subtotal  = base + trust + awakening                    # additive
+    final     = floor(subtotal × (1+soul) × (1+passive))    # multiplicative
+
+**This supersedes the earlier note that star/alpha multipliers exist in no
+bundled source.** That was true of `resources/game_data/`, and the skills
+directory beside it was never checked.
+
+Four things that bite:
+
+- **Rank 1 is *no* stars.** The condenser bonus is `(rank - 1) × 5%`, so four
+  stars — the maximum — is rank 5 and +20%. Treating `Rank` as a star count gives
+  every Pal in the world a bonus it has not got.
+- **The alpha bonus is already in the data**, and must not be applied twice.
+  `BOSS_Alpaca` carries hp scaling 108 where `Alpaca` carries 90; that difference
+  *is* the alpha bonus. `gamedata.pal()` strips the `BOSS_` prefix — correct for
+  naming, since an alpha Lamball is still called Lamball — so stats go through
+  **`gamedata.pal_exact()`**, which does not. The reference implementation had
+  exactly this bug and removing its separate `lucky_alpha` term is a line in its
+  changelog.
+- **Attack is *shot* attack.** `meleeAttack` is bundled beside it, is a different
+  number on most species (Melpaca: 90 melee, 75 shot), and the game never shows
+  it. Reading the wrong one is plausible everywhere and wrong everywhere.
+- **Work Speed is flat 70 until the condenser is used at all.** Neither level nor
+  craft speed enters below rank 2. A formula that treats it like HP shows work
+  speed climbing with level on a Pal whose in-game work speed has not moved —
+  wrong in the direction you would expect it to move, so nobody questions it.
+
+`friendship_*` coefficients are per species and now travel in
+`gamedata.json.gz` (`scripts/build-gamedata.py`); without them the trust term
+cannot be evaluated at all, and unlike every other term there is no default,
+since the whole point is that species differ.
+
+**99 of the reference world's 1,905 characters get no stats, and that is the
+answer.** They are hunters, soldiers, merchants and quest NPCs sharing
+`CharacterSaveParameterMap` with Pals and carrying IVs exactly like one. There is
+no scaling data for them anywhere, so `describe()` returns `None` rather than
+zeroes — a breakdown full of zeroes would show confident stats for a merchant.
+
+Level progress, by contrast, is **exact**: `palExpTable` is bundled from the
+game's own table. Read `PalNextEXP`/`PalTotalEXP`, not the `NextEXP`/`TotalEXP`
+beside them — those are the *player* curve and they differ from level 2 (25 vs 50).
+
+### Save fields nobody was reading
+
+`parser.extract_characters` now also carries `soulRanks`, `friendshipPoint` and
+`isLucky`. **`Rank_Defence` is spelled the British way and only that one is** —
+`Rank_Attack` and `Rank_HP` are not, and `Talent_Defense` sits beside them
+American. Reading `Rank_Defense` finds nothing and yields a silent zero, so the
+defence souls a player actually spent simply do not appear in the stat.
+
+### And the attack IV was never displayed
+
+`ivs.shot` is the canonical key, from `Talent_Shot`, all the way through the
+parser, the API and `charedit`'s field map. `my-pals.tsx` asked for `ivs.attack`
+— a key no Pal has — so the Attack column rendered `—` on all 1,905 Pals, the IV
+total was short by the attack IV on **every** row, and both the minimum-IV filter
+and the Attack sort silently ignored it. Nothing errored; the column read as data
+the game had not filled in.
+
+## The item catalogue and the item census are different endpoints
+
+`/api/world/items` is **what the game has** (2,466 entries, bundled, no parsed
+world needed). `/api/items` is **what this world holds**, and is privacy-filtered
+per guild. They are one letter apart in intent and easy to reach for wrongly.
+
+The slot editor's autocomplete was built on the second, so typing any legitimate
+item nobody on the server happened to own showed "not in this world" with no icon
+— while the backend, which has always validated against the full catalogue, went
+on to accept the very same input at preview. The editor was calling valid entries
+wrong and then writing them correctly.
+
+Both id and friendly name travel together on every catalogue row, because the API
+speaks `AIcore` and people speak "AI Core", and a catalogue carrying one of them
+forces every caller to rebuild the other index. Search boxes accept either
+throughout — `SheepBall` and `Lamball` find the same Pals.
+
+## Sorting a chest by category needs `typeA` and `sortId`, and four buckets
+
+`saveedit.sort_containers(order=...)`. `id` is the alphabetical-on-internal-id
+ordering everything did before; `category` groups by the game's own `typeA` and
+orders within a group by `sortId`, which is the field Palworld itself sorts
+inventories with — so a sorted chest matches what the player sees in their own
+inventory rather than an order only this dashboard uses.
+
+`order` is deliberately **not** folded into `mode`. `mode` is about what is safe
+to move and maps to a capability; `order` is only about what the result looks
+like. One enum would have made "sort by category" imply permission to relocate
+durability items.
+
+**Pal eggs get their own bucket, because the game's own table does not give them
+one.** All 56 `PalEgg_*` items are `typeA: "Material"`, so grouping strictly by
+category files a Jormuntide egg between Coal and Wood — every egg scattered
+through the ore. They are the one thing in a chest that is not a commodity: each
+holds a *distinct Pal*, and someone hunting for one is not looking for a
+material. Identified by `dynamic.type == "unknown"`, which is **exactly** those 56
+items and nothing else — a property of the data rather than a hand-written id
+list or a `PalEgg_` prefix rule a renamed asset would silently break. (They were
+already safe from *merging*: each carries a `dynamic_id`, and `_sort_container`
+refuses to pool those. This is about where they land.)
+
+**And the third bucket is the subtle one.** 653 of the 2,466 items carry an empty
+`typeA` — key items, schematics — but they still carry a `sortId`, so they can be
+ordered the way the game orders them even with no category to group under.
+Lumping them in with genuinely unknown ids throws that away. Unknown ids sort
+last of all: at `sortId` 0 they would sort *first*, which is the most confusing
+available place for the items the dashboard understands least.
+
+## Effigies had no fallback, and that is what "not showing" meant
+
+`/api/world/discoveries` serves fast travel and effigies together, calls
+`require_user`, and 503s if either bundle fails. The map falls back to
+`/api/world/fasttravel` when it is unavailable — and **there was no effigy
+counterpart**, so the effigy layer silently vanished for every guest and for any
+transient failure, with the toggle still on and nothing drawn.
+
+`/api/world/effigies` is that counterpart, and it applies `discoveryVisibility`
+**itself**. That is the lesson from `/api/world/fasttravel`, which for months
+returned all 174 points beside a sibling that carefully filtered them: a filter
+applied to one of two endpoints serving the same data is not a filter.
+
+The fallback leaves `discovered` **undefined** rather than defaulting it. "We
+could not ask" and "you have not collected this" must not share a colour on a
+collectathon map. And when *both* endpoints fail the map now says so — a layer
+switched on and empty is indistinguishable from a layer that failed to load,
+which is exactly how this went undiagnosed.
+
+## Scope travels with every breeding answer, not just the palbox
+
+The planner fetches four endpoints and shows one header, so a scope reported on
+one of them describes the other three by implication. Below `allPalsVisibility`
+the backend pins a request to the caller whatever it asked for — and a route plan
+computed from your own box, displayed under "All Pals on the server", reads as a
+*wrong answer* rather than a narrower question. `_breeding_scope` is on `/palbox`,
+`/reachable` and `/paths` alike.
+
+It carries `pals` — the count the answer was built from — because zero alongside
+`linkedToPlayer: false` is the specific state people report as the dashboard
+forgetting their account. And the planner's "not linked" banner now reads
+`linkedToPlayer` off the **response**, not the cached session: the session object
+is refreshed only on page load, so an account linked while its owner was signed
+in kept reading as unlinked until they reloaded.
+
+## Two Pals of one species need telling apart
+
+A player usually owns several of the same species at the same level, and
+"Lamball · Lv 50" three times over is a list nobody can choose from. The write
+path was never at risk — every editor keys on `instanceId` and so does
+`palimport` — but a person had no way to see *which* one they had picked, so the
+only way to find out was to apply and check.
+
+Editor rows now carry what actually differs between two Pals of one species:
+total IVs, condenser stars, alpha, where it is, and a short instance id last,
+which is not pretty but is the only thing guaranteed unique when everything else
+matches.
+
+## The client pak has no map-icon set — one icon, and it is worse
+
+`scripts/extract-textures.py` reads UTexture2D packages out of
+`refs/Pal-Windows.pak` and writes WebP, closing the gap `public/icons/map/PROVENANCE.md`
+anticipated. It works: `T_worldmap_icon_fasttravel` decodes at 64x64 PF_DXT5.
+
+**The icons did not change, and that is the result rather than a lack of effort.**
+`Blueprint/UI/WorldMap/` holds exactly one icon texture; `Texture/UI/Map/` holds
+26 packages of map *furniture* — landmass masks, boss banners, a circle frame, a
+stripe pattern. Palworld draws POI markers from widget blueprints with generic
+shapes, so **the per-category icon set does not exist as art.** And the one icon
+that does exist is a pale plinth with a soft halo — 274 of 4,096 pixels above
+alpha 200 — against a wiki stand-in with real silhouette. Same conclusion the
+fast-travel marker already reached, now measured against the actual asset.
+
+The mip is located by **anchor, not offset**: every `FTexture2DMipMap` is followed
+by its own `SizeX, SizeY, SizeZ`, and the payload precedes it at a length fully
+determined by the dimensions and block format. Two independent facts that have to
+agree, so a layout change raises instead of writing plausible noise. Same
+discipline `upackage.py` uses, for the same reason — there is no version number
+in these files to branch on.
+
+Pillow decodes BC1/BC3/BC7 from a DDS container, so the raw mip is wrapped rather
+than decoded here. A hand-written BC7 decoder is eight modes and several hundred
+lines duplicating a library the project already ships.
+
+## The INI question is answerable by observation
+
+`backend/iniwatch.py`, now wired. The dashboard cannot read the game container's
+environment, so it cannot *recognise* an image that regenerates
+PalWorldSettings.ini — but it can **observe** one: hash the file when we write it,
+hash it again once the server has restarted, and a change we did not make is a
+fact about this deployment covering every key rather than a list of the ~15 that
+are commonly env-driven.
+
+The baseline is recorded inside `settings_ini.write_ini`, not in the API route —
+every writer goes through that function, so a new one cannot forget. Same reason
+`guarded_save_write` owns the save-side rules. The observation happens on
+`lifecycle._watch_for_return`, the one moment the question is answerable.
+
+`unknown` is a real answer and the honest starting state: it means "not yet
+observed", not "safe", and the UI shows nothing for it. Once there *is* a verdict
+the old conditional warning is suppressed — a measurement of this deployment beats
+a list of what images commonly do, and an operator told "your settings persist"
+should not be reading a warning that they might not.
+
+## Container capacity: `SlotNum`, not the slot array
+
+The save stores **only occupied slots**; `SlotNum` is the real capacity and the
+parser ignored it. One omission, three symptoms:
+
+- no empty rows in the slot editor, so a slot could only be *overwritten*
+- **`fillPercent` was ~100% for every base**, so the "nearly full" warning had
+  been firing permanently and meaning nothing
+- stored `slot_index` values are **sparse**, so the UI's row numbers disagreed
+  with the indices the writer uses — the out-of-range errors
+
+`extract_containers` pads to `SlotNum`. The reference world reads 6%–66% full
+instead of 100% everywhere.
+
+**One code path, so it covers everything an item container can be.** Verified on
+the reference world: a player's six containers — `CommonContainerId` (45),
+`DropSlotContainerId` (4), `EssentialContainerId` (230, the key items),
+`WeaponLoadOutContainerId` (6), `PlayerEquipArmorContainerId` (9) and
+`FoodEquipContainerId` (5) — all come back with contiguous indices and padded
+empty slots, exactly as base chests do. There is no separate inventory parser to
+keep in step.
+
+**Pal skins are the exception, and they are not an item container at all.**
+`SaveData.SkinInventoryInfo.InGameData` is a plain array of
+`{SkinName, Num}` — no container id, no slots, nothing in
+`ItemContainerSaveData`. See the task notes: all five reference players hold the
+identical 22 skins, which is also the total the pak ships, so there is nothing to
+grant.
+
+## Work suitability is empty for exactly two released Pals
+
+Panthalus (#203) and Astralym (#204). The other 29 forms with no work are raid,
+gym and unreleased entries the Paldeck does not list. Checked against the
+reference source for all 753 forms: **zero disagreements**, so an empty set here
+is the game's answer and not a gap in the bundle.
+
+The Paldeck panel used to `return null` for them, so the heading vanished along
+with the content — indistinguishable from data that failed to load, which is how
+it got reported as missing. It now renders the section and says "None — this Pal
+cannot be assigned to work at a base."
+
+## A guild move is four structures, and the fifth is not there
+
+`backend/guildedit.py`. Membership is not one field — a player belongs to a guild
+through the guild's `players[]`, its `admin_player_uid`, the `group_id` on their
+character **and every Pal they own**, and the guild's
+`individual_character_handle_ids[]` index of those same characters. Three of four
+raises nothing and leaves a world the game reads inconsistently, so the
+verification counts all four and runs again after re-reading from disk.
+
+**PST writes a fifth and this does not.** `move_player_to_guild` sets
+`SaveData.GroupId` in the player's `.sav`. That key **does not exist** on a
+Palworld 1.0 player save — the reference world's 16 `SaveData` keys do not include
+it — so writing it would be *creating* a property the game does not store, on the
+same reasoning that keeps `MasteredWaza` uneditable. Membership evidently lives
+entirely in `GroupSaveDataMap` and in each character's `group_id`, which every
+character on the reference world already agrees with: five guild ids account for
+all 1,910 of them.
+
+### The solo-guild case is the main one, and PST deletes bases for it
+
+All five guilds on the reference world have **exactly one member**, so "move this
+player to their friend's guild" empties the origin guild every time. PST removes
+the guild and calls `delete_base_camp` on everything it owned — three fully built
+bases destroyed to carry out a request that said nothing about bases.
+
+So it is handled rather than avoided. By default the move is **refused**, naming
+what is at stake (`3 base(s) and 54 base-deployed Pal(s)`); `transfer_bases=True`
+re-homes those bases to the target guild inside the same all-or-nothing write and
+then removes the emptied guild. Nothing is ever deleted. Base deletion is not
+implemented and should not be added here — it belongs to a feature that says
+"delete this base", where someone can be asked about it.
+
+### Which characters move
+
+Owned Pals carry `OwnerPlayerUId`. **170 of 1,910 carry none at all** — those are
+the base-deployed workers, and they belong to a *base* rather than to a person, so
+they move only when their base does. The cross-check that this partition is
+complete: on "Greed", 560 owned + 54 base workers = **614**, exactly the guild's
+`individual_character_handle_ids` count.
+
+Handle entries are **relocated, not rebuilt.** Each carries a `guid` beside the
+instance id; reconstructing one means inventing that guid, and the origin guild
+already holds the right value.
+
+`MapObjectConcreteInstanceIdAssignedToExpedition` is cleared on every moved
+character — expeditions are guild-scoped, and an assignment that survives points
+at a map object the new guild does not own.
+
+The emptied guild is removed **last**, after its bases have been re-homed, so a
+failure anywhere earlier leaves it still holding them.
+
+## What the client pak does and does not unlock
+
+`refs/Pal-Windows.pak` — 40.5 GB, 185,003 files. The extraction rule is the same
+one `upackage.py` documents and it decides everything:
+
+**Name tables are plainly serialised; property values are not.** Palworld's
+packages are cooked with unversioned properties, so a DataTable's *rows* cannot
+be decoded — but the strings it references can. Measured on four tables:
+
+| Table | Names | What that gives |
+|---|---:|---|
+| `DT_ItemLotteryDataTable` | 9,542 | which items a drop table references |
+| `DT_TechnologyRecipeUnlock_Common` | 2,258 | what each technology unlocks |
+| `DT_FriendshipRankTable` | 15 | **nothing** — the thresholds are numbers |
+| `DT_BossSpawnerLoactionData` | 344 | **nothing** — the coordinates are numbers |
+
+So: *which things reference which things* is extractable (the habitat and
+field-boss trick, 480 non-localised DataTables to mine). *Rates, thresholds,
+coordinates and any other numeric column* are not, and no amount of effort here
+changes that — those come from `refs/PalWorldSaveTools-main.zip`, which already
+decoded them.
+
+Also present and unused: **12 localisation languages** under `L10N/` (de, es, fr,
+id, it, ko, pl, ru, th, tr, vi + en) with the game's own item, Pal, skill and
+technology name tables — enough to speak a player's language using Pocketpair's
+own strings rather than a translation of them. And 21,056 `.ubulk` files, which
+is where every texture's pixel data lives.
+
+**It does not unlock durability-record creation** — so "add an egg to a chest"
+stays refused. That is a save-format question, not a game-data one; see the
+`DynamicItemSaveData` section, where the copy count is now measured rather than
+guessed at. `scripts/diff-dynamic-items.py` is the five-minute experiment that
+would settle it: diff `Level.sav` before and after crafting **one** item in game,
+and the number of records it added is the number the refusal is waiting for.
+
+**Field boss levels are still unavailable, and the pak was checked.** The 94
+`FBOSS` spawner packages carry exactly one species name each (`BOSS_PoseidonOrca`,
+`BOSS_VioletFairy`) and **zero numeric entries** in their name tables. Level is a
+numeric property in the unversioned block — the same wall as
+`DT_FriendshipRankTable` and `DT_BossSpawnerLoactionData`. Name, artwork, rarity
+and description remain what the data supports; do not invent the rest.
+
+### Icon coverage, actually measured
+
+| Section | Resolve | Note |
+|---|---|---|
+| items | 2,456 / 2,466 | the 10 are test entries and unreleased ammo |
+| pals | 705 / 753 | 48 boss and variant forms have **no art anywhere**, client pak included |
+| npcs | 372 / 372 | |
+| technology | 0 / 588 | **not installed by design** — `install-icons.py` |
+| structures | 3 / 1,088 | same; the map draws its own markers |
+
+The last two are a deliberate 6.4 MB saving for icons nothing renders, and
+`build-gamedata.py` now says so per section rather than printing one alarming
+total that buries a real regression in items or Pals.
+
+**Two Pal icons were broken on Linux only.** The reference data records
+`T_Thunderdog_Ice_icon_normal.webp` for a file that ships as
+`T_ThunderDog_Ice_icon_normal.webp`. It resolves on macOS and Windows and 404s in
+the container — so it worked on every developer machine and failed only where it
+mattered. `resolve_icons()` now fixes case at build time against what is actually
+in `public/icons/`, and reports anything still unresolved rather than blanking it:
+an empty path and a wrong one both render as no artwork, but only one of them
+tells you a regeneration lost something.

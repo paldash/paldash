@@ -19,9 +19,11 @@ from saveedit import (
     _has_dynamic_id,
     _is_empty,
     _max_stacks,
+    _order_key,
     _sort_container,
     _totals,
 )
+from saveedit import sort_containers as saveedit_sort_containers
 
 
 # ─── Builders matching the parsed save shape ─────────────────────
@@ -288,3 +290,69 @@ def test_sort_refuses_when_server_may_be_running(monkeypatch, tmp_path):
 
     with pytest.raises(safety.ServerRunningError):
         saveedit.sort_containers(mode="stackables")
+
+
+# ─── Category ordering ───────────────────────────────────────────
+
+
+def test_category_order_groups_by_the_games_own_category():
+    """
+    The point of the category ordering: things that belong together end up
+    together. By internal id `Cake` and `Coal` sort adjacently and `Wood` sorts
+    far away, which describes their spelling and nothing about the items.
+    """
+    entry = container("c", [
+        slot("Coal", 5),
+        slot("Cake", 2),
+        slot("Wood", 9),
+        slot("Stone", 3),
+    ])
+    _sort_container(entry, "stackables", merge=False, max_stacks={},
+                    order_key=_order_key("category"))
+    ordered = [i for i, _ in counts_of(entry)]
+
+    # Asserting the *grouping* rather than a literal list, so regenerating the
+    # bundled game data cannot break this over a changed sortId. Every category
+    # must occupy one contiguous run.
+    import gamedata
+    types = [(gamedata.item(i) or {}).get("typeA") for i in ordered]
+    runs = [t for n, t in enumerate(types) if n == 0 or types[n - 1] != t]
+    assert len(runs) == len(set(types)), (
+        f"a category was split across the container: {list(zip(ordered, types))}"
+    )
+    # And the three Materials really did end up together rather than the test
+    # passing on a container that happened to hold one of each.
+    assert types.count("Material") == 3
+
+
+def test_category_order_puts_unknown_items_last():
+    """
+    Mod content and items newer than the bundle have no category. Sorting them
+    at `sortId` 0 would put them *first* — ahead of everything the dashboard
+    does understand, which is the most confusing place available.
+    """
+    entry = container("c", [
+        slot("AAAAModItemThatDoesNotExist", 1),
+        slot("Wood", 1),
+        slot("Stone", 1),
+    ])
+    _sort_container(entry, "stackables", merge=False, max_stacks={},
+                    order_key=_order_key("category"))
+    assert [i for i, _ in counts_of(entry)][-1] == "AAAAModItemThatDoesNotExist"
+
+
+def test_category_order_still_conserves_totals():
+    """The invariant does not care how things are arranged, and must not start."""
+    entry = container("c", [slot("Wood", 7), slot("Stone", 3), slot("Wood", 11)])
+    before = _totals([entry])
+    _sort_container(entry, "stackables", merge=True,
+                    max_stacks={"Wood": 9999, "Stone": 9999},
+                    order_key=_order_key("category"))
+    _assert_conserved(before, _totals([entry]), "test")
+
+
+def test_an_unknown_order_is_refused_rather_than_ignored():
+    import pytest
+
+    with pytest.raises(SaveEditError, match="Unknown sort order"):
+        saveedit_sort_containers(order="alphabetical-by-vibes")

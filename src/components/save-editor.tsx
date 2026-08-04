@@ -13,6 +13,7 @@ import { CAPABILITIES } from '@/lib/permissions';
 import CharacterEditor from './character-editor';
 import BulkPalEditor from './bulk-pal-editor';
 import SlotEditor from './slot-editor';
+import GuildMove from './guild-move';
 import PalCheck from './pal-check';
 import PalImport from './pal-import';
 import WorldExport from './world-export';
@@ -37,6 +38,10 @@ export default function SaveEditor() {
   // a shared server, but the world-wide sort is what most single-guild servers
   // actually want, so neither is forced.
   const [scope, setScope] = useState('');
+  // How the sorted result is arranged. Separate from the mode, which is about
+  // what is safe to move — bundling them would make "sort by category" imply
+  // permission to relocate durability items.
+  const [order, setOrder] = useState<'id' | 'category'>('category');
   // Whether the operator configured STOP_COMMAND / START_COMMAND. Both are off
   // by default, so the container buttons stay hidden unless they would work.
   const [canStopContainer, setCanStopContainer] = useState(false);
@@ -66,8 +71,12 @@ export default function SaveEditor() {
       ? `the containers belonging to ${bases.find((b) => b.id === scope)?.name ?? 'that base'}`
       : 'every container in the world';
 
+    const arrangement = order === 'category'
+      ? 'grouped by item category, in the order the game itself uses'
+      : 'ordered by internal item id';
+
     if (!confirm(
-      `Sort ${target}, affecting ${label}?\n\n` +
+      `Sort ${target}, affecting ${label}, ${arrangement}?\n\n` +
       'A full backup is taken first, and the result is verified against the original ' +
       'item totals. If anything does not add up, the world is rolled back automatically.'
     )) return;
@@ -75,7 +84,7 @@ export default function SaveEditor() {
     setBusy(mode);
     setLastResult(null);
     try {
-      const result = await sortContainers(mode, true, scope || undefined);
+      const result = await sortContainers(mode, true, scope || undefined, order);
       setLastResult(result);
       flash(
         `Sorted ${result.slotsChanged} slots across ${result.containersTouched} of ` +
@@ -219,6 +228,25 @@ docker compose start palworld    # bring it back`}
             ? 'Only this base’s storage is rewritten. Every other chest in the world is left byte-for-byte alone — though the conservation check still covers all of them.'
             : 'Every container on the server, including other guilds’ bases and world chests. On a shared server, pick a single base instead.'}
         </p>
+
+        <div className="section-title" style={{ margin: '16px 0 10px' }}>
+          <ArrowUpDown size={14} /> How to arrange it
+        </div>
+        <select
+          className="input"
+          value={order}
+          onChange={(e) => setOrder(e.target.value as 'id' | 'category')}
+          disabled={busy !== null}
+          style={{ maxWidth: 420 }}
+        >
+          <option value="category">By category, in the game’s own order</option>
+          <option value="id">By internal item id (alphabetical)</option>
+        </select>
+        <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 8, lineHeight: 1.6 }}>
+          {order === 'category'
+            ? 'Materials together, weapons together, food together — each group in the same order Palworld shows in your own inventory. Items this build does not recognise (mods, or content newer than the bundled data) go to the end rather than to the front.'
+            : 'Alphabetical on the internal id, which puts Coal next to CommonShield. Kept because it is what earlier builds did and it needs no game data at all.'}
+        </p>
       </div>
 
       {/* ─── Container sorting ─── */}
@@ -261,6 +289,7 @@ docker compose start palworld    # bring it back`}
           <CharacterEditor canEdit={canEdit} />
           <BulkPalEditor canEdit={canEdit} />
           <SlotEditor canEdit={canEdit} />
+          <GuildMove canEdit={canEdit} />
           <div className="glass-card" style={{ padding: 16 }}>
             <PalImport canEdit={canEdit} />
           </div>

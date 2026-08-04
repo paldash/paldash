@@ -121,7 +121,15 @@ const ROUTES: RouteRule[] = [
   { pattern: /^world\/paldeck\/[A-Za-z0-9_]+$/, methods: ['GET'], capability: CAPABILITIES.VIEW_BASIC, feature: FEATURES.SERVER_STATUS },
   { pattern: /^world\/objects\/categories$/, methods: ['GET'], capability: CAPABILITIES.VIEW_BASIC, feature: FEATURES.MAP_OBJECTS },
   { pattern: /^world\/fasttravel$/, methods: ['GET'], capability: CAPABILITIES.VIEW_BASIC, feature: FEATURES.MAP_OBJECTS },
+  // The effigy counterpart, and it carries the same caveat: VIEW_BASIC here, with
+  // the backend applying `discoveryVisibility` per category. It is the map's
+  // fallback when /world/discoveries is unavailable — which it is for every
+  // guest, since that route requires a real account.
+  { pattern: /^world\/effigies$/, methods: ['GET'], capability: CAPABILITIES.VIEW_BASIC, feature: FEATURES.MAP_OBJECTS },
   { pattern: /^world\/reference$/, methods: ['GET'], capability: CAPABILITIES.VIEW_BASIC, feature: FEATURES.SERVER_STATUS },
+  // The item *catalogue* — what the game has. Not /items, which reports what
+  // this world holds and is privacy-filtered per guild.
+  { pattern: /^world\/items$/, methods: ['GET'], capability: CAPABILITIES.VIEW_BASIC, feature: FEATURES.SERVER_STATUS },
   // Discoveries are VIEW_BASIC because a Player must be able to see their OWN
   // progress. The backend decides what a given role may see of the undiscovered
   // half — the proxy cannot, since that depends on the discoveryVisibility
@@ -168,6 +176,11 @@ const ROUTES: RouteRule[] = [
   { pattern: /^edit\/pals\/bulk$/, methods: ['POST'], capability: CAPABILITIES.SAVE_EDIT_FULL, feature: null },
   { pattern: /^edit\/container\/[A-Za-z0-9-]+\/slots\/preview$/, methods: ['POST'], capability: CAPABILITIES.SAVE_EDIT_FULL, feature: null },
   { pattern: /^edit\/container\/[A-Za-z0-9-]+\/slots$/, methods: ['POST'], capability: CAPABILITIES.SAVE_EDIT_FULL, feature: null },
+  // Guild membership. SAVE_EDIT_FULL because it rewrites Level.sav and can
+  // re-home a guild's bases — a heavier thing than it sounds, which is why the
+  // preview is a separate route and the apply requires its hash.
+  { pattern: /^edit\/guild\/move\/preview$/, methods: ['POST'], capability: CAPABILITIES.SAVE_EDIT_FULL, feature: null },
+  { pattern: /^edit\/guild\/move$/, methods: ['POST'], capability: CAPABILITIES.SAVE_EDIT_FULL, feature: null },
   // Clone routes are literal, and they come BEFORE the `edit/pal/{id}` patterns
   // above would ever be consulted for them — `clone` is not a GUID, so it cannot
   // match `[A-Za-z0-9-]+` ambiguously in a way that matters, but keeping them

@@ -5,14 +5,14 @@ import MapLayersPanel from '@/components/map-layers-panel';
 import { useDashboardStore } from '@/lib/store';
 import { formatCoords, getRegion, MAP_REGIONS, type MapRegion } from '@/lib/map-coordinates';
 import {
-  getMapObjects, getFastTravelPoints, getDiscoveries,
+  getMapObjects, getFastTravelPoints, getDiscoveries, getEffigyPoints,
   getStaticWorldObjects, getStaticWorldSummary,
 } from '@/lib/save-api';
 import { Crosshair, RefreshCw, Search, Info } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import BuildBanner from './build-banner';
 import type {
-  MapObject, FastTravelPoint, Discoveries,
+  MapObject, FastTravelPoint, Discoveries, DiscoveryPoint,
   StaticWorldObject, StaticWorldSummary,
 } from '@/lib/types';
 
@@ -91,6 +91,8 @@ export default function InteractiveMap() {
   const [mapObjects, setMapObjects] = useState<MapObject[]>([]);
   const [fastTravel, setFastTravel] = useState<FastTravelPoint[]>([]);
   const [discoveries, setDiscoveries] = useState<Discoveries | null>(null);
+  const [effigies, setEffigies] = useState<DiscoveryPoint[]>([]);
+  const [discoveryError, setDiscoveryError] = useState<string | null>(null);
   const [region, setRegion] = useState<MapRegion>('palpagos');
   const [query, setQuery] = useState('');
   const [flyTo, setFlyTo] = useState<{ x: number; y: number; nonce: number } | null>(null);
@@ -184,17 +186,33 @@ export default function InteractiveMap() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [objects, points, found] = await Promise.allSettled([
+    const [objects, points, found, relics] = await Promise.allSettled([
       getMapObjects(),
       getFastTravelPoints(),
       // Discoveries may legitimately fail — a guest has no character, and the
       // policy may forbid the undiscovered half entirely. The map falls back to
-      // the plain point list rather than losing the layer.
+      // the plain point lists rather than losing the layers.
       getDiscoveries(),
+      // The effigy half of that fallback. It did not exist, so while fast travel
+      // survived a failed /discoveries call, effigies silently disappeared — the
+      // layer toggle stayed on and drew nothing, with no error anywhere.
+      getEffigyPoints(),
     ]);
     setMapObjects(objects.status === 'fulfilled' ? objects.value : []);
     setFastTravel(points.status === 'fulfilled' ? points.value : []);
     setDiscoveries(found.status === 'fulfilled' ? found.value : null);
+    setEffigies(relics.status === 'fulfilled' ? relics.value : []);
+    // A layer that is switched on and empty is indistinguishable from a layer
+    // that failed to load, which is how "effigies not showing" went undiagnosed.
+    // Only reported when the fallback failed too — one endpoint being down while
+    // the other answers is a degradation, not an outage.
+    setDiscoveryError(
+      found.status === 'rejected' && relics.status === 'rejected'
+        ? relics.reason instanceof Error
+          ? relics.reason.message
+          : 'Discovery data could not be loaded'
+        : null
+    );
     setLoading(false);
   }, []);
 
@@ -213,7 +231,10 @@ export default function InteractiveMap() {
       acc[object.category] = (acc[object.category] ?? 0) + 1;
     }
     acc.fastTravel = fastTravel.filter((p) => transform.contains(p.x, p.y)).length;
-    acc.effigies = (discoveries?.effigies.points ?? []).filter((p) => transform.contains(p.x, p.y)).length;
+    // Same fallback the markers use, so the chip count and what is drawn cannot
+    // disagree — a "0" beside a layer full of markers reads as a broken filter.
+    acc.effigies = (discoveries?.effigies.points ?? effigies)
+      .filter((p) => transform.contains(p.x, p.y)).length;
     acc.players = onlinePlayers.filter((p) =>
       transform.contains(p.location_x, p.location_y)
     ).length;
@@ -226,7 +247,7 @@ export default function InteractiveMap() {
       acc[`static:${category.id}`] = category.count;
     }
     return acc;
-  }, [mapObjects, fastTravel, discoveries, onlinePlayers, bases, transform, staticSummary]);
+  }, [mapObjects, fastTravel, discoveries, effigies, onlinePlayers, bases, transform, staticSummary]);
 
   /**
    * Save-derived layers, described in the same shape the static ones use, so
@@ -257,7 +278,7 @@ export default function InteractiveMap() {
     }
     // Effigies are their own layer and carry a kind from the extraction.
     const effigyKinds = new Map<string, number>();
-    for (const point of discoveries?.effigies.points ?? []) {
+    for (const point of discoveries?.effigies.points ?? effigies) {
       if (!transform.contains(point.x, point.y)) continue;
       const kind = point.kind || 'Effigy';
       effigyKinds.set(kind, (effigyKinds.get(kind) ?? 0) + 1);
@@ -285,7 +306,7 @@ export default function InteractiveMap() {
         .map(([cls, count]) => ({ cls, count, label: kindLabel.get(cls) }))
         .sort((a, b) => b.count - a.count),
     }));
-  }, [mapObjects, discoveries, fastTravel, transform]);
+  }, [mapObjects, discoveries, effigies, fastTravel, transform]);
 
   // Search across fast-travel names and base/guild names.
   const results = useMemo(() => {
@@ -467,6 +488,14 @@ export default function InteractiveMap() {
         </div>
       )}
 
+      {discoveryError && (
+        <div className="notice notice-warn" style={{ fontSize: 12 }}>
+          <Info size={13} style={{ display: 'inline', verticalAlign: '-2px', marginRight: 5 }} />
+          <strong>Fast-travel and effigy layers unavailable.</strong>{' '}
+          {discoveryError}
+        </div>
+      )}
+
       {!mapObjects.length && !loading && (
         <div className="notice" style={{ fontSize: 12 }}>
           No map objects loaded. Save data is parsed on demand — press{' '}
@@ -482,6 +511,7 @@ export default function InteractiveMap() {
           mapObjects={mapObjects}
           fastTravel={fastTravel}
           discoveries={discoveries}
+          effigies={effigies}
           staticObjects={staticObjects}
           layers={mapLayers}
         kindsOff={staticKindsOff}

@@ -1112,6 +1112,22 @@ export interface IniSettings {
   groups: { label: string; keys: string[] }[];
   serverRunning: boolean;
   restartRequiredForAll: boolean;
+  /**
+   * Whether this deployment's server image rewrites the INI when it starts.
+   *
+   * Observed rather than recognised: the dashboard cannot read the game
+   * container's environment, so it hashes the file when it writes it and again
+   * after a restart. `unknown` is the honest starting state — "not yet
+   * observed", not "safe".
+   */
+  iniWatch?: {
+    verdict: 'unknown' | 'preserved' | 'regenerated';
+    detail: string;
+    observedAt: string | null;
+    /** A dashboard write is on record and a restart has not been seen yet. */
+    awaitingRestart: boolean;
+    lastWriteAt: string | null;
+  };
 }
 
 export interface SettingsPreset {
@@ -1234,6 +1250,23 @@ export interface PalboxSummary {
   /** Whether this caller may scope to someone other than themselves at all. */
   mayScopeToOthers?: boolean;
   linkedToPlayer?: boolean;
+  /**
+   * How many Pals the answer was computed from.
+   *
+   * Zero alongside `linkedToPlayer: false` is the case people report as the
+   * dashboard forgetting their account: the request succeeded, the scope
+   * resolved to a character that is not in this world, and an empty planner is
+   * otherwise indistinguishable from a broken one.
+   */
+  pals?: number;
+}
+
+/** The scope fields every scoped breeding endpoint returns, not just /palbox. */
+export interface BreedingScope {
+  scope?: string;
+  mayScopeToOthers?: boolean;
+  linkedToPlayer?: boolean;
+  pals?: number;
 }
 
 /** One breeding step: two parents and what they produce. */
@@ -1249,12 +1282,23 @@ export interface BreedingStep {
  * Excludes depth-1 children: those are already the offspring list, and
  * repeating them here would bury the ones that actually need a plan.
  */
-export interface ReachableTargets {
+export interface ReachableTargets extends BreedingScope {
   maxDepth: number;
   ownedSpecies: number;
   /** Whether the search only used pairs this owner can physically make. */
   genderAware?: boolean;
   targets: (PalSummary & { depth: number; steps: BreedingStep[] })[];
+}
+
+/** A route to one target, plus the scope it was computed against. */
+export interface BreedingPath extends BreedingScope {
+  target?: string;
+  reachable: boolean;
+  alreadyOwned?: boolean;
+  reason?: string;
+  /** Whether the search only used pairs this owner can actually make. */
+  genderAware?: boolean;
+  steps: BreedingStep[];
 }
 
 export interface OffspringOption extends PalSummary {
@@ -1271,4 +1315,106 @@ export interface MapMarker {
   y: number;
   z?: number;
   data?: Record<string, unknown>;
+}
+
+
+/**
+ * One row of the game's item catalogue — what Palworld has, not what a world
+ * holds. Carries `id` and `name` together because the API speaks ids (`AIcore`)
+ * and people speak names ("AI Core"), and either must be searchable.
+ */
+export interface CatalogueItem {
+  id: string;
+  name: string;
+  icon: string;
+  rarity: number;
+  typeA: string;
+  typeB: string;
+  maxStack: number;
+  weight: number;
+  /** Equipment. Overwriting such a slot would orphan a durability record. */
+  hasDurability: boolean;
+}
+
+
+/** One stat, term by term, so a figure can be explained rather than asserted. */
+export interface StatBreakdown {
+  base: number;
+  condenserMultiplier: number;
+  baseWithCondenser: number;
+  trust: number;
+  awakening: number;
+  subtotal: number;
+  soulMultiplier: number;
+  passiveMultiplier: number;
+  final: number;
+}
+
+/** How far through the current level, from the game's own Pal EXP table. */
+export interface LevelProgress {
+  known: boolean;
+  maxed?: boolean;
+  intoLevel?: number;
+  needed?: number;
+  remaining?: number;
+  percent?: number;
+}
+
+export interface PalStats {
+  hp: StatBreakdown;
+  attack: StatBreakdown;
+  defense: StatBreakdown;
+  workSpeed: StatBreakdown;
+  friendshipRank: number;
+  progress: LevelProgress;
+  inputs: {
+    level: number;
+    condenserRank: number;
+    /** Rank minus one — rank 1 is *no* stars, which is the easy off-by-one. */
+    condenserStars: number;
+    soulRanks: Record<string, number>;
+    trustPoints: number;
+    isAlpha: boolean;
+    isLucky: boolean;
+  };
+  /** Always true. Present so a UI cannot show these as if read from the save. */
+  calculated: boolean;
+}
+
+
+// ─── Guild membership ───────────────────────────────────
+
+/** What a guild move would change, before anything is written. */
+export interface GuildMovePlan {
+  ok: boolean;
+  problems: string[];
+  warnings: string[];
+  playerUid: string;
+  playerName: string;
+  origin: { id: string; name: string; members: number; bases: number; isAdmin: boolean };
+  target: { id: string; name: string; members: number; bases: number };
+  /** The player's own character plus every Pal they own. */
+  movesCharacters: number;
+  /** Only non-zero when the origin guild empties and bases come along. */
+  movesBases: number;
+  /** Pals deployed at those bases — they belong to the base, not to a person. */
+  movesBaseWorkers: number;
+  removesOriginGuild: boolean;
+  /** Who inherits the origin guild, when it keeps members and loses its leader. */
+  newLeaderOfOrigin: string;
+  /** Fingerprint of the world this was computed against. Required to apply. */
+  planHash: string;
+}
+
+export interface GuildMoveResult {
+  ok: boolean;
+  playerUid: string;
+  playerName: string;
+  fromGuild: string;
+  toGuild: string;
+  charactersMoved: number;
+  basesMoved: number;
+  originGuildRemoved: boolean;
+  backupId: string;
+  verified: boolean;
 }

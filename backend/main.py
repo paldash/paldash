@@ -35,6 +35,8 @@ import editschema
 import gameapi
 import gameversion
 import gamedata
+import guildedit
+import iniwatch
 import lifecycle
 import metrics
 import mods
@@ -42,6 +44,7 @@ import moderate
 import palcheck
 import palclone
 import palimport
+import palstats
 import policy as policy_module
 import privacy
 import reports
@@ -89,6 +92,9 @@ async def _lifespan(_app: FastAPI) -> AsyncIterator[None]:
     """
     db.init()
     schedule_module.init()
+    # Its own table, created here so `describe()` on a fresh database returns
+    # "unknown" rather than raising on the first Settings tab load.
+    iniwatch.init()
     accounts.purge_expired()
     schedule_module.start()
     # After db.init(), because the first sample writes a row.
@@ -870,6 +876,17 @@ def _enriched_pals() -> list[dict]:
                 # without a lookup table of its own.
                 "workSuitabilities": details.get("workSuitabilities") or {},
                 "rarity": details.get("rarity", 0),
+                # HP / Attack / Defense / Work Speed, and how far through the
+                # level. The save stores only the *inputs* — level, IVs,
+                # condenser rank, souls, trust — and the game computes the rest
+                # at load, so there is nothing to read and this has to be
+                # calculated. `palstats` says so in the payload.
+                #
+                # None for the 99 humans and NPCs in the reference world's
+                # character map, which carry IVs exactly like a Pal and have no
+                # scaling numbers anywhere. Guessing would produce confident
+                # stats for a merchant.
+                "stats": palstats.describe(pal),
             }
         )
     return enriched
@@ -1028,6 +1045,39 @@ def get_fast_travel_points(request: Request) -> dict[str, Any]:
     return {
         "points": [p for p in points if str(p.get("key", "")).upper() in found],
         "filtered": True,
+    }
+
+
+@app.get("/api/world/effigies")
+def get_effigy_points(request: Request) -> dict[str, Any]:
+    """
+    Effigies, with world coordinates and their instance GUIDs.
+
+    The plain-list counterpart to `/api/world/fasttravel`, and it exists for the
+    same reason: **the map's effigy layer had no fallback.**
+    `/api/world/discoveries` serves both categories at once, requires a real
+    account (`require_user`) and 503s if either bundle is missing — so a guest, or
+    a moment when the effigy bundle failed to load, took the whole response down.
+    Fast travel survived that because the map falls back to its own endpoint;
+    effigies simply vanished, with no error anywhere, which is exactly what
+    "effigies not showing for some users" looks like from the outside.
+
+    `discoveryVisibility` is applied **here**, not by the caller — the lesson from
+    `/api/world/fasttravel`, which for months returned all 174 points beside a
+    sibling that carefully filtered them. A filter applied to one of two endpoints
+    serving the same data is not a filter.
+    """
+    authz.require(request, roles_module.VIEW_BASIC)
+    points = gamedata.effigies()
+
+    if _may_see_undiscovered(request, "effigies"):
+        return {"points": points, "filtered": False, "total": len(points)}
+
+    found = _own_discovered_keys(request, "effigies")
+    return {
+        "points": [p for p in points if str(p.get("guid", "")).upper() in found],
+        "filtered": True,
+        "total": len(points),
     }
 
 
@@ -1376,6 +1426,29 @@ def get_discoveries(request: Request, uid: str = Query("")) -> dict[str, Any]:
             "points": effigies,
         },
     }
+
+
+@app.get("/api/world/items")
+def get_item_catalogue(request: Request) -> dict[str, Any]:
+    """
+    Every item in the game, by id **and** friendly name.
+
+    Reference data, like `/api/world/paldeck` — it describes what Palworld has,
+    not what this world holds, so it is `VIEW_BASIC` and needs no parsed save.
+
+    `/api/items` is the other one and they are easy to confuse: that reports the
+    contents of the parsed world and is privacy-filtered per guild. This is the
+    catalogue. The slot editor was built on the first, so any legitimate item
+    nobody on the server owned rendered as "not in this world" — the editor
+    calling valid input wrong while the backend, which had always validated
+    against this catalogue, went on to accept it.
+    """
+    authz.require(request, roles_module.VIEW_BASIC)
+    try:
+        items = viewcache.per_file(gamedata.DATA_PATH, gamedata.all_items)
+    except gamedata.GameDataUnavailable as e:
+        raise HTTPException(503, str(e))
+    return {"items": items, "total": len(items)}
 
 
 @app.get("/api/world/reference")
@@ -2097,6 +2170,33 @@ def _breeding_owner(request: Request, owner: Optional[str]) -> Optional[str]:
     return uid or "\u0000no-such-uid"
 
 
+def _breeding_scope(request: Request, owner: Optional[str]) -> dict[str, Any]:
+    """
+    Which Pals a breeding answer was actually computed from.
+
+    Every scoped breeding route returns this, not just `/palbox`. The planner
+    fetches four endpoints and shows one header, so scope reported on one of them
+    describes the other three by implication — and when the backend silently pins
+    a request to the caller, that implication is wrong on all three. A route plan
+    computed from your own palbox, displayed under a header saying "all Pals on
+    the server", reads as a wrong answer rather than as a narrower question.
+
+    `pals` is the count the answer was built from. Zero with `linkedToPlayer`
+    false is the specific case people report as "it forgot my account": the
+    request succeeded, the scope resolved to a character that does not exist, and
+    an empty planner is indistinguishable from a broken one without this.
+    """
+    may_see_all = _may_see_all_pals(request)
+    own_uid, _ = _own_identity(request)
+    effective = _breeding_owner(request, owner)
+    return {
+        "mayScopeToOthers": may_see_all,
+        "scope": ("server" if not owner else f"player:{owner}") if may_see_all else "own",
+        "linkedToPlayer": bool(own_uid),
+        "pals": len(_pals_for(effective)),
+    }
+
+
 @app.get("/api/breeding/palbox")
 def breeding_palbox(request: Request, owner: Optional[str] = None) -> dict:
     """
@@ -2109,6 +2209,7 @@ def breeding_palbox(request: Request, owner: Optional[str] = None) -> dict:
     Player their own palbox — the data was right and the header was a lie, which
     is worse than either being wrong on its own, because nothing looks broken.
     """
+    authz.require(request, roles_module.VIEW_SELF)
     try:
         summary = breeding.summarize_palbox(
             _pals_for(_breeding_owner(request, owner))
@@ -2116,18 +2217,12 @@ def breeding_palbox(request: Request, owner: Optional[str] = None) -> dict:
     except breeding.BreedingDataError as e:
         raise HTTPException(503, str(e))
 
-    may_see_all = _may_see_all_pals(request)
-    own_uid, _ = _own_identity(request)
-    return {
-        **summary,
-        "mayScopeToOthers": may_see_all,
-        "scope": ("server" if not owner else f"player:{owner}") if may_see_all else "own",
-        "linkedToPlayer": bool(own_uid),
-    }
+    return {**summary, **_breeding_scope(request, owner)}
 
 
 @app.get("/api/breeding/offspring")
 def breeding_offspring(request: Request, owner: Optional[str] = None) -> list[dict]:
+    authz.require(request, roles_module.VIEW_SELF)
     try:
         return breeding.possible_offspring(_pals_for(_breeding_owner(request, owner)))
     except breeding.BreedingDataError as e:
@@ -2149,13 +2244,15 @@ def breeding_reachable(request: Request, owner: Optional[str] = None) -> dict:
     and regardless of `allPalsVisibility`. Every sibling route was scoped; this
     one was simply missed.
     """
+    authz.require(request, roles_module.VIEW_SELF)
     try:
         pals = _pals_for(_breeding_owner(request, owner))
         summary = breeding.summarize_palbox(pals)
         owned = [s["internalName"] for s in summary["species"]]
-        return breeding.indirect_targets(owned, genders=breeding.gender_pool(pals))
+        result = breeding.indirect_targets(owned, genders=breeding.gender_pool(pals))
     except breeding.BreedingDataError as e:
         raise HTTPException(503, str(e))
+    return {**result, **_breeding_scope(request, owner)}
 
 
 @app.get("/api/breeding/paths")
@@ -2166,16 +2263,22 @@ def breeding_path(request: Request, target: str, owner: Optional[str] = None) ->
     Gender is enforced (see `breeding._expand`): scoping the planner to one
     player's palbox made single-gender species common, and a plan whose second
     step needs two males is not a plan.
+
+    The scope travels with the plan. "Not reachable" is a claim about a specific
+    set of Pals, and a player reading it under the wrong header concludes the
+    route finder is broken rather than that they were asked about their own box.
     """
+    authz.require(request, roles_module.VIEW_SELF)
     try:
         pals = _pals_for(_breeding_owner(request, owner))
         summary = breeding.summarize_palbox(pals)
         owned = [s["internalName"] for s in summary["species"]]
-        return breeding.breeding_paths(
+        result = breeding.breeding_paths(
             target, owned, genders=breeding.gender_pool(pals)
         )
     except breeding.BreedingDataError as e:
         raise HTTPException(503, str(e))
+    return {**result, **_breeding_scope(request, owner)}
 
 
 @app.get("/api/breeding/pals")
@@ -2229,6 +2332,11 @@ def read_settings(request: Request) -> dict:
         "serverRunning": get_server_state().running,
         # Nothing in this file is hot-swappable: the server reads it at boot only.
         "restartRequiredForAll": True,
+        # Whether this deployment's image rewrites the file on start — measured
+        # on this server rather than guessed from an image name. `unknown` until
+        # the dashboard has written the INI and seen a restart, which is the
+        # honest starting state: it means "not yet observed", not "safe".
+        "iniWatch": iniwatch.describe(),
     }
 
 
@@ -2945,9 +3053,19 @@ async def apply_import(request: Request, planHash: str = Query(...)) -> dict:
 class SortRequest(BaseModel):
     merge: bool = True
     baseId: Optional[str] = None
+    # How the result is arranged, which is a separate question from `mode` (what
+    # is safe to move). Defaults to the previous behaviour so an existing client
+    # that does not send it gets exactly what it got before.
+    order: str = "id"
 
 
-def _run_sort(mode: str, merge: bool, request: Request, base_id: Optional[str] = None) -> dict:
+def _run_sort(
+    mode: str,
+    merge: bool,
+    request: Request,
+    base_id: Optional[str] = None,
+    order: str = "id",
+) -> dict:
     """
     Authorization and auditing for a container sort.
 
@@ -2970,7 +3088,9 @@ def _run_sort(mode: str, merge: bool, request: Request, base_id: Optional[str] =
         return HTTPException(status, message)
 
     try:
-        result = saveedit.sort_containers(mode=mode, merge=merge, base_id=base_id)
+        result = saveedit.sort_containers(
+            mode=mode, merge=merge, base_id=base_id, order=order
+        )
     except ServerRunningError as e:
         raise failed(str(e), 423)
     except saveedit.SaveEditError as e:
@@ -2988,6 +3108,7 @@ def _run_sort(mode: str, merge: bool, request: Request, base_id: Optional[str] =
             "slotsChanged": result.get("slotsChanged"),
             "backupId": result.get("backupId"),
             "merged": merge,
+            "order": order,
             "baseId": base_id or "",
         },
         ip=ip,
@@ -3003,15 +3124,16 @@ def sort_stackables(req: SortRequest, request: Request) -> dict:
     Anything with a dynamic_id (weapons, armour, tools) is left exactly where it
     is, so durability records cannot be orphaned.
 
-    Pass `baseId` to scope the sort to one base's storage.
+    Pass `baseId` to scope the sort to one base's storage, and `order` to choose
+    between the internal-id ordering and the game's own category ordering.
     """
-    return _run_sort("stackables", req.merge, request, req.baseId)
+    return _run_sort("stackables", req.merge, request, req.baseId, req.order)
 
 
 @app.post("/api/edit/sort/all")
 def sort_all(req: SortRequest, request: Request) -> dict:
     """Tidy containers including equipment, carrying dynamic_id links along."""
-    return _run_sort("all", req.merge, request, req.baseId)
+    return _run_sort("all", req.merge, request, req.baseId, req.order)
 
 
 @app.get("/api/edit/schema/{target}")
@@ -3387,6 +3509,90 @@ def apply_slot_edit(
             "slotsChanged": result["slotsChanged"],
             "itemsBefore": result["itemsBefore"],
             "itemsAfter": result["itemsAfter"],
+            "backupId": result["backupId"],
+        },
+        ip=ip,
+    )
+    return result
+
+
+# ─── Guild membership ────────────────────────────────────
+
+
+class GuildMoveRequest(BaseModel):
+    playerUid: str
+    targetGuildId: str
+    # Bring the origin guild's bases along when the move would otherwise leave
+    # them in a guild with nobody in it. Off by default: it removes the emptied
+    # guild, and that should be something the operator asked for rather than a
+    # side effect they discover afterwards.
+    transferBases: bool = False
+
+
+@app.post("/api/edit/guild/move/preview")
+def preview_guild_move(req: GuildMoveRequest, request: Request) -> dict:
+    """
+    Dry-run a guild move. Read-only; returns exactly what would change.
+
+    Specific on purpose — character counts, base counts, whether the origin guild
+    disappears and who inherits it. "Move this player" sounds like a one-field
+    change and touches four structures plus, optionally, every base the origin
+    guild owned.
+    """
+    authz.require(request, roles_module.SAVE_EDIT_FULL)
+    try:
+        return guildedit.plan_guild_move(
+            req.playerUid, req.targetGuildId, req.transferBases
+        )
+    except guildedit.GuildEditError as e:
+        raise HTTPException(400, str(e))
+
+
+@app.post("/api/edit/guild/move")
+def move_player_guild(
+    req: GuildMoveRequest, request: Request, planHash: str = Query(...)
+) -> dict:
+    """
+    Apply a previewed guild move. All of it, or none of it.
+
+    `planHash` is required rather than optional: the preview is what the operator
+    agreed to, and a world that moved since then is not the world they saw.
+    """
+    user = authz.require_user(request, roles_module.SAVE_EDIT_FULL)
+    ip = authz.client_ip(request)
+
+    def failed(message: str, status: int):
+        audit.record(
+            audit.GUILD_MOVE, username=user["username"], role=user["role"],
+            target=f"player:{req.playerUid}", detail=message, ip=ip,
+            result=audit.RESULT_FAILED,
+        )
+        return HTTPException(status, message)
+
+    try:
+        result = guildedit.apply_guild_move(
+            req.playerUid, req.targetGuildId, req.transferBases, plan_hash=planHash,
+        )
+    except ServerRunningError as e:
+        raise failed(str(e), 423)
+    except guildedit.GuildEditError as e:
+        raise failed(str(e), 409)
+    except Exception as e:  # noqa: BLE001
+        logger.exception("Guild move failed")
+        raise failed(f"Guild move failed: {e}", 500)
+
+    # The names are captured here, not looked up later, for the same reason
+    # `moderate` captures a target's display name: guilds get renamed and
+    # disbanded, and "who moved whom" has no answer afterwards otherwise.
+    audit.record(
+        audit.GUILD_MOVE, username=user["username"], role=user["role"],
+        target=f"player:{result['playerName']} ({req.playerUid})",
+        detail={
+            "fromGuild": result["fromGuild"],
+            "toGuild": result["toGuild"],
+            "charactersMoved": result["charactersMoved"],
+            "basesMoved": result["basesMoved"],
+            "originGuildRemoved": result["originGuildRemoved"],
             "backupId": result["backupId"],
         },
         ip=ip,

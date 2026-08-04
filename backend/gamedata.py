@@ -189,6 +189,41 @@ def describe_item(item_id: str) -> dict[str, Any]:
     }
 
 
+def all_items() -> list[dict[str, Any]]:
+    """
+    The whole item catalogue — every id the game has, not the ones a world holds.
+
+    The distinction is the bug this exists for. The slot editor's autocomplete
+    was built from `/api/items`, which reports **what is in the parsed world**,
+    so typing any legitimate item nobody on the server happened to own showed
+    "not in this world" with no icon. The backend accepted it on preview, having
+    always validated against this full catalogue — so the editor was telling
+    people their input was wrong and then writing it correctly.
+
+    `id` and `name` both travel because the API speaks ids (`AIcore`) and people
+    speak names ("AI Core"), and a catalogue that carries only one of them forces
+    every caller to build the other index itself.
+    """
+    entries = (load().get("items") or {})
+    return [
+        {
+            "id": item_id,
+            "name": entry.get("name") or humanize(item_id),
+            "icon": entry.get("icon", ""),
+            "rarity": entry.get("rarity", 0),
+            "typeA": entry.get("typeA", ""),
+            "typeB": entry.get("typeB", ""),
+            "maxStack": entry.get("maxStack", 0),
+            "weight": entry.get("weight", 0),
+            # Present only on equipment. The editor uses it to warn *before* a
+            # preview that a slot cannot be overwritten without orphaning a
+            # DynamicItemSaveData record.
+            "hasDurability": bool((entry.get("dynamic") or {}).get("type")),
+        }
+        for item_id, entry in sorted(entries.items())
+    ]
+
+
 def max_stack(item_id: str) -> int:
     """
     The game's real stack ceiling, or 0 if unknown.
@@ -222,6 +257,34 @@ def normalise_species(species_id: str) -> tuple[str, list[str]]:
 def pal(species_id: str) -> Optional[dict]:
     species, _ = normalise_species(species_id)
     return _lookup("pals", species)
+
+
+def pal_exact(species_id: str) -> Optional[dict]:
+    """
+    A species' own entry, **without** stripping `BOSS_` and friends.
+
+    `pal()` normalises, which is right for naming — an alpha Lamball is still
+    called Lamball — and wrong for anything that reads the numbers, because the
+    prefixed forms carry their own, higher, stat scaling. `BOSS_Alpaca` has hp
+    108 where `Alpaca` has 90, and that difference *is* the alpha bonus. Look up
+    the base species and the bonus silently disappears; apply a separate boss
+    multiplier on top of the base and it gets counted twice.
+
+    Falls back to the normalised lookup, so a form present in a save but absent
+    from the tables still resolves to something rather than to nothing.
+    """
+    return _lookup("pals", species_id) or pal(species_id)
+
+
+def pal_exp_table() -> dict[str, Any]:
+    """
+    The game's own level -> EXP table. `{}` if the bundle is unavailable.
+
+    Two columns per level, and picking the wrong one is easy: `PalNextEXP` is
+    the Pal curve and `NextEXP` beside it is the *player* curve. They differ
+    from level 2 onwards (25 vs 50).
+    """
+    return load().get("palExpTable") or {}
 
 
 def pal_name(species_id: str) -> str:

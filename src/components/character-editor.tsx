@@ -21,6 +21,16 @@ interface Subject {
   id: string;
   title: string;
   subtitle: string;
+  /**
+   * Everything this row can be found by, lower-cased.
+   *
+   * Separate from what is *displayed* because the two want different things: a
+   * row shows a friendly name, and a search must also match the internal id the
+   * API speaks. Searching the rendered strings meant `SheepBall` found nothing
+   * while `Lamball` worked — and the internal id is exactly what someone has in
+   * front of them when they arrive here from an export or an error message.
+   */
+  search: string;
   seed: Record<string, FieldValue>;
 }
 
@@ -129,10 +139,34 @@ export default function CharacterEditor({ canEdit }: { canEdit: boolean }) {
         // editor for one would be a dead end.
         if (p.passiveSkills) seed.passiveSkills = [...p.passiveSkills];
         if (p.activeSkills) seed.activeSkills = [...p.activeSkills];
+        // A player usually owns SEVERAL of the same species, often at the same
+        // level, and "Lamball · Lv 50" three times over is a list you cannot
+        // choose from — you can only guess and check afterwards. The row is
+        // keyed on `instanceId` so the selection was always correct; what was
+        // missing was any way for a person to see *which* one they had picked.
+        //
+        // So the subtitle carries what actually differs between two Pals of one
+        // species: total IVs, condenser stars, where it is, and finally a short
+        // instance id — which is not pretty, but is the only thing guaranteed
+        // unique when two Pals are otherwise identical.
+        const ivTotal =
+          (p.ivs?.hp ?? 0) + (p.ivs?.shot ?? 0) + (p.ivs?.defense ?? 0);
+        const marks = [
+          `Lv ${p.level}`,
+          p.nickname && p.speciesName ? p.speciesName : '',
+          ivTotal ? `IV ${ivTotal}` : '',
+          (p.rank ?? 1) > 1 ? `${(p.rank ?? 1) - 1}★` : '',
+          p.isBoss ? 'alpha' : '',
+          p.location === 'base' && p.baseName ? p.baseName : (p.location ?? ''),
+          p.instanceId.slice(0, 6),
+        ].filter(Boolean);
         return {
           id: p.instanceId,
           title: p.nickname || p.speciesName || p.speciesId,
-          subtitle: `Lv ${p.level}${p.nickname && p.speciesName ? ` · ${p.speciesName}` : ''}`,
+          subtitle: marks.join(' · '),
+          search: [
+            p.nickname, p.speciesName, p.speciesId, p.characterId, p.instanceId,
+          ].filter(Boolean).join(' ').toLowerCase(),
           seed,
         };
       });
@@ -147,16 +181,38 @@ export default function CharacterEditor({ canEdit }: { canEdit: boolean }) {
       const ancient = p.progress?.ancientTechnologyPoints;
       if (typeof tech === 'number') seed.technologyPoints = tech;
       if (typeof ancient === 'number') seed.ancientTechnologyPoints = ancient;
-      return { id: p.uid, title: p.name || p.uid, subtitle: `Lv ${p.level}`, seed };
+      return {
+        id: p.uid,
+        title: p.name || p.uid,
+        subtitle: `Lv ${p.level}`,
+        search: [p.name, p.uid].filter(Boolean).join(' ').toLowerCase(),
+        seed,
+      };
     });
   }, [mode, pals, players, owner]);
 
-  const matches = useMemo(() => {
+  /**
+   * The rows to render, and how many were left out.
+   *
+   * The cap was **40**, silently. With 1,905 Pals in the world that showed the
+   * first 40 and nothing else — so a player's Jetragon was simply absent, while
+   * the count beside the list said 559. The count being right is what made it
+   * read as missing data rather than as a truncated list.
+   *
+   * A cap still exists because these are DOM rows and a thousand of them costs
+   * real scroll performance, but it is now high enough to hold one player's
+   * whole box, and what it hides is **reported** rather than dropped.
+   */
+  const LIST_CAP = 1000;
+
+  const { matches, hidden } = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return subjects.slice(0, 40);
-    return subjects
-      .filter((s) => s.title.toLowerCase().includes(q) || s.subtitle.toLowerCase().includes(q))
-      .slice(0, 40);
+    const all = q
+      ? subjects.filter(
+          (s) => s.search.includes(q)
+        )
+      : subjects;
+    return { matches: all.slice(0, LIST_CAP), hidden: Math.max(0, all.length - LIST_CAP) };
   }, [subjects, search]);
 
   const select = useCallback((subject: Subject) => {
@@ -346,6 +402,16 @@ export default function CharacterEditor({ canEdit }: { canEdit: boolean }) {
               </p>
             )}
           </div>
+          {/* What the cap hid. Silently truncating is how a Pal that is right
+              there reads as missing. */}
+          <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6 }}>
+            Showing {matches.length.toLocaleString()}
+            {hidden > 0
+              ? ` of ${(matches.length + hidden).toLocaleString()} — narrow by owner or search to see the rest.`
+              : mode === 'pal' && owner
+                ? ' — this owner’s Pals.'
+                : '.'}
+          </p>
         </div>
 
         {/* ─── Edit it ─── */}

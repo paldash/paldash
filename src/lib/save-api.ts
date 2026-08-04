@@ -1,6 +1,7 @@
 import type {
   BaseCamp,
   BaseStorage,
+  DiscoveryPoint,
   EditPlan,
   EditResult,
   EditSchema,
@@ -48,6 +49,11 @@ import type {
   GameBuildStatus,
   WorldPackReload,
   ReachableTargets,
+  CatalogueItem,
+  GuildMovePlan,
+  GuildMoveResult,
+  PalStats,
+  BreedingPath,
   PaldeckListing,
   PaldeckDetail,
   PlayerRoster,
@@ -187,6 +193,8 @@ export async function setAccessPolicy(update: {
 export interface SortResult {
   ok: boolean;
   mode: string;
+  /** Which ordering was applied: `id` or `category`. */
+  order?: string;
   merged: boolean;
   baseId: string;
   scope: 'world' | 'base';
@@ -204,11 +212,12 @@ export interface SortResult {
 export async function sortContainers(
   mode: 'stackables' | 'all',
   merge = true,
-  baseId?: string
+  baseId?: string,
+  order: 'id' | 'category' = 'id'
 ): Promise<SortResult> {
   return saveFetch(`/edit/sort/${mode}`, {
     method: 'POST',
-    body: JSON.stringify({ merge, baseId: baseId ?? null }),
+    body: JSON.stringify({ merge, baseId: baseId ?? null, order }),
   });
 }
 
@@ -253,6 +262,23 @@ export interface PalRecord {
   location?: 'palbox' | 'party' | 'base' | 'other';
   /** The base it works at, when `location` is `base`. */
   baseId?: string;
+  /**
+   * Calculated HP / Attack / Defense / Work Speed, and level progress.
+   *
+   * Null for humans and NPCs, which share the character map with Pals and carry
+   * IVs exactly like one but have no stat scaling anywhere in the game data.
+   *
+   * These are **computed**, not read: the save stores only the inputs (level,
+   * IVs, condenser rank, soul ranks, trust) and the game derives the rest at
+   * load. See `backend/palstats.py` for the formula and where it comes from.
+   */
+  stats?: PalStats | null;
+  /** Pal Soul upgrades, `Rank_*` in the save. Separate from the condenser. */
+  soulRanks?: Record<string, number>;
+  /** Trust points — the heart meter. */
+  friendshipPoint?: number;
+  /** The gold "lucky" variant. Distinct from `isBoss`, which is the alpha form. */
+  isLucky?: boolean;
   /** That base's display name, joined at request time. */
   baseName?: string;
 }
@@ -709,6 +735,24 @@ export async function getDiscoveries(uid?: string): Promise<Discoveries> {
   return saveFetch(`/world/discoveries${uid ? `?uid=${encodeURIComponent(uid)}` : ''}`);
 }
 
+/**
+ * Effigies alone, without the found/not-found join.
+ *
+ * The fallback for when `getDiscoveries` is unavailable — which is not an edge
+ * case: that route requires a real account, so it fails for every guest, and it
+ * serves both categories at once so either bundle failing takes both down. Fast
+ * travel already had `getFastTravelPoints` to fall back to and effigies had
+ * nothing, so the layer disappeared silently.
+ *
+ * `discovered` is absent from this shape, so the caller marks them unknown
+ * rather than guessing. The undiscovered half is still withheld server-side when
+ * the policy says so.
+ */
+export async function getEffigyPoints(): Promise<DiscoveryPoint[]> {
+  const data = await saveFetch<{ points: DiscoveryPoint[] }>('/world/effigies');
+  return data.points ?? [];
+}
+
 /** Which item scopes this caller may ask for. Decided by the backend. */
 export async function getItemScopes(): Promise<{
   guilds: { id: string; name: string }[];
@@ -720,6 +764,22 @@ export async function getItemScopes(): Promise<{
 
 export async function getItemTotals(guild?: string): Promise<ItemTotals> {
   return saveFetch(`/items${guild ? `?guild=${encodeURIComponent(guild)}` : ''}`);
+}
+
+/**
+ * Every item **in the game**, by id and by friendly name.
+ *
+ * Not `getItemTotals`, which reports what this *world* holds. The slot editor
+ * was built on that one, so any legitimate item nobody on the server happened to
+ * own rendered as "not in this world" with no icon — the editor calling valid
+ * input wrong while the backend, which validates against this catalogue, went on
+ * to accept it.
+ */
+export async function getItemCatalogue(): Promise<{
+  items: CatalogueItem[];
+  total: number;
+}> {
+  return saveFetch('/world/items');
 }
 
 // ─── Server settings (PalWorldSettings.ini) ─────────────
@@ -744,6 +804,40 @@ export async function applySettingsPreset(presetId: string) {
     restartRequired: boolean;
     skippedKeys: string[];
   }>(`/settings/preset/${presetId}`, { method: 'POST' });
+}
+
+// ─── Guild membership ───────────────────────────────────
+
+/**
+ * Dry-run a guild move. Reads only; returns exactly what would change.
+ *
+ * Separate from the apply because the interesting part is what it *reports*: on
+ * a solo guild the move also decides the fate of that guild's bases, and a
+ * confirmation dialog that cannot name the number is asking for trust rather
+ * than agreement.
+ */
+export async function previewGuildMove(
+  playerUid: string,
+  targetGuildId: string,
+  transferBases: boolean
+): Promise<GuildMovePlan> {
+  return saveFetch('/edit/guild/move/preview', {
+    method: 'POST',
+    body: JSON.stringify({ playerUid, targetGuildId, transferBases }),
+  });
+}
+
+/** Apply a previewed move. The hash is required — a stale plan is refused. */
+export async function applyGuildMove(
+  playerUid: string,
+  targetGuildId: string,
+  transferBases: boolean,
+  planHash: string
+): Promise<GuildMoveResult> {
+  return saveFetch(`/edit/guild/move?planHash=${encodeURIComponent(planHash)}`, {
+    method: 'POST',
+    body: JSON.stringify({ playerUid, targetGuildId, transferBases }),
+  });
 }
 
 // ─── Breeding ───────────────────────────────────────────
@@ -789,16 +883,21 @@ export async function getPaldeckEntry(speciesId: string): Promise<PaldeckDetail>
   return saveFetch(`/world/paldeck/${encodeURIComponent(speciesId)}`);
 }
 
-export async function getBreedingPath(target: string, owner?: string) {
+/**
+ * A route to one target.
+ *
+ * Carries the same scope fields `/breeding/palbox` does. "Not reachable" is a
+ * claim about a *specific set of Pals*, and the planner shows one header over
+ * four endpoints — so a plan computed from your own box under a header reading
+ * "all Pals on the server" reads as a wrong answer rather than a narrow one.
+ */
+export async function getBreedingPath(
+  target: string,
+  owner?: string
+): Promise<BreedingPath> {
   const params = new URLSearchParams({ target });
   if (owner) params.set('owner', owner);
-  return saveFetch<{
-    target: string;
-    reachable: boolean;
-    alreadyOwned?: boolean;
-    reason?: string;
-    steps: { parentA: PalSummary; parentB: PalSummary; child: PalSummary }[];
-  }>(`/breeding/paths?${params}`);
+  return saveFetch(`/breeding/paths?${params}`);
 }
 
 export async function getAllPals(): Promise<PalSummary[]> {

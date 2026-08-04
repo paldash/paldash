@@ -50,6 +50,8 @@ from __future__ import annotations
 import logging
 from typing import Any, Optional
 
+import gamedata
+
 logger = logging.getLogger(__name__)
 
 # The types the game gives a per-instance record. Matches what PST gates on.
@@ -119,6 +121,21 @@ def index_by_local_id(world: dict) -> dict[str, list[dict]]:
     return out
 
 
+def _max_durability(static_id: str) -> float:
+    """
+    The item's factory-fresh durability, or 0.0 when the data does not say.
+
+    Read through `gamedata` rather than indexed directly, so the case-insensitive
+    lookup applies — the upstream ids are inconsistently capitalised and an exact
+    match silently loses entries.
+    """
+    entry = gamedata.item(static_id) or {}
+    try:
+        return float((entry.get("dynamic") or {}).get("durability") or 0.0)
+    except (TypeError, ValueError):
+        return 0.0
+
+
 def describe(record: dict) -> dict[str, Any]:
     """One record, flattened for the API. Never returns the embedded egg Pal."""
     raw = _raw(record)
@@ -132,6 +149,17 @@ def describe(record: dict) -> dict[str, Any]:
     }
     if kind in ("weapon", "armor"):
         out["durability"] = float(raw.get("durability") or 0.0)
+        # What "full" means for this item, from the bundled game data.
+        #
+        # The record holds only the *current* value, so without this the editor
+        # asks for a bare number with nothing to measure it against — 1,045 is
+        # either nearly new or nearly broken depending on an item the operator is
+        # expected to already know. Present for 669 of the 948 items with a
+        # dynamic record; the rest are accessories, which genuinely do not wear
+        # out, so 0 there is the answer and not a gap.
+        out["maxDurability"] = _max_durability(out["staticId"])
+        out["name"] = gamedata.item_name(out["staticId"])
+        out["icon"] = (gamedata.item(out["staticId"]) or {}).get("icon", "")
     if kind == "weapon":
         out["remainingBullets"] = int(raw.get("remaining_bullets") or 0)
         out["passiveSkills"] = [str(p) for p in (raw.get("passive_skill_list") or [])]
