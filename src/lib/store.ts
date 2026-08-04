@@ -71,6 +71,36 @@ interface DashboardState {
   setBases: (b: BaseCamp[]) => void;
   guilds: GuildInfo[];
   setGuilds: (g: GuildInfo[]) => void;
+  /**
+   * Why the base and guild lists are empty, when they are empty for a *reason*.
+   *
+   * `null` means the last fetch succeeded, so an empty list is the world's own
+   * answer. Anything else is the error, and the difference is the whole point:
+   * a failed `/bases` used to be swallowed into `[]`, which rendered as a map
+   * with no bases on it and no guilds in the roster — identical to a server
+   * where nobody has built anything, and with nothing anywhere saying which.
+   * The base *radius circles* vanish along with the markers, so even the shape
+   * that would hint at "the data is there, the icon is not" is gone.
+   */
+  saveDataError: string | null;
+  setSaveDataError: (e: string | null) => void;
+
+  /**
+   * Completion mode: hide anything already collected.
+   *
+   * Turns the map from "here is everything" into a checklist of what is left,
+   * which is the only way the one-time collectables are usable at scale — 396
+   * effigies and 174 fast-travel points are a wall of markers, and the ones that
+   * matter are precisely the ones NOT there yet.
+   *
+   * It applies only to layers that carry a real collected/not-collected flag,
+   * and only when that flag is *known*. Respawning things (chests, ore) have no
+   * such state and are untouched, and a point whose status could not be fetched
+   * is never hidden — hiding on unknown status would quietly drop exactly the
+   * markers someone is hunting for.
+   */
+  hideCollected: boolean;
+  setHideCollected: (v: boolean) => void;
   playerSaveData: PlayerSaveData[];
   setPlayerSaveData: (p: PlayerSaveData[]) => void;
   backups: BackupInfo[];
@@ -145,6 +175,10 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
   setBases: (b) => set({ bases: b }),
   guilds: [],
   setGuilds: (g) => set({ guilds: g }),
+  saveDataError: null,
+  setSaveDataError: (e) => set({ saveDataError: e }),
+  hideCollected: false,
+  setHideCollected: (v) => set({ hideCollected: v }),
   playerSaveData: [],
   setPlayerSaveData: (p) => set({ playerSaveData: p }),
   backups: [],
@@ -236,6 +270,7 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
       onlinePlayers: [],
       bases: [],
       guilds: [],
+      saveDataError: null,
       playerSaveData: [],
       backups: [],
       fpsHistory: [],

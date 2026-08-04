@@ -190,16 +190,34 @@ export default function Home() {
   // live REST metrics. The backend caches and rate-limits parsing regardless.
   const pollSave = useCallback(async () => {
     const s = storeRef.current;
-    try {
-      const [bases, guilds] = await Promise.all([
-        getBases().catch(() => []),
-        getGuilds().catch(() => []),
-      ]);
-      s.setBases(bases);
-      s.setGuilds(guilds);
-    } catch {
-      /* save data unavailable */
-    }
+
+    // `Promise.allSettled`, not `all` with a per-call `.catch(() => [])`.
+    //
+    // That catch turned every failure — a 403 from the route allowlist, a 503
+    // from an unparsed world, a backend that is simply down — into an empty
+    // array, and an empty array is a perfectly ordinary answer. The Bases tab
+    // then read "no bases" and the map drew neither base markers nor their
+    // radius circles, on a server with eleven bases, with no error anywhere.
+    //
+    // One list failing must not blank the other, which is why they are settled
+    // independently rather than sharing a try block.
+    const [bases, guilds] = await Promise.allSettled([getBases(), getGuilds()]);
+
+    if (bases.status === 'fulfilled') s.setBases(bases.value);
+    if (guilds.status === 'fulfilled') s.setGuilds(guilds.value);
+
+    const describe = (what: string, result: PromiseSettledResult<unknown>) =>
+      result.status === 'rejected'
+        ? `${what}: ${
+            result.reason instanceof Error ? result.reason.message : String(result.reason)
+          }`
+        : null;
+
+    const failed = [describe('Bases', bases), describe('Guilds', guilds)].filter(
+      (x): x is string => x !== null
+    );
+
+    s.setSaveDataError(failed.length === 0 ? null : failed.join(' · '));
   }, []);
 
   useEffect(() => {

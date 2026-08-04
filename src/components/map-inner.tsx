@@ -30,6 +30,15 @@ interface Props {
    * effigies had nothing, so the layer vanished with no error to follow.
    */
   effigies: DiscoveryPoint[];
+  /**
+   * Completion mode: drop anything already collected from the one-time layers.
+   *
+   * Only ever hides a point whose status is KNOWN to be collected. A point the
+   * server did not tell us about — the fallback endpoints leave `discovered`
+   * undefined on purpose — stays on the map, because hiding on unknown status
+   * would remove exactly the markers someone in completion mode is hunting.
+   */
+  hideCollected: boolean;
   /** Static pak-derived objects for the current viewport. Fetched by the parent. */
   staticObjects: StaticWorldObject[];
   layers: Record<string, boolean>;
@@ -267,6 +276,7 @@ export default function MapInner({
   fastTravel,
   discoveries,
   effigies,
+  hideCollected,
   staticObjects,
   layers,
   kindsOff,
@@ -651,6 +661,10 @@ export default function MapInner({
     for (const point of points.filter((p) => transform.contains(p.x, p.y))) {
       const kind = point.kind ?? 'travel';
       if (off.includes(kind)) continue;
+      // `=== true`, not truthiness: the fallback list above marks every point
+      // `discovered: true` because it cannot know, and only a real join from
+      // `/world/discoveries` should be allowed to hide anything.
+      if (hideCollected && discoveries && point.discovered === true) continue;
 
       const coords = worldToGameMap(point.x, point.y);
       const found = point.discovered;
@@ -690,7 +704,7 @@ export default function MapInner({
         )
         .addTo(group);
     }
-  }, [fastTravel, discoveries, layers.fastTravel, kindsOff, region]);
+  }, [fastTravel, discoveries, layers.fastTravel, kindsOff, region, hideCollected]);
 
   // ─── Effigies ───────────────────────────────────────────
   useEffect(() => {
@@ -713,6 +727,10 @@ export default function MapInner({
       const coords = worldToGameMap(point.x, point.y);
       const found = point.discovered;
       const unknown = found === undefined;
+      // An effigy whose status is unknown survives completion mode — see the
+      // prop's comment. This is the layer where it matters most: 396 of them,
+      // and the whole reason to switch the mode on is to find the missing ones.
+      if (hideCollected && found === true) continue;
 
       L.circleMarker(worldToMap(point.x, point.y, region), {
         radius: px(4) / 2 + 2,
@@ -726,7 +744,7 @@ export default function MapInner({
       })
         .bindPopup(
           `<div style="min-width:150px">
-             <div style="font-weight:600;margin-bottom:3px">Effigy</div>
+             <div style="font-weight:600;margin-bottom:3px">${escapeHtml(point.kindName || 'Effigy')}</div>
              <div style="font-size:12px;color:${found ? '#4d9e75' : '#a1a7b0'}">
                ${unknown ? 'Collection status unavailable' : found ? 'Collected' : 'Not collected'}
              </div>
@@ -735,7 +753,7 @@ export default function MapInner({
         )
         .addTo(group);
     }
-  }, [discoveries, effigies, layers.effigies, region]);
+  }, [discoveries, effigies, layers.effigies, region, hideCollected]);
 
   // ─── Bases ──────────────────────────────────────────────
   useEffect(() => {

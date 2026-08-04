@@ -415,7 +415,45 @@ def effigies() -> list[dict[str, Any]]:
     except (OSError, json.JSONDecodeError) as e:
         logger.warning("Effigy data unavailable (%s); the map will omit them", e)
         _effigies = []
+
+    for effigy in _effigies:
+        effigy["kindName"] = effigy_kind_name(str(effigy.get("kind") or ""))
     return _effigies
+
+
+def effigy_kind_name(kind: str) -> str:
+    """
+    A blueprint class like `BP_LevelObject_Relic_SheepBall` -> "Lamball Effigy".
+
+    THE SUFFIX IS A SPECIES ID, WHICH IS WHY THIS IS NOT A STRING TIDY-UP.
+    The map's generic `prettyClass` helper turned these into "Relic Sheep Ball"
+    and "BP Relic Object" — de-underscored game-file names shown to players in
+    the effigy filter list. Splitting the words is not the same as knowing what
+    they mean: `SheepBall` is the internal id for **Lamball**, and only
+    `gamedata.pal_name` knows that.
+
+    Resolution is deliberately through `pal_name`, so the case-insensitivity
+    applies. The upstream ids are inconsistently capitalised — the extraction
+    yields `SheepBall` while the Pal table spells it `Sheepball` — and an exact
+    match would silently fall through to the raw name for exactly the entries
+    this exists to fix.
+
+    Unrecognised suffixes fall back to a humanised form rather than failing, and
+    the two unsuffixed classes (`BP_LevelObject_Relic`, `BP_RelicObject` — 155 of
+    the 396 between them) are plain "Effigy", because they genuinely are not
+    tied to a species.
+    """
+    if not kind:
+        return "Effigy"
+
+    for prefix in ("BP_LevelObject_Relic_", "BP_RelicObject_"):
+        if kind.startswith(prefix):
+            species = kind[len(prefix):]
+            return f"{pal_name(species)} Effigy" if species else "Effigy"
+
+    if kind in ("BP_LevelObject_Relic", "BP_RelicObject"):
+        return "Effigy"
+    return f"{humanize(kind)} Effigy"
 
 
 def fast_travel_kind(name: str) -> str:

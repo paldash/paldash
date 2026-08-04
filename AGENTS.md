@@ -1453,6 +1453,30 @@ collectathon map. And when *both* endpoints fail the map now says so — a layer
 switched on and empty is indistinguishable from a layer that failed to load,
 which is exactly how this went undiagnosed.
 
+## `.catch(() => [])` is how a broken layer becomes an empty one
+
+Same lesson, one level up, and it took longer to find because the swallow was in
+the *fetch* rather than in a renderer. `page.tsx` polled bases and guilds as
+
+    Promise.all([getBases().catch(() => []), getGuilds().catch(() => [])])
+
+so a 403 from the route allowlist, a 503 from an unparsed world and a backend
+that is simply down all arrived as `[]` — and `[]` is a perfectly ordinary
+answer. The Bases tab read "no bases" and the map drew **neither base markers nor
+their radius circles** on a world with eleven bases, with no error anywhere. The
+palbox layer kept rendering throughout, because it comes from `/api/mapobjects`,
+which made it look like a base-marker problem rather than a fetch that never
+landed.
+
+It is `Promise.allSettled` now, with the reasons kept in `saveDataError` and
+shown on the map. Settled independently, so one list failing does not blank the
+other.
+
+The general shape to distrust: an empty collection is a legitimate value for
+almost every list this dashboard fetches, so a catch that produces one destroys
+the distinction between "nothing" and "we could not ask". Let it reject and say
+which.
+
 ## Scope travels with every breeding answer, not just the palbox
 
 The planner fetches four endpoints and shows one header, so a scope reported on

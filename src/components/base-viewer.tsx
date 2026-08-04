@@ -15,7 +15,8 @@ import { CAPABILITIES } from '@/lib/permissions';
 const NEARLY_FULL = 90;
 
 export default function BaseViewer() {
-  const { bases, guilds, backendOnline, setActiveTab, capabilities } = useDashboardStore();
+  const { bases, guilds, backendOnline, setActiveTab, capabilities, saveDataError } =
+    useDashboardStore();
 
   const [storage, setStorage] = useState<BaseStorage[]>([]);
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -72,13 +73,23 @@ export default function BaseViewer() {
     );
   }
 
+  // An empty list has two completely different causes and this used to state
+  // one of them as fact. "Make sure save files are accessible" is a guess, and
+  // it is the wrong guess whenever the fetch failed for a reason the dashboard
+  // already knows — a role that lacks the capability, a world that has not been
+  // parsed, a backend that is up but refusing. `saveDataError` carries the real
+  // one; only when there is none is "the world has no bases" the honest answer.
   if (bases.length === 0) {
     return (
       <div className="glass-card" style={{ padding: 40, textAlign: 'center' }}>
         <Building2 size={40} style={{ color: 'var(--text-muted)', marginBottom: 12 }} />
-        <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 4 }}>No Base Camps Found</h3>
+        <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 4 }}>
+          {saveDataError ? 'Could not load base camps' : 'No Base Camps Found'}
+        </h3>
         <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>
-          No base camp data available. Make sure save files are accessible.
+          {saveDataError ??
+            'The parsed world contains no base camps. If you expected some, press ' +
+            'Refresh on the Overview tab to re-parse the save.'}
         </p>
       </div>
     );

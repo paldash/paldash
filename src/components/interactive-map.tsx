@@ -84,8 +84,9 @@ const LAYERS: { id: string; label: string; color: string; group: 'live' | 'disco
 
 export default function InteractiveMap() {
   const {
-    onlinePlayers, bases, mapLayers, toggleMapLayer,
+    onlinePlayers, bases, saveDataError, mapLayers, toggleMapLayer,
     staticKindsOff, toggleStaticKind, setStaticKindsOff,
+    hideCollected, setHideCollected,
   } = useDashboardStore();
   const [mouseCoords, setMouseCoords] = useState<{ x: number; y: number } | null>(null);
   const [mapObjects, setMapObjects] = useState<MapObject[]>([]);
@@ -277,11 +278,16 @@ export default function InteractiveMap() {
       }
     }
     // Effigies are their own layer and carry a kind from the extraction.
+    // Their label comes from the backend for the same reason ore's does: the
+    // raw class is a game-file name, and `prettyClass` would render
+    // `BP_LevelObject_Relic_SheepBall` as "Relic Sheep Ball" rather than
+    // "Lamball Effigy".
     const effigyKinds = new Map<string, number>();
     for (const point of discoveries?.effigies.points ?? effigies) {
       if (!transform.contains(point.x, point.y)) continue;
       const kind = point.kind || 'Effigy';
       effigyKinds.set(kind, (effigyKinds.get(kind) ?? 0) + 1);
+      if (point.kindName && !kindLabel.has(kind)) kindLabel.set(kind, point.kindName);
     }
     if (effigyKinds.size) byCategory.set('effigies', effigyKinds);
 
@@ -496,6 +502,74 @@ export default function InteractiveMap() {
         </div>
       )}
 
+      {/* COMPLETION MODE.
+          Sits beside the layers button rather than inside the panel because it
+          is not a layer — it changes what the collectable layers *mean*, from
+          "here is everything" to "here is what is left".
+
+          Disabled without `discoveries`, and it says why. That route needs a
+          signed-in account with a linked character, so a guest genuinely cannot
+          have this; a checkbox that silently did nothing would read as broken. */}
+      <label
+        style={{
+          display: 'flex', alignItems: 'center', gap: 7, fontSize: 12,
+          color: discoveries ? 'var(--text-secondary)' : 'var(--text-muted)',
+          cursor: discoveries ? 'pointer' : 'not-allowed',
+        }}
+        title={
+          discoveries
+            ? 'Show only effigies and fast-travel points you have not collected yet.'
+            : 'Needs your collection progress, which requires a signed-in account ' +
+              'linked to a character.'
+        }
+      >
+        <input
+          type="checkbox"
+          checked={hideCollected}
+          disabled={!discoveries}
+          onChange={(e) => setHideCollected(e.target.checked)}
+        />
+        <span>
+          Completion mode — hide what I have already collected
+          {!discoveries && ' (unavailable: no collection progress)'}
+        </span>
+      </label>
+
+      {hideCollected && discoveries && (
+        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+          {(() => {
+            const left = (n: DiscoveryPoint[]) =>
+              n.filter((p) => transform.contains(p.x, p.y) && p.discovered !== true).length;
+            const effigiesLeft = left(discoveries.effigies.points);
+            const travelLeft = left(discoveries.fastTravel.points);
+            return (
+              <>
+                <strong>{effigiesLeft}</strong> effigies and{' '}
+                <strong>{travelLeft}</strong> fast-travel points left on{' '}
+                {transform.label}.
+                {/* Two ways this count can mislead, and both are the server's
+                    doing rather than the player's, so both are named. */}
+                {!discoveries.showsUndiscovered && (
+                  <> This server does not send undiscovered locations, so these
+                    are only the ones it chose to reveal — treat them as a floor.</>
+                )}
+                {!discoveries.linkedToPlayer && (
+                  <> Your account is not linked to a character, so nothing reads
+                    as collected and everything is still showing.</>
+                )}
+              </>
+            );
+          })()}
+        </div>
+      )}
+
+      {saveDataError && (
+        <div className="notice notice-warn" style={{ fontSize: 12 }}>
+          <Info size={13} style={{ display: 'inline', verticalAlign: '-2px', marginRight: 5 }} />
+          <strong>Base layer unavailable.</strong> {saveDataError}
+        </div>
+      )}
+
       {!mapObjects.length && !loading && (
         <div className="notice" style={{ fontSize: 12 }}>
           No map objects loaded. Save data is parsed on demand — press{' '}
@@ -512,6 +586,7 @@ export default function InteractiveMap() {
           fastTravel={fastTravel}
           discoveries={discoveries}
           effigies={effigies}
+          hideCollected={hideCollected}
           staticObjects={staticObjects}
           layers={mapLayers}
         kindsOff={staticKindsOff}

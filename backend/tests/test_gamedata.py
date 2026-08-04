@@ -297,3 +297,38 @@ def test_missing_effigy_data_degrades_rather_than_raises(monkeypatch):
     monkeypatch.setattr(gamedata, "EFFIGY_PATH", "/nonexistent/effigies.json.gz")
     monkeypatch.setattr(gamedata, "_effigies", None)
     assert gamedata.effigies() == []
+
+
+# ─── Effigy kind names ───────────────────────────────────
+
+
+def test_an_effigy_kind_resolves_through_the_pal_table_not_a_string_tidy():
+    """
+    `BP_LevelObject_Relic_SheepBall` is a Lamball effigy, and only the Pal table
+    knows that. The map's generic class prettifier rendered it "Relic Sheep
+    Ball" — de-underscoring is not naming, and that is what players saw in the
+    effigy filter list.
+    """
+    assert gamedata.effigy_kind_name("BP_LevelObject_Relic_SheepBall") == "Lamball Effigy"
+
+
+def test_effigy_species_lookup_is_case_insensitive():
+    """
+    The extraction yields `SheepBall`; the Pal table spells it `Sheepball`. An
+    exact match falls through to the raw name for exactly the entries this
+    exists to fix.
+    """
+    assert gamedata.effigy_kind_name("BP_LevelObject_Relic_sheepball") == "Lamball Effigy"
+
+
+def test_the_unsuffixed_classes_are_plainly_effigies():
+    """155 of the 396 between them, and they are genuinely not species-tied."""
+    assert gamedata.effigy_kind_name("BP_LevelObject_Relic") == "Effigy"
+    assert gamedata.effigy_kind_name("BP_RelicObject") == "Effigy"
+    assert gamedata.effigy_kind_name("") == "Effigy"
+
+
+def test_every_bundled_effigy_gets_a_name_with_no_class_left_showing():
+    names = {e["kindName"] for e in gamedata.effigies()}
+    assert names, "the effigy bundle should be present"
+    assert not any("BP_" in n or "_" in n for n in names), sorted(names)

@@ -337,6 +337,15 @@ export interface DiscoveryPoint {
   /** Effigies only — the instance GUID the save keys on. */
   guid?: string;
   kind?: string;
+  /**
+   * The kind in words — "Lamball Effigy", not `BP_LevelObject_Relic_SheepBall`.
+   *
+   * Resolved by the backend rather than prettified here, because the suffix is
+   * a species *id* and only `gamedata` knows that `SheepBall` means Lamball.
+   * The generic class-name tidier produced "Relic Sheep Ball" — de-underscoring
+   * is not naming.
+   */
+  kindName?: string;
   landmass?: string;
 }
 
