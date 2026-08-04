@@ -176,6 +176,11 @@ const ROUTES: RouteRule[] = [
   { pattern: /^edit\/pals\/bulk$/, methods: ['POST'], capability: CAPABILITIES.SAVE_EDIT_FULL, feature: null },
   { pattern: /^edit\/container\/[A-Za-z0-9-]+\/slots\/preview$/, methods: ['POST'], capability: CAPABILITIES.SAVE_EDIT_FULL, feature: null },
   { pattern: /^edit\/container\/[A-Za-z0-9-]+\/slots$/, methods: ['POST'], capability: CAPABILITIES.SAVE_EDIT_FULL, feature: null },
+  // Creating equipment or an egg. Same capability as a slot edit, but a distinct
+  // route and a distinct audit action — this is the one operation that puts an
+  // item into the world that was never obtained in it.
+  { pattern: /^edit\/container\/[A-Za-z0-9-]+\/create\/preview$/, methods: ['POST'], capability: CAPABILITIES.SAVE_EDIT_FULL, feature: null },
+  { pattern: /^edit\/container\/[A-Za-z0-9-]+\/create$/, methods: ['POST'], capability: CAPABILITIES.SAVE_EDIT_FULL, feature: null },
   // Guild membership. SAVE_EDIT_FULL because it rewrites Level.sav and can
   // re-home a guild's bases — a heavier thing than it sounds, which is why the
   // preview is a separate route and the apply requires its hash.

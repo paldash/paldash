@@ -30,16 +30,18 @@ Even within `weapon` the shape is not constant: 813 of 814 records carry
 `unknown_bytes` and one does not, and there are two distinct `CustomVersionData`
 blobs. A fabricated record would have to guess which variant this save uses.
 
-REPAIR YES, CREATE NO — AND THE REASON IS NOT THE SHAPE
--------------------------------------------------------
-Deep-copying a record of the right type solves the shape problem, the way
-`palclone` does for Pals. What stopped creation is the **copy count**: one local
-id maps to 16 identical records (see `index_by_local_id`), and nothing here
-explains that. Appending one where sixteen are expected leaves a half-registered
-item. `can_create()` returns that refusal in full.
+THIS MODULE REPAIRS; `itemclone.py` CREATES
+--------------------------------------------
+Adding a record changes the save's *shape* rather than values in it, so it lives
+in its own file for the reason `palclone` is separate from `charedit`.
 
-Editing an existing record is unaffected, because every copy is found and every
-copy is written.
+Creation was refused here for months on the strength of the copy count — one
+local id mapping to 16 identical records on `refworld`. That turned out to be a
+property of that one file: the same world's own server backups are
+one-record-per-id across nine snapshots, and 2,262 creations were later observed
+directly, each a single record. `index_by_local_id` still returns a list and
+every copy is still written, which costs one loop iteration on a real save and
+is what would catch this being wrong again.
 
 This module does not write. It produces records and edits for `saveimport` to
 apply inside `guarded_save_write`, the same way `slotedit` and `palcheck` do.
@@ -263,35 +265,22 @@ def apply_durability(world: dict, plan: dict[str, Any]) -> None:
 
 def can_create() -> tuple[bool, str]:
     """
-    Whether this module will create a new durability record. It will not.
+    Whether creating a new durability record is supported. It now is —
+    in `itemclone.py`, not here.
 
-    NOT "cannot be done" — "not yet understood well enough to do safely"
-    ----------------------------------------------------------------------
-    Deep-copying an existing record of the right type solves the *shape* problem
-    (see the module docstring), and that much was built and worked. What stopped
-    it is what the copy count turned up: a local id maps to **16 identical
-    records**, not one, on 2,022 of the reference world's 2,052 ids — while 17
-    ids appear exactly once and thirteen others appear 5 or 6 times.
+    This module edits records it found; creating one changes the *shape* of the
+    save and lives in its own file, the way `palclone` is separate from
+    `charedit`. The refusal that used to live here was correct on the evidence
+    available: `refworld` maps a local id to sixteen byte-identical records on
+    2,022 of its 2,052 ids, and appending one where the game wants sixteen
+    leaves a half-registered item.
 
-    Nothing here explains that distribution. Appending one record where the game
-    expects sixteen, or sixteen where it expects one, produces an item that is
-    half-registered — and a half-registered item is exactly the failure this
-    project refuses to risk with a guess.
-
-    Editing an *existing* record does not have that problem: every copy is found
-    and every copy is written, so whatever the count means, they stay consistent.
-    That is why repair works and creation does not.
-
-    PST fabricates records (`generate_dynamic_item_uuid`) and so is more capable
-    here. Reproducing that means first understanding the 16× pattern, most likely
-    by making one weapon in game and diffing the save before and after.
+    That evidence was a property of one file rather than of the format. Nine
+    snapshots of the same world's own server backups are one-record-per-id
+    throughout, and 2,262 creations observed across those backups are each a
+    single record. See AGENTS.md and `scripts/diff-dynamic-items.py`.
     """
-    return False, (
-        "Creating equipment is not supported: a durability record appears 16 "
-        "times in the save and nothing yet explains that, so a new one cannot be "
-        "written without guessing how many copies the game expects. Existing "
-        "equipment can be repaired."
-    )
+    return True, "Use itemclone.plan_item_create / apply_item_create."
 
 
 def count(world: dict) -> int:

@@ -1,7 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Boxes, ShieldCheck, AlertTriangle, Lock, Trash2, Search } from 'lucide-react';
+import { Boxes, ShieldCheck, AlertTriangle, Lock, Trash2, Search, Sparkles } from 'lucide-react';
+import ItemCreator from '@/components/item-creator';
 import GameIcon from '@/components/game-icon';
 import {
   getBaseStorage, getContainerContents, getItemCatalogue, previewSlotEdit, applySlotEdit,
@@ -38,6 +39,10 @@ export default function SlotEditor({ canEdit }: { canEdit: boolean }) {
   const [baseId, setBaseId] = useState('');
   const [containerId, setContainerId] = useState('');
   const [slots, setSlots] = useState<InventorySlot[]>([]);
+  // Which empty slot the creator is open on. Null when closed; only one at a
+  // time, because creating is a deliberate act and a column of open panels
+  // would invite treating it as ordinary editing.
+  const [createSlot, setCreateSlot] = useState<number | null>(null);
   /**
    * Pending edits, **keyed by container**.
    *
@@ -497,6 +502,24 @@ export default function SlotEditor({ canEdit }: { canEdit: boolean }) {
                           patch(slot.slotIndex, { stackCount: e.target.valueAsNumber || 0 })
                         }
                       />
+                      {/* Only on genuinely empty slots. Creating INTO an
+                          occupied one is refused by the backend anyway, and
+                          offering the button there would teach the wrong model
+                          of what this does. */}
+                      {slot.isEmpty && !typed && (
+                        <button
+                          className="btn btn-ghost"
+                          style={{ padding: '2px 6px' }}
+                          title="Create equipment or an egg here"
+                          onClick={() =>
+                            setCreateSlot(
+                              createSlot === slot.slotIndex ? null : slot.slotIndex
+                            )
+                          }
+                        >
+                          <Sparkles size={12} />
+                        </button>
+                      )}
                       <button
                         className="btn btn-ghost"
                         style={{ padding: '2px 6px' }}
@@ -516,6 +539,17 @@ export default function SlotEditor({ canEdit }: { canEdit: boolean }) {
               </div>
             )}
           </div>
+
+          {createSlot !== null && containerId && (
+            <ItemCreator
+              containerId={containerId}
+              slotIndex={createSlot}
+              catalogue={knownItems}
+              canEdit={canEdit}
+              onClose={() => setCreateSlot(null)}
+              onCreated={() => { setCreateSlot(null); void loadContainer(containerId); }}
+            />
+          )}
 
           {/* Staged elsewhere. Keeping edits per container is only an
               improvement if you can see that you have them — otherwise it just

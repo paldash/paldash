@@ -61,6 +61,11 @@ GUILD_MOVE = "guild.move"
 # file. Auditing it matters as much as auditing a write.
 EXPORT = "save.export"
 SAVE_IMPORT = "save.import"
+# Its own action rather than a `save.edit`, because this is the one operation
+# that puts an item into the world that was never obtained in it. "Who spawned
+# what" is the first question after a complaint about an unfair advantage, and
+# it should be one filter on the log rather than a scan.
+ITEM_CREATE = "item.create"
 
 SERVER_RESTART = "server.restart"
 SERVER_STOP = "server.stop"

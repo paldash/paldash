@@ -53,6 +53,7 @@ import savecache
 import saveedit
 import saveexport
 import saveimport
+import itemclone
 import slotedit
 import teleport
 import soloexport
@@ -3509,6 +3510,95 @@ def apply_slot_edit(
             "slotsChanged": result["slotsChanged"],
             "itemsBefore": result["itemsBefore"],
             "itemsAfter": result["itemsAfter"],
+            "backupId": result["backupId"],
+        },
+        ip=ip,
+    )
+    return result
+
+
+class ItemCreateRequest(BaseModel):
+    slotIndex: int
+    itemId: str
+    durability: Optional[float] = None
+
+
+def _load_world_for_edit():
+    """The live world, parsed with items. Read-only — planning never uses the cache."""
+    from palsav.core import decompress_sav_to_gvas
+    from palsav.gvas import GvasFile
+    from palsav.paltypes import PALWORLD_CUSTOM_PROPERTIES, PALWORLD_TYPE_HINTS
+    from parser import _custom_properties
+    from savefiles import get_level_sav_path, read_sav_bytes
+
+    level_path = get_level_sav_path()
+    if not level_path:
+        raise HTTPException(503, "Level.sav not found")
+    raw = read_sav_bytes(level_path)
+    if raw is None:
+        raise HTTPException(503, "Could not read Level.sav")
+    props = {**PALWORLD_CUSTOM_PROPERTIES, **_custom_properties(include_items=True)}
+    return GvasFile.read(decompress_sav_to_gvas(raw)[0], PALWORLD_TYPE_HINTS, props)
+
+
+@app.post("/api/edit/container/{container_id}/create/preview")
+def preview_item_create(
+    container_id: str, req: ItemCreateRequest, request: Request
+) -> dict:
+    """
+    Dry-run creating one piece of equipment or one egg. Read-only.
+
+    Separate from the slot editor's preview because this is a different
+    operation: the slot editor moves items that exist, and this one brings an
+    item into the world that was never obtained in it.
+    """
+    authz.require(request, roles_module.SAVE_EDIT_FULL)
+    return itemclone.plan_item_create(
+        _load_world_for_edit(), container_id, req.slotIndex, req.itemId,
+        durability=req.durability,
+    )
+
+
+@app.post("/api/edit/container/{container_id}/create")
+def apply_item_create(
+    container_id: str, req: ItemCreateRequest, request: Request,
+    planHash: str = Query(...),
+) -> dict:
+    """Create the item. Audited as its own action — see `audit.ITEM_CREATE`."""
+    user = authz.require_user(request, roles_module.SAVE_EDIT_FULL)
+    ip = authz.client_ip(request)
+
+    def failed(message: str, status: int):
+        audit.record(
+            audit.ITEM_CREATE, username=user["username"], role=user["role"],
+            target=f"container:{container_id}", detail=message, ip=ip,
+            result=audit.RESULT_FAILED,
+        )
+        return HTTPException(status, message)
+
+    try:
+        result = itemclone.apply_item_create(
+            container_id, req.slotIndex, req.itemId,
+            durability=req.durability, expected_plan_hash=planHash,
+        )
+    except ServerRunningError as e:
+        raise failed(str(e), 423)
+    except itemclone.ItemCloneError as e:
+        raise failed(str(e), 400)
+    except Exception as e:  # noqa: BLE001
+        logger.exception("Item creation failed")
+        raise failed(f"Item creation failed: {e}", 500)
+
+    audit.record(
+        audit.ITEM_CREATE, username=user["username"], role=user["role"],
+        target=f"container:{container_id}",
+        detail={
+            "itemId": result["staticId"],
+            "itemName": result["itemName"],
+            "type": result["type"],
+            "slotIndex": result["slotIndex"],
+            "durability": result["durability"],
+            "hatchesInto": result["hatchesInto"],
             "backupId": result["backupId"],
         },
         ip=ip,

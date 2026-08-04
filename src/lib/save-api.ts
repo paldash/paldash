@@ -460,6 +460,74 @@ export async function applySlotEdit(
   );
 }
 
+/**
+ * Creating equipment or an egg — an item that never existed in this world.
+ *
+ * A separate pair of calls from the slot editor's, mirroring the backend split.
+ * The slot editor moves and stacks items that are already there and cannot touch
+ * anything with a durability record; this brings one into being, and it is
+ * audited under its own action for that reason.
+ */
+export interface ItemCreatePlan {
+  ok: boolean;
+  problems?: string[];
+  planHash: string;
+  containerId?: string;
+  slotIndex?: number;
+  staticId?: string;
+  itemName?: string;
+  icon?: string;
+  /** `weapon`, `armor` or `egg` — the save's own name for the record type. */
+  type?: string;
+  durability?: number;
+  maxDurability?: number;
+  /**
+   * The species an egg will hatch, from the template's record.
+   *
+   * Not a choice: the item id fixes the egg's kind, and the record decides the
+   * species. Shown so nobody is surprised by what comes out.
+   */
+  hatchesInto?: string;
+}
+
+export interface ItemCreateResult {
+  ok: boolean;
+  localId: string;
+  containerId: string;
+  slotIndex: number;
+  staticId: string;
+  itemName: string;
+  type: string;
+  durability: number;
+  hatchesInto: string;
+  backupId: string;
+}
+
+export async function previewItemCreate(
+  containerId: string,
+  slotIndex: number,
+  itemId: string,
+  durability?: number
+): Promise<ItemCreatePlan> {
+  return saveFetch(`/edit/container/${encodeURIComponent(containerId)}/create/preview`, {
+    method: 'POST',
+    body: JSON.stringify({ slotIndex, itemId, durability }),
+  });
+}
+
+export async function applyItemCreate(
+  containerId: string,
+  slotIndex: number,
+  itemId: string,
+  planHash: string,
+  durability?: number
+): Promise<ItemCreateResult> {
+  return saveFetch(
+    `/edit/container/${encodeURIComponent(containerId)}/create?planHash=${encodeURIComponent(planHash)}`,
+    { method: 'POST', body: JSON.stringify({ slotIndex, itemId, durability }) }
+  );
+}
+
 // ─── Illegal-Pal detection ───────────────────────────────
 
 export async function scanIllegalPals(): Promise<PalCheckScan> {

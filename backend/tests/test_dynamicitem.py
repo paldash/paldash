@@ -154,18 +154,23 @@ def test_a_missing_record_is_refused():
         D.plan_durability(_world([]), WEAPON, durability=1.0)
 
 
-# ─── Creation stays closed, and says why ──────────────────
+# ─── Creation moved out; this module only edits ───────────
 
 
-def test_creation_is_refused_and_explains_the_copy_count():
+def test_creation_is_supported_and_points_at_the_module_that_does_it():
     """
-    Not "impossible" — unexplained. The refusal names the 16× pattern, because
-    "we do not know how many copies to write" is a different problem from "the
-    format cannot be built", and only the second would be permanent.
+    This asserted a refusal for months, and the refusal was right on the evidence
+    then available: `refworld` maps a local id to sixteen identical records, and
+    appending one where the game wants sixteen leaves a half-registered item.
+
+    The evidence was a property of that one file. Nine snapshots of the same
+    world's own server backups are one-record-per-id, and 2,262 creations were
+    later observed directly, each a single record. Creation now lives in
+    `itemclone`, which is where the tests for it live too.
     """
     allowed, reason = D.can_create()
-    assert allowed is False
-    assert "16" in reason
+    assert allowed is True
+    assert "itemclone" in reason
 
 
 # ─── Against the real world ───────────────────────────────
@@ -173,11 +178,21 @@ def test_creation_is_refused_and_explains_the_copy_count():
 
 @pytest.mark.integration
 @pytest.mark.slow
-def test_the_reference_world_has_the_documented_distribution(level_sav):
+def test_refworld_is_the_duplicated_outlier_it_is_documented_as(level_sav):
     """
-    The measurement every claim in this module rests on. If a game update
-    changes it, this fails loudly rather than the module quietly editing the
-    wrong number of records.
+    Pins `refworld`'s distribution — as a fact about THAT FILE, which is all it
+    ever was.
+
+    This used to be described as "the measurement every claim in this module
+    rests on", and that framing is what made a property of one file read as a
+    property of the save format. It is not: `refworld` is a processed copy of the
+    live world, and nine snapshots of that world's own server backups are
+    one-record-per-id throughout.
+
+    The test stays, because `index_by_local_id` returning a list and
+    `apply_durability` writing every copy are only exercised by a world that HAS
+    duplicates — this is the only one available. It is a fixture check now, not
+    evidence about Palworld.
     """
     import collections
 
@@ -199,7 +214,7 @@ def test_the_reference_world_has_the_documented_distribution(level_sav):
     index = D.index_by_local_id(world)
     assert len(index) == 2_052
     spread = collections.Counter(len(v) for v in index.values())
-    assert spread[16] == 2_022, "the 16-copy pattern this module is built around"
+    assert spread[16] == 2_022, "refworld's duplication — an artifact, not the format"
 
     # Copies of one id are identical, which is why writing all of them keeps the
     # save consistent rather than merely being thorough.

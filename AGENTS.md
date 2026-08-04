@@ -535,14 +535,50 @@ value, so without it the editor asked for a bare number with nothing to measure
 against — 1,045 is nearly new or nearly broken depending on an item the operator
 was expected to already know.
 
-**Repair works; creation is refused, and the reason is not the format.**
-Deep-copying a record of the right type solves the shape problem the way
-`palclone` does for Pals. What stops creation is the copy count: nothing explains
-the 16, and appending one record where the game expects sixteen leaves a
-half-registered item. `can_create()` returns that refusal with the number in it,
-so it reads as "not yet understood" rather than "impossible" — PST fabricates
-records (`generate_dynamic_item_uuid`) and is more capable here. Resolving it
-most likely means crafting one weapon in game and diffing the save.
+**Creation lives in `itemclone.py`**, the third module that writes to a save and
+the only one that adds a `DynamicItemSaveData` record — separate from
+`dynamicitem` for the reason `palclone` is separate from `charedit`. Records are
+deep-copied from an existing one of the same type, never constructed:
+`CustomVersionData` has three distinct values on one world, and
+`leading_bytes`/`trailing_bytes`/`unknown_bytes` are opaque.
+
+**A new item is two things that must agree** — the record, and the container
+slot's `dynamic_id.local_id_in_created_world` pointing at it. The verification
+after re-reading from disk is the strict one: the array grew by exactly one, the
+new id resolves to exactly one record, the slot points at it, and **no other
+container changed length**.
+
+Three things that bit while building it:
+
+- **`palsav.archive.UUID(...)` takes raw swizzled bytes, not a string.** Parsing
+  a dashed GUID is the separate `from_str`. Passing the string to the constructor
+  stores it verbatim and fails much later inside the encoder as *"a bytes-like
+  object is required, not 'str'"*. Same family as the `soloexport._write_uid`
+  note, one level deeper.
+- **`slot_index` 0 is falsy**, so `raw.get("slot_index", -1) or -1` reads the
+  first slot of every container as -1. That made "is slot 0 free?" answer yes on
+  a full slot, and would have appended a second entry for index 0. All 18,728
+  slots on the reference world carry the field, so the default is a guard rather
+  than a path; `itemclone._slot_index` is the one correct reader.
+- **The catalogue and the save disagree about eggs, and both are right.**
+  `gamedata` gives `dynamic.type == "unknown"` — exactly the 56 `PalEgg_*` items,
+  the same property `saveedit`'s category sort keys on — while the record itself
+  says `type: "egg"`. `_CATALOGUE_TO_RECORD` translates; neither side is "fixed".
+
+**Equipment falls back to any template of its type; an egg does not.** For a
+weapon every meaningful field is overwritten (durability, bullets, and passives
+are cleared so a new item does not inherit the copied one's), so the template
+supplies only shape. An egg's `character_id` decides what hatches and the
+catalogue does not know it — cloning a `PalEgg_Dark_01` record to serve a request
+for `PalEgg_Fire_01` yields a fire egg that hatches a dark Pal, which nobody
+notices until it hatches. So an egg needs a template of the *same item* or it is
+refused. An egg with a non-empty `object` is never a template either: 172 of 180
+are empty, and the 8 that are not embed a whole Pal, so copying one would
+duplicate a character wholesale.
+
+Audited as `audit.ITEM_CREATE`, not `save.edit` — "who spawned what" is the first
+question after a complaint about an unfair advantage, and it should be one filter
+rather than a scan.
 
 **Three shapes, and an egg is not equipment.** `armor` is
 `type/id/durability/leading/trailing`; `weapon` adds `remaining_bullets`,
