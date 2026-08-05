@@ -126,6 +126,17 @@ const ROUTES: RouteRule[] = [
   // fallback when /world/discoveries is unavailable — which it is for every
   // guest, since that route requires a real account.
   { pattern: /^world\/effigies$/, methods: ['GET'], capability: CAPABILITIES.VIEW_BASIC, feature: FEATURES.MAP_OBJECTS },
+  // Field bosses. VIEW_BASIC and deliberately NOT discovery-filtered: effigies
+  // and fast travel are collectables the save tracks per player, so hiding the
+  // undiscovered ones is meaningful. A field boss respawns and is never
+  // collected — there is no per-player record to filter against.
+  { pattern: /^world\/bosses$/, methods: ['GET'], capability: CAPABILITIES.VIEW_BASIC, feature: FEATURES.MAP_OBJECTS },
+  // Field bosses. VIEW_BASIC, and deliberately NOT discovery-filtered: effigies
+  // and fast travel are collectables the save tracks per player, so hiding the
+  // undiscovered ones is a meaningful setting. A field boss respawns and is
+  // never collected — there is no per-player record to filter against, and
+  // inventing one would be worse than showing them all.
+  { pattern: /^world\/bosses$/, methods: ['GET'], capability: CAPABILITIES.VIEW_BASIC, feature: FEATURES.MAP_OBJECTS },
   { pattern: /^world\/reference$/, methods: ['GET'], capability: CAPABILITIES.VIEW_BASIC, feature: FEATURES.SERVER_STATUS },
   // The item *catalogue* — what the game has. Not /items, which reports what
   // this world holds and is privacy-filtered per guild.

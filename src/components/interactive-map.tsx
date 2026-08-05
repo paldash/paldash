@@ -6,7 +6,8 @@ import { useDashboardStore } from '@/lib/store';
 import { formatCoords, getRegion, MAP_REGIONS, type MapRegion } from '@/lib/map-coordinates';
 import {
   getMapObjects, getFastTravelPoints, getDiscoveries, getEffigyPoints,
-  getStaticWorldObjects, getStaticWorldSummary,
+  getStaticWorldObjects, getStaticWorldSummary, getBossSpawners,
+  type BossSpawner,
 } from '@/lib/save-api';
 import { Crosshair, RefreshCw, Search, Info } from 'lucide-react';
 import dynamic from 'next/dynamic';
@@ -40,6 +41,7 @@ const LAYERS: { id: string; label: string; color: string; group: 'live' | 'disco
   // same thing.
   { id: 'fastTravel', label: 'Fast travel', color: '#e0c060', group: 'discovery' },
   { id: 'effigies', label: 'Effigies', color: '#8d84c7', group: 'discovery' },
+  { id: 'bosses', label: 'Field bosses', color: '#d4574e', group: 'discovery' },
 
   { id: 'chest', label: 'Chests', color: '#c9973f', group: 'world' },
   { id: 'oreNode', label: 'Ore nodes', color: '#8a8378', group: 'world' },
@@ -93,6 +95,7 @@ export default function InteractiveMap() {
   const [fastTravel, setFastTravel] = useState<FastTravelPoint[]>([]);
   const [discoveries, setDiscoveries] = useState<Discoveries | null>(null);
   const [effigies, setEffigies] = useState<DiscoveryPoint[]>([]);
+  const [bosses, setBosses] = useState<BossSpawner[]>([]);
   const [discoveryError, setDiscoveryError] = useState<string | null>(null);
   const [region, setRegion] = useState<MapRegion>('palpagos');
   const [query, setQuery] = useState('');
@@ -187,7 +190,7 @@ export default function InteractiveMap() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [objects, points, found, relics] = await Promise.allSettled([
+    const [objects, points, found, relics, fieldBosses] = await Promise.allSettled([
       getMapObjects(),
       getFastTravelPoints(),
       // Discoveries may legitimately fail — a guest has no character, and the
@@ -198,11 +201,16 @@ export default function InteractiveMap() {
       // survived a failed /discoveries call, effigies silently disappeared — the
       // layer toggle stayed on and drew nothing, with no error anywhere.
       getEffigyPoints(),
+      // Independent of the discovery pair above: this layer has no per-player
+      // state, so it neither needs nor has a fallback — it either loads or the
+      // toggle draws nothing, which the empty-layer note below already covers.
+      getBossSpawners(),
     ]);
     setMapObjects(objects.status === 'fulfilled' ? objects.value : []);
     setFastTravel(points.status === 'fulfilled' ? points.value : []);
     setDiscoveries(found.status === 'fulfilled' ? found.value : null);
     setEffigies(relics.status === 'fulfilled' ? relics.value : []);
+    setBosses(fieldBosses.status === 'fulfilled' ? fieldBosses.value : []);
     // A layer that is switched on and empty is indistinguishable from a layer
     // that failed to load, which is how "effigies not showing" went undiagnosed.
     // Only reported when the fallback failed too — one endpoint being down while
@@ -586,6 +594,7 @@ export default function InteractiveMap() {
           fastTravel={fastTravel}
           discoveries={discoveries}
           effigies={effigies}
+          bosses={bosses}
           hideCollected={hideCollected}
           staticObjects={staticObjects}
           layers={mapLayers}

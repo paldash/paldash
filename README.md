@@ -912,9 +912,12 @@ Being straight about what is not done:
 - **The World Tree map is not calibrated, only measured.** Its extent now comes
   from the cell grid and is exact, but the image *orientation* has never been
   checked against a known point up there.
-- **Tower bosses are not on the map**, and dungeons only partially — the save
-  has 170 markers with state but no position. Both are extractable from the pak
-  with the same technique the effigies used; nobody has done it yet.
+- **Dungeons are only partially mapped** — the save has 170 markers with state
+  but no position. Extractable from the pak with the same technique the effigies
+  and field bosses used; nobody has done it yet.
+- **Raid bosses have no map presence, and cannot.** The 19 `RAID_` species are
+  summoned at an altar rather than placed in the world, so a table of locations
+  has nothing to say about them.
 - **Non-Steam players are unverified.** The save carries the platform
   (`Steam`, `Xbox`, `PS5`, `Mac`) and the parser surfaces it, but no console
   player has ever been seen on the reference server, and **neither of the two
@@ -927,9 +930,9 @@ Being straight about what is not done:
 - **Element matchups carry no damage multipliers**, and the chart behind them is
   the one piece of game data here that was hand-entered rather than extracted —
   it is in neither the pak nor the reference archive. See "Element matchups".
-- **Field boss levels are unavailable.** They are numeric properties in the
-  unversioned block; name, artwork, rarity and description are what the data
-  supports, and nothing invents the rest.
+- **Field boss levels ARE available** as of this build — 90 placed bosses,
+  levels 11-79, with verified world positions, on the map. This entry used to say
+  the opposite; the levels were behind a table the pak reader was refusing.
 - **No optimiser yet.** The inputs are now in place — Pal stats are correct for
   the first time since the passive term was fixed, work suitabilities and bought
   work ranks are readable — but nothing yet answers "who should mine".

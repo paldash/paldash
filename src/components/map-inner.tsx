@@ -16,6 +16,7 @@ import {
 import type {
   Discoveries, DiscoveryPoint, Player, BaseCamp, MapObject, FastTravelPoint,
   StaticWorldObject } from '@/lib/types';
+import type { BossSpawner } from '@/lib/save-api';
 
 interface Props {
   players: Player[];
@@ -30,6 +31,13 @@ interface Props {
    * effigies had nothing, so the layer vanished with no error to follow.
    */
   effigies: DiscoveryPoint[];
+  /**
+   * Placed field bosses, with the level the game spawns each at.
+   *
+   * No `discovered` field and no fallback list, unlike effigies: a field boss
+   * respawns and is never collected, so there is no per-player state to join.
+   */
+  bosses: BossSpawner[];
   /**
    * Completion mode: drop anything already collected from the one-time layers.
    *
@@ -345,6 +353,7 @@ export default function MapInner({
   fastTravel,
   discoveries,
   effigies,
+  bosses,
   hideCollected,
   staticObjects,
   layers,
@@ -363,6 +372,7 @@ export default function MapInner({
   const staticLayer = useRef<L.LayerGroup>(L.layerGroup());
   const travelLayer = useRef<L.LayerGroup>(L.layerGroup());
   const effigyLayer = useRef<L.LayerGroup>(L.layerGroup());
+  const bossLayer = useRef<L.LayerGroup>(L.layerGroup());
   const baseLayer = useRef<L.LayerGroup>(L.layerGroup());
   const playerLayer = useRef<L.LayerGroup>(L.layerGroup());
 
@@ -429,6 +439,7 @@ export default function MapInner({
     poiLayer.current.addTo(map);
     travelLayer.current.addTo(map);
     effigyLayer.current.addTo(map);
+    bossLayer.current.addTo(map);
     baseLayer.current.addTo(map);
     playerLayer.current.addTo(map);
 
@@ -828,6 +839,40 @@ export default function MapInner({
         .addTo(group);
     }
   }, [discoveries, effigies, layers.effigies, region, hideCollected]);
+
+  // ─── Field bosses ───────────────────────────────────────
+  useEffect(() => {
+    const group = bossLayer.current;
+    group.clearLayers();
+    if (!layers.bosses || bosses.length === 0) return;
+
+    // Not affected by completion mode. That mode hides what you have already
+    // collected, and a field boss is never collected — it respawns. Filtering
+    // it there would quietly empty the layer for the players most likely to
+    // have the mode switched on.
+    const transform = getRegion(region);
+    for (const boss of bosses.filter((b) => transform.contains(b.x, b.y))) {
+      const coords = worldToGameMap(boss.x, boss.y);
+      L.circleMarker(worldToMap(boss.x, boss.y, region), {
+        radius: px(5) / 2 + 2,
+        color: 'rgba(0,0,0,.55)',
+        weight: 1,
+        fillColor: '#d4574e',
+        fillOpacity: 0.85,
+      })
+        .bindPopup(
+          `<div style="min-width:170px">
+             <div style="font-weight:600;margin-bottom:3px">${escapeHtml(boss.name)}</div>
+             <div style="font-size:12px;color:#d4574e">Level ${boss.level}</div>
+             ${boss.elements?.length
+               ? `<div style="font-size:11px;color:#a1a7b0;margin-top:2px">${escapeHtml(boss.elements.join(' / '))}</div>`
+               : ''}
+             <div style="font-size:11px;color:#6d747e;margin-top:4px">${coords.x}, ${coords.y}</div>
+           </div>`
+        )
+        .addTo(group);
+    }
+  }, [bosses, layers.bosses, region]);
 
   // ─── Bases ──────────────────────────────────────────────
   useEffect(() => {

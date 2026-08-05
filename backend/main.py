@@ -1150,6 +1150,37 @@ def get_effigy_points(request: Request) -> dict[str, Any]:
     }
 
 
+@app.get("/api/world/bosses")
+def get_boss_spawners(request: Request) -> dict[str, Any]:
+    """
+    The 90 placed field bosses, with species, **level** and world position.
+
+    Levels were reported as unavailable throughout this project until
+    `DT_BossSpawnerLoactionData` stopped being refused by the table reader. They
+    were never missing.
+
+    NOT FILTERED BY `discoveryVisibility`, and that is a deliberate difference
+    from effigies and fast travel. Those two are *collectables* — the save
+    records whether you personally found each one, so hiding the rest is a
+    meaningful setting. A field boss respawns and is not collected: the save has
+    no per-player record to filter against, so there is nothing to hide and
+    pretending otherwise would mean inventing a discovery state.
+
+    `VIEW_BASIC`, like the other world-reference layers: this is what the game
+    contains, not what anyone on this server has done.
+    """
+    authz.require(request, roles_module.VIEW_BASIC)
+    bosses = [gamedata.describe_boss(b) for b in gamedata.boss_spawners()]
+    levels = [b["level"] for b in bosses if b.get("level")]
+    return {
+        "bosses": bosses,
+        "total": len(bosses),
+        # Stated so a UI can scale a legend without re-deriving it, and so an
+        # empty layer is distinguishable from a bundle that failed to load.
+        "levelRange": [min(levels), max(levels)] if levels else None,
+    }
+
+
 def _may_see_undiscovered(request: Request, category: str = "fastTravel") -> bool:
     role, _ = _viewer(request)
     return policy_module.may_see_undiscovered_category(role, category)

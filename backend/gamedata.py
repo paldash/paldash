@@ -41,6 +41,13 @@ EFFIGY_PATH = os.environ.get(
     os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "effigies.json.gz"),
 )
 
+BOSS_SPAWNER_PATH = os.environ.get(
+    "BOSS_SPAWNER_DATA_PATH",
+    os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "data", "boss_spawners.json.gz"
+    ),
+)
+
 GAME_SETTINGS_PATH = os.environ.get(
     "GAME_SETTINGS_DATA_PATH",
     os.path.join(
@@ -59,6 +66,7 @@ _data: Optional[dict[str, Any]] = None
 _effigies: Optional[list[dict[str, Any]]] = None
 _passive_effects: Optional[dict[str, Any]] = None
 _game_settings: Optional[dict[str, Any]] = None
+_boss_spawners: Optional[list[dict[str, Any]]] = None
 _indexes: dict[str, dict[str, Any]] = {}
 
 
@@ -435,6 +443,49 @@ def effigies() -> list[dict[str, Any]]:
     for effigy in _effigies:
         effigy["kindName"] = effigy_kind_name(str(effigy.get("kind") or ""))
     return _effigies
+
+
+def boss_spawners() -> list[dict[str, Any]]:
+    """
+    The 90 placed field bosses: species, **level** and world position.
+
+    From `DT_BossSpawnerLoactionData` via `scripts/extract-boss-spawners.py`.
+    Levels were documented as unavailable across this project for months — they
+    were behind a reader refusal, not absent.
+
+    **Positions are verified, not assumed.** All 90 land on an occupied World
+    Partition cell at 25,600 units, with controls at 12,800 (22) and 51,200 (83)
+    both worse. The extractor refuses to write if that stops being true.
+
+    Empty list rather than raising when the bundle is absent, like `effigies()`:
+    a missing file should cost the layer, not the map.
+    """
+    global _boss_spawners
+    if _boss_spawners is None:
+        try:
+            with gzip.open(BOSS_SPAWNER_PATH, "rt", encoding="utf-8") as f:
+                _boss_spawners = json.load(f).get("bosses") or []
+        except (OSError, json.JSONDecodeError) as e:
+            logger.warning(
+                "Boss spawner data unavailable (%s); the layer will be empty", e
+            )
+            _boss_spawners = []
+    return _boss_spawners
+
+
+def describe_boss(entry: dict[str, Any]) -> dict[str, Any]:
+    """One boss row with its display name and artwork joined on."""
+    species = str(entry.get("speciesId") or "")
+    info = pal(species) or {}
+    return {
+        **entry,
+        # `pal()` strips the BOSS_ prefix, which is right for naming: an alpha
+        # Lamball is still called Lamball. Stats would need `pal_exact`.
+        "name": info.get("name") or humanize(species),
+        "icon": info.get("icon", ""),
+        "elements": info.get("elements") or [],
+        "paldeckNumber": info.get("paldeckNumber"),
+    }
 
 
 def game_setting(name: str, default: Any = None) -> Any:

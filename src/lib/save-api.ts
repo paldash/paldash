@@ -906,6 +906,33 @@ export async function getEffigyPoints(): Promise<DiscoveryPoint[]> {
   return data.points ?? [];
 }
 
+/** One placed field boss: species, level and a verified world position. */
+export interface BossSpawner {
+  id: string;
+  spawnerId: string;
+  speciesId: string;
+  name: string;
+  icon?: string;
+  elements?: string[];
+  /** The level the game spawns it at. Unavailable until the pak reader was fixed. */
+  level: number;
+  x: number;
+  y: number;
+  z: number;
+}
+
+/**
+ * The 90 placed field bosses.
+ *
+ * Not discovery-filtered, unlike effigies and fast travel: a field boss
+ * respawns and is never collected, so the save has no per-player record to
+ * filter against and inventing one would be worse than showing them all.
+ */
+export async function getBossSpawners(): Promise<BossSpawner[]> {
+  const data = await saveFetch<{ bosses: BossSpawner[] }>('/world/bosses');
+  return data.bosses ?? [];
+}
+
 /** Which item scopes this caller may ask for. Decided by the backend. */
 export async function getItemScopes(): Promise<{
   guilds: { id: string; name: string }[];
