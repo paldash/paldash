@@ -62,6 +62,13 @@ WORK_ASSIGN_PATH = os.environ.get(
     ),
 )
 
+BASECAMP_PATH = os.environ.get(
+    "BASECAMP_DATA_PATH",
+    os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "data", "basecamp.json.gz"
+    ),
+)
+
 PASSIVE_EFFECT_PATH = os.environ.get(
     "PASSIVE_EFFECT_DATA_PATH",
     os.path.join(
@@ -75,6 +82,7 @@ _passive_effects: Optional[dict[str, Any]] = None
 _game_settings: Optional[dict[str, Any]] = None
 _boss_spawners: Optional[list[dict[str, Any]]] = None
 _work_assign: Optional[dict[str, Any]] = None
+_basecamp: Optional[dict[str, Any]] = None
 _indexes: dict[str, dict[str, Any]] = {}
 
 
@@ -146,13 +154,14 @@ def _reset_cache() -> None:
     reset always has: it works until it silently does not.
     """
     global _data, _effigies, _passive_effects, _game_settings
-    global _boss_spawners, _work_assign
+    global _boss_spawners, _work_assign, _basecamp
     _data = None
     _effigies = None
     _passive_effects = None
     _game_settings = None
     _boss_spawners = None
     _work_assign = None
+    _basecamp = None
     _indexes.clear()
 
 
@@ -555,6 +564,148 @@ def work_assign_available() -> bool:
     """
     work_assign("")
     return bool(_work_assign)
+
+
+def basecamp() -> dict[str, Any]:
+    """
+    Base camp levels, illness penalties and worker sanity thresholds.
+
+    Three small tables bundled together because they answer one question — what
+    is happening at a base and whether it is coping.
+
+    Empty dict rather than raising when the bundle is absent, like every other
+    accessor here: a missing file should cost the panel, not the page.
+    """
+    global _basecamp
+    if _basecamp is None:
+        try:
+            with gzip.open(BASECAMP_PATH, "rt", encoding="utf-8") as f:
+                _basecamp = json.load(f)
+        except (OSError, json.JSONDecodeError) as e:
+            logger.warning(
+                "Base camp data unavailable (%s); worker caps and illness "
+                "detail will be missing", e
+            )
+            _basecamp = {}
+    return _basecamp
+
+
+def base_worker_cap(level: int) -> Optional[int]:
+    """
+    How many Pals a base of this level may hold **in an unmodified game**.
+
+    THIS IS NOT THE CAP ON ANY PARTICULAR SERVER, IT IS NOT A MAXIMUM, AND IT IS
+    NOT A FALLBACK. Two things override it:
+
+    1. **`BaseCampWorkerMaxNum` in `PalWorldSettings.ini`** — a server setting.
+       The shipped default is **15** against this table's 30, and a real server
+       in use runs 25 workers and 5 bases per guild where the table says 30 and
+       4. It is over in one direction and under in the other, which is what
+       proves the table bounds nothing. `server_worker_cap()` reads the real
+       value and returns None rather than substituting this one.
+
+    2. **The base's level**, which gates how much of the cap is unlocked — a
+       level-1 base holds one Pal whatever the server allows.
+
+    And the catch that makes (2) unusable today: **base level is not in the
+    save.** `BaseCampSaveData.RawData` carries id, name, state, transform,
+    area_range, group and the owning palbox's instance id, and nothing else; the
+    palbox's own model and concrete model carry no level either. So this function
+    has no caller that can supply an argument to it yet. It is bundled because
+    the table is real and the level will turn up somewhere (`unknown_bytes` on
+    the palbox model is the obvious place to look next), not because anything
+    uses it.
+
+    Returns None for a level the table does not cover rather than clamping to the
+    nearest — "cap unknown" and "cap is 30" are different answers.
+    """
+    for row in basecamp().get("levels") or []:
+        if int(row.get("level") or 0) == int(level or 0):
+            return int(row.get("workerMax") or 0)
+    return None
+
+
+# The INI keys that actually govern. The DataTable is a *default*, not a bound —
+# see `server_limit`.
+WORKER_CAP_SETTING = "BaseCampWorkerMaxNum"
+BASES_PER_GUILD_SETTING = "BaseCampMaxNumInGuild"
+BASES_TOTAL_SETTING = "BaseCampMaxNum"
+
+
+def server_limit(setting: str) -> Optional[int]:
+    """
+    One of this server's own limits, read from its INI.
+
+    **THE INI IS THE ONLY AUTHORITY AND THE BUNDLED TABLE BOUNDS NOTHING.** That
+    is measured, not cautious: `DT_BaseCampLevelData` tops out at 4 bases per
+    guild and 30 workers, and a real server in use runs **5 bases and 25
+    workers** — over the table in one direction and under it in the other. So the
+    table cannot be used as a ceiling, a floor, or a fallback. It describes an
+    unmodified game and nothing else.
+
+    Nor is there a hard maximum to fall back on: `BaseCampMaxNum` defaults to 128
+    and is itself a setting. Every one of these numbers is the operator's.
+
+    None when the INI cannot be read, which is the *common* case — the normal
+    deployment mounts only the save path. **None means "not known", never
+    "unlimited" and never "use the game's value"**: a caller must show no
+    denominator rather than a wrong one, the same way `iniwatch` treats
+    `unknown` as a real answer rather than as "safe".
+    """
+    try:
+        import settings_ini
+
+        options = settings_ini.read_ini()
+    except Exception as e:  # noqa: BLE001 - an unreadable INI is normal here
+        logger.debug("Cannot read %s from the INI (%s)", setting, e)
+        return None
+
+    entry = (options.get("options") or {}).get(setting)
+    if isinstance(entry, dict):
+        entry = entry.get("value")
+    try:
+        return int(entry)
+    except (TypeError, ValueError):
+        return None
+
+
+def server_worker_cap() -> Optional[int]:
+    """How many Pals a base may hold on **this** server."""
+    return server_limit(WORKER_CAP_SETTING)
+
+
+def server_bases_per_guild() -> Optional[int]:
+    """How many bases a guild may build on **this** server."""
+    return server_limit(BASES_PER_GUILD_SETTING)
+
+
+def illness(sick_id: str) -> Optional[dict[str, Any]]:
+    """
+    What one illness costs: work speed, move speed, satiety, and the chance the
+    palbox clears it per hour.
+
+    `EffectiveItemRank` travels but is deliberately NOT resolved to a medicine
+    item here. Which item clears which rank is unverified, and naming one would
+    be the sort of mechanic claim `basesupply` refuses to make.
+    """
+    key = str(sick_id or "").lower()
+    for row in basecamp().get("illnesses") or []:
+        if str(row.get("id") or "").lower() == key:
+            return row
+    return None
+
+
+def worker_sanity_thresholds() -> list[dict[str, Any]]:
+    """
+    The sanity levels at which a worker misbehaves, highest first.
+
+    **These are not the same number as `main.LOW_SANITY`.** That is 50, from
+    `FriendshipPoint_AutoIncrementRequireSanity` — the sanity a Pal needs to keep
+    gaining *trust*. A worker starts taking short breaks at 85 and has stopped
+    being useful well before 50, so a panel warning at 50 is answering a
+    different question from the one it appears to answer.
+    """
+    return basecamp().get("workerEvents") or []
 
 
 def game_setting(name: str, default: Any = None) -> Any:
