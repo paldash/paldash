@@ -242,8 +242,39 @@ produces no error — the hierarchy simply appears empty.
 
 ## 4. Client pak — three things, and only three
 
+### Its DataTables hold nothing the server pak does not — measured, 2026-08-05
+
+The raw count looks alarming: **935 DataTables in the client pak against 471 in
+the server pak**, roughly double. It is duplicates. Deduping by filename the way
+the server sweep does gives **503 unique**, of which **471 are the same tables**
+that decode completely on the server side.
+
+**32 exist only in the client pak, and they are all cosmetic:** 31
+`PPSC_Weather_*` post-process settings (Clear, Cloudy, Fog, Overcast, …) and one
+`SupplyIncident_NPC_Sakura01`. Nothing of substance.
+
+So the client pak is **not** a second source of game rules, and the gap that
+looked like 464 unexamined tables is zero. `scripts/mine-datatables.py --pak client`
+regenerates `DATATABLES-CLIENT.md`; run it after a game update alongside the
+server sweep, because a *new* client-only table would be the interesting case
+this one turned out not to have.
+
+### And its Blueprint CDOs are not usefully tagged
+
+The server pak's `BP_PalGameSetting` class-default object decodes because its
+properties are tagged, which is what yielded 347 tuning constants. That does
+**not** transfer: `BP_BuildObject_PalFoodBox` in the client pak has 98 names of
+which exactly **one** is a property type name (`ObjectProperty`), against the
+many a tagged export shows.
+
+So the CDO technique is a server-pak capability, and task #58 stays aimed there.
+Checked so nobody re-runs the experiment on the wrong pak.
+
+
+
 `refs/Pal-Windows.pak`, 185,003 files. Properties are unversioned, so **no
-DataTable row decodes**. What it is still good for:
+DataTable row decodes** — and per the section above, there is nothing in its
+DataTables worth decoding anyway. What it is genuinely good for:
 
 1. **Name tables** — "which things reference which things" is extractable even
    when values are not. This is how effigies (396, with the instance GUIDs saves
@@ -253,9 +284,18 @@ DataTable row decodes**. What it is still good for:
    offset**: every `FTexture2DMipMap` is followed by its own `SizeX/SizeY/SizeZ`,
    and the payload precedes it at a length determined by dimensions and block
    format — two facts that must agree.
-3. **12 localisation languages** under `L10N/` (de, es, fr, id, it, ko, pl, ru,
-   th, tr, vi + en) with the game's own item, Pal, skill and technology names.
-   Unused; see task #34.
+3. **Every display string, in 17 languages.** Not in the DataTables — those
+   carry `FText`, which `uassettable` does not decode (measured: 1,994 of 1,994
+   item names opaque, 322 of 322 Pal names, 835 of 835 technology names). They
+   are in Unreal's own localisation archives:
+
+       Pal/Content/Localization/Game/<lang>/Game.locres
+
+   17 of them including `en`. (53 `Engine.locres` files also exist; those are
+   UE's own strings, not the game's.) **This is the last thing standing between
+   this project and dropping its third-party data dependency** — the server pak
+   already supplies every number, verified at 13,836 of 13,836 by
+   `scripts/verify-gamedata.py`. See tasks #34 and #69.
 
 **There is no map-icon set.** `Blueprint/UI/WorldMap/` holds exactly one icon
 texture and `Texture/UI/Map/` holds 26 packages of map furniture. Palworld draws
