@@ -164,6 +164,12 @@ const ROUTES: RouteRule[] = [
   // Same capability and feature as the storage routes above, because it is the
   // same disclosure in a different shape — per-base container contents.
   { pattern: /^bases\/supply$/, methods: ['GET'], capability: CAPABILITIES.VIEW_SELF, feature: FEATURES.ITEMS },
+  // Work assignment discloses two things at once — which structures stand at a
+  // base, and which Pals the caller owns — so it takes the stricter of the two
+  // gates each half already has: VIEW_SELF, and the backend scopes bases through
+  // the base-privacy filter and Pals through `_scope_pals`. Gated on BASES
+  // rather than ITEMS because it names no container contents.
+  { pattern: /^bases\/assign$/, methods: ['GET'], capability: CAPABILITIES.VIEW_SELF, feature: FEATURES.BASES },
   // Rankings over the caller's own Pals — same scope and same feature gate as
   // the breeding planner, which reads the same list.
   { pattern: /^optimise\/work$/, methods: ['GET'], capability: CAPABILITIES.VIEW_SELF, feature: FEATURES.BREEDING },
