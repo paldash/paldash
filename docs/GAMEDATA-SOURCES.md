@@ -28,7 +28,7 @@ Palworld ships two paks, cooked differently, and this is the whole story:
 | Properties | **Tagged** — name, type and size inline | **Unversioned** — names stripped |
 | DataTables | **Fully decodable, numbers included** | Name tables only |
 | Textures | few | all 21,056 `.ubulk` |
-| Localisation | — | 12 languages under `L10N/` |
+| Localisation | Japanese only, as `FText` **source** strings | **16 languages** under `L10N/` — see §"Every display string" |
 
 `FileVersionUE4` and `FileVersionUE5` are **0 in both**, so version fields do not
 distinguish them. The tell is whether the name table contains type names like
@@ -164,9 +164,12 @@ of day.
 
 - **46 foliage / test-map tables** (`DT_PL_*`, `DT_PV_*`, `DT_SL_*`,
   `DT_Battle_Royale_*`, `DT_pal_test_*`) — engine data, no game facts.
-- **45 text tables** (`*Text`, `*NameText`, `SystemLocalize`) — English strings
-  already covered by the bundled catalogue. Useful only for #34 (translations),
-  where the client pak's `L10N/` is the better source.
+- **45 text tables** (`*Text`, `*NameText`, `SystemLocalize`) — these decode,
+  and their `FText` source strings are **Japanese**, not English. Japanese is
+  Palworld's source language. English and 15 other languages are per-language
+  *overrides* of these same tables in the client pak's `L10N/`, read by
+  `scripts/l10n.py`. Both halves matter: the server pak gives Japanese and the
+  localisation keys, the client pak gives everything else.
 - **25 icon/UI tables** — asset paths, already resolved by `install-icons.py`.
 
 ### 1.8 The 32 refusals
@@ -284,23 +287,95 @@ DataTables worth decoding anyway. What it is genuinely good for:
    offset**: every `FTexture2DMipMap` is followed by its own `SizeX/SizeY/SizeZ`,
    and the payload precedes it at a length determined by dimensions and block
    format — two facts that must agree.
-3. **Possibly the English strings — and this is the one open question left.**
+3. **Every display string, in sixteen languages — `Pal/Content/L10N/<lang>/`.**
+   `scripts/l10n.py`. Settled 2026-08-05; the two eliminations below are worth
+   as much as the answer, because each looked like it.
 
-   `.locres` is NOT the answer: all 17 of
+   **`.locres` is NOT the answer.** All 17 of
    `Pal/Content/Localization/Game/<lang>/Game.locres` are **37-byte
    placeholders with zero entries**, English included. Palworld does not ship
-   translations that way, and a LocRes reader (`scripts/locres.py`) exists and
-   reads them correctly — they are simply empty.
+   translations that way. `scripts/locres.py` reads the format correctly — the
+   archives are simply empty, which is a different and stronger statement than
+   "we could not read them".
 
-   The **source** strings do decode, out of the *server* pak, now that
-   `uassettable` handles `FText` — but they are **Japanese**, because that is
-   Palworld's source language: `メルパカ` for Melpaca, `シラヌイ` for
-   Shiranui. Useful for the localisation *keys* it also yields, not for English.
+   **The source strings are Japanese.** They decode out of the *server* pak now
+   that `uassettable` handles `FText`, but Japanese is Palworld's source
+   language: `メルパカ` for Melpaca, `シラヌイ` for Shiranui. So that path
+   yields Japanese and the localisation *keys*, never English.
 
-   If English is in the paks at all it is in `Pal/Content/L10N/en/` — 872 files
-   under `L10N`, per-language asset overrides. **Unchecked.** That is the last
-   thing between this project and dropping its third-party data dependency, the
-   server pak already supplying every number (verified 13,836 of 13,836).
+   **The answer is per-language asset overrides**: 27 text DataTables under
+   `L10N/<lang>/Pal/DataTable/Text/`, for de, en, es, es-MX, fr, id, it, ko, pl,
+   pt-BR, ru, th, tr, vi, zh-Hans and zh-Hant — plus Japanese from the server
+   pak, so seventeen in total.
+
+   These are in the **client** pak, so properties are unversioned and
+   `uassettable`'s tag walk cannot run — its tell is negative, zero property
+   type names in the name table. **The shortcut of scanning `.uexp` for
+   string-shaped bytes and pairing them with the name table in order is exactly
+   the unverifiable half-decode this project refuses**, and names are the one
+   field where a silent off-by-one stays invisible until a player reports the
+   wrong Pal.
+
+   What makes it decodable anyway is that an `FText` carries its **namespace and
+   key inline**, so rows are self-identifying and bound *twice* — the row name
+   from the package name table, the key from inside the value stream:
+
+       row    PAL_NAME_Alpaca          (name table)
+       key    PAL_NAME_Alpaca_TextData (inside the FText)
+       source Melpaca
+
+   A one-byte drift breaks that agreement everywhere at once, so the agreement
+   rate measures alignment rather than arguing for it. Measured: **235,696 of
+   235,696 rows**, 16 languages × 27 tables, zero refusals — and every language
+   decodes exactly 14,731 rows, which is its own check, since a language is an
+   override of the same table.
+
+   The row offset is **searched for, not hardcoded**, on the principle
+   `uassettable` already follows: the acceptance criterion is the verification —
+   the walk must end exactly at the end of the export.
+
+   Three traps, each of which produced plausible output rather than an error:
+
+   - **An `FName` is (index, number) and the number is a suffix.**
+     `ITEM_NAME_Accessory_NormalResist` with number 2 is the row
+     `..._NormalResist_1`. Ignoring it collapsed 784 of 1,994 item rows onto
+     their base names.
+   - **History type 255 is a row nobody translated**, and its
+     `bHasCultureInvariantString` flag is an **int32, not one byte**. Reading it
+     as a byte desynchronised everything after it — and cost exactly 3 of 432
+     table×language combinations, all non-English, which is how it survived the
+     first pass.
+   - **Untranslated markers have three spellings** — `en Text`, `en_text` and
+     `Unidentified Pal`. A reader knowing only the first hands `en Text` to the
+     UI as a display name.
+
+   **This closes the third-party data dependency for names**, the server pak
+   already supplying every number (verified 13,836 of 13,836). The joins are
+   measured in task #69; `activeSkills` and `passives` agree with the archive
+   **100%, zero disagreements**, which is the evidence the conventions are right.
+
+   Two findings from that comparison worth carrying:
+
+   - **The game distinguishes accessory tiers and the archive does not.**
+     `Accessory_AT_2` is "Attack Pendant **+1**"; the archive calls all three
+     tiers "Attack Pendant", so the dashboard shows three different items under
+     one name today. Tier variants otherwise *inherit* the base name
+     (`AncientArmor_2` → `AncientArmor`), so the rule is exact-first,
+     base-fallback — never base-first.
+   - **Technology names are rich-text references** — `<itemName id=|AIcore|/>` —
+     because a technology that unlocks an item is named after it. The same tags
+     appear in descriptions (`<characterName id=|X|/>`, `<mapObjectName …/>`). A
+     resolver for these is the one piece still missing, and it must refuse an
+     unresolvable id rather than leaking markup into the UI.
+
+   Also newly available and not previously possible: **Paldeck flavour text**
+   (`DT_PalLongDescriptionText`, 307 entries), **region names**
+   (`REGION_Grass_1` → "Windswept Island", which resolves the MsgIDs
+   `extract-progression.py` deliberately left raw), dungeon names, and the
+   game's own **UI vocabulary** (`DT_UI_Common_Text_Common`, 3,099 rows —
+   "Work Suitability", "Attack", "SAN", "Sort", "Filter"). If this dashboard is
+   ever localised, most of its vocabulary is Pocketpair's own wording rather
+   than a paraphrase of it.
 
 **There is no map-icon set.** `Blueprint/UI/WorldMap/` holds exactly one icon
 texture and `Texture/UI/Map/` holds 26 packages of map furniture. Palworld draws

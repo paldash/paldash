@@ -138,9 +138,13 @@ answer (what a container *accepts*). Cheap, proven technique, and it would let
 **#46** — largely answered by the sweep; narrow it to whatever the catalogue did
 not cover rather than leaving it open as written.
 
-**#51** — surface unread Pal fields. **#34** — 12 localisations from the client
-pak's `L10N/`. **#41** — Pal skins. **#40** — the game's player-arrow marker.
-**#33** — non-Steam player handling; blocked on evidence, not on data.
+**#51** — surface unread Pal fields. **#41** — Pal skins. **#40** — the game's
+player-arrow marker. **#33** — non-Steam player handling; blocked on evidence,
+not on data.
+
+**#34 is done** (`scripts/l10n.py`), and it moved #69 out of Phase 1's shadow: the
+swap is no longer blocked on finding English, only on writing the rich-text
+resolver and the per-section joins, both of which are measured in #69.
 
 ---
 
@@ -160,7 +164,7 @@ Asked directly, and the answer splits three ways.
 | What | Replaced by | Notes |
 |---|---|---|
 | **PST archive → `gamedata.json.gz` numbers** | `DT_ItemDataTable`, `DT_PalMonsterParameter`, `DT_PalHumanParameter`, `DT_TechnologyRecipeUnlock` | **Verified 2026-08-05: 13,836 of 13,836 values agree.** `scripts/verify-gamedata.py`. |
-| **PST archive → names and descriptions** | `Game.locres` in the **client** pak, 17 languages | NOT the server pak's `*Text` tables — those are FText and opaque. Needs a LocRes reader: task #34. |
+| **PST archive → names and descriptions** | `L10N/<lang>/` overrides in the **client** pak, 16 languages | **Corrected 2026-08-05.** This row previously named `Game.locres`, which is wrong twice over: all 17 of those archives are 37-byte placeholders with zero entries, and the server pak's `*Text` tables are not "opaque" — they decode, and they are **Japanese**, which is Palworld's source language. `scripts/l10n.py` reads the real source: 235,696 of 235,696 rows. Joins measured in #69; `activeSkills` and `passives` agree with the archive 100%. |
 | **palcalc → breeding combinations** | `DT_PalCombiUnique` + `CombiRank` on `DT_PalMonsterParameter` | Only after #64's diff. |
 | **Community "`MAX_LEVEL` = 80"** | `BP_PalGameSetting.CharacterMaxLevel` | **Already superseded**; some docstrings still say "community-sourced, not read from the game files". Needs a sweep. |
 | **Community effigy count (313)** | Our own 396 from the relic cell | Already superseded. |
