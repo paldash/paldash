@@ -40,6 +40,7 @@ through `guarded_save_write`, the same as everything else.
 from __future__ import annotations
 
 import os
+import re
 from typing import Any, Callable, Optional
 
 import gamedata
@@ -308,6 +309,37 @@ def _work_ranks_problem(value: Any) -> Optional[str]:
     return None
 
 
+# A Palworld player uid is a Steam ID32 followed by zeros — `11a11a01-0000-0000-
+# 0000-000000000000`. That shape is what makes it distinguishable from the
+# full-entropy GUIDs the game uses for bases, guilds and character instances, and
+# `soloexport` relies on exactly the same property to match uids by value without
+# risking a collision.
+_UID_RE = re.compile(r"^[0-9a-f]{8}-0000-0000-0000-000000000000$", re.I)
+
+
+def _previous_owners_problem(value: Any) -> Optional[str]:
+    """
+    Ownership history — every previous owner, oldest first.
+
+    Validated on **shape**, not against the roster: a Pal traded in from another
+    server legitimately names a uid nobody here has ever seen, and rejecting that
+    would make the history uneditable in precisely the case that needs it (a
+    `soloexport` uid remap leaves entries pointing at a uid that no longer
+    exists anywhere).
+    """
+    if not isinstance(value, list):
+        return "must be a list"
+    if len(set(value)) != len(value):
+        return "duplicate owners"
+    for uid in value:
+        if not isinstance(uid, str) or not _UID_RE.match(uid):
+            return (
+                f"{uid!r} is not a player uid — these are a Steam ID32 followed by "
+                "zeros, like 11a11a01-0000-0000-0000-000000000000"
+            )
+    return None
+
+
 def _species_problem(value: Any) -> Optional[str]:
     if not isinstance(value, str) or not value:
         return "must be a species id"
@@ -408,6 +440,15 @@ PAL_FIELDS: dict[str, Field] = {
         note="Set by the game on a Pal brought in from elsewhere. 136 of the "
              "live world's Pals carry it, which is why it is an advisory rather "
              "than evidence of anything.",
+    ),
+    "previousOwners": Field(
+        "previousOwners", "list", label="Ownership history",
+        validator=_previous_owners_problem,
+        note="Every previous owner, oldest first — the only record of a trade "
+             "there is, so edit it deliberately. The usual reason to is after a "
+             "world export remapped a uid, leaving entries pointing at a player "
+             "who no longer exists. The before and after both land in the audit "
+             "log.",
     ),
     "workRanks": Field(
         "workRanks", "map", label="Bought work ranks",

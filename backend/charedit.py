@@ -105,6 +105,19 @@ PAL_LIST_PROPERTY_MAP = {
     "masteredSkills": "MasteredWaza",
 }
 
+# ArrayProperties whose values are palsav `UUID` objects rather than strings.
+#
+# `_write_list_property` calls `str()` on everything, which here produces a tree
+# that looks right and bytes that are not — the exact failure `soloexport`
+# records, where an `isinstance(v, str)` test matched nothing and rewrote zero of
+# 6,455 uid fields. `_write_uid_list` reconstructs the same class instead.
+#
+# `OldOwnerPlayerUIds` is present on 100% of Pals, so unlike every other list
+# here there is no create-vs-guess problem — only the value type.
+PAL_UID_LIST_PROPERTY = {
+    "previousOwners": "OldOwnerPlayerUIds",
+}
+
 # Properties whose stored values carry an enum prefix the API strips.
 LIST_PREFIXES = {
     "EquipWaza": editschema.WAZA_PREFIX,
@@ -220,7 +233,7 @@ def read_pal(obj: dict) -> dict:
             view[field] = str(_v(obj, prop, "value", "value") or "").split("::")[-1]
     # Absent means absent, matching the scalar rule: a list this save does not
     # carry cannot be written, so it must not appear editable.
-    for field, prop in PAL_LIST_PROPERTY_MAP.items():
+    for field, prop in {**PAL_LIST_PROPERTY_MAP, **PAL_UID_LIST_PROPERTY}.items():
         if prop in obj:
             view[field] = _read_list(obj, prop)
     # Work ranks read as `{workType: rank}` — the same shape the parser reports
@@ -286,6 +299,40 @@ def _write_list_property(obj: dict, prop: str, values: list) -> None:
     container["values"] = [
         f"{prefix}{v}" if prefix and not str(v).startswith(prefix) else str(v)
         for v in values
+    ]
+
+
+def _write_uid_list(obj: dict, prop: str, uids: list) -> None:
+    """
+    Replace an ArrayProperty of GUIDs, preserving the element *type*.
+
+    palsav decodes a GUID as its own `UUID` class, not as `str`. Writing strings
+    into `OldOwnerPlayerUIds` yields a tree that reads back correctly and an
+    encoder that either raises or emits wrong bytes — the same trap
+    `soloexport._write_uid` exists for, one container deeper.
+
+    The class is taken from what is already in the list where possible, so a
+    save that stores these as plain strings keeps storing them as plain strings.
+    """
+    from palsav.archive import UUID as PalUUID
+
+    if prop not in obj:
+        raise EditError(
+            f"This Pal has no {prop!r} stored, so there is no shape to write into."
+        )
+
+    node = obj[prop]
+    container = node.get("value") if isinstance(node, dict) else None
+    if not isinstance(container, dict) or "values" not in container:
+        raise EditError(f"{prop!r} is not in the expected array-property shape")
+
+    existing = container.get("values") or []
+    # An empty list carries no example, so fall back to the class palsav uses —
+    # which is what every non-empty case on every world examined has held.
+    stores_strings = bool(existing) and isinstance(existing[0], str)
+
+    container["values"] = [
+        str(u) if stores_strings else PalUUID.from_str(str(u)) for u in uids
     ]
 
 
@@ -390,6 +437,8 @@ def _apply_pal_change(obj: dict, change: dict) -> None:
         _clear_property(obj, PAL_CLEARABLE[field])
     elif field in PAL_LIST_PROPERTY_MAP:
         _write_list_property(obj, PAL_LIST_PROPERTY_MAP[field], change["after"])
+    elif field in PAL_UID_LIST_PROPERTY:
+        _write_uid_list(obj, PAL_UID_LIST_PROPERTY[field], change["after"] or [])
     elif field in PAL_STRUCT_MAP_PROPERTY:
         _write_work_ranks(obj, PAL_STRUCT_MAP_PROPERTY[field], change["after"] or {})
     else:
@@ -419,7 +468,7 @@ def plan_pal_edit(obj: dict, changes: dict) -> dict:
 
     writable = {
         **PAL_PROPERTY_MAP, **PAL_LIST_PROPERTY_MAP,
-        **PAL_CLEARABLE, **PAL_STRUCT_MAP_PROPERTY,
+        **PAL_CLEARABLE, **PAL_STRUCT_MAP_PROPERTY, **PAL_UID_LIST_PROPERTY,
     }
     unmapped = [f for f in changes if f not in writable]
     if unmapped:

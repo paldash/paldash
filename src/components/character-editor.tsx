@@ -38,6 +38,10 @@ const LIST_MAX: Record<string, number> = {
   activeSkills: 3,
   passiveSkills: 4,
   masteredSkills: Infinity,
+  // Ownership history has no cap either — a Pal traded round a server can
+  // legitimately carry a long one, and truncating it in the editor would
+  // silently discard owners on the next apply.
+  previousOwners: Infinity,
 };
 
 /** The two subject types share enough shape to drive one editor. */
@@ -181,6 +185,9 @@ export default function CharacterEditor({ canEdit }: { canEdit: boolean }) {
         // there is no entry to copy a struct shape from — distinct from `{}`,
         // which would mean the property exists and is empty.
         if (p.workRanks != null) seed.workRanks = { ...p.workRanks };
+        // Present on 100% of Pals, so unlike the rest of these it is always
+        // seeded — the property always exists, only its value type is awkward.
+        if (p.previousOwners) seed.previousOwners = [...p.previousOwners];
         // A player usually owns SEVERAL of the same species, often at the same
         // level, and "Lamball · Lv 50" three times over is a list you cannot
         // choose from — you can only guess and check afterwards. The row is

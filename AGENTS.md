@@ -960,6 +960,32 @@ edit that changed nothing planned as a change every time. It now expands a dict
 only when it is *not* itself a declared field. `ivs` is a grouping whose members
 are the real fields; `workRanks` is one field that happens to hold a map.
 
+## Ownership history is a list of UUIDs, not a list of strings
+
+`OldOwnerPlayerUIds` is present on **100% of Pals** — the only record of a trade
+there is. So unlike every other list field, there is no create-vs-guess problem
+here. There is exactly one problem, and it is the value *type*.
+
+palsav decodes a GUID as its own `UUID` class. `_write_list_property` calls
+`str()` on everything, so routing this through it produces a tree that reads back
+correctly and an encoder that emits wrong bytes — precisely the trap
+`soloexport` documents, where an `isinstance(v, str)` test matched nothing and
+rewrote **zero of 6,455** uid fields. `charedit._write_uid_list` reconstructs the
+class, taking it from whatever is already in the list so a save storing plain
+strings keeps storing plain strings.
+
+**Validated on shape, never against the roster.** A player uid is a Steam ID32
+followed by zeros (`11a11a01-0000-…`), which is what distinguishes it from the
+full-entropy GUIDs used for bases, guilds and character instances — the same
+property `soloexport` relies on to match uids by value. A uid this server has
+never seen is *accepted*, because the main reason to edit this at all is that a
+world export remapped a uid and left entries pointing at a player who no longer
+exists anywhere. Checking against the roster would break exactly the case the
+feature is for.
+
+Both sides of the change land in the audit log through the ordinary edit diff, so
+"who rewrote a Pal's provenance" is answerable without a separate action.
+
 **`DT_GainWorkSuitabilityRankItem` also names one dummy.**
 `Dummy_WorkSuitability_AddTicket_OilExtraction` — every other work type has a
 real ticket item. Not acted on, but it is the game saying oil extraction rank
