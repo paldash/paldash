@@ -100,7 +100,13 @@ def for_species(species_id: str) -> dict[str, Any]:
     entry = habitats.get(key) if key else None
     if not entry:
         return {"species": species_id, "known": False, "cells": [], "regions": [],
-                "spawnerCount": 0, "cellSize": CELL_SIZE}
+                "spawnerCount": 0, "cellSize": CELL_SIZE,
+                # Absent, not zero. An unknown species and a species that spawns
+                # at level 0 must not look alike — and `_Oilrig`/`_Tower` forms
+                # legitimately land here, so this is the common path.
+                "levelMin": None, "levelMax": None,
+                "countMin": None, "countMax": None,
+                "weight": 0.0, "restrictions": []}
 
     size = float(load().get("cellSize") or CELL_SIZE)
     regions = [
@@ -123,6 +129,20 @@ def for_species(species_id: str) -> dict[str, Any]:
         "regions": regions,
         "spawnerCount": entry.get("spawnerCount", 0),
         "cellSize": size,
+        # From the real spawner tables, which the name-table workaround could
+        # not give: what level this species spawns at, how many at once, and
+        # whether it only appears at a time of day or in certain weather.
+        #
+        # The level range spans every group the species appears in, so it is a
+        # SPAN rather than an average — a species found at both ends of the map
+        # would otherwise report a middling level nothing actually spawns at.
+        "levelMin": entry.get("levelMin"),
+        "levelMax": entry.get("levelMax"),
+        "countMin": entry.get("countMin"),
+        "countMax": entry.get("countMax"),
+        # Comparable only inside one spawner group — see `weightIsWithinGroup`.
+        "weight": entry.get("weight", 0.0),
+        "restrictions": entry.get("restrictions") or [],
     }
 
 
