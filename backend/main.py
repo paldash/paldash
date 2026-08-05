@@ -990,11 +990,34 @@ def get_welfare(request: Request, owner: Optional[str] = None) -> dict:
 
     # Worst first: a Pal with three things wrong with it is the one to open.
     affected.sort(key=lambda p: (-len(p["problems"]), p.get("name") or ""))
+
+    # **"Sick" was a flag, and a flag is not an answer.** The game's own table
+    # says what each condition costs and how fast the palbox clears it, so the
+    # panel can say "Depressed — work -20%, move -10%, palbox cures 10% an hour"
+    # instead of a red dot. Only the illnesses actually present are returned:
+    # a reference table of all eight beside a roster of two is noise.
+    present = {
+        str(p.get("workerSick") or "") for p in affected if p.get("workerSick")
+    }
+    illnesses = [row for row in (gamedata.illness(sick) for sick in sorted(present)) if row]
+
     return {
         "counts": counts,
         "pals": affected,
         "scanned": len(scoped),
         "lowSanityBelow": LOW_SANITY,
+        # What each condition present actually costs.
+        "illnesses": illnesses,
+        # The palbox cure chance is rolled once per this many seconds, so a
+        # percentage without it is a rate with no denominator.
+        "palboxCurePeriodSeconds": gamedata.game_setting(
+            "PalBoxTimePeriodRecoverySick"
+        ),
+        # **85, not `LOW_SANITY`.** A worker starts taking short breaks at 85 and
+        # has long stopped being useful by 50, so a panel that only warns at 50
+        # is answering a different question from the one it appears to answer.
+        # See `gamedata.worker_sanity_thresholds`.
+        "sanityThresholds": gamedata.worker_sanity_thresholds(),
         **_breeding_scope(request, effective),
     }
 

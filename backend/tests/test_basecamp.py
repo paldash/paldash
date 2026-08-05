@@ -252,3 +252,68 @@ def test_a_missing_bundle_costs_the_panel_not_the_page(monkeypatch):
     assert gamedata.base_worker_cap(5) is None
     assert gamedata.illness("Cold") is None
     assert gamedata.worker_sanity_thresholds() == []
+
+
+# ── condition names come from the game, not from the id ───────────────────
+
+
+def test_every_illness_carries_the_games_own_name():
+    """
+    **"Sick" was a flag, and a flag is not an answer.** The panel could say a
+    Pal had `DepressionSprain`, because the server table carries only an
+    internal `SickType` and the event table's `debugName` is Japanese.
+
+    The names come from the client pak's `L10N/en` overrides. `nameIsInternal`
+    is the honest fallback for a build without that pak — never a humanised id
+    presented as the game's word for the thing.
+    """
+    rows = gamedata.basecamp().get("illnesses") or []
+    assert len(rows) == 8
+    for row in rows:
+        assert row.get("name"), row
+        assert "nameIsInternal" in row
+
+
+def test_the_cold_condition_is_displayed_as_sick():
+    """
+    **The id and the player-facing name genuinely disagree here**, which is the
+    whole reason these are looked up rather than derived from the id. A
+    `humanize()` would have produced "Cold" and looked perfectly correct.
+    """
+    cold = gamedata.illness("Cold")
+    assert cold is not None
+    assert cold["id"] == "Cold"
+    assert cold["name"] == "Sick"
+    assert cold["nameIsInternal"] is False
+
+
+def test_penalties_are_signed_and_a_zero_is_a_real_zero():
+    """A Sprain costs no work speed at all. That is the game's answer, not a
+    missing field, so the UI must be able to tell it from an unknown."""
+    sprain = gamedata.illness("Sprain")
+    assert sprain["workSpeed"] == 0
+    assert sprain["moveSpeed"] == -5
+    # The worst one, and the reason a bare "sick" flag was inadequate: half
+    # speed at everything, cured 3% an hour.
+    trouble = gamedata.illness("DisturbingElement")
+    assert trouble["workSpeed"] == -50
+    assert trouble["moveSpeed"] == -50
+    assert trouble["palboxRecoveryPercent"] == 3
+
+
+def test_the_cure_chance_has_a_period_to_go_with_it():
+    """A percentage with no denominator is not a rate. The game rolls it once
+    per `PalBoxTimePeriodRecoverySick`."""
+    assert gamedata.game_setting("PalBoxTimePeriodRecoverySick") == 3600
+
+
+def test_worker_events_start_at_85_not_at_the_low_sanity_threshold():
+    """
+    `main.LOW_SANITY` is 50 and answers a different question — the sanity a Pal
+    needs to keep gaining *trust*. A worker starts taking breaks at **85** and
+    has stopped being useful well before 50, so a panel warning only at 50 is
+    silent through most of the problem.
+    """
+    events = gamedata.worker_sanity_thresholds()
+    assert events
+    assert max(e["triggerSanity"] for e in events) == 85
