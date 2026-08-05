@@ -86,6 +86,13 @@ MOVES_PATH = os.environ.get(
     os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "moves.json.gz"),
 )
 
+PROGRESSION_PATH = os.environ.get(
+    "PROGRESSION_DATA_PATH",
+    os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "data", "progression.json.gz"
+    ),
+)
+
 PASSIVE_EFFECT_PATH = os.environ.get(
     "PASSIVE_EFFECT_DATA_PATH",
     os.path.join(
@@ -103,6 +110,7 @@ _basecamp: Optional[dict[str, Any]] = None
 _economy: Optional[dict[str, Any]] = None
 _spawns: Optional[dict[str, Any]] = None
 _moves: Optional[dict[str, Any]] = None
+_progression: Optional[dict[str, Any]] = None
 _indexes: dict[str, dict[str, Any]] = {}
 
 
@@ -175,6 +183,7 @@ def _reset_cache() -> None:
     """
     global _data, _effigies, _passive_effects, _game_settings
     global _boss_spawners, _work_assign, _basecamp, _economy, _spawns, _moves
+    global _progression
     _data = None
     _effigies = None
     _passive_effects = None
@@ -185,6 +194,7 @@ def _reset_cache() -> None:
     _economy = None
     _spawns = None
     _moves = None
+    _progression = None
     _indexes.clear()
 
 
@@ -947,6 +957,96 @@ def unique_combos() -> list[dict[str, Any]]:
     precisely what palcalc's table does, and the only thing it gets wrong.
     """
     return moves().get("uniqueCombos") or []
+
+
+def progression() -> dict[str, Any]:
+    """Relic ranks, stat elixirs, region ids, quest positions and dungeons."""
+    global _progression
+    if _progression is None:
+        try:
+            with gzip.open(PROGRESSION_PATH, "rt", encoding="utf-8") as f:
+                _progression = json.load(f)
+        except (OSError, json.JSONDecodeError) as e:
+            logger.warning("Progression data unavailable (%s)", e)
+            _progression = {}
+    return _progression
+
+
+def relic_rank(relic_type: str, relics_spent: int) -> Optional[dict[str, Any]]:
+    """
+    What a number of relics spent on ONE statue line buys, and what the next rank
+    costs.
+
+    The map has shown all 396 effigies and which a player found since the layer
+    shipped, and has never said what finding them *did*. This is that.
+
+    **`RequiredRelicNum` is the cost of that rank, not a running total**, and
+    reading it as a threshold gets the answer badly wrong. `HungerReduction`
+    charges 1 relic for each of its 20 ranks; a cumulative reading would say rank
+    20 costs one relic. `MoveSpeed` runs 1, then 3 for seventy-eight ranks, then
+    4 — 287 relics for all 92. So the running total is summed here.
+
+    **`EffectRate` IS already cumulative** — the total effect at that rank, not
+    an increment. HungerReduction reads 2.5, 5.0, 7.5 across its first three.
+    The two adjacent columns work in opposite ways, which is exactly the sort of
+    thing to state rather than leave to a reader.
+
+    **`CapturePower` is the one line with no rate at all**: all 15 of its ranks
+    are 0.0 while the other twelve types carry real values. Its effect is
+    evidently expressed somewhere other than this column, so a caller must not
+    render "+0%" — `hasEffectRate` says which case it is.
+    """
+    ranks = (progression().get("relicRanks") or {}).get(str(relic_type or ""))
+    if not ranks:
+        return None
+
+    spent = max(0, int(relics_spent or 0))
+    has_rate = any(r["effectRate"] for r in ranks)
+
+    running = 0
+    current = {"rank": 0, "effectRate": 0.0, "resetCost": 0}
+    for row in ranks:
+        running += row["requiredRelics"]
+        if running > spent:
+            return {
+                **current,
+                "relicsSpent": spent,
+                "hasEffectRate": has_rate,
+                "nextRank": row["rank"],
+                "relicsToNext": running - spent,
+                "totalToMax": sum(r["requiredRelics"] for r in ranks),
+            }
+        current = row
+
+    return {
+        **current,
+        "relicsSpent": spent,
+        "hasEffectRate": has_rate,
+        "nextRank": None,
+        "relicsToNext": 0,
+        "totalToMax": sum(r["requiredRelics"] for r in ranks),
+    }
+
+
+def relic_types() -> list[str]:
+    return sorted(progression().get("relicRanks") or {})
+
+
+def quest_location(quest_id: str) -> Optional[dict[str, Any]]:
+    """Where a quest happens. `range` is -1 on most, meaning no radius."""
+    return (progression().get("quests") or {}).get(str(quest_id or ""))
+
+
+def area_ids() -> dict[str, str]:
+    """
+    Region id -> its text-table key.
+
+    **Not display names.** `MsgID` is `REGION_Desert_1`, a key into the
+    localisation tables, and humanising it here would create a second source of
+    truth against them. 123 regions is still enough to turn `areasFound`'s
+    opaque flag map into "47 of 123".
+    """
+    return progression().get("areas") or {}
 
 
 def game_setting(name: str, default: Any = None) -> Any:

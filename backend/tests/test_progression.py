@@ -1,0 +1,134 @@
+"""
+Relic ranks, quest positions, regions and dungeons.
+
+The two tests that matter are about a pair of adjacent columns that work in
+opposite directions — `RequiredRelicNum` is a per-rank cost and `EffectRate` is
+a cumulative total. Reading either the other way produces a confident wrong
+number rather than an error, and I got both backwards on the first pass.
+"""
+
+from __future__ import annotations
+
+import os
+import sys
+
+import pytest
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+
+import gamedata  # noqa: E402
+
+
+@pytest.fixture(autouse=True)
+def _fresh():
+    gamedata._reset_cache()
+    yield
+    gamedata._reset_cache()
+
+
+# ─── The two columns ─────────────────────────────────────
+
+
+def test_relic_cost_is_per_rank_and_is_summed_to_find_the_current_rank():
+    """
+    `HungerReduction` charges 1 relic for each of its 20 ranks. Read as a
+    cumulative threshold, rank 20 would cost a single relic — so 5 spent must
+    give rank 5, not rank 20.
+    """
+    assert gamedata.relic_rank("HungerReduction", 5)["rank"] == 5
+    assert gamedata.relic_rank("HungerReduction", 20)["rank"] == 20
+    assert gamedata.relic_rank("HungerReduction", 0)["rank"] == 0
+
+    # MoveSpeed's costs are 1 then 3s, so 10 relics buys four ranks (1+3+3+3).
+    assert gamedata.relic_rank("MoveSpeed", 10)["rank"] == 4
+
+
+def test_effect_rate_is_already_cumulative():
+    """
+    2.5, 5.0, 7.5 across HungerReduction's first three ranks — the total at that
+    rank. Summing it would triple the answer.
+    """
+    assert gamedata.relic_rank("HungerReduction", 1)["effectRate"] == 2.5
+    assert gamedata.relic_rank("HungerReduction", 2)["effectRate"] == 5.0
+    assert gamedata.relic_rank("HungerReduction", 20)["effectRate"] == 50.0
+
+
+def test_capture_power_has_no_rate_and_says_so():
+    """
+    All 15 CapturePower ranks are 0.0 while the other twelve types carry real
+    values. Its effect lives somewhere other than this column, so a UI must not
+    render "+0%" — and it can tell, because `hasEffectRate` is False.
+    """
+    capture = gamedata.relic_rank("CapturePower", 3)
+    assert capture["hasEffectRate"] is False
+    assert capture["effectRate"] == 0.0
+
+    hunger = gamedata.relic_rank("HungerReduction", 3)
+    assert hunger["hasEffectRate"] is True
+
+
+def test_it_says_what_the_next_rank_costs_and_what_maxing_takes():
+    row = gamedata.relic_rank("MoveSpeed", 10)
+    assert row["nextRank"] == 5
+    assert row["relicsToNext"] == 3
+    # 92 ranks: 1, then 3 x 78, then 4 x 13.
+    assert row["totalToMax"] == 287
+
+
+def test_a_maxed_line_reports_no_next_rank():
+    maxed = gamedata.relic_rank("HungerReduction", 20)
+    assert maxed["nextRank"] is None
+    assert maxed["relicsToNext"] == 0
+
+
+def test_an_unknown_relic_type_is_none():
+    assert gamedata.relic_rank("NotAThing", 5) is None
+
+
+def test_all_thirteen_relic_lines_are_present():
+    assert len(gamedata.relic_types()) == 13
+    assert "CapturePower" in gamedata.relic_types()
+
+
+# ─── Quests, regions, dungeons ───────────────────────────
+
+
+def test_quests_carry_world_positions():
+    quest = gamedata.quest_location("Main_UnlockFastTravel")
+    assert quest is not None
+    assert {"x", "y", "z", "range"} <= set(quest)
+
+
+def test_a_range_of_minus_one_means_no_radius():
+    """Most quests have no radius; -1 is the game's way of saying so."""
+    ranges = [q["range"] for q in gamedata.progression()["quests"].values()]
+    assert -1.0 in ranges
+
+
+def test_regions_are_ids_not_display_names():
+    """
+    `MsgID` is a localisation key (`REGION_Desert_1`). Humanising it here would
+    create a second source of truth against the text tables — but 123 of them is
+    still enough to turn `areasFound`'s opaque flag map into "47 of 123".
+    """
+    areas = gamedata.area_ids()
+    assert len(areas) == 123
+    assert areas["Desert_001"].startswith("REGION_")
+
+
+def test_dungeons_carry_their_layouts_where_the_game_has_them():
+    dungeons = gamedata.progression()["dungeons"]
+    assert len(dungeons) == 23
+    # Only 15 layout rows exist across all 23 areas; the rest keep an empty list
+    # rather than being dropped.
+    with_levels = [d for d in dungeons.values() if d["levels"]]
+    assert 0 < len(with_levels) < len(dungeons)
+
+
+def test_a_missing_bundle_costs_the_panel_not_the_page(monkeypatch):
+    monkeypatch.setattr(gamedata, "PROGRESSION_PATH", "/nonexistent/p.json.gz")
+    gamedata._reset_cache()
+    assert gamedata.progression() == {}
+    assert gamedata.relic_rank("HungerReduction", 5) is None
+    assert gamedata.area_ids() == {}
+    assert gamedata.quest_location("x") is None
