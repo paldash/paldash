@@ -2030,6 +2030,56 @@ at a map object the new guild does not own.
 The emptied guild is removed **last**, after its bases have been re-homed, so a
 failure anywhere earlier leaves it still holding them.
 
+## Read `docs/DATATABLES.md` BEFORE designing a feature, not after
+
+`scripts/mine-datatables.py` catalogues every DataTable in the server pak —
+**471 unique tables, 182,962 rows, 32 refusals** — with row counts and column
+names. It is a schema index, not data: it answers "does a table exist that knows
+X" so that question stops being answered by concluding it does not.
+
+**It exists because the same mistake shipped twice in a row.** The base supply
+advisor recorded that `DT_MapObjectMasterDataTable` carries no consumption
+semantics — true — and concluded the structure-to-work mapping did not exist. The
+work optimiser then *refused to build base assignment on those grounds*, with a
+docstring saying no game file supported it.
+
+`DT_MapObjectAssignData` carries exactly that mapping, in 271 rows, and decodes
+cleanly. It was one `ls` away the whole time.
+
+Both refusals were honest about what had been **checked** and wrong about what
+was **there**, which is the worse failure: a documented negative gets trusted and
+stops the next person looking. Searching per-feature is the root cause, and
+`read_table` handles the whole pak at once, so there is no reason for it.
+
+What one sweep answered that had been open as separate tasks:
+
+| Want | Table | Rows |
+|---|---|---:|
+| Which work a structure needs, min rank, worker cap, sanity drain | `DT_MapObjectAssignData` | 271 |
+| Crafting recipes with materials and `WorkableAttribute` | `DT_ItemRecipeDataTable` | 1,414 |
+| Build costs, capacity, work amount | `DT_BuildObjectDataTable` | 498 |
+| What each Pal drops, per level, with rates | `DT_PalDropItem` | 1,044 |
+| Raid bosses: summon items, levels, egg weights | `DT_PalRaidBoss` | 11 |
+| Spawner rosters with levels | `DT_PalWildSpawner` | 1,691 |
+| **Spawner world positions** | `DT_PalSpawnerPlacement` | 8,253 |
+| Dungeon enemies, loot and rewards | `DT_Dungeon*` | 59/32/162 |
+| Unique breeding combinations | `DT_PalCombiUnique` | 258 |
+
+`DT_PalSpawnerPlacement` deserves particular note: it carries `Location`, so the
+habitat data currently derived by intersecting name tables (97.0% attribution,
+and explicitly "references this species", not "spawns here at this rate") has a
+**direct source** that supersedes the workaround.
+
+**The element chart survived the sweep, and that is worth recording as a
+confirmed negative.** Nothing in 471 tables carries an effectiveness relation —
+`TargetElementType` appears only on passives. So `elements.py`'s hand-entered
+constant is not a gap in the search; it is the answer, and now on much better
+evidence than before.
+
+The 32 refusals are listed in the document with their errors rather than omitted,
+because "this exists and we cannot read it" is a different and more useful
+statement than silence.
+
 ## The SERVER pak's DataTables are fully decodable — numbers included
 
 **This supersedes the "rates, thresholds and coordinates are locked" conclusion
