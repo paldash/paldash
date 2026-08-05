@@ -1431,6 +1431,31 @@ Four things that bite:
   speed climbing with level on a Pal whose in-game work speed has not moved —
   wrong in the direction you would expect it to move, so nobody questions it.
 
+### The element effectiveness chart is in neither source — a recorded negative
+
+Searched for, not found, so nobody has to search again. Which element beats
+which is **not** a DataTable in `Pal-LinuxServer.pak`: `--grep` finds no
+`Compatibility`, `Effectiveness`, `Weakness`, `AttributeDamage` or
+`ElementDamage` asset of any kind, and the only element DataTable that exists is
+`DT_PalAwakeningItemElement` (which item awakens which element, not damage
+multipliers). Everything else matching "Element" is visual effects, elemental
+treasure-box locks and player step-attack statuses.
+
+It is not in `refs/PalWorldSaveTools-main.zip` either — the 78 matching entries
+there are **all element icons**, with no data file among them.
+
+So the chart lives in C++ or in a blueprint's unversioned properties, which is
+the same wall `DT_BossSpawnerLoactionData` hits. Unlike the passive effects, this
+one does not come down by switching paks.
+
+**That blocks only the per-element part of the optimiser.** Work assignment needs
+work suitabilities (bundled) and work speed; party strength needs the stats,
+which are now correct for the first time. If the chart is wanted, it has to be a
+hand-entered constant with its source named in a comment — the "do not
+hand-write game data" rule bites on data that *exists* in `refs/`, and this does
+not. Say where it came from, or it is a wiki number pretending to be a
+measurement.
+
 ### The passive term was always zero, and 1,352 Pals were understated
 
 `palstats.describe` took `passive_bonus` as a caller-supplied float defaulting to
