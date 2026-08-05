@@ -1481,3 +1481,72 @@ export async function getAuditLog(params: {
   const suffix = query.toString();
   return saveFetch(`/audit${suffix ? `?${suffix}` : ''}`);
 }
+
+/**
+ * What work each base needs, who covers it, and who could fill the gaps.
+ *
+ * **`minRank` and `maxRank` are both real and mean different things.** A station
+ * list can be tiered — the research lab has ten slots at ranks 1..10, so a
+ * rank-1 Pal can start on it — while the Ancient Multi Product Mining rig has
+ * ten slots all at rank 6. Coverage tests the minimum; `topStationStaffed` says
+ * whether the hardest one is manned.
+ *
+ * **Advisory only.** Nothing here writes; `advisoryOnly` travels in the payload
+ * so the UI cannot forget.
+ */
+export interface AssignCandidate {
+  instanceId: string;
+  name: string;
+  nickname?: string;
+  level: number;
+  work: { base: number; bought: number; level: number };
+  workSpeed: number;
+  workSpeedCalculated: boolean;
+  /** free | party | base | committed — what taking this Pal would cost. */
+  availability: 'free' | 'party' | 'base' | 'committed';
+  /** Where it is now, named. "Ore Outpost", "In a party", "Palbox / storage". */
+  where: string;
+}
+
+export interface AssignNeed {
+  work: string;
+  workName: string;
+  /** Lowest rank any station of this work accepts — what coverage tests. */
+  minRank: number;
+  /** Highest — what it takes to staff every station. */
+  maxRank: number;
+  /** Worker positions across the base. Not `workerMax`, which is usually unset. */
+  slots: number;
+  structures: string[];
+  sanityPerTick: number;
+  covered: boolean;
+  coveredBy: { instanceId: string; name: string; level: number }[];
+  /** Highest rank standing here now. Against `maxRank`, says if the top station is idle. */
+  bestRank: number;
+  topStationStaffed: boolean;
+  candidates: AssignCandidate[];
+  candidateCount: number;
+}
+
+export interface BaseAssignment {
+  baseId: string;
+  baseName: string;
+  guildId: string;
+  guildName: string;
+  workerCount: number;
+  /** Absent when the worker container did not resolve — never render `n/0`. */
+  workerCapacity?: number | null;
+  /** null means "capacity unknown", not "full". */
+  freeSlots: number | null;
+  needs: AssignNeed[];
+  uncovered: number;
+  structuresWithoutWork: number;
+  advisoryOnly: boolean;
+}
+
+export async function getBaseAssignments(
+  base?: string
+): Promise<{ bases: BaseAssignment[]; scope?: string; linkedToPlayer?: boolean; pals?: number }> {
+  const query = base ? `?base=${encodeURIComponent(base)}` : '';
+  return saveFetch(`/bases/assign${query}`);
+}
