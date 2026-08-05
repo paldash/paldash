@@ -111,6 +111,27 @@ export default function BuildBanner() {
             <span className="mono">python3 scripts/check-game-build.py --extract</span>
           </div>
 
+          {/* THE STEP THAT COMES FIRST, and the only thing that can spot content
+              the dashboard does not know about yet.
+
+              Every extractor finds its table by exact name, so a RENAMED table
+              raises and a NEW one is invisible — no error, just an absence
+              nobody is looking for. Regenerating the existing bundles reproduces
+              exactly what was already known and would miss a whole new feature's
+              worth of data. `--check` diffs the pak against the committed index
+              and names what appeared, vanished, or changed columns.
+
+              A changed column is the dangerous one: an extractor reading a
+              renamed column gets nothing and writes a silent zero. */}
+          <div style={{ marginTop: 6, fontSize: 11, color: 'var(--text-muted)' }}>
+            Before regenerating, check whether the update <em>added</em> anything:{' '}
+            <span className="mono">python3 scripts/mine-datatables.py --check</span>
+            <div style={{ marginTop: 2 }}>
+              It names new, removed and changed tables. Regenerating alone only
+              reproduces what is already known.
+            </div>
+          </div>
+
           {canAcknowledge && (
             <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
               {/* Reload, not regenerate. Once the files on disk have been

@@ -37,7 +37,22 @@ REFUSALS ARE RECORDED, NOT HIDDEN. The 13 that do not decode are listed with
 their error, because "this table exists and we cannot read it" is a different
 and more useful statement than silence.
 
-Usage:  python3 scripts/mine-datatables.py [--grep PATTERN]
+DETECTING A GAME UPDATE'S NEW CONTENT
+-------------------------------------
+`--check` diffs the pak against the committed `docs/datatables.json` and names
+what appeared, vanished, changed columns or changed row count. Exit 1 on any
+difference, so a cron or CI step can use it as a signal.
+
+**This is the only thing here that can spot content the dashboard does not know
+about.** `gameversion` compares build ids and answers "are the bundles stale",
+which is a different question — regenerating them reproduces exactly what was
+already known. Every extractor finds its table by exact name, so a renamed table
+raises and a new one is simply invisible.
+
+The dashboard's update banner points at this command, so an operator who never
+reads this file still gets told.
+
+Usage:  python3 scripts/mine-datatables.py [--grep PATTERN] [--check]
 """
 
 from __future__ import annotations
@@ -167,9 +182,94 @@ def write_markdown(decoded: list[dict], refused: list[dict]) -> None:
         f.write("\n".join(lines))
 
 
+def check(decoded: list[dict], refused: list[dict]) -> int:
+    """
+    What changed since the committed index — the answer to "will this notice a
+    game update?".
+
+    **Nothing else here detects a NEW table.** Every extractor finds its source
+    by exact name (`endswith("DT_Foo.uasset")`), so a renamed table raises and a
+    table that did not exist before is simply invisible — no error, no warning,
+    just an absence nobody is looking for. `gameversion` compares build ids and
+    reports that bundles are *stale*, which is a different question from what the
+    game now contains.
+
+    Since `docs/datatables.json` is committed, the pak can be diffed against it.
+    Run this after a game update, before deciding which extractors to re-run.
+
+    A changed column list matters as much as a new table: an extractor reading a
+    renamed column gets `None` and writes a silent zero, which is the failure
+    mode this project keeps meeting.
+
+    Exit 1 on any difference so CI or a cron can use it as a signal.
+    """
+    try:
+        with open(JSON_OUT) as f:
+            previous = json.load(f)
+    except (OSError, json.JSONDecodeError) as e:
+        print(f"No committed index to compare against ({e}). Run without "
+              "--check first.", file=sys.stderr)
+        return 2
+
+    was = {e["table"]: e for e in previous.get("decoded") or []}
+    was_refused = {e["table"] for e in previous.get("refused") or []}
+    now = {e["table"]: e for e in decoded}
+    now_refused = {e["table"] for e in refused}
+
+    added = sorted(set(now) - set(was) - was_refused)
+    removed = sorted(set(was) - set(now) - now_refused)
+    newly_readable = sorted(was_refused & set(now))
+    newly_refused = sorted(set(was) & now_refused)
+
+    changed = []
+    for name in sorted(set(now) & set(was)):
+        before, after = was[name], now[name]
+        cols_before, cols_after = set(before["columns"]), set(after["columns"])
+        if cols_before != cols_after:
+            changed.append((name, sorted(cols_after - cols_before),
+                            sorted(cols_before - cols_after)))
+        elif before["rows"] != after["rows"]:
+            changed.append((name, [], []))
+
+    if not any((added, removed, newly_readable, newly_refused, changed)):
+        print(f"No change: {len(now)} tables, same columns and row counts.")
+        return 0
+
+    for name in added:
+        print(f"NEW TABLE   {name[:-7]}  ({now[name]['rows']} rows)")
+        print(f"              {', '.join(now[name]['columns'][:12])}")
+    for name in removed:
+        print(f"GONE        {name[:-7]}")
+    for name in newly_readable:
+        print(f"NOW READS   {name[:-7]}  ({now[name]['rows']} rows) — it used to refuse")
+    for name in newly_refused:
+        print(f"NOW REFUSES {name[:-7]} — it used to decode")
+    for name, gained, lost in changed:
+        rows_before, rows_after = was[name]["rows"], now[name]["rows"]
+        detail = []
+        if gained:
+            detail.append(f"+{gained}")
+        if lost:
+            detail.append(f"-{lost}")
+        if rows_before != rows_after:
+            detail.append(f"rows {rows_before} -> {rows_after}")
+        print(f"CHANGED     {name[:-7]}  {'; '.join(detail)}")
+
+    print(
+        "\nA changed column is the dangerous one: an extractor reading a renamed "
+        "column gets None and writes a silent zero. Re-run the affected "
+        "extractors with --verify before regenerating anything."
+    )
+    return 1
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--grep", help="print tables whose name or columns match")
+    ap.add_argument(
+        "--check", action="store_true",
+        help="compare the pak against the committed index and report what changed",
+    )
     args = ap.parse_args()
 
     pak = palpak.Pak()
@@ -186,6 +286,9 @@ def main() -> int:
                 print(f"    {', '.join(entry['columns'])}")
                 print(f"    e.g. {entry['sampleKey']}: {entry['sample'][:200]}")
         return 0
+
+    if args.check:
+        return check(decoded, refused)
 
     os.makedirs(os.path.dirname(MD_OUT), exist_ok=True)
     write_markdown(decoded, refused)
