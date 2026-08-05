@@ -440,9 +440,64 @@ def apply_game_names(data: dict) -> dict[str, dict[str, int]]:
     return stats
 
 
+def apply_species_fields(data: dict) -> dict[str, int]:
+    """
+    Species fields the reference archive does not carry, read from the game.
+
+    Currently one: **`bestWorkSuitability`**, from `DT_PalMonsterParameter`'s
+    `BestWorkSuitability` column. One work type per species — `Umihebi_Fire`
+    (Jormuntide Ignis) is `EmitFlame`.
+
+    **This is the per-species half of the condenser mechanic.** Raising a Pal's
+    condenser rank raises its work suitability for *this* work type only, which
+    is why the field matters even though the magnitude of the increase is not in
+    any file — searched exhaustively, including all 471 DataTables, the game
+    settings CDO, the condenser build object's CDO, and the name tables of all
+    10,286 server-pak blueprints, which reference `BestWorkSuitability` **zero**
+    times. That logic is in the binary. See task #74.
+
+    So this ships the fact and not the arithmetic: nothing here claims what the
+    bonus *is*. `optimise.work_level` continues to report `base` + `bought` and
+    is knowingly low for condensed Pals until the magnitude is measured.
+
+    The enum prefix is stripped (`EPalWorkSuitability::EmitFlame` -> `EmitFlame`)
+    so it matches the ids `workSuitabilities` already uses — a caller must be
+    able to look one up with the other.
+    """
+    import palpak
+    import uassettable
+
+    pak = palpak.Pak()
+    path = next(
+        (f for f in pak.files if f.endswith("DT_PalMonsterParameter.uasset")), None
+    )
+    if path is None:
+        raise SystemExit("!! DT_PalMonsterParameter not in the server pak")
+
+    rows = uassettable.read_table(pak, path)
+    lowered = {str(k).lower(): v for k, v in rows.items()}
+
+    counts = {"total": len(data.get("pals") or {}), "resolved": 0, "unmatched": 0}
+    for ident, entry in (data.get("pals") or {}).items():
+        row = lowered.get(ident.lower())
+        if row is None:
+            counts["unmatched"] += 1
+            continue
+        best = str(row.get("BestWorkSuitability") or "")
+        best = best.rsplit("::", 1)[-1] if "::" in best else best
+        # `None` is the game's own "no best work", and several species genuinely
+        # have an empty work table — Panthalus and Astralym among them. Absent
+        # rather than empty-string, so a caller can tell "no best" from "not read".
+        if best and best != "None":
+            entry["bestWorkSuitability"] = best
+            counts["resolved"] += 1
+    return counts
+
+
 def main() -> int:
     data = build()
 
+    species = apply_species_fields(data)
     names = apply_game_names(data)
     icons = resolve_icons(data)
 
@@ -456,6 +511,10 @@ def main() -> int:
     # Per section for the same reason the icon report is: one aggregate would
     # bury a regression. `fellBack` is the number that matters — those entries
     # still carry the third-party archive's name.
+    print(
+        f"  bestWorkSuitability: {species['resolved']:,}/{species['total']:,} species"
+        f"  ({species['unmatched']} not in DT_PalMonsterParameter)"
+    )
     print("  names (from the game's own L10N tables):")
     for section, counts in names.items():
         print(

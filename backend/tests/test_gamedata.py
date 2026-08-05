@@ -332,3 +332,56 @@ def test_every_bundled_effigy_gets_a_name_with_no_class_left_showing():
     names = {e["kindName"] for e in gamedata.effigies()}
     assert names, "the effigy bundle should be present"
     assert not any("BP_" in n or "_" in n for n in names), sorted(names)
+
+
+# ── bestWorkSuitability ───────────────────────────────────────────────────
+
+
+def test_every_species_carries_its_best_work_suitability():
+    """
+    `DT_PalMonsterParameter.BestWorkSuitability`, 753 of 753 resolved.
+
+    Bundled because it is the **per-species half of the condenser mechanic** —
+    raising a Pal's condenser rank raises its suitability for this work type
+    only. The *size* of that increase is in no data file (see the accessor's
+    docstring for where it was searched), so this ships the fact and no
+    arithmetic.
+    """
+    pals = gamedata.load()["pals"]
+    with_best = [k for k, v in pals.items() if v.get("bestWorkSuitability")]
+    # Not all 753: species with an entirely empty work table have no best, which
+    # is the game's answer rather than a gap.
+    assert len(with_best) > 700, len(with_best)
+
+
+def test_best_work_matches_the_species_own_strongest_work():
+    """
+    A cross-check against a *different* column. `BestWorkSuitability` is a
+    separate field from the thirteen `WorkSuitability_*` values, so the two
+    agreeing is evidence the column was read correctly rather than the
+    extraction restating itself.
+    """
+    assert gamedata.best_work_suitability("Umihebi_Fire") == "EmitFlame"
+    entry = gamedata._lookup("pals", "Umihebi_Fire")
+    assert entry["workSuitabilities"]["EmitFlame"] == 7
+    # The water form is the same species line with a different best work.
+    assert gamedata.best_work_suitability("Umihebi") == "Watering"
+
+
+def test_boss_forms_resolve_to_their_species_best_work():
+    """An alpha is the same species — the same rule `pal_name` follows."""
+    assert (
+        gamedata.best_work_suitability("BOSS_Umihebi_Fire")
+        == gamedata.best_work_suitability("Umihebi_Fire")
+    )
+
+
+def test_no_best_work_and_unknown_id_both_return_None():
+    """
+    Both mean "do not claim a condenser bonus applies". Panthalus genuinely has
+    an empty work table — that is the game's answer, documented elsewhere in
+    this repo — and an unknown id must not fabricate one either.
+    """
+    assert gamedata.best_work_suitability("Panthalus") is None
+    assert gamedata.best_work_suitability("NoSuchPalAnywhere") is None
+    assert gamedata.best_work_suitability("") is None
