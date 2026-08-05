@@ -516,6 +516,44 @@ def structure_name(structure_id: str) -> str:
     return entry["name"] if entry else humanize(structure_id)
 
 
+def best_work_suitability(species_id: str) -> Optional[str]:
+    """
+    The one work type a species is *best* at, from `DT_PalMonsterParameter`.
+
+    **This is the per-species half of the condenser mechanic.** Raising a Pal's
+    condenser rank raises its work suitability for this work type only — which
+    is why the field is bundled even though the *size* of that increase is in
+    none of the game's data files.
+
+    Searched exhaustively 2026-08-05 and recorded so nobody repeats it: all 471
+    server-pak DataTables, the `BP_PalGameSetting` CDO, the condenser build
+    object's own CDO (pure presentation — visuals, collision, destroy FX), and
+    the name tables of all **10,286** server-pak blueprints, which reference
+    `BestWorkSuitability` **zero** times. A name table is plainly serialised even
+    where properties are not, so that last one is decisive: the logic is in the
+    binary, the same wall `elements.py` documents.
+
+    So this returns a *fact* and no arithmetic. `optimise.work_level` still
+    reports `base` + `bought` and is knowingly low for condensed Pals until the
+    magnitude is measured — see task #74, which carries the sampling plan.
+
+    Uses `pal_exact`-style resolution deliberately **not** applied here: the
+    lookup is on the id as stored, then the `BOSS_`-stripped form, matching how
+    `workSuitabilities` beside it behaves.
+
+    None means the species has no best work — which is real for the handful with
+    an entirely empty work table (Panthalus, Astralym) — or that the id is
+    unknown. Both cases mean "do not claim a bonus applies".
+    """
+    entry = _lookup("pals", species_id)
+    if entry is None and species_id:
+        for prefix in _SPECIES_PREFIXES:
+            if species_id.upper().startswith(prefix):
+                entry = _lookup("pals", species_id[len(prefix):])
+                break
+    return (entry or {}).get("bestWorkSuitability") or None
+
+
 def region_name(region_id: str) -> str:
     """
     What the game calls a map region — `Grass_1` is "Windswept Island".
