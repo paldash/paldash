@@ -76,10 +76,25 @@ def work_level(pal: dict[str, Any], work_id: str) -> dict[str, Any]:
     One Pal's level at one kind of work, with the two halves kept apart.
 
     `base` is the species' own suitability from the bundled table. `bought` is
-    what this individual's owner paid Pal Souls for, read off
+    what this individual's owner spent on it, read off
     `GotWorkSuitabilityAddRankList`. They are reported separately as well as
     summed, because "this species is good at mining" and "somebody invested in
     this particular Pal" are different facts and a single number hides which.
+
+    **THERE IS NO THIRD SOURCE, AND `WorkSuitabilityAddRank_*` IS NOT ONE.**
+    Those fourteen entries sit in the passive-effect bundle and read exactly
+    like a passive that grants a work rank — which is what a first attempt at
+    this took them for. They are the effect applied by the **Applied … Handbook**
+    items (`WorkSuitability_AddTicket_Mining` -> "Applied Mining Handbook I"),
+    and the rank a handbook grants is written into
+    `GotWorkSuitabilityAddRankList` — so it is *already* counted as `bought`.
+    Adding them here counts the same rank twice.
+
+    The existing filters happen to reject them (`InvokeInBaseCamp` is not in
+    `palstats.PASSIVE_SELF_INVOKES`, `ToBaseCampPal` not in
+    `PASSIVE_SELF_TARGETS`), so nothing was ever double counted — but that is a
+    coincidence of two unrelated guards, not a decision, which is why it is
+    written down here rather than left to be rediscovered.
 
     **A Pal with no suitability for a work type is level 0 and cannot do it** —
     that is the game's answer, not missing data. Two released Pals (Panthalus and
