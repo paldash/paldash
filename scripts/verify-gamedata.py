@@ -19,18 +19,19 @@ is total rather than partial:
     DT_TechnologyNameText     835 rows,  835 opaque
     DT_ItemDescriptionText   1924 rows, 1924 opaque
 
-**BUT THE NAMES ARE NOT UNOBTAINABLE — they are in the CLIENT pak, and I nearly
-stopped one step short of that.** Not in its DataTables, whose properties are
-unversioned and unreadable, but in `Pal/Content/Localization/Game/<lang>/Game.locres`
-— Unreal's own localisation archive, present for **17 languages including `en`**.
+**THE PAK READER NOW DECODES FText**, and the names it yields are Japanese.
+`uassettable._text` reads all 1,994 item names and 322 Pal names — as
+`メルパカ`, `シラヌイ` and so on, because **Japanese is Palworld's source
+language**. English is a translation and is not in the source strings.
 
-So the split is: the **server** pak has every number, the **client** pak has every
-word in every language, and `refs/PalWorldSaveTools-main.zip` is genuinely
-replaceable for both — with 17 languages where it supplies one.
+Nor is it in `.locres`: all 17 of
+`Pal/Content/Localization/Game/<lang>/Game.locres` are **37-byte placeholders**
+with zero entries. Palworld does not ship its translations that way.
 
-What is needed is a LocRes reader, which is a small well-documented format and is
-task **#34**. Until that exists this script verifies the numbers and the archive
-still supplies the names; it is a staging post, not the conclusion.
+So English display names remain the one thing only the reference archive
+supplies, and the swap (#69) is still blocked. The blocker is now precisely
+located rather than vague: if English exists in the paks at all it is in the
+client pak's `Pal/Content/L10N/en/` asset overrides. See #34.
 
 WHAT IS ACHIEVABLE, AND IT IS MOST OF THE VALUE
 ------------------------------------------------
@@ -169,10 +170,10 @@ def main() -> int:
     print(
         "The bundled catalogue matches the game on every numeric field checked.\n"
         "\n"
-        "Names and descriptions are not checkable HERE — they are FText and the\n"
-        "pak reader does not decode TextProperty. They are not out of reach\n"
-        "though: Pal/Content/Localization/Game/<lang>/Game.locres in the CLIENT\n"
-        "pak carries them for 17 languages. See task #34."
+        "Names are not checkable here. FText now decodes, but its source\n"
+        "strings are JAPANESE — that is Palworld's source language — and all 17\n"
+        ".locres archives are empty 37-byte placeholders. English remains the\n"
+        "one thing only the reference archive supplies. See tasks #34 and #69."
     )
     return 0
 

@@ -284,18 +284,23 @@ DataTables worth decoding anyway. What it is genuinely good for:
    offset**: every `FTexture2DMipMap` is followed by its own `SizeX/SizeY/SizeZ`,
    and the payload precedes it at a length determined by dimensions and block
    format — two facts that must agree.
-3. **Every display string, in 17 languages.** Not in the DataTables — those
-   carry `FText`, which `uassettable` does not decode (measured: 1,994 of 1,994
-   item names opaque, 322 of 322 Pal names, 835 of 835 technology names). They
-   are in Unreal's own localisation archives:
+3. **Possibly the English strings — and this is the one open question left.**
 
-       Pal/Content/Localization/Game/<lang>/Game.locres
+   `.locres` is NOT the answer: all 17 of
+   `Pal/Content/Localization/Game/<lang>/Game.locres` are **37-byte
+   placeholders with zero entries**, English included. Palworld does not ship
+   translations that way, and a LocRes reader (`scripts/locres.py`) exists and
+   reads them correctly — they are simply empty.
 
-   17 of them including `en`. (53 `Engine.locres` files also exist; those are
-   UE's own strings, not the game's.) **This is the last thing standing between
-   this project and dropping its third-party data dependency** — the server pak
-   already supplies every number, verified at 13,836 of 13,836 by
-   `scripts/verify-gamedata.py`. See tasks #34 and #69.
+   The **source** strings do decode, out of the *server* pak, now that
+   `uassettable` handles `FText` — but they are **Japanese**, because that is
+   Palworld's source language: `メルパカ` for Melpaca, `シラヌイ` for
+   Shiranui. Useful for the localisation *keys* it also yields, not for English.
+
+   If English is in the paks at all it is in `Pal/Content/L10N/en/` — 872 files
+   under `L10N`, per-language asset overrides. **Unchecked.** That is the last
+   thing between this project and dropping its third-party data dependency, the
+   server pak already supplying every number (verified 13,836 of 13,836).
 
 **There is no map-icon set.** `Blueprint/UI/WorldMap/` holds exactly one icon
 texture and `Texture/UI/Map/` holds 26 packages of map furniture. Palworld draws

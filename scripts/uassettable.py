@@ -96,6 +96,28 @@ class _Reader:
         self.o += 1
         return v
 
+    def u32(self) -> int:
+        v = struct.unpack_from("<I", self.b, self.o)[0]
+        self.o += 4
+        return v
+
+    def fstring(self) -> str:
+        """
+        An FString. **A negative length means UTF-16**; reading it as UTF-8
+        yields plausible mojibake rather than an error, so the sign is
+        interpreted in exactly one place.
+        """
+        n = self.i32()
+        if n == 0:
+            return ""
+        if n < 0:
+            raw = self.b[self.o:self.o - n * 2]
+            self.o += -n * 2
+            return raw.decode("utf-16-le", "replace").rstrip("\0")
+        raw = self.b[self.o:self.o + n]
+        self.o += n
+        return raw.decode("utf-8", "replace").rstrip("\0")
+
     def name(self) -> str:
         idx, num = struct.unpack_from("<ii", self.b, self.o)
         self.o += 8
@@ -137,6 +159,47 @@ def _tag(r: _Reader) -> Optional[tuple[str, str, int, dict]]:
     return name, typ, size, extra
 
 
+def _text(r: _Reader, size: int) -> Any:
+    """
+    An `FText`, which the reader previously skipped as opaque — and that skip was
+    hiding every display name in the game.
+
+    Layout for `HistoryType::Base`, which is what a DataTable's text column uses:
+
+        flags        u32
+        historyType  i8   (0 = Base)
+        namespace    FString
+        key          FString
+        sourceString FString
+
+    **The source strings are Japanese**, because that is Palworld's source
+    language. English is a translation and is not in here, so this does not
+    supersede the reference archive for names — see `docs/GAMEDATA-SOURCES.md`.
+    What it *does* give is the `namespace`/`key` pair, which is the identity a
+    localisation lookup needs, and the Japanese original.
+
+    Any other history type is skipped rather than guessed at: the tag carries its
+    own size, so an unhandled variant costs one property instead of the table.
+    That is the same discipline `_value` applies to unknown struct interiors.
+    """
+    end = r.o + size
+    try:
+        flags = r.u32()
+        history = struct.unpack_from("<b", r.b, r.o)[0]
+        r.o += 1
+        if history != 0:
+            r.o = end
+            return {"_text": f"history {history}"}
+        namespace = r.fstring()
+        key = r.fstring()
+        source = r.fstring()
+    except Exception:  # noqa: BLE001 - the tag's size is the recovery
+        r.o = end
+        return {"_text": "undecodable"}
+    r.o = end
+    return {"namespace": namespace, "key": key, "source": source, "flags": flags}
+
+
 def _value(r: _Reader, typ: str, size: int, extra: dict) -> Any:
     """
     One property value.
@@ -147,6 +210,9 @@ def _value(r: _Reader, typ: str, size: int, extra: dict) -> Any:
     the end-of-buffer check is what catches it.
     """
     start = r.o
+
+    if typ == "TextProperty":
+        return _text(r, size)
 
     if typ == "BoolProperty":
         return extra.get("bool", False)
