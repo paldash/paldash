@@ -1,20 +1,29 @@
 """
 Where each Pal species spawns — the data behind the Paldeck's habitat map.
 
-Bundled by `scripts/extract-pal-habitats.py`, which derives it from the game
-pak: spawner actors give positions, and each spawner blueprint's **name table**
-gives the species it references (the properties themselves are cooked with
-unversioned properties and cannot be decoded).
+Bundled by `scripts/build-habitats.py` from `DT_PalWildSpawner` and
+`DT_PalSpawnerPlacement`: the placement table gives world positions, the spawner
+table gives each one's roster with **species, level range, group size and
+weight**.
 
 **Regions, not points.** The bundle stores the World Partition cells a species'
-spawners occupy rather than 13,851 individual coordinates. A habitat is an area
-— that is how the game's own Paldeck draws it — and cells are already the
-resolution the extraction is honest at.
+spawners occupy rather than 8,253 individual coordinates. A habitat is an area
+— that is how the game's own Paldeck draws it — and cells are the resolution the
+map layer draws at.
 
-**What a habitat entry claims** is "spawners placed in these cells reference
-this species". That is slightly broader than "this species spawns here at this
-rate": a sheet may also mention a boss variant or a related asset. Good enough
-to shade a map, and deliberately not presented as a spawn-rate table.
+**What a habitat entry claims changed on 2026-08-05, and it is now the strong
+version.** This module used to be fed by `scripts/extract-pal-habitats.py`,
+which inferred a spawner's roster by intersecting its package name table with
+the known species list, because the blueprint's properties are cooked with
+unversioned names. That could only ever claim "this blueprint *references* this
+species" — 348 species, no levels, no counts, no rates. The DataTables say all
+of it outright, so an entry now means "this species spawns in these cells, at
+these levels, this many at a time".
+
+**`weight` is still not a global spawn rate.** It is a real relative rate
+*within one spawner group*; two groups' weights are not comparable and nothing
+here says how often a spawner fires. `weightIsWithinGroup` travels in the bundle
+so a caller cannot quietly treat it as one.
 """
 
 from __future__ import annotations

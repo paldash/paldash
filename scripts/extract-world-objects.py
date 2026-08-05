@@ -244,7 +244,7 @@ def name_field_bosses(pak: Pak, objects: list[dict]) -> dict[str, str]:
     """
     Field-boss spawner sheet -> the boss species it spawns.
 
-    The same name-table trick `extract-pal-habitats.py` uses, and it works for
+    The same name-table trick `extract-effigies.py` uses, and it works for
     the same reason: a package's properties are cooked with unversioned names and
     cannot be decoded, but its **name table is plainly serialised**. Intersecting
     a sheet's name table with the known species list gives what it references.

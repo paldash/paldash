@@ -201,9 +201,10 @@ The alpha Pals that drop Ancient Technology Points were extracted all along — 
 99 of the 13,851 `palspawner` placements, indistinguishable from ordinary spawn
 points and therefore unfindable. They are now their own category, **named**.
 
-The naming reuses the habitat trick (`extract-pal-habitats.py`): properties are
-undecodable, name tables are not, so intersecting a sheet's name table with the
-known species list says what it references. **71 of 73 sheets resolve, and every
+The naming reuses the name-table trick (`extract-effigies.py`,
+`extract-world-objects.py`): properties are undecodable, name tables are not, so
+intersecting a sheet's name table with the known species list says what it
+references. **71 of 73 sheets resolve, and every
 single one names a `BOSS_`-prefixed species** — which is the verification, not
 the search key. The sheets were found by the `FBOSS` class-name convention, and
 that they independently resolve to boss forms is what confirms the convention
@@ -226,22 +227,46 @@ these are two different extractions of overlapping things, and the 99 `FBOSS`
 placements found by name-table intersection are not the same 90 rows. Do not
 assume one supersedes the other without checking which species each covers.
 
-## Spawn habitats come from name tables, not from properties
+## Spawn habitats come from the spawner DataTables — the name-table trick is retired
 
-`scripts/extract-pal-habitats.py`. Spawner actors placed in the world name a
-**sheet**, not a species — `BP_PalSpawner_Sheets_2_1_forest_1` — and which
-species a sheet spawns lives in properties cooked with unversioned property
-names, so it cannot be decoded. The reference archive has no habitat field
-either.
+**This section used to be titled "Spawn habitats come from name tables, not from
+properties", and it described a workaround as if it were the only way.** It was
+the only way *out of the client pak*. `scripts/extract-pal-habitats.py` inferred
+a spawner's roster by intersecting its package name table with the known species
+list, because a sheet's properties are cooked with unversioned names — 348
+species, and explicitly only the claim "this blueprint *references* this
+species", never "spawns here at this rate". That script is deleted; the section
+is kept because the trick is still right elsewhere (`extract-effigies.py`,
+`extract-world-objects.py`) and because the correction is the lesson.
 
-The way through is the same one `extract-effigies.py` uses: a package's **name
-table is plainly serialised** even when its properties are not. Intersecting a
-sheet's name table with the known species list gives its roster. Measured:
-**348 species, 13,440 of 13,851 spawners attributed (97.0%)**.
+`scripts/build-habitats.py` reads the server pak's own tables, which say all of
+it outright:
 
-**The claim is narrower than it looks.** A name-table hit means "this blueprint
-references this species", not "this species spawns here at this rate". Good
-enough to shade a region; do not present it as a spawn-rate table.
+    DT_PalSpawnerPlacement  8,253   {spawnerName, x, y, radius, type}
+        |  spawnerName
+        v
+    DT_PalWildSpawner         420   [{weight, onlyTime, onlyWeather,
+                                      entries: [{speciesId, levelMin, levelMax,
+                                                 countMin, countMax}]}]
+
+**478 species, every one with a level range**, which the workaround could not
+produce at any effort. Melpaca reads "56 cells, levels 5-17, 1-2 at a time".
+
+**The coverage check is the part worth copying, and it nearly failed.** The new
+source is missing 32 forms the old one had, because `DT_PalWildSpawner` contains
+**zero `PREDATOR_` entries** — predators are placed by a different mechanism, so
+a name-table scan saw them and the real tables do not. A raw species count
+(478 > 348) waves that straight through and is the wrong criterion: what matters
+is whether anything a player can *look up* got worse. 30 of the 32 have their
+base species covered — `PREDATOR_Gorilla`'s habitat is `Gorilla`'s — and the
+other 2 are `_Quest` variants with no world habitat under either source.
+`coverage_check` encodes that and **refuses the build** if a species ever loses
+its habitat with no base form covering it.
+
+**`weight` is relative within one spawner group only.** Two groups' weights are
+not comparable and nothing says how often a spawner fires, so it is honest as
+relative frequency and dishonest as a spawn rate. `weightIsWithinGroup` travels
+in the bundle rather than only in a docstring.
 
 **Encounter-only forms legitimately have no habitat.** `_Oilrig` and `_Tower`
 variants are placed by encounter logic rather than by world spawners, so

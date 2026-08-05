@@ -42,8 +42,9 @@ def test_the_bundle_has_positions_and_rosters():
 
 def test_it_covers_more_than_the_workaround_it_replaces():
     """
-    `extract-pal-habitats.py` reaches 348 species by intersecting name tables,
-    and can only claim "this blueprint references this species". This carries
+    The retired name-table workaround reached 348 species by intersecting a
+    package's name table with the species list, and could only ever claim "this
+    blueprint references this species" — see `backend/habitats.py`. This carries
     real level ranges and weights — so fewer species would mean the join is
     wrong, not that the game changed.
     """

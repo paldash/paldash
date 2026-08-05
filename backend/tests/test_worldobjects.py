@@ -272,9 +272,11 @@ def test_the_bundled_data_has_the_documented_shape():
     move, the docs and the roadmap figures are stale.
 
     Regenerated 2026-07-30 to add `palspawner` and `dungeon`: 35,687 -> 51,701.
-    Spawners are what the Paldeck habitat map is built from
-    (`scripts/extract-pal-habitats.py`), and dungeons were already extractable
-    but had never been included.
+    These placements are the **map layer** — where spawners physically stand.
+    They are no longer what the Paldeck's habitat map is built from: that moved
+    to `DT_PalSpawnerPlacement` on 2026-08-05, which carries the roster and level
+    range as well as the position. Dungeons were already extractable but had
+    never been included.
 
     Grew to **59,396** after a coverage check over all 916 placeable actor
     classes in the pak: the ore, treasure and fishing patterns were each too
