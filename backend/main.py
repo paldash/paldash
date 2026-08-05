@@ -28,6 +28,7 @@ import announcements
 import audit
 import authz
 import baseprivacy
+import baseassign
 import basesupply
 import breeding
 import charedit
@@ -1246,6 +1247,87 @@ def get_base_supply(
         # game's own stack ceiling for these is 9999; the floor is the operator's.
         "floorIsOperatorSetting": True,
         "cakeItems": basesupply.cake_ids(),
+    }
+
+
+@app.get("/api/bases/assign")
+def get_base_assignment(
+    request: Request,
+    base: Optional[str] = None,
+    owner: Optional[str] = None,
+    candidates: int = baseassign.DEFAULT_CANDIDATES,
+) -> dict:
+    """
+    What work each base needs, who covers it, and who could fill the gaps.
+
+    **Two independent scopes, and they are not interchangeable.** Bases go
+    through the base-privacy filter (`_hidden_base_ids` plus own-guild
+    narrowing), exactly as `/api/bases/supply` and `/api/bases/storage` do —
+    a filter applied to one of several endpoints serving the same data is not a
+    filter. Pals go through `_scope_pals`, exactly as `/api/optimise/work` does.
+    A caller therefore sees suggestions drawn only from Pals they can actually
+    move, for bases they are allowed to see.
+
+    **Advisory only.** Nothing here writes, and `advisoryOnly` says so in the
+    payload rather than only in a docstring — the client is the thing about to
+    render a suggestion next to a button.
+    """
+    authz.require(request, roles_module.VIEW_SELF)
+
+    if not baseassign.data_available():
+        raise HTTPException(
+            503,
+            "Work assignment data is unavailable — backend/data/work_assign.json.gz "
+            "did not load. Regenerate with scripts/extract-work-assign.py.",
+        )
+
+    hidden = _hidden_base_ids(request)
+    own = _own_guild_base_ids(request)
+    bases = [
+        b for b in savecache.get_section("bases")
+        if str(b.get("id") or "") not in hidden
+        and (own is None or str(b.get("id") or "") in own)
+    ]
+    if base:
+        bases = [b for b in bases if str(b.get("id") or "") == base]
+        if not bases:
+            raise HTTPException(404, "No such base, or it is not visible to you")
+
+    # Names for every base the caller can see, so "committed at Base Camp 3"
+    # names somewhere rather than saying "another base". Built from the same
+    # filtered list, so a hidden base never leaks its name through a candidate.
+    base_names = {str(b.get("id") or ""): str(b.get("name") or "") for b in bases}
+
+    structures_by_base: dict[str, list[dict]] = {}
+    for obj in savecache.get_section("mapObjects"):
+        base_id = str(obj.get("baseCampId") or "")
+        if base_id in base_names:
+            structures_by_base.setdefault(base_id, []).append(
+                {"kind": obj.get("objectId") or ""}
+            )
+
+    effective = _breeding_owner(request, owner)
+    pals = _scope_pals(
+        viewcache.derived("pals:enriched", _enriched_pals),
+        effective,
+        _guilds_of(effective) if effective else None,
+    )
+
+    candidates = max(0, min(int(candidates), 25))
+    reports = [
+        baseassign.base_report(
+            b,
+            structures_by_base.get(str(b.get("id") or ""), []),
+            pals,
+            base_names,
+            candidates=candidates,
+        )
+        for b in bases
+    ]
+
+    return {
+        "bases": reports,
+        **_breeding_scope(request, effective),
     }
 
 
