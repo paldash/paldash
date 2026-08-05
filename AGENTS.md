@@ -1959,12 +1959,40 @@ Confirmed by decoding, and pinned in `test_uassettable.py`:
 | `DT_ItemShopCreateData_Common` | 38 shops, each with `StaticItemID`, `OverridePrice`, `ProductNum`, `Stock` |
 | `DT_FriendshipRankTable` | `RequiredPoint` — the thresholds this file called "**nothing**" |
 
-**One table still refuses, and that is the design.**
-`DT_BossSpawnerLoactionData` holds natively-serialised structs (UE writes Vector,
-Rotator, Guid and friends raw, with no per-field tags), so the walk cannot reach
-the end and `read_table` raises. Half a tagged decode reads as real data —
-coordinates as name indices — so returning what it managed would be worse than
-returning nothing. A test pins the refusal.
+### That refusal was too broad, and it was hiding the field boss levels
+
+The paragraph this replaces said `DT_BossSpawnerLoactionData` refuses **by
+design**, because a natively-serialised struct cannot be walked and "half a
+tagged decode reads as real data — coordinates as name indices". The danger was
+real. The response was too broad, and it cost **243 of the pak's 912
+DataTables** — including that one.
+
+A `StructProperty` tag carries its own **length**, so an unwalkable interior can
+be skipped to land exactly on the next tag. Nothing is then read as the wrong
+type, every surrounding field stays correctly placed, `read_table`'s
+"walk must end at the buffer end" check still proves the row alignment, and the
+interior is labelled `{"_opaque": "Vector 24B"}` rather than given a value.
+
+The fear applied to *guessing*; it never applied to *skipping a measured length*.
+
+**Decodable DataTables went from 656 to 899 of 912.** And what came out of the
+one that named this rule:
+
+    SpawnerID   yamijima_IceLand_pink_D_BOSS
+    CharacterID BOSS_Horus_Water
+    Location    {"_opaque": "Vector 24B"}
+    Level       66
+
+**159 field bosses with species and level** — which this file and the README both
+said was unavailable ("Level is not available… do not invent the rest"). It was
+available; the reader was refusing the table that held it.
+
+**The `Location` Vector is 24 bytes — three doubles — and decodes to plausible
+world coordinates** (x -1,033,348…601,097, y -733,420…575,683, z -3,183…51,608).
+That is a *lead, not a result*: the check that would settle it is the one the
+cell grid already provides — every position must land in an occupied
+`MainGrid_L0_X…_Y…` cell at 25,600 units, the same test that validated all 174
+fast-travel points. Until that runs, do not put them on the map.
 
 Still to check with this: **field boss levels** (AGENTS.md below says the pak was
 checked; that check was the client pak) and the **element effectiveness chart**

@@ -124,19 +124,70 @@ def test_shop_rows_carry_stock_and_price(pak, tables):
 
 @pytest.mark.integration
 @pytest.mark.slow
-def test_an_undecodable_table_refuses_rather_than_returning_part_of_one(pak, tables):
+def test_an_unwalkable_struct_is_labelled_rather_than_losing_the_table(pak, tables):
     """
-    `DT_BossSpawnerLoactionData` holds natively-serialised structs that this
-    reader cannot walk, and it RAISES.
+    THIS TEST USED TO ASSERT THE OPPOSITE, and the old assertion was costing
+    real data.
 
-    That is the behaviour under test, not an accepted shortcoming. Half a
-    tagged-property decode reads as real data — coordinates as name indices,
-    numbers as offsets — so a reader that returns what it managed is worse than
-    one that returns nothing.
+    `DT_BossSpawnerLoactionData` holds a natively-serialised `Vector`, which has
+    no tags, so walking into it raises. The reader used to let that abort the
+    whole table on the grounds that "half a tagged decode reads as real data —
+    coordinates as name indices". The danger was real; the response was too
+    broad. **243 of the pak's 912 DataTables were being discarded for it**, this
+    one included — and this one carries the field boss levels that AGENTS.md
+    describes as unavailable.
+
+    The struct's LENGTH is in its own tag, so skipping lands exactly on the next
+    tag whatever the interior holds. So the fear does not apply: nothing is read
+    as the wrong type, every surrounding field stays correctly placed, the
+    end-of-buffer check still proves the row alignment, and the unread interior
+    is labelled `_opaque` instead of being given a value.
+
+    What must never come back is a *plausible* value for something unread.
     """
     mod, paths = tables
-    with pytest.raises(mod.TableError, match="buffer end"):
-        mod.read_table(pak, paths["DT_BossSpawnerLoactionData"])
+    rows = mod.read_table(pak, paths["DT_BossSpawnerLoactionData"])
+    assert len(rows) > 100
+
+    row = next(iter(rows.values()))
+    assert row["CharacterID"].startswith("BOSS_")
+    assert isinstance(row["Level"], int) and row["Level"] > 0
+    # The dangerous field says it was not read, rather than carrying a number.
+    assert "_opaque" in row["Location"]
+
+
+@pytest.mark.integration
+@pytest.mark.slow
+def test_an_unwalkable_struct_costs_one_field_not_the_whole_table(pak, tables):
+    """
+    THE REFUSAL ABOVE WAS COSTING 243 OF 912 TABLES, and that was too much.
+
+    A natively-serialised struct has no tags, so walking into one raises — and
+    the exception used to abort the entire table. But the struct's LENGTH is in
+    its own tag, so skipping lands exactly on the next tag whatever the interior
+    holds. Every surrounding property stays correctly placed, the end-of-buffer
+    check still applies, and the unread interior is labelled `_opaque` rather
+    than given a plausible value.
+
+    That is why this is not the partial decode the test above forbids: nothing
+    is guessed, one field says "not read", and the table's own alignment is
+    still proven by where the walk ends.
+    """
+    mod, paths = tables
+    rows = mod.read_table(pak, paths["DT_PalWildSpawner"])
+    assert len(rows) > 1000
+
+    opaque = [
+        (row_name, field)
+        for row_name, row in rows.items()
+        for field, value in row.items()
+        if isinstance(value, dict) and "_opaque" in value
+    ]
+    if opaque:
+        # An opaque marker must SAY it is unread rather than look like data.
+        _, field = opaque[0]
+        sample = next(iter(rows.values()))[field]
+        assert sample["_opaque"].endswith("B")
 
 
 @pytest.mark.integration
