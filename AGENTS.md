@@ -982,14 +982,42 @@ ArrayProperty of `{WorkSuitability: EnumProperty, Rank: IntProperty}`.
 `EquipWaza` and silently wrong here: a struct stringified still serialises.
 `charedit._write_work_ranks` is separate for that reason.
 
-**No maximum rank is enforced, and that is measured rather than lazy.** Across
-refworld, the live world and a 07-29 snapshot, **39 Pals carry the property** and
-the ranks run `{1: 30, 2: 4, 3: 4, 6: 1}`. Six is the highest anyone has reached,
-which is not a cap — and the game ships none: `DT_GainWorkSuitabilityRankItem`
-decodes cleanly out of the server pak and holds one ticket item per work type
-with **no rank column**, and no other DataTable carries one. Asserting a ceiling
-would be inventing exactly the kind of number `editschema` refuses to invent.
-`fullStomach` is unbounded for the same reason.
+**THE CAP IS 10, AND THIS PARAGRAPH USED TO SAY THE GAME SHIPPED NONE.**
+Corrected 2026-08-05. `BP_PalGameSetting` carries
+**`WorkSuitabilityMaxRank = 10`**, in `backend/data/game_settings.json.gz`.
+
+The old claim was not careless — it was *checked*, and checked in the wrong
+place. `DT_GainWorkSuitabilityRankItem` really does hold one ticket item per work
+type with **no rank column**, and no other DataTable carries one. But a
+DataTable sweep is not a search of the game: the constant lives in the settings
+CDO, which nobody looked in for this. **That is the exact failure this file warns
+about elsewhere — a documented negative gets trusted and stops the next person
+looking.** It was found by someone asking "isn't the max 10?".
+
+Two independent figures agree with it: max `requiredRank` across all 271
+structures in `DT_MapObjectAssignData` is **10**, with nothing above; and the
+highest natural suitability across 753 species is **8** (`BlueSkyDragon`,
+Watering). So the buyable amount is `10 - base`.
+
+Observed spend remains modest — across refworld, the live world and a 07-29
+snapshot, **39 Pals carry the property** and the ranks run
+`{1: 30, 2: 4, 3: 4, 6: 1}`. Six being the highest anyone reached is a fact about
+those players, not the ceiling.
+
+**Condenser stars do not add work suitability.** `CharacterMaxRank` is 5 and
+nothing links it to work rank; a suitability-10 Pal is base plus handbooks.
+
+`fullStomach` is still unbounded — that one genuinely has no constant, and the
+lesson above is a reason to go and look again rather than to assume it does.
+
+**And the rank is not linear.**
+`WorkSuitabilityDefineData_<work>.CommonDefineData.CraftSpeeds` is 11 entries
+indexed 0–10: `[0, 50, 70, 100, 140, 190, 260, 370, 510, 720, 1000]`. Rank 3 is
+100 and rank 10 is **1000**. `Mining` and `Deforest` additionally gate on
+material — rank 2 unlocks Copper, 3 Iron, 4 Platinum — which is a real
+eligibility rule, not a speed bonus, and
+`TransportItemAbsorbRangeByWorkSuitabilityRank` is **0 below rank 4**. A bare
+integer hides all of it.
 
 The *minimum* is real: rank 0 appears on none of the 39, so a zero is
 `parser._num`'s default rather than a value the game stores.
