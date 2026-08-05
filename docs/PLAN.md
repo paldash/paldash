@@ -11,6 +11,27 @@ consecutive commits.
 
 ---
 
+## Phase 0 — Not game data, and it gates the value of everything else
+
+**#66 — tell open tabs a new version shipped.** Out of band from the phases
+below, which are organised around game data. It belongs *first* for a reason
+that is not about size: every phase after this one ships user-visible change,
+and a tab left open never picks any of it up. Next.js content-hashes
+`/_next/static/` so a navigation gets the new bundle, but nobody navigates a
+dashboard they leave open — so the work lands invisibly for exactly the people
+using it most.
+
+Also in scope: `next.config.ts` sets no `headers()` at all, so `public/` assets
+(icons, map textures) are unhashed and can serve stale after a regeneration.
+
+Small, independent of everything below, and the only item here that should be
+done *before* the next deploy rather than after.
+
+**Check for a reverse proxy first.** A proxy caching HTML produces this exact
+symptom and no app-side change fixes it.
+
+---
+
 ## Phase 1 — Extraction only. No features.
 
 Nine bundles. Each gets its own script, its own `provenance.json` entry, and its
@@ -24,15 +45,15 @@ in the provenance note what was dropped.
 
 | # | Bundle | Tables | Verification | Unblocks |
 |---|---|---|---|---|
-| 1.1 | `work_assign.json.gz` | `DT_MapObjectAssignData` | The 19 refworld base kinds absent from the table are exactly chests/beds/palbox/spa/walls — assert it | #44, #60 |
-| 1.2 | `basecamp.json.gz` | `BaseCampLevelData`, `BaseCampTask`, `BaseCampWorkerSickDataTable`, `BaseCampWorkerEventDataTable` | Worker caps must be ≥ the largest worker container observed across four worlds (25) | #59, #60 |
-| 1.3 | `economy.json.gz` | `ItemRecipeDataTable`, `PalDropItem`, `ItemLotteryDataTable`, `ItemShopCreateData`, `PalShopCreateData`, `StatusEffectFood` | Every `Product_Id` and `Material*_Id` must resolve in the item catalogue | #63 (was #35+#36) |
-| 1.4 | `spawns.json.gz` | `PaldexDistributionData`, `PalWildSpawner`, `PalSpawnerPlacement` | Cell-grid test at 25,600 with 12,800/51,200 controls; **and** coverage must not regress below the 348 species the name-table trick found | #48 |
-| 1.5 | `moves.json.gz` | `WazaDataTable`, `WazaMasterLevel`, `WazaMasterTamago`, `PalCombiUnique` | Every `PalID` resolves; every `WazaID` resolves after prefix normalisation | #64 |
-| 1.6 | `progression.json.gz` | `PlayerStatusRankMasterDataTable`, `GainStatusPointsItem`, `WorldMapAreaData`, `PalQuestData`, `PalQuestLocationData`, `Dungeon*` | Quest positions land on occupied cells; area count matches the save's `FindAreaFlagMap` key count | #47, #61 |
-| 1.7 | `raidbosses.json.gz` | `PalRaidBoss` | Count `InfoList` **entries**, not rows — 11 rows against 19 bundled `RAID_` species | #56 |
-| 1.8 | `invaders.json.gz` | `PalInvader`, `PalInvaderReward`, `PalInvaderCancelCost`, `PalVisitorNPC` | Every `ItemId` resolves; every `GroupName` in the reward table exists in the invader table | #65 |
-| 1.9 | `worldpresets.json.gz` | `OptionWorldPresetTable`, `OptionWorldModePresetTable` | Every key must exist in `DefaultPalWorldSettings.ini`'s 119 | #62 |
+| 1.1 ✅ | `work_assign.json.gz` | `DT_MapObjectAssignData` | The 19 refworld base kinds absent from the table are exactly chests/beds/palbox/spa/walls — assert it | #44, #60 |
+| 1.2 ✅ | `basecamp.json.gz` | `BaseCampLevelData`, `BaseCampTask`, `BaseCampWorkerSickDataTable`, `BaseCampWorkerEventDataTable` | Worker caps must be ≥ the largest worker container observed across four worlds (25) | #59, #60 |
+| 1.3 ✅ | `economy.json.gz` | `ItemRecipeDataTable`, `PalDropItem`, `ItemLotteryDataTable`, `ItemShopCreateData`, `PalShopCreateData`, `StatusEffectFood` | Every `Product_Id` and `Material*_Id` must resolve in the item catalogue | #63 (was #35+#36) |
+| 1.4 ✅ | `spawns.json.gz` | `PaldexDistributionData`, `PalWildSpawner`, `PalSpawnerPlacement` | Cell-grid test at 25,600 with 12,800/51,200 controls; **and** coverage must not regress below the 348 species the name-table trick found | #48 |
+| 1.5 ✅ | `moves.json.gz` | `WazaDataTable`, `WazaMasterLevel`, `WazaMasterTamago`, `PalCombiUnique` | Every `PalID` resolves; every `WazaID` resolves after prefix normalisation | #64 |
+| 1.6 ✅ | `progression.json.gz` | `PlayerStatusRankMasterDataTable`, `GainStatusPointsItem`, `WorldMapAreaData`, `PalQuestData`, `PalQuestLocationData`, `Dungeon*` | Quest positions land on occupied cells; area count matches the save's `FindAreaFlagMap` key count | #47, #61 |
+| 1.7 ✅ | `raidbosses.json.gz` | `PalRaidBoss` | Count `InfoList` **entries**, not rows — 11 rows against 19 bundled `RAID_` species | #56 |
+| 1.8 ✅ | `invaders.json.gz` | `PalInvader`, `PalInvaderReward`, `PalInvaderCancelCost`, `PalVisitorNPC` | Every `ItemId` resolves; every `GroupName` in the reward table exists in the invader table | #65 |
+| 1.9 ✅ | `worldpresets.json.gz` | `OptionWorldPresetTable`, `OptionWorldModePresetTable` | Every key must exist in `DefaultPalWorldSettings.ini`'s 119 | #62 |
 
 **1.10 — regenerate `gamedata.json.gz` from the game, not from the archive.**
 Separate from the above because it is a *replacement*, and because it is the one
@@ -172,6 +193,9 @@ depending on a third party's release cadence for content updates.
 ---
 
 ## Sequencing
+
+Phase 0 before the next deploy; it is independent of everything else and stops
+later work landing invisibly.
 
 Phase 1 is nine independent scripts and can proceed in any order; 1.1 and 1.2
 first because Phase 2's top two items block on them. 1.10 last of the extraction

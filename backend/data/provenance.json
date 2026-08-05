@@ -103,5 +103,23 @@
     "gameBuild": "24370498",
     "regenerateWith": "python3 scripts/extract-progression.py",
     "note": "13 relic types across 279 ranks with their effect rates and respec costs; 11 stat elixirs; 123 named regions; 166 quest world positions; 23 dungeon areas with 15 layouts. Unblocks two half-built features: the map has shown all 396 effigies and which a player found since the layer shipped without ever saying what finding them achieved (#61), and `areasFound` is an opaque flag map that 123 region ids turn into '47 of 123' (#47). EffectRate is 0.0 at rank 1 for EVERY relic type — the game's baseline meaning 'unlocked, no bonus yet', not a decode failure. Reading it as missing data would be wrong in the first place anyone looks. Region MsgIDs (REGION_Desert_1) are carried UNRESOLVED: they are keys into the localisation tables, and humanising them here would create a second source of truth against those. Quest positions verified against the World Partition cell grid: 166/166 on occupied cells at 25,600, controls at 12,800 (70) and 51,200 (151) both worse. 166 points is a much smaller sample than the 8,253 in spawns.json.gz, so a coincidence is cheaper and the controls matter more, not less — the extractor refuses if either matches as well. 23 dungeon areas carry only 15 layout rows between them; the rest have none in DT_DungeonLevelDataTable and keep an empty list."
+  },
+  "raidbosses.json.gz": {
+    "source": "Pal-LinuxServer.pak (DT_PalRaidBoss)",
+    "gameBuild": "24370498",
+    "regenerateWith": "python3 scripts/extract-raidbosses.py",
+    "note": "11 summon rows carrying 11 boss forms, levels 35-80, with summon items, rewards and egg weights. CONFIRMS an earlier refusal rather than overturning it: boss_spawners.json.gz holds 90 PLACED field bosses and zero RAID_ ids, which is correct because raid bosses are altar-summoned and a table of locations has nothing to say about them. NO POSITIONS and none must be invented — a map marker would be the BP_LevelObject_TowerLockBarrier mistake. Count FORMS not rows: a row's InfoList can hold more than one boss, and row-counting is what briefly turned 90 field bosses into 159. Advisory: 6 of 11 forms are `_2` difficulty variants (Bellanoir Libero and friends) that the bundled character tables carry no entry for — predicted before the check ran, since AGENTS.md already records what the suffix means."
+  },
+  "invaders.json.gz": {
+    "source": "Pal-LinuxServer.pak (DT_PalInvader, DT_PalInvaderReward, DT_PalInvaderCancelCost, DT_PalVisitorNPC)",
+    "gameBuild": "24370498",
+    "regenerateWith": "python3 scripts/extract-invaders.py",
+    "note": "44 base-raid attacker groups across 143 entries, 76 reward tables, 48 friendly visitor types, cancel costs 500-40,000. gradeMeaningKnown is FALSE and travels in the payload: InvadeGradeMin/Max bound a raid to a 'grade' and nothing establishes what a grade is in save terms (base level, guild level and player level are all plausible). This is a reference table, NOT a per-base forecast. The join check runs attacker -> reward, not the reverse. An attacker with no reward is a raid that drops nothing; a reward with no attacker is an unused row, and the game ships 32 of those — rewards exist for the mainland biomes (Basic, Desert, Forest, Volcano) while DT_PalInvader carries only the island groups. Measured 44 of 44 attackers rewarded. The first version checked the harmless direction and would have blocked the extraction over the game having spare data. A few DT_PalInvader columns do not decode and are skipped; the fields read here come through cleanly."
+  },
+  "worldpresets.json.gz": {
+    "source": "Pal-LinuxServer.pak (DT_OptionWorldPresetTable, DT_OptionWorldModePresetTable)",
+    "gameBuild": "24370498",
+    "regenerateWith": "python3 scripts/extract-worldpresets.py",
+    "note": "The game's own four difficulty presets (Easy, Normal, Hard, Hardcore) with 43 settings each, plus 4 world-mode preset rows. A CROSS-CHECK on backend/presets.py's hand-made presets rather than an automatic replacement: DefaultPalWorldSettings.ini is authoritative for WHICH settings exist and says nothing about what a difficulty changes, so these two together are two sources where there was one. If the existing presets already match, that is worth recording. The game's own typo is preserved in the source column name — it is `Diffculty`, not `Difficulty`. Only the output key is normalised, so a grep for the correct spelling finds nothing in the pak. Values uassettable could not walk come back as `<WorldMode 9B>` strings and are excluded rather than shipped as settings."
   }
 }

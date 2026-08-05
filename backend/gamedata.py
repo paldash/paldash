@@ -93,6 +93,21 @@ PROGRESSION_PATH = os.environ.get(
     ),
 )
 
+RAIDBOSS_PATH = os.environ.get(
+    "RAIDBOSS_DATA_PATH",
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "raidbosses.json.gz"),
+)
+
+INVADERS_PATH = os.environ.get(
+    "INVADERS_DATA_PATH",
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "invaders.json.gz"),
+)
+
+WORLDPRESETS_PATH = os.environ.get(
+    "WORLDPRESETS_DATA_PATH",
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "worldpresets.json.gz"),
+)
+
 PASSIVE_EFFECT_PATH = os.environ.get(
     "PASSIVE_EFFECT_DATA_PATH",
     os.path.join(
@@ -111,6 +126,9 @@ _economy: Optional[dict[str, Any]] = None
 _spawns: Optional[dict[str, Any]] = None
 _moves: Optional[dict[str, Any]] = None
 _progression: Optional[dict[str, Any]] = None
+_raidbosses: Optional[dict[str, Any]] = None
+_invaders: Optional[dict[str, Any]] = None
+_worldpresets: Optional[dict[str, Any]] = None
 _indexes: dict[str, dict[str, Any]] = {}
 
 
@@ -183,7 +201,7 @@ def _reset_cache() -> None:
     """
     global _data, _effigies, _passive_effects, _game_settings
     global _boss_spawners, _work_assign, _basecamp, _economy, _spawns, _moves
-    global _progression
+    global _progression, _raidbosses, _invaders, _worldpresets
     _data = None
     _effigies = None
     _passive_effects = None
@@ -195,6 +213,9 @@ def _reset_cache() -> None:
     _spawns = None
     _moves = None
     _progression = None
+    _raidbosses = None
+    _invaders = None
+    _worldpresets = None
     _indexes.clear()
 
 
@@ -1047,6 +1068,63 @@ def area_ids() -> dict[str, str]:
     opaque flag map into "47 of 123".
     """
     return progression().get("areas") or {}
+
+
+def _bundle(name: str, path: str, cache_attr: str) -> dict[str, Any]:
+    """Load-once helper for the small reference bundles."""
+    cached = globals().get(cache_attr)
+    if cached is None:
+        try:
+            with gzip.open(path, "rt", encoding="utf-8") as f:
+                cached = json.load(f)
+        except (OSError, json.JSONDecodeError) as e:
+            logger.warning("%s data unavailable (%s)", name, e)
+            cached = {}
+        globals()[cache_attr] = cached
+    return cached
+
+
+def raid_bosses() -> dict[str, Any]:
+    """
+    The altar-summoned raid bosses: what summons each, at what level, what it
+    drops, and the egg weights.
+
+    **These have no world position and none must be invented.** `boss_spawners`
+    carries 90 *placed* field bosses and zero `RAID_` ids, which is correct
+    rather than a gap — a table of locations has nothing to say about something
+    summoned at an altar. A map marker for one would be the
+    `BP_LevelObject_TowerLockBarrier` mistake exactly.
+
+    **Count forms, not rows.** A summon row's `InfoList` can hold more than one
+    boss, and row-counting is what briefly turned 90 field bosses into "159".
+    """
+    return _bundle("Raid boss", RAIDBOSS_PATH, "_raidbosses").get("bosses") or {}
+
+
+def invaders() -> dict[str, Any]:
+    """
+    Base raid groups, their biomes, grade bands and loot.
+
+    **`gradeMeaningKnown` is False and that is load-bearing.** `InvadeGradeMin`
+    and `Max` bound a raid to a "grade", and nothing establishes what a grade is
+    in save terms — base level, guild level and player level are all plausible.
+    So this is a static reference table, and a caller must not turn it into
+    "your base will be raided by X". Inventing that mapping is the guess
+    `basesupply` refuses to make.
+    """
+    return _bundle("Invader", INVADERS_PATH, "_invaders")
+
+
+def world_presets() -> dict[str, Any]:
+    """
+    The game's own difficulty presets, as Pocketpair sets them.
+
+    A cross-check on `backend/presets.py`'s hand-made ones rather than an
+    automatic replacement: `DefaultPalWorldSettings.ini` says which settings
+    exist and this says what a difficulty does to them, so the two together are
+    two sources where there was one.
+    """
+    return _bundle("World preset", WORLDPRESETS_PATH, "_worldpresets")
 
 
 def game_setting(name: str, default: Any = None) -> Any:
