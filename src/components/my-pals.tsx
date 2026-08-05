@@ -4,7 +4,9 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Search, RefreshCw, PawPrint, ArrowUpDown, Download } from 'lucide-react';
 import { getPals, downloadExport, type PalRecord } from '@/lib/save-api';
 import { useDashboardStore } from '@/lib/store';
+import { CAPABILITIES } from '@/lib/permissions';
 import GameIcon from '@/components/game-icon';
+import PalWelfare from '@/components/pal-welfare';
 import { getWorkTypes, orderedWork, type WorkType } from '@/lib/work-types';
 
 /**
@@ -79,6 +81,13 @@ export default function MyPals() {
   // the honest empty list is indistinguishable from a broken one. Saying which
   // it is turns "the dashboard is broken" into a one-line fix an admin can do.
   const linked = !!useDashboardStore((s) => s.user?.steamUid);
+  // The welfare panel reads on `VIEW_SELF` — the same gate as this tab — so a
+  // Player sees their own struggling Pals. Curing needs `SAVE_EDIT_FULL` AND a
+  // stopped server, which is every other write path's rule and not a new one.
+  const capabilities = useDashboardStore((s) => s.capabilities);
+  const serverRunning = useDashboardStore((s) => s.serverProcessRunning);
+  const canCure =
+    capabilities.includes(CAPABILITIES.SAVE_EDIT_FULL) && !serverRunning;
   const [pals, setPals] = useState<PalRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -236,6 +245,10 @@ export default function MyPals() {
           Administrator links it from the <strong>Players</strong> tab.
         </div>
       )}
+      {/* Above the table on purpose. A sick Pal is the one thing here that is
+          time-sensitive — a base stops producing days before anyone connects
+          the two — and it is invisible in a list sorted by level. */}
+      <PalWelfare canEdit={canCure} />
       <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
         <div style={{ position: 'relative', flex: 1, minWidth: 180 }}>
           <Search size={13} style={{ position: 'absolute', left: 10, top: 9, color: 'var(--text-muted)' }} />

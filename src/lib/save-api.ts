@@ -260,8 +260,12 @@ export interface PalRecord {
    * guild built for the purpose (Dimensional Pal Storage, Global Pal Storage,
    * a Flea Market stand) — see `parser.extract_pal_storage`. `other` is what is
    * left: a container nothing references any more.
+   *
+   * `dimension` does not come from `Level.sav` at all — it is a per-player
+   * `<UID>_dps.sav`, which nothing here opened until 7ece5fd. A Pal moved into
+   * one was missing from every count rather than merely mislabelled.
    */
-  location?: 'palbox' | 'party' | 'base' | 'storage' | 'other';
+  location?: 'palbox' | 'party' | 'base' | 'storage' | 'dimension' | 'other';
   /** The base it works at or is stored at, when known. */
   baseId?: string;
   /** Which kind of store holds it, when `location` is `storage`. */
@@ -285,6 +289,77 @@ export interface PalRecord {
   isLucky?: boolean;
   /** That base's display name, joined at request time. */
   baseName?: string;
+
+  // ── Condition ──────────────────────────────────────────────────
+  //
+  // AN AFFLICTION IS A PROPERTY THAT EXISTS, so every one of these is null on a
+  // healthy Pal rather than carrying some "fine" value. That is what makes them
+  // safe to test for truthiness, and it is why curing one is a deletion — see
+  // `charedit.PAL_CLEARABLE`.
+
+  /** Mood, 0–100. Below ~50 a Pal starts refusing to work. */
+  sanity?: number | null;
+  /** Fullness. The ceiling is per species and per level and is not stored. */
+  fullStomach?: number | null;
+  /** `Hunger` or `Starvation`. Null when fed. */
+  hungerType?: string | null;
+  /** Depression, sprain, fracture, weakness, bulimia. Null when well. */
+  workerSick?: string | null;
+  /** `Minor` or `Severe`. Null when unhurt. */
+  physicalHealth?: string | null;
+  /** What it is doing at a base right now. */
+  currentWork?: string | null;
+
+  // ── Identity and history ───────────────────────────────────────
+
+  /** The applied skin, when one is. */
+  skinName?: string | null;
+  /**
+   * Null means the save has no such property, which is different from `false`
+   * and the difference is load-bearing: `charedit` will not write a property
+   * this Pal does not carry, so a field seeded from a flat `false` renders an
+   * input that can only ever be rejected.
+   */
+  isImported?: boolean | null;
+  isAwakened?: boolean | null;
+  favoriteIndex?: number | null;
+  /** Every previous owner, oldest first — the only record of a trade there is. */
+  previousOwners?: string[];
+  /** The learned-move pool, as opposed to the three equipped. */
+  masteredSkills?: string[] | null;
+  /** Work ranks bought with Pal Souls, e.g. `{Handcraft: 2}`. */
+  workRanks?: Record<string, number>;
+  /** Work types the player switched off for this Pal. */
+  workDisabled?: string[];
+}
+
+/**
+ * Pals that need attention, and how many have each problem.
+ *
+ * The counts sum higher than `pals.length` on purpose — a Pal that is sick AND
+ * starving is counted under both, because "how many are sick" is the question
+ * being asked and deduplicating it would answer a different one.
+ */
+export interface WelfareReport {
+  counts: Partial<Record<WelfareProblem, number>>;
+  pals: (PalRecord & { problems: WelfareProblem[] })[];
+  /** How many Pals were examined — the denominator for every count above. */
+  scanned: number;
+  /** The sanity threshold the backend used, so the UI never hardcodes it. */
+  lowSanityBelow: number;
+  scope?: string;
+  linkedToPlayer?: boolean;
+}
+
+export type WelfareProblem =
+  | 'sick'
+  | 'injured'
+  | 'hungry'
+  | 'starving'
+  | 'lowSanity';
+
+export async function getWelfare(owner?: string): Promise<WelfareReport> {
+  return saveFetch(`/welfare${owner ? `?owner=${encodeURIComponent(owner)}` : ''}`);
 }
 
 /**

@@ -274,7 +274,14 @@ export interface PalInfo {
 /** One editable field, as the backend describes it. */
 export interface EditField {
   name: string;
-  kind: 'int' | 'string' | 'enum' | 'list';
+  /**
+   * `clear` is the odd one and the reason this union is worth reading. It has
+   * exactly one legal value — `null` — because a healthy Pal has no
+   * `WorkerSick` property at all, so curing is a deletion rather than a write.
+   * There is no value to type into a box, which is why the editor renders it as
+   * a button.
+   */
+  kind: 'int' | 'float' | 'string' | 'enum' | 'list' | 'bool' | 'clear';
   label: string;
   min: number | null;
   max: number | null;

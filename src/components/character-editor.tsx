@@ -10,11 +10,34 @@ import {
 import type {
   EditSchema, EditPlan, PlayerSaveData, PalContainer, ClonePlan,
 } from '@/lib/types';
+import { buildChanges, type FieldValue as EditFieldValue } from '@/lib/edit-changes';
 
 type Mode = 'pal' | 'player';
 
-/** Skill lists are string arrays; everything else is a scalar. */
-type FieldValue = string | number | string[];
+/**
+ * Skill lists are string arrays; everything else is a scalar.
+ *
+ * `null` is its own thing here rather than "no value": on a `clear` field it is
+ * the *request*, meaning "cure this". See `buildChanges`.
+ */
+type FieldValue = EditFieldValue;
+
+/** Kinds that want a number input and `valueAsNumber` out of it. */
+const NUMERIC = new Set(['int', 'float']);
+
+/**
+ * How many entries each list field takes.
+ *
+ * `masteredSkills` is `Infinity` because the learned-move pool has **no cap** —
+ * the backend checks only that every entry is a real move. The live world has a
+ * Pal with six learned moves against a maximum of three equipped, so borrowing
+ * the equipped cap here would refuse real data.
+ */
+const LIST_MAX: Record<string, number> = {
+  activeSkills: 3,
+  passiveSkills: 4,
+  masteredSkills: Infinity,
+};
 
 /** The two subject types share enough shape to drive one editor. */
 interface Subject {
@@ -139,6 +162,20 @@ export default function CharacterEditor({ canEdit }: { canEdit: boolean }) {
         // editor for one would be a dead end.
         if (p.passiveSkills) seed.passiveSkills = [...p.passiveSkills];
         if (p.activeSkills) seed.activeSkills = [...p.activeSkills];
+        if (p.masteredSkills) seed.masteredSkills = [...p.masteredSkills];
+        // Condition, seeded by the same rule and for the same reason: the
+        // parser reports `null` for a property the save does not carry, so
+        // `!= null` is exactly "this Pal has somewhere to write". A healthy Pal
+        // has no `WorkerSick` at all, which is why the three afflictions simply
+        // do not appear on one — there is nothing to cure and no field to show.
+        if (p.sanity != null) seed.sanity = p.sanity;
+        if (p.fullStomach != null) seed.fullStomach = p.fullStomach;
+        if (p.workerSick != null) seed.workerSick = p.workerSick;
+        if (p.physicalHealth != null) seed.physicalHealth = p.physicalHealth;
+        if (p.hungerType != null) seed.hungerType = p.hungerType;
+        if (p.skinName != null) seed.skinName = p.skinName;
+        if (p.isImported != null) seed.isImported = p.isImported;
+        if (p.favoriteIndex != null) seed.favoriteIndex = p.favoriteIndex;
         // A player usually owns SEVERAL of the same species, often at the same
         // level, and "Lamball · Lv 50" three times over is a list you cannot
         // choose from — you can only guess and check afterwards. The row is
@@ -238,18 +275,12 @@ export default function CharacterEditor({ canEdit }: { canEdit: boolean }) {
     if (band) set('exp', band[0]);
   };
 
-  const changes = useMemo(() => {
-    if (!selected) return {};
-    const out: Record<string, unknown> = {};
-    for (const [key, value] of Object.entries(draft)) {
-      const field = editable.find((f) => f.name === key);
-      if (!field) continue;
-      if (field.kind === 'int') out[key] = Number(value);
-      else if (field.kind === 'list') out[key] = Array.isArray(value) ? value : [];
-      else out[key] = value;
-    }
-    return out;
-  }, [draft, editable, selected]);
+  // In `lib/` rather than here so its one non-obvious rule — a `clear` field is
+  // omitted unless it reads `null` — is pinned by a test. See `edit-changes.ts`.
+  const changes = useMemo(
+    () => (selected ? buildChanges(draft, editable) : {}),
+    [draft, editable, selected]
+  );
 
   const preview = async () => {
     if (!selected) return;
@@ -432,7 +463,7 @@ export default function CharacterEditor({ canEdit }: { canEdit: boolean }) {
                       fontSize: 11, color: 'var(--text-muted)', marginBottom: 3,
                     }}>
                       {field.label}
-                      {field.kind === 'int' && field.max != null && (
+                      {NUMERIC.has(field.kind) && field.max != null && (
                         <span>({field.min}–{field.max})</span>
                       )}
                       {field.name === 'exp' && (
@@ -449,19 +480,44 @@ export default function CharacterEditor({ canEdit }: { canEdit: boolean }) {
                     {field.kind === 'list' ? (
                       <SkillList
                         values={Array.isArray(draft[field.name]) ? (draft[field.name] as string[]) : []}
-                        max={field.name === 'activeSkills' ? 3 : 4}
+                        max={LIST_MAX[field.name] ?? 4}
                         onChange={(next) => set(field.name, next)}
                       />
+                    ) : field.kind === 'clear' ? (
+                      <Cure
+                        current={draft[field.name]}
+                        onCure={() => set(field.name, null)}
+                        onUndo={() => set(field.name, selected.seed[field.name] ?? '')}
+                      />
+                    ) : field.kind === 'bool' ? (
+                      <label style={{
+                        display: 'flex', alignItems: 'center', gap: 6, fontSize: 12,
+                        color: 'var(--text-primary)', cursor: 'pointer',
+                      }}>
+                        <input
+                          type="checkbox"
+                          checked={Boolean(draft[field.name])}
+                          onChange={(e) => set(field.name, e.target.checked)}
+                        />
+                        {draft[field.name] ? 'Yes' : 'No'}
+                      </label>
                     ) : (
                       <input
                         className="input"
                         style={{ width: '100%' }}
-                        type={field.kind === 'int' ? 'number' : 'text'}
+                        type={NUMERIC.has(field.kind) ? 'number' : 'text'}
+                        // A whole-number step on a float input makes the spinner
+                        // round a sanity of 87.5 to 88 with no warning, which is
+                        // an edit the operator did not ask for.
+                        step={field.kind === 'float' ? 'any' : undefined}
                         min={field.min ?? undefined}
                         max={field.max ?? undefined}
                         value={String(draft[field.name] ?? '')}
                         onChange={(e) =>
-                          set(field.name, field.kind === 'int' ? e.target.valueAsNumber : e.target.value)
+                          set(
+                            field.name,
+                            NUMERIC.has(field.kind) ? e.target.valueAsNumber : e.target.value
+                          )
                         }
                       />
                     )}
@@ -568,6 +624,61 @@ function PlanView({
       >
         {busy ? 'Writing…' : 'Apply and verify'}
       </button>
+    </div>
+  );
+}
+
+/**
+ * An affliction, and the one action available on it.
+ *
+ * There is no input here because there is no value to type. A healthy Pal does
+ * not carry `WorkerSick` at all, so the save has no "well" state to write —
+ * curing is a deletion, and `null` is the only value the backend accepts. A
+ * text box would invite someone to type "Healthy" and be told it is invalid.
+ *
+ * The same asymmetry is why nothing here can *inflict* one: this is a dashboard
+ * for fixing a base, and there is no verified value to write even if it were
+ * wanted.
+ */
+function Cure({
+  current, onCure, onUndo,
+}: {
+  current: FieldValue;
+  onCure: () => void;
+  onUndo: () => void;
+}) {
+  const cured = current === null;
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <span style={{
+        fontSize: 12,
+        color: cured ? 'var(--text-muted)' : 'var(--accent-danger, #e5484d)',
+        textDecoration: cured ? 'line-through' : 'none',
+      }}>
+        {String(current ?? '')}
+      </span>
+      {cured ? (
+        <>
+          <span style={{ fontSize: 11, color: 'var(--accent-success, #30a46c)' }}>
+            → will be cured
+          </span>
+          <button
+            className="btn btn-ghost"
+            style={{ padding: '1px 6px', fontSize: 10 }}
+            onClick={onUndo}
+          >
+            <Undo2 size={10} /> keep it
+          </button>
+        </>
+      ) : (
+        <button
+          className="btn btn-ghost"
+          style={{ padding: '1px 8px', fontSize: 11 }}
+          onClick={onCure}
+        >
+          Cure
+        </button>
+      )}
     </div>
   );
 }

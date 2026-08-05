@@ -151,6 +151,21 @@ def _num(obj: dict, name: str, default: int = 0) -> int:
     return int(value) if isinstance(value, (int, float)) else default
 
 
+def _flag(obj: dict, name: str) -> Optional[bool]:
+    """
+    Read a boolean property, distinguishing "false" from "not stored".
+
+    `bool(_prop(...))` collapses the two, and that collapse reaches further than
+    it looks: `charedit` refuses to write a property a Pal does not carry, so a
+    flat `False` makes the editor offer a checkbox the writer will always
+    reject. Absent is the common case here — `bImportedCharacter` is on 136 of
+    the live world's 2,963 Pals — so it is worth spelling out.
+    """
+    if name not in obj:
+        return None
+    return bool(_prop(obj, name, False))
+
+
 def _slot(obj: dict, *keys: str) -> Any:
     """
     Walk into the Pal's slot descriptor, which tells us which container (party,
@@ -425,9 +440,17 @@ def _pal_record(
             "currentWork": _enum(obj, "CurrentWorkSuitability").split("::")[-1] or None,
             # ── Identity and history ─────────────────────────────
             "skinName": str(_prop(obj, "SkinName", "") or "") or None,
-            "isImported": bool(_prop(obj, "bImportedCharacter", False)),
-            "isAwakened": bool(_prop(obj, "bIsAwakening", False)),
-            "favoriteIndex": _num(obj, "FavoriteIndex", 0),
+            # `None` rather than `False`/`0` when the property is absent, and the
+            # distinction is load-bearing rather than tidiness. `charedit`
+            # refuses to write a property this Pal does not carry, so an editor
+            # seeded from a flat `False` renders a checkbox that can only ever be
+            # rejected — the exact dead end the field list is filtered to avoid.
+            # Present on 136 and 102 of the live world's 2,963 Pals respectively,
+            # so absent is the ordinary case, not the edge one.
+            "isImported": _flag(obj, "bImportedCharacter"),
+            "isAwakened": _flag(obj, "bIsAwakening"),
+            "favoriteIndex": _num(obj, "FavoriteIndex", 0)
+            if "FavoriteIndex" in obj else None,
             # Every previous owner, oldest first. Present on 100% of Pals and
             # the only record of a trade there is.
             "previousOwners": [
