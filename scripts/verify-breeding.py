@@ -45,14 +45,26 @@ fitting the method to the answer — the mistake `scripts/fit-worldtree.py` is
 kept as a recorded warning about. The next step is to read palcalc's own
 derivation for the missing term, not to search this space further.
 
-WHAT IT DID ESTABLISH
----------------------
-**The species set agrees exactly.** Filtering `DT_PalMonsterParameter` to forms
-that can be a child — no `BOSS_`/`PREDATOR_`/`SUMMON_`/`RAID_`/`GYM_` prefix and
-a non-negative Paldeck index — yields **299**, which is precisely the count
-palcalc documents. Two independent derivations of "which Pals can be bred"
-landing on the same number is a real result even though the pairings are not yet
-reproduced.
+WHAT IT DID *NOT* ESTABLISH — A CLAIM RETRACTED THE SAME DAY
+------------------------------------------------------------
+An earlier version of this file said **"the species set agrees exactly — 299,
+precisely palcalc's documented figure"**. That was wrong, and how it was wrong
+is worth more than the claim was.
+
+299 was read out of `breeding.py`'s module docstring, not measured from the
+data. **palcalc's table actually carries 305 pals**, and the sets differ in both
+directions: this filter admitted `_Oilrig`, `_Tower` and `Quest_` forms that
+cannot be bred, while palcalc has `YakushimaMonster001` variants and others this
+filter drops. The counts landing within six of each other was a coincidence that
+looked like corroboration.
+
+**A count is not a set**, and a documented figure is not a measurement. Both
+mistakes in one sentence.
+
+Re-running with palcalc's own pal list as the candidate pool — taking the pool
+out of the argument entirely — still gives only **64.6%**. So the pairing rule
+here is wrong independently of which species are eligible, which is the useful
+narrowing this run produced.
 
 `REQUIRED_AGREEMENT` makes the script exit non-zero until the rule is faithful,
 so it cannot be mistaken for a passing check.
@@ -77,10 +89,10 @@ if HERE not in sys.path:
 # third of pairs differing is a broken reimplementation, not a broken table.
 REQUIRED_AGREEMENT = 0.95
 
-# palcalc's own documented figure, and what the breedable-species filter here
-# independently produces. Agreement on the SET is a real result even while the
-# pairings are not reproduced.
-PALCALC_SPECIES = 299
+# What palcalc's table ACTUALLY carries, measured — not the 299 its docstring
+# claims. The two disagree, which is itself worth knowing before anyone treats
+# either number as authoritative.
+PALCALC_SPECIES = 305
 
 ROOT = os.path.dirname(HERE)
 BREEDING = os.path.join(ROOT, "backend", "data", "pal_breeding.json.gz")
@@ -218,13 +230,11 @@ def main() -> int:
         for pair, expected, got, near in examples:
             print(f"   {pair:44s} {expected:22s} {got:22s} {near}")
     print()
-    if len(children) == PALCALC_SPECIES:
-        print(
-            f"SPECIES SET AGREES: {len(children)} breedable outcomes, which is "
-            f"exactly palcalc's documented figure. Two independent derivations "
-            f"of 'which Pals can be bred' landing on the same number is a real "
-            f"result."
-        )
+    print(
+        f"species pool: {len(children)} derived here vs {PALCALC_SPECIES} in "
+        f"palcalc's table. THE SETS DIFFER IN BOTH DIRECTIONS — compare "
+        f"membership, never counts; see the module docstring."
+    )
 
     rate = agree / total if total else 0.0
     if rate < REQUIRED_AGREEMENT:
