@@ -32,6 +32,12 @@
     "regenerateWith": "python3 scripts/extract-game-settings.py",
     "note": "Pocketpair's own 347 tuning constants — damage rates, sanity and hunger thresholds, capture rates, base-camp ranges. Decoded from a Blueprint CDO rather than a DataTable, which is a capability nothing else here had. Self-verifying: the walk must terminate at the end of the export (41,416 of 41,420 bytes) AND reproduce CharacterMaxLevel=80 and CharacterMaxRank=5, two constants previously held from sources that could not be checked against the install. Run with --verify after a game update."
   },
+  "boss_spawners.json.gz": {
+    "source": "Pal-LinuxServer.pak (DT_BossSpawnerLoactionData)",
+    "gameBuild": "24370498",
+    "regenerateWith": "python3 scripts/extract-boss-spawners.py",
+    "note": "90 placed field bosses with species, LEVEL and world position — levels 11-79, 89 distinct species. The table has 159 rows; 69 are unused spawner slots and are not bosses. Positions verified against the World Partition cell grid: 90/90 land on an occupied MainGrid_L0 cell at 25,600 units, with controls at 12,800 (22/90) and 51,200 (83/90) both worse, which is what makes it evidence. Contains no RAID_ ids and should not: raid bosses are altar-summoned, not world-placed."
+  },
   "pal_breeding.json.gz": {
     "source": "tylercamp/palcalc precomputed table, layered with refs/PalWorldSaveTools-main.zip",
     "gameBuild": null,

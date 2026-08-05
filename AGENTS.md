@@ -2004,12 +2004,29 @@ variants (Bellanoir Libero). They need their own treatment; counting them as
 field bosses, or reporting their absence here as missing data, would both be
 wrong.
 
-**The `Location` Vector is 24 bytes — three doubles — and decodes to plausible
-world coordinates** (x -1,033,348…601,097, y -733,420…575,683, z -3,183…51,608).
-That is a *lead, not a result*: the check that would settle it is the one the
-cell grid already provides — every position must land in an occupied
-`MainGrid_L0_X…_Y…` cell at 25,600 units, the same test that validated all 174
-fast-travel points. Until that runs, do not put them on the map.
+**The `Location` Vector is 24 bytes — three doubles — and the positions are now
+VERIFIED, not merely plausible.** `scripts/extract-boss-spawners.py` bundles all
+90 with species, level and world position:
+
+| Cell size | Bosses landing on an occupied cell |
+|---|---|
+| **25,600** (measured) | **90 of 90** |
+| 12,800 (control) | 22 of 90 |
+| 51,200 (control) | 83 of 90 |
+
+**Both controls doing worse is what makes 90/90 evidence** rather than a
+coincidence — the identical test, with the identical controls, that pinned the
+cell size against the 174 fast-travel points. A misread byte layout does not put
+90 points inside the cells the game ships content for. The script *refuses* if
+any position falls off the grid, and refuses again if a control ever matches as
+well as the real size, because then the check is not discriminating and proves
+nothing.
+
+**The Vector decoder is deliberately local to that script rather than added to
+`uassettable`.** That module's contract is tagged properties; a
+natively-serialised struct is a different one, trustworthy only where something
+checks it. Here the cell grid does. Elsewhere it would not, and a shared decoder
+would carry the trust along with the bytes.
 
 Still to check with this: **field boss levels** (AGENTS.md below says the pak was
 checked; that check was the client pak) and the **element effectiveness chart**
