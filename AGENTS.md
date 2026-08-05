@@ -1652,6 +1652,42 @@ Neutral is strong against nothing, which is the game's design (Neutral Pals trad
 matchups for base work) rather than a hole in the transcription, and Fire is the
 only element strong against two.
 
+### The optimiser is where that quarantine could leak, so it is pinned twice
+
+`backend/optimise.py` ranks Pals for work and for combat. The rule it exists to
+hold: **a matchup is a badge, never a sort key.** There is no coefficient to rank
+by, so folding "strong against Grass" into a score would mean inventing one, and
+the resulting order would look more authoritative than anything behind it.
+
+The guard is a *differential* rather than an assertion about the code: rank the
+same roster with and without a target and the order must be **identical**. On
+refworld's 1,905 characters it is, across the top 50. Pinned on both sides of the
+wire — `test_matchup_never_enters_the_ordering` and
+`test_a_matchup_does_not_reorder_the_ranking` — because a UI that re-sorted on the
+badge would defeat a backend that did not.
+
+`hasMultiplier: false` travels in the payload, not only in a docstring. The client
+is the thing about to render a damage figure, so it is the thing that has to be
+told there is none.
+
+**Work levels are read; work speed is calculated; the payload says which per
+row.** `base` (the species table) and `bought`
+(`GotWorkSuitabilityAddRankList`) stay separate as well as summed — "this species
+is good at mining" and "somebody spent Pal Souls on this one" are different facts
+and one number hides which. A Pal at level 0 for a job is **excluded**, not ranked
+last: listing everything that cannot mine under "who should mine" is noise.
+
+Level sorts ahead of speed because speed cannot substitute for it, and refworld
+shows why that ordering is not cosmetic — a level-1 Astegon reads work speed 91
+against a level-29 Blazamut's 70, since **work speed is flat 70 until the
+condenser is used at all**. Sorting on speed would put an unusable Pal first.
+
+Measured on refworld, useful as a regression signal: 412 Pals capable of Mining,
+854 of Transporting, **0 of Oil Extraction** (consistent with
+`DT_GainWorkSuitabilityRankItem` shipping only a *dummy* ticket for it), and 99
+characters with no scaling data excluded from combat — exactly the 99 NPCs
+documented above, arrived at independently.
+
 ### The passive term was always zero, and 1,352 Pals were understated
 
 `palstats.describe` took `passive_bonus` as a caller-supplied float defaulting to

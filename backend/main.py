@@ -33,6 +33,7 @@ import breeding
 import charedit
 import db
 import editschema
+import elements
 import gameapi
 import gameversion
 import gamedata
@@ -42,6 +43,7 @@ import lifecycle
 import metrics
 import mods
 import moderate
+import optimise
 import palcheck
 import palclone
 import palimport
@@ -992,6 +994,99 @@ def get_welfare(request: Request, owner: Optional[str] = None) -> dict:
         "pals": affected,
         "scanned": len(scoped),
         "lowSanityBelow": LOW_SANITY,
+        **_breeding_scope(request, effective),
+    }
+
+
+@app.get("/api/optimise/work")
+def get_work_ranking(
+    request: Request,
+    work: Optional[str] = None,
+    owner: Optional[str] = None,
+    limit: int = optimise.DEFAULT_LIMIT,
+) -> dict:
+    """
+    Who should be doing each job, best first.
+
+    Scoped exactly like `/api/pals` and `/api/welfare`, through the same helper —
+    a Player is answered from their own and their guild's Pals, and the scope
+    travels in the payload for the reason `_breeding_scope` documents: a ranking
+    computed from one palbox and displayed under a server-wide heading reads as a
+    wrong answer rather than as a narrower question.
+
+    Without `work`, every work type is ranked. The suitability levels are read
+    from the save and the bundled table; only work *speed* is calculated, and it
+    is flagged per row.
+    """
+    authz.require(request, roles_module.VIEW_SELF)
+    pals = viewcache.derived("pals:enriched", _enriched_pals)
+    effective = _breeding_owner(request, owner)
+    scoped = _scope_pals(pals, effective, _guilds_of(effective) if effective else None)
+
+    types = optimise.work_types()
+    wanted = [t for t in types if not work or str(t.get("id")) == work]
+    if work and not wanted:
+        raise HTTPException(404, f"No work type {work!r}")
+
+    limit = max(0, min(int(limit), 200))
+    return {
+        "workTypes": types,
+        "rankings": [
+            {
+                "workId": t.get("id"),
+                # `display_name` is the bundled table's own key — not `name`,
+                # which every other section here uses.
+                "workName": t.get("display_name") or t.get("id"),
+                "pals": optimise.rank_for_work(scoped, str(t.get("id")), limit=limit),
+            }
+            for t in wanted
+        ],
+        **_breeding_scope(request, effective),
+    }
+
+
+@app.get("/api/optimise/combat")
+def get_combat_ranking(
+    request: Request,
+    owner: Optional[str] = None,
+    against: Optional[str] = None,
+    limit: int = optimise.DEFAULT_LIMIT,
+) -> dict:
+    """
+    Strongest Pals by computed stats, with an optional elemental matchup.
+
+    **`against` does not affect the ordering**, and that is the whole discipline
+    of this route. The element chart carries a relation and no multiplier — the
+    only element-damage constant in the game's settings object is
+    `DamageElementMatchRate = 1.2`, whose meaning is inferred from its name, and
+    the popular "2x / half" figures are reproduced by no file this project can
+    read. Ranking by a coefficient nobody has would look authoritative and rest
+    on nothing, so the matchup is attached per row as a qualitative flag and the
+    sort key never sees it.
+    """
+    authz.require(request, roles_module.VIEW_SELF)
+    pals = viewcache.derived("pals:enriched", _enriched_pals)
+    effective = _breeding_owner(request, owner)
+    scoped = _scope_pals(pals, effective, _guilds_of(effective) if effective else None)
+
+    target = [e.strip() for e in (against or "").split(",") if e.strip()]
+    limit = max(0, min(int(limit), 200))
+
+    return {
+        # `ranking`, not `pals`: `_breeding_scope` already contributes a `pals`
+        # key holding the *count* the answer was built from, and spreading it
+        # last silently replaced this list with an integer. Two dicts merged
+        # with `**` share one namespace, and the collision showed up as
+        # "'int' object is not iterable" three layers away.
+        "ranking": optimise.rank_for_combat(scoped, limit=limit, against=target or None),
+        "against": target,
+        "counters": optimise.counters(scoped, target) if target else None,
+        # The caller is the one about to render a damage figure, so it is told
+        # here rather than only in a docstring that there is none to render.
+        "hasMultiplier": False,
+        "elements": list(elements.ELEMENTS),
+        "chartIsCurrent": elements.chart_is_current(),
+        "unknownElements": list(elements.unknown_to_chart()),
         **_breeding_scope(request, effective),
     }
 

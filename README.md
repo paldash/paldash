@@ -635,6 +635,21 @@ The **Guild Chest is listed separately, once per guild**, because that is what i
 is — one 54-slot container shared by every base the guild owns. Two chests placed
 at two bases are two doors into the same box.
 
+**Who should be doing what.** The My Pals tab ranks your Pals for each of the
+game's thirteen jobs, and by combat stats.
+
+Work level is **read** — the species' own suitability plus any ranks bought with
+Pal Souls, shown separately so you can see which is which. Work speed and the
+combat stats are **calculated** from the game's formula and labelled as such.
+
+You can pick an element to face, and each Pal gets a Strong / Weak / Neutral
+badge. **It does not change the order, deliberately.** The game's files contain
+the element *relation* but no damage multiplier — the one element constant in
+them is `DamageElementMatchRate = 1.2`, and the widely quoted "2x dealt, half
+taken" appears in no file. Ranking by a coefficient nobody has would look
+authoritative and rest on nothing, so the stats decide the order and the matchup
+sits beside it.
+
 ---
 
 ## Save editing

@@ -164,6 +164,10 @@ const ROUTES: RouteRule[] = [
   // Same capability and feature as the storage routes above, because it is the
   // same disclosure in a different shape — per-base container contents.
   { pattern: /^bases\/supply$/, methods: ['GET'], capability: CAPABILITIES.VIEW_SELF, feature: FEATURES.ITEMS },
+  // Rankings over the caller's own Pals — same scope and same feature gate as
+  // the breeding planner, which reads the same list.
+  { pattern: /^optimise\/work$/, methods: ['GET'], capability: CAPABILITIES.VIEW_SELF, feature: FEATURES.BREEDING },
+  { pattern: /^optimise\/combat$/, methods: ['GET'], capability: CAPABILITIES.VIEW_SELF, feature: FEATURES.BREEDING },
   // Literal `export/verify` before the `export/{kind}` pattern: verify is a POST
   // and must not be reachable as a GET export of a kind called "verify".
   { pattern: /^export\/verify$/, methods: ['POST'], capability: CAPABILITIES.VIEW_DETAIL, feature: null },

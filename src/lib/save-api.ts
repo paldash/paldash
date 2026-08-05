@@ -773,6 +773,90 @@ export interface SupplyReport {
   cakeItems: string[];
 }
 
+/** A Pal in a ranking. Enough fields to tell two of a species apart. */
+export interface RankedPal {
+  instanceId: string;
+  name: string;
+  speciesId: string;
+  speciesName: string;
+  icon: string;
+  level: number;
+  rank: number;
+  gender: string;
+  isBoss: boolean;
+  elements: string[];
+  location: string;
+  baseId: string;
+}
+
+export interface WorkRankedPal extends RankedPal {
+  /** `base` is the species table, `bought` is Pal Souls. Kept apart on purpose. */
+  work: { base: number; bought: number; level: number };
+  workSpeed: number;
+  workSpeedCalculated: boolean;
+}
+
+export interface CombatRankedPal extends RankedPal {
+  attack: number;
+  defense: number;
+  hp: number;
+  score: number;
+  /** The composite exists to give the list a default order, nothing more. */
+  scoreIsArbitrary: boolean;
+  calculated: boolean;
+  /** Qualitative only — attached when `against` is set, never sorted on. */
+  matchup?: 'strong' | 'weak' | 'neutral';
+}
+
+export interface WorkRankingReport {
+  workTypes: { id: string; display_name: string; icon: string; index: number }[];
+  rankings: { workId: string; workName: string; pals: WorkRankedPal[] }[];
+  scope: string;
+  mayScopeToOthers: boolean;
+  linkedToPlayer: boolean;
+  pals: number;
+}
+
+export interface CombatRankingReport {
+  /** Named `ranking`, not `pals` — the scope block already owns `pals`. */
+  ranking: CombatRankedPal[];
+  against: string[];
+  counters: {
+    target: string[];
+    strong: RankedPal[];
+    weak: RankedPal[];
+    neutral: RankedPal[];
+    hasMultiplier: false;
+  } | null;
+  /**
+   * Always false. The element chart carries a relation and no coefficient, so
+   * there is no damage figure to render — see `backend/elements.py`.
+   */
+  hasMultiplier: false;
+  elements: string[];
+  /** False once the game ships an element the bundled chart has never seen. */
+  chartIsCurrent: boolean;
+  unknownElements: string[];
+  scope: string;
+  mayScopeToOthers: boolean;
+  linkedToPlayer: boolean;
+  pals: number;
+}
+
+export async function getWorkRanking(work?: string, limit = 10): Promise<WorkRankingReport> {
+  const q = new URLSearchParams({ limit: String(limit) });
+  if (work) q.set('work', work);
+  return saveFetch(`/optimise/work?${q}`);
+}
+
+export async function getCombatRanking(
+  against?: string[], limit = 20
+): Promise<CombatRankingReport> {
+  const q = new URLSearchParams({ limit: String(limit) });
+  if (against?.length) q.set('against', against.join(','));
+  return saveFetch(`/optimise/combat?${q}`);
+}
+
 export async function getBaseSupply(floor?: number): Promise<SupplyReport> {
   const query = floor === undefined ? '' : `?floor=${encodeURIComponent(floor)}`;
   return saveFetch(`/bases/supply${query}`);

@@ -6,6 +6,7 @@ import { getPals, downloadExport, type PalRecord } from '@/lib/save-api';
 import { useDashboardStore } from '@/lib/store';
 import { CAPABILITIES } from '@/lib/permissions';
 import GameIcon from '@/components/game-icon';
+import PalOptimiser from '@/components/pal-optimiser';
 import PalWelfare from '@/components/pal-welfare';
 import { getWorkTypes, orderedWork, type WorkType } from '@/lib/work-types';
 
@@ -494,6 +495,12 @@ export default function MyPals() {
           Showing the first 500. Narrow the filters to see the rest.
         </p>
       )}
+
+      {/* Rankings over the same scoped list this table shows, so the two cannot
+          disagree about whose Pals are in play. */}
+      <div style={{ marginTop: 8, paddingTop: 14, borderTop: '1px solid var(--border-primary)' }}>
+        <PalOptimiser />
+      </div>
     </div>
   );
 }
