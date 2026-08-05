@@ -1983,9 +1983,26 @@ one that named this rule:
     Location    {"_opaque": "Vector 24B"}
     Level       66
 
-**159 field bosses with species and level** — which this file and the README both
-said was unavailable ("Level is not available… do not invent the rest"). It was
-available; the reader was refusing the table that held it.
+**89 placed field bosses with species and level**, levels 10–79 across 90
+distinct species — which this file and the README both said was unavailable
+("Level is not available… do not invent the rest"). It was available; the reader
+was refusing the table that held it.
+
+**The table has 159 rows and 69 of them are empty** (`CharacterID: "None"` —
+unused spawner slots). Count the populated rows, not the row count. This was
+briefly written up as "159 field bosses", which is the same class of error as the
+`BP_LevelObject_TowerLockBarrier` mistake recorded above: a category whose size
+disagrees with what the game has is wrong however plausible it looks.
+
+**RAID BOSSES ARE NOT IN THIS TABLE AND SHOULD NOT BE EXPECTED IN IT.** Zero of
+the 159 rows carry a `RAID_` id, and that is correct rather than a gap: the
+bundled data has **19** `RAID_` species (Bellanoir is `NightLady`, Xenolord is
+`KingBahamut_Dragon`, plus `DarkMechaDragon` and `LegendDeer`), and they are
+**summoned at an altar rather than placed in the world** — so a table of
+*locations* has nothing to say about them. The `_2` suffixes are the harder
+variants (Bellanoir Libero). They need their own treatment; counting them as
+field bosses, or reporting their absence here as missing data, would both be
+wrong.
 
 **The `Location` Vector is 24 bytes — three doubles — and decodes to plausible
 world coordinates** (x -1,033,348…601,097, y -733,420…575,683, z -3,183…51,608).
