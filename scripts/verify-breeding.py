@@ -178,6 +178,62 @@ def predict(a: str, b: str, ranks: dict, zukan: dict, uniques: dict,
     return best
 
 
+def check_palcalc_against_the_game() -> dict:
+    """
+    Is palcalc's table right? **Test it against the game, not against us.**
+
+    This should have been the FIRST check and was not. Everything above assumed
+    palcalc was correct on the grounds that it drives a shipped feature nobody
+    has reported as wrong — which is weak, because a wrong child only surfaces
+    if somebody actually breeds that pair and checks.
+
+    `DT_PalCombiUnique` is ground truth: 256 rows where the game names the child
+    outright, no rule to reimplement. Measured 2026-08-05:
+
+        agree      252
+        disagree     1
+        not in palcalc's table   1,112
+
+    **The single disagreement is not an error.** `CatMage x FoxMage` is the one
+    gender-dependent pair in the game — it yields `CatMage_Fire` or
+    `FoxMage_Dark` depending on which parent is which gender, so the game has
+    two rows and palcalc's flat `pair -> child` table can only hold one. That is
+    the case `breeding.possible_offspring` already handles with
+    `genderDependent`/`requiresGenders`, and the reason Katress Ignis was
+    unreachable before it.
+
+    So palcalc is effectively **253 of 253**, and the disagreement with the rule
+    reimplemented above is this script's fault. That is now evidence rather than
+    an assumption.
+
+    The 1,112 absences are tribe-level combos covering parent species palcalc
+    does not carry (`BOSS_` forms and the like), not gaps in its coverage.
+    """
+    with gzip.open(MOVES, "rt", encoding="utf-8") as f:
+        combos = json.load(f).get("uniqueCombos") or []
+    with gzip.open(BREEDING, "rt", encoding="utf-8") as f:
+        table = json.load(f)["pairs"]
+
+    agree = disagree = absent = 0
+    mismatches = []
+    for combo in combos:
+        child = str(combo.get("childId") or "")
+        for a in combo.get("parentSpeciesA") or []:
+            for b in combo.get("parentSpeciesB") or []:
+                for key in (f"{a}+{b}", f"{b}+{a}"):
+                    if key in table:
+                        if table[key] == child:
+                            agree += 1
+                        else:
+                            disagree += 1
+                            mismatches.append((key, child, table[key]))
+                        break
+                else:
+                    absent += 1
+    return {"agree": agree, "disagree": disagree, "absent": absent,
+            "mismatches": mismatches}
+
+
 def main() -> int:
     limit = 20
     if "--limit" in sys.argv:
@@ -185,6 +241,18 @@ def main() -> int:
 
     with gzip.open(BREEDING, "rt", encoding="utf-8") as f:
         table = json.load(f)["pairs"]
+
+    ground = check_palcalc_against_the_game()
+    print("palcalc vs DT_PalCombiUnique — the game naming the child outright:")
+    print(f"  agree {ground['agree']}, disagree {ground['disagree']}, "
+          f"not in palcalc's table {ground['absent']}")
+    for key, want, got in ground["mismatches"]:
+        # The known gender-dependent pair is expected here; anything else is a
+        # real finding about palcalc and should be investigated before this
+        # script's own rule is blamed for anything.
+        note = "  (the gender-dependent pair — expected)" if "CatMage" in key else "  <-- INVESTIGATE"
+        print(f"     {key:40s} game={want:22s} palcalc={got}{note}")
+    print()
 
     ranks, zukan = game_ranks()
     children = breedable(ranks, zukan)
@@ -240,10 +308,11 @@ def main() -> int:
     if rate < REQUIRED_AGREEMENT:
         print()
         print(
-            f"NOT A VERIFICATION. {rate:.2%} agreement is far too low to be a\n"
-            f"finding about palcalc: its table is precomputed from these same\n"
-            f"game tables and drives a shipped feature nobody has reported as\n"
-            f"wrong. A third of pairs differing means THIS SCRIPT has the rule\n"
+            f"NOT A VERIFICATION. {rate:.2%} agreement, and the fault is THIS\n"
+            f"SCRIPT'S: palcalc matches DT_PalCombiUnique -- the game naming the\n"
+            f"child outright -- on 252 of 253 pairs, the one exception being the\n"
+            f"gender-dependent CatMage x FoxMage that a flat table cannot hold.\n"
+            f"That is evidence rather than an assumption. So the rule here is\n"
             f"wrong, and the module docstring records the four tie-breaks already\n"
             f"tried. Read palcalc's derivation for the missing term rather than\n"
             f"searching that space further — tuning until the number rises is\n"
