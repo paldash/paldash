@@ -75,6 +75,39 @@ makes that banner work.
 
 ---
 
+## Where this actually stands (2026-08-05)
+
+Phases 0 and 1 are **done**, and two things landed that were not in the original
+plan because they were not known to be possible: the client pak sweep (#68) and
+the localisation source (#34), which together closed #69.
+
+| Phase | State |
+|---|---|
+| 0 — version banner, cache headers (#66) | ✅ |
+| 1 — ten extractions + `verify-gamedata` (1.1–1.10) | ✅ |
+| **#68 client pak catalogued** | ✅ 503 unique tables, 32 client-only, all cosmetic |
+| **#34 display strings** | ✅ 235,696/235,696 rows, 16 languages |
+| **#69 swap off the archive** | ✅ names, descriptions, regions, dungeons |
+| 2 — thin features | **next** |
+| 3 — new features | after |
+| 4 — remaining | as capacity allows |
+
+**The archive now supplies two things only: icon paths, and which ids exist.**
+Everything else is the game's own files.
+
+### Bugs found and fixed along the way, worth not re-introducing
+
+- The effigy layer never consulted `kindsOff`, drew every kind the same purple,
+  and drew a circle while the panel promised a triangle. Every other layer was
+  audited; effigies was the only one.
+- `/api/auth/login` omitted `steamUid` while `/api/auth/session` included it, so
+  a freshly signed-in account read as having no linked character until reload.
+  `auth.publicUser()` is now the one serialiser.
+- The archive ships `en Text` as the literal name of two active skills, and has
+  since this bundle was first built.
+
+---
+
 ## Phase 2 — Features that are thinner than their data allowed
 
 Ranked above new work: each is a shipped feature under-delivering, which is worse
