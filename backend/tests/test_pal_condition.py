@@ -65,6 +65,34 @@ def test_every_affliction_is_clearable():
     assert not (set(charedit.PAL_CLEARABLE.values()) & set(obj))
 
 
+def test_a_cure_survives_the_PLANNER_and_not_only_the_writer():
+    """
+    The writer handled `clear` from the day it was written and the planner did
+    not, so every cure was rejected as "not a writable Pal field" before any of
+    the tested code ran. Unit-testing `_apply_pal_change` directly is what hid
+    it: nothing exercised the route an actual request takes.
+    """
+    plan = charedit.plan_pal_edit(
+        _obj(WorkerSick=_enum("EPalBaseCampWorkerSickType", "DepressionSprain")),
+        {"workerSick": None},
+    )
+    assert plan["ok"], plan["problems"]
+    assert [c["field"] for c in plan["changes"]] == ["workerSick"]
+    assert plan["changes"][0]["before"] == "DepressionSprain"
+    assert plan["changes"][0]["after"] is None
+
+
+def test_curing_a_healthy_pal_PLANS_as_no_change_rather_than_refusing():
+    """
+    The absent property is the target state, so the missing-property refusal
+    that protects every other field has to invert here — otherwise "cure this
+    base" fails on exactly its healthy members.
+    """
+    plan = charedit.plan_pal_edit(_obj(), {"workerSick": None})
+    assert plan["ok"], plan["problems"]
+    assert plan["changes"] == []
+
+
 def test_an_affliction_cannot_be_INFLICTED_through_the_schema():
     """
     The asymmetry is deliberate. A dashboard's job here is to fix a base, and

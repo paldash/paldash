@@ -317,7 +317,7 @@ def plan_pal_edit(obj: dict, changes: dict) -> dict:
             "changes": [], "planHash": "",
         }
 
-    writable = {**PAL_PROPERTY_MAP, **PAL_LIST_PROPERTY_MAP}
+    writable = {**PAL_PROPERTY_MAP, **PAL_LIST_PROPERTY_MAP, **PAL_CLEARABLE}
     unmapped = [f for f in changes if f not in writable]
     if unmapped:
         return {
@@ -333,7 +333,15 @@ def plan_pal_edit(obj: dict, changes: dict) -> dict:
     # so nothing upstream notices until the write is already inside
     # `guarded_save_write`. Catching it here means no pointless backup and, for a
     # batch, no discovering it 140 Pals in.
-    missing = [f for f in changes if writable[f] not in obj]
+    #
+    # A `clear` field is the exception, and it inverts the rule: the absent
+    # property IS the target state, so "this Pal has no WorkerSick" is success
+    # rather than an obstacle. Refusing here would make "cure every sick Pal at
+    # this base" fail on precisely the healthy ones — the selection nobody
+    # curates by hand.
+    missing = [
+        f for f in changes if f not in PAL_CLEARABLE and writable[f] not in obj
+    ]
     if missing:
         return {
             "ok": False,
