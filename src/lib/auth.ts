@@ -44,6 +44,31 @@ export interface SessionUser {
   mustChangePassword: boolean;
 }
 
+/**
+ * The subset of a `SessionUser` the browser is given.
+ *
+ * **One function because there were two copies and they drifted.** The session
+ * route listed `steamUid`; the login route did not — so signing in left
+ * `store.user.steamUid` undefined for the whole session, and the Account tab
+ * said "not linked" about an account that plainly was, since its bases and Pals
+ * were right there. Reloading the page fixed it, which is why it read as
+ * flakiness rather than as a missing field.
+ *
+ * `my-pals.tsx` keys its "linked" check on the same field and broke the same
+ * way. Adding a field to `SessionUser` must not require remembering two places.
+ *
+ * The password hash and internal id are deliberately not included.
+ */
+export function publicUser(user: SessionUser) {
+  return {
+    username: user.username,
+    displayName: user.displayName,
+    role: user.role,
+    steamUid: user.steamUid,
+    mustChangePassword: user.mustChangePassword,
+  };
+}
+
 export interface SessionInfo {
   user: SessionUser | null;
   role: Role;

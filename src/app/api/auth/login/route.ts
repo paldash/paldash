@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { SESSION_COOKIE, login, sessionCookieOptions, isGuestEnabled } from '@/lib/auth';
+import {
+  SESSION_COOKIE, login, sessionCookieOptions, isGuestEnabled, publicUser,
+} from '@/lib/auth';
 
 /**
  * POST { username, password } -> a session
@@ -55,12 +57,10 @@ export async function POST(request: NextRequest) {
 
   const res = NextResponse.json({
     role: result.user.role,
-    user: {
-      username: result.user.username,
-      displayName: result.user.displayName,
-      role: result.user.role,
-      mustChangePassword: result.user.mustChangePassword,
-    },
+    // Shared with /api/auth/session. This list used to be spelled out here and
+    // was missing `steamUid`, so a freshly signed-in account read as having no
+    // linked character until the page was reloaded.
+    user: publicUser(result.user),
     capabilities: result.capabilities,
   });
   res.cookies.set(SESSION_COOKIE, result.token, sessionCookieOptions(request));
