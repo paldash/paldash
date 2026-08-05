@@ -76,6 +76,11 @@ ECONOMY_PATH = os.environ.get(
     ),
 )
 
+SPAWNS_PATH = os.environ.get(
+    "SPAWNS_DATA_PATH",
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "spawns.json.gz"),
+)
+
 PASSIVE_EFFECT_PATH = os.environ.get(
     "PASSIVE_EFFECT_DATA_PATH",
     os.path.join(
@@ -91,6 +96,7 @@ _boss_spawners: Optional[list[dict[str, Any]]] = None
 _work_assign: Optional[dict[str, Any]] = None
 _basecamp: Optional[dict[str, Any]] = None
 _economy: Optional[dict[str, Any]] = None
+_spawns: Optional[dict[str, Any]] = None
 _indexes: dict[str, dict[str, Any]] = {}
 
 
@@ -162,7 +168,7 @@ def _reset_cache() -> None:
     reset always has: it works until it silently does not.
     """
     global _data, _effigies, _passive_effects, _game_settings
-    global _boss_spawners, _work_assign, _basecamp, _economy
+    global _boss_spawners, _work_assign, _basecamp, _economy, _spawns
     _data = None
     _effigies = None
     _passive_effects = None
@@ -171,6 +177,7 @@ def _reset_cache() -> None:
     _work_assign = None
     _basecamp = None
     _economy = None
+    _spawns = None
     _indexes.clear()
 
 
@@ -805,6 +812,78 @@ def dropped_by(item_id: str) -> list[dict[str, Any]]:
 def food_effect(item_id: str) -> Optional[dict[str, Any]]:
     """What a cooked dish does, and for how long."""
     return (economy().get("food") or {}).get(str(item_id or ""))
+
+
+def spawns() -> dict[str, Any]:
+    """
+    Spawn points with verified world positions, and the roster at each.
+
+    Supersedes `habitats.py`'s name-table intersection: 482 species with real
+    level ranges and weights against that workaround's 348 and its explicitly
+    narrow "references this species" claim.
+
+    Positions are verified, not assumed — all 8,253 land on an occupied World
+    Partition cell at 25,600 units, with both wrong cell sizes doing worse.
+    """
+    global _spawns
+    if _spawns is None:
+        try:
+            with gzip.open(SPAWNS_PATH, "rt", encoding="utf-8") as f:
+                _spawns = json.load(f)
+        except (OSError, json.JSONDecodeError) as e:
+            logger.warning(
+                "Spawn data unavailable (%s); the spawn layer will be empty", e
+            )
+            _spawns = {}
+    return _spawns
+
+
+def spawns_for(species_id: str) -> list[dict[str, Any]]:
+    """
+    Every place a species spawns, with its level range there.
+
+    Joins rosters to placements by spawner name, so a result is a real world
+    position and not a region shading. Case-insensitive, and the `BOSS_` prefix
+    is **not** stripped: an alpha spawns at its own points, not its base form's.
+
+    Returns the placement rows enriched with the roster entry that named the
+    species, because "where" without "at what level" is half an answer.
+    """
+    data = spawns()
+    rosters = data.get("spawners") or {}
+    wanted = str(species_id or "").lower()
+    if not wanted:
+        return []
+
+    # Which spawners name it, and on what terms.
+    matching: dict[str, dict[str, Any]] = {}
+    for name, variants in rosters.items():
+        for variant in variants:
+            for entry in variant.get("entries") or []:
+                if str(entry.get("speciesId") or "").lower() != wanted:
+                    continue
+                current = matching.get(name)
+                # Keep the widest level range across variants of one spawner.
+                if current is None:
+                    matching[name] = {
+                        "levelMin": entry["levelMin"],
+                        "levelMax": entry["levelMax"],
+                        "weight": variant.get("weight", 0.0),
+                        "onlyTime": variant.get("onlyTime", ""),
+                        "onlyWeather": variant.get("onlyWeather", ""),
+                    }
+                else:
+                    current["levelMin"] = min(current["levelMin"], entry["levelMin"])
+                    current["levelMax"] = max(current["levelMax"], entry["levelMax"])
+
+    if not matching:
+        return []
+
+    return [
+        {**placement, **matching[placement["spawnerName"]]}
+        for placement in (data.get("placements") or [])
+        if placement.get("spawnerName") in matching
+    ]
 
 
 def game_setting(name: str, default: Any = None) -> Any:
