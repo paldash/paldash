@@ -213,9 +213,18 @@ means what it looks like. A sheet often names two species (`BOSS_QueenBee` +
 `palspawner` excludes them by **negative lookahead**, not by `--targets` ordering
 — first-match-wins would have made the split depend on a command line.
 
-**Level is not available.** It lives in the spawner's unversioned properties, and
-the bundled tables carry a boss's name, icon, rarity and description but no
-level. Name and artwork are what the data supports; do not invent the rest.
+**Level IS available, and this paragraph used to say the opposite.** It claimed
+level lived in the spawner's unversioned properties and instructed the reader not
+to invent it. The instruction was right; the premise was wrong. Level was in
+`DT_BossSpawnerLoactionData` the whole time, behind a `read_table` refusal that
+was too broad — see the boss-spawner section below. `backend/data/boss_spawners.json.gz`
+now carries **90 placed bosses, levels 11-79**, with positions verified against
+the cell grid.
+
+Note this is the *spawner* count, not the `palspawner` category described above:
+these are two different extractions of overlapping things, and the 99 `FBOSS`
+placements found by name-table intersection are not the same 90 rows. Do not
+assume one supersedes the other without checking which species each covers.
 
 ## Spawn habitats come from name tables, not from properties
 

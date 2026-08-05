@@ -320,7 +320,7 @@ export default function Paldeck() {
                 <div>
                   <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>
                     Base stats
-                    <span title="The species' base values. A specific Pal's actual numbers also depend on its level, IVs, condense rank and passives — the multipliers for those are not in any data this project bundles, so they are deliberately not shown rather than estimated.">
+                    <span title="The species' base values, before any individual Pal's level, IVs, condenser rank, souls, trust or passives. Those ARE computed for a Pal you own — see the stat breakdown on the My Pals tab — but they need a specific Pal, and this panel describes the species.">
                       {' '}(species)
                     </span>
                   </div>
