@@ -17,6 +17,7 @@ import ServerOverview from '@/components/server-overview';
 import InteractiveMap from '@/components/interactive-map';
 import PlayerRoster from '@/components/player-roster';
 import BaseViewer from '@/components/base-viewer';
+import VersionBanner from '@/components/version-banner';
 import SaveEditor from '@/components/save-editor';
 import ServerSettings from '@/components/server-settings';
 import BreedingPlanner from '@/components/breeding-planner';
@@ -443,6 +444,7 @@ export default function Home() {
         )}
 
         <div className="fade-in" key={activeTab}>
+          <VersionBanner />
           <ErrorBoundary key={activeTab} label={activeTab}>
           {activeTab === 'overview' && <ServerOverview />}
           {activeTab === 'map' && <InteractiveMap />}

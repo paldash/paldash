@@ -49,3 +49,41 @@ describe('next.config.ts output tracing', () => {
     expect(excludes).not.toMatch(/\[[^\]]*\]\s*\)?\s*"/);
   });
 });
+
+describe('build id and cache headers', () => {
+  const config = readFileSync(
+    path.join(process.cwd(), 'next.config.ts'),
+    'utf8',
+  );
+
+  it('emits one build id per build and shares it with the client', () => {
+    // The server route and the client component must compare the same string.
+    // Two independently-derived ids would never match and the banner would show
+    // permanently — worse than not having it.
+    expect(config).toContain('generateBuildId');
+    expect(config).toContain('NEXT_PUBLIC_BUILD_ID');
+    expect(config).toMatch(/BUILD_ID\s*=\s*process\.env\.BUILD_ID/);
+  });
+
+  it('never lets the version probe be cached', () => {
+    // A cached probe reports the running build as current forever, which is the
+    // exact failure the mechanism exists to prevent.
+    expect(config).toContain('/api/version');
+    expect(config).toMatch(/no-store/);
+  });
+
+  it('sets revalidating cache headers for the unhashed public assets', () => {
+    // `/_next/static/` is content-hashed and safe to cache forever. `public/`
+    // is not: icons and map textures keep their names across regenerations, so
+    // they need a revalidation rather than `immutable`.
+    expect(config).toMatch(/icons\|maps/);
+    expect(config).toContain('must-revalidate');
+    // Asserting on the header VALUE, not on the file text: the config mentions
+    // `immutable` in the comment explaining why it is not used, and a bare
+    // `not.toMatch` fails on the explanation rather than on the behaviour.
+    const values = [...config.matchAll(/value:\s*"([^"]*max-age[^"]*)"/g)]
+      .map((m) => m[1]);
+    expect(values.length).toBeGreaterThan(0);
+    expect(values.every((v) => !v.includes('immutable'))).toBe(true);
+  });
+});
