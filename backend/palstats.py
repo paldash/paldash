@@ -105,6 +105,77 @@ def _species_stats(species_id: str) -> tuple[dict[str, Any], dict[str, Any]]:
     return (entry.get("stats") or {}), (entry.get("friendship") or {})
 
 
+# Which `EPalPassiveSkillEffectType` feeds which calculated stat.
+#
+# `attack` is **ShotAttack**, matching the rest of this module: the game shows
+# shot attack, `meleeAttack` is a different number on most species, and reading
+# the wrong one is plausible everywhere and wrong everywhere. `MeleeAttack`
+# passives are therefore deliberately absent — they modify a stat nothing here
+# displays, and folding them into attack would inflate it.
+PASSIVE_EFFECT_STATS = {
+    "MaxHP": "hp",
+    "ShotAttack": "attack",
+    "Defense": "defense",
+    "CraftSpeed": "workSpeed",
+}
+
+# Invoke conditions under which a passive applies to a Pal's own displayed stats.
+#
+# `InvokeWorker` and `InvokeInBaseCamp` are NOT here, and that is the point: a
+# skill that only fires while the Pal is working at a base does not apply to the
+# Pal sitting in a palbox, so counting it would show an attack figure the game
+# never uses.
+PASSIVE_SELF_INVOKES = {"InvokeAlways", "InvokeActiveOtomo", "InvokeInOtomo"}
+
+# Effect targets that mean "this Pal". Measured across the bundle's 2,057
+# effects: ToSelf 736, ToSelfAndTrainer 341, and everything else names someone
+# who is not the Pal carrying the skill — ToTrainer 669, ToOtomo 226,
+# ToBaseCampPal 40, ToBuildObject 29, ToActiveOtomo 10, ToTrainerAndOtomo 5.
+# Counting a trainer buff as a Pal buff would inflate a third of all Pals.
+#
+# `None` is in the list because it occurs EXACTLY ONCE in the whole bundle —
+# `Rare`'s defence effect — and the game's own description of that skill reads
+# "Attack +15% Defense +15% Work Speed +20%", so it is a self buff with an unset
+# target field rather than a category of its own. Excluding it silently dropped
+# 15% defence from every Lucky Pal, and the only reason it was noticed is that
+# stacking Legend with Rare produced a defence bonus that had not moved.
+PASSIVE_SELF_TARGETS = {"ToSelf", "ToSelfAndTrainer", "None"}
+
+
+def passive_bonuses(passive_ids: list) -> dict[str, float]:
+    """
+    `{stat: fraction}` for a Pal's passive skills — e.g. `{"attack": 0.4}`.
+
+    A PASSIVE'S BONUS IS PER STAT, NOT ONE NUMBER, which is why this returns a
+    map and why `passive_bonus` as a single float was the wrong shape. `Legend`
+    is +20% shot attack AND +20% defence together; `Noukin` is +30% attack and
+    **-50%** craft speed. 175 of the 1,897 bundled passives touch more than one
+    stat and 77 carry a negative, so one multiplier is wrong for hundreds of
+    real Pals in at least one direction.
+
+    Effects stack additively within a stat, matching how the formula applies the
+    term: `final = floor(subtotal x (1+soul) x (1+passive))`.
+
+    Unknown ids contribute nothing rather than raising. The bundle is 1,897
+    entries against a save that can hold anything, and a Pal with a modded
+    passive should lose the term, not its whole stat block.
+    """
+    out: dict[str, float] = {}
+    for passive_id in passive_ids or []:
+        entry = gamedata.passive_effects(str(passive_id))
+        if not entry:
+            continue
+        # A skill that only fires at a base is not a buff to this Pal's stats.
+        if not (set(entry.get("invoke") or []) & PASSIVE_SELF_INVOKES):
+            continue
+        for effect in entry.get("effects") or []:
+            stat = PASSIVE_EFFECT_STATS.get(str(effect.get("type") or ""))
+            if not stat or str(effect.get("target") or "") not in PASSIVE_SELF_TARGETS:
+                continue
+            out[stat] = out.get(stat, 0.0) + float(effect.get("value") or 0.0) / 100.0
+    return out
+
+
 def hp_breakdown(
     species_id: str,
     level: int,
@@ -357,7 +428,9 @@ def level_progress(level: int, exp: int) -> dict[str, Any]:
 # ─── The one entry point everything else should use ──────
 
 
-def describe(pal: dict[str, Any], *, passive_bonus: float = 0.0) -> Optional[dict[str, Any]]:
+def describe(
+    pal: dict[str, Any], *, passive_bonus: Optional[float] = None
+) -> Optional[dict[str, Any]]:
     """
     Every calculated figure for one parsed Pal.
 
@@ -369,11 +442,18 @@ def describe(pal: dict[str, Any], *, passive_bonus: float = 0.0) -> Optional[dic
     carry IVs exactly like a Pal. Guessing scaling numbers for them would produce
     confident stats for a merchant.
 
-    `passive_bonus` is the caller's business. Passive skills modify attack,
-    defense and work speed by amounts that live in the passives table under names
-    this module does not interpret, so it is a parameter rather than something
-    computed here — and it defaults to zero, which is the honest answer for "we
-    have not been told".
+    PASSIVE SKILLS ARE NOW COMPUTED, NOT ASSUMED AWAY. This used to take a
+    caller-supplied `passive_bonus` float defaulting to **zero**, on the grounds
+    that the bundled passives table gave only an English sentence ("Attack +5%")
+    that this module could not interpret. That was true of the PST archive and
+    is no longer true of the game: `DT_PassiveSkill_Main` decodes out of the
+    server pak with structured effect types and values, bundled by
+    `scripts/extract-passive-effects.py`. Every stat this dashboard has shown
+    until now ignored passives entirely.
+
+    `passive_bonus` remains as an **override**, because a caller asking "what
+    would this Pal be without its passives" is a real question and a fixed value
+    is how it gets asked. `None` means compute from the Pal.
     """
     species = str(pal.get("characterId") or pal.get("speciesId") or "")
     stats, _ = _species_stats(species)
@@ -391,24 +471,35 @@ def describe(pal: dict[str, Any], *, passive_bonus: float = 0.0) -> Optional[dic
     # does carry the flag should need one line, not a rewrite.
     awake = bool(pal.get("isAwake"))
 
+    # Per stat, because a passive's bonus is per stat. An explicit override
+    # applies to every stat equally, which is what "compute this Pal as if its
+    # passives gave X" means.
+    bonuses = (
+        {stat: passive_bonus for stat in PASSIVE_EFFECT_STATS.values()}
+        if passive_bonus is not None
+        else passive_bonuses(pal.get("passiveSkills") or [])
+    )
+
     common = {
         "condenser_rank": min(condenser, MAX_CONDENSER_RANK),
         "trust_points": trust,
         "is_awake": awake,
-        "passive_bonus": passive_bonus,
     }
     return {
         "hp": hp_breakdown(species, level, iv=int(ivs.get("hp") or 0),
-                           soul_rank=int(souls.get("hp") or 0), **common),
+                           soul_rank=int(souls.get("hp") or 0),
+                           passive_bonus=bonuses.get("hp", 0.0), **common),
         "attack": attack_breakdown(species, level, iv=int(ivs.get("shot") or 0),
-                                   soul_rank=int(souls.get("attack") or 0), **common),
+                                   soul_rank=int(souls.get("attack") or 0),
+                                   passive_bonus=bonuses.get("attack", 0.0), **common),
         "defense": defense_breakdown(species, level, iv=int(ivs.get("defense") or 0),
-                                     soul_rank=int(souls.get("defense") or 0), **common),
+                                     soul_rank=int(souls.get("defense") or 0),
+                                     passive_bonus=bonuses.get("defense", 0.0), **common),
         "workSpeed": work_speed_breakdown(
             species, level,
             condenser_rank=min(condenser, MAX_CONDENSER_RANK),
             soul_rank=int(souls.get("craftSpeed") or 0),
-            passive_bonus=passive_bonus,
+            passive_bonus=bonuses.get("workSpeed", 0.0),
         ),
         "friendshipRank": friendship_rank(trust),
         "progress": level_progress(level, int(pal.get("exp") or 0)),

@@ -41,8 +41,16 @@ EFFIGY_PATH = os.environ.get(
     os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "effigies.json.gz"),
 )
 
+PASSIVE_EFFECT_PATH = os.environ.get(
+    "PASSIVE_EFFECT_DATA_PATH",
+    os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "data", "passive_effects.json.gz"
+    ),
+)
+
 _data: Optional[dict[str, Any]] = None
 _effigies: Optional[list[dict[str, Any]]] = None
+_passive_effects: Optional[dict[str, Any]] = None
 _indexes: dict[str, dict[str, Any]] = {}
 
 
@@ -419,6 +427,48 @@ def effigies() -> list[dict[str, Any]]:
     for effigy in _effigies:
         effigy["kindName"] = effigy_kind_name(str(effigy.get("kind") or ""))
     return _effigies
+
+
+def passive_effects(passive_id: str) -> Optional[dict[str, Any]]:
+    """
+    The *numeric* effects of one passive skill, or None if it is not bundled.
+
+    The `passives` section of `gamedata.json.gz` carries a **sentence** —
+    "Attack +5%" — which is right for showing a player and useless for computing
+    anything. This is `DT_PassiveSkill_Main` out of the server pak, extracted by
+    `scripts/extract-passive-effects.py`:
+
+        {"rank": 4,
+         "effects": [{"type": "ShotAttack", "value": 20.0, "target": "ToSelf"},
+                     {"type": "Defense",    "value": 20.0, "target": "ToSelf"}],
+         "invoke": ["InvokeAlways"], "lotteryWeight": 10, "element": ""}
+
+    VERIFIED AGAINST THE GAME'S OWN PROSE: of the 1,897 bundled passives, 1,754
+    have a numeric English description and **1,754 match**, on 5 exceptions —
+    four of which are the PST archive's descriptions failing to substitute their
+    own `{EffectValue1}` placeholder, so the table is right and the sentence is
+    broken. The remaining one (`FullStomach_Down_1_BossDefeat`, prose "+10.0%
+    slower" against a stored -1.0) is a real disagreement and is not resolved.
+
+    Case-insensitive like every other lookup here, for the reason the module
+    docstring gives.
+    """
+    global _passive_effects
+    if _passive_effects is None:
+        try:
+            with gzip.open(PASSIVE_EFFECT_PATH, "rt", encoding="utf-8") as f:
+                raw = json.load(f)
+            _passive_effects = {str(k).lower(): v for k, v in raw.items()}
+        except (OSError, json.JSONDecodeError) as e:
+            # Degrade rather than raise: without this bundle a stat simply
+            # carries no passive term, which is exactly what it did before the
+            # bundle existed. A missing file must not take out /api/pals.
+            logger.warning(
+                "Passive effect data unavailable (%s); stats will omit the "
+                "passive term", e,
+            )
+            _passive_effects = {}
+    return _passive_effects.get(str(passive_id or "").lower())
 
 
 def effigy_kind_name(kind: str) -> str:

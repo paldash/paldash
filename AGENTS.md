@@ -1431,6 +1431,58 @@ Four things that bite:
   speed climbing with level on a Pal whose in-game work speed has not moved —
   wrong in the direction you would expect it to move, so nobody questions it.
 
+### The passive term was always zero, and 1,352 Pals were understated
+
+`palstats.describe` took `passive_bonus` as a caller-supplied float defaulting to
+**0.0**, and `main.py` never passed one. So the `(1+passive)` term in the formula
+above contributed nothing, on every Pal, since the feature shipped.
+
+The reason given was sound at the time: the bundled `passives` section carries an
+English *sentence* — "Attack +5%" — which is right for showing a player and
+impossible to compute with. That was true of `refs/PalWorldSaveTools-main.zip`
+and is not true of the game. `DT_PassiveSkill_Main` decodes completely out of the
+**server** pak with structured `EffectType/EffectValue/TargetType` columns;
+`scripts/extract-passive-effects.py` bundles them to
+`backend/data/passive_effects.json.gz` (20 KB, 1,897 skills).
+
+**Verified against the game's own prose**: of the 1,759 passives with a numeric
+English description, **1,754 match the extracted numbers exactly**. Four of the
+five exceptions are the archive failing to substitute its own `{EffectValue1}`
+placeholder — the table is right and the sentence is broken. The fifth
+(`FullStomach_Down_1_BossDefeat`, prose "+10.0% slower" against a stored -1.0) is
+a real disagreement and is left unresolved rather than explained away.
+
+**A passive's bonus is per stat, not one number.** `Legend` is +20% shot attack
+AND +20% defence; `Noukin` is +30% attack and **-50%** craft speed. 175 of the
+1,897 touch more than one stat and 77 carry a negative, so a single multiplier is
+wrong for hundreds of real Pals in at least one direction. `palstats.passive_bonuses`
+returns `{stat: fraction}` and `describe` applies each to its own stat.
+`passive_bonus` survives as an **override** — "what would this Pal be without its
+passives" is a real question.
+
+Three filters, each measured:
+
+- **`MeleeAttack` passives are deliberately dropped.** Attack here is *shot*
+  attack, as everywhere else in this module; folding melee in would inflate it.
+- **Worker-only skills do not buff a palbox Pal.** `InvokeWorker` and
+  `InvokeInBaseCamp` are excluded from `PASSIVE_SELF_INVOKES`, because a skill
+  that fires only at a base is not part of the number the game shows elsewhere.
+- **Targets that are not this Pal are dropped.** Across 2,057 effects: ToSelf
+  736, ToSelfAndTrainer 341 count; ToTrainer 669, ToOtomo 226, ToBaseCampPal 40,
+  ToBuildObject 29, ToActiveOtomo 10, ToTrainerAndOtomo 5 do not.
+
+**Two traps found by the checks rather than by reading.** A declared effect slot
+with value `0.0` is not an effect — `GrassMinotaur_PartnerSkill_2` reads "Attack
++12%" and carries a wired-up `Defense 0.0` beside it, which made the skill look
+like it touched defence. And `target: None` occurs **exactly once** in the whole
+bundle, on `Rare`'s defence, whose own description says "Defense +15%" — so it is
+an unset field, not a category. A strict `ToSelf` test silently dropped 15%
+defence from every Lucky Pal, and the only thing that surfaced it was stacking
+Legend with Rare and watching defence not move.
+
+Measured on the live world: **1,352 of 2,963 characters carry a stat-affecting
+passive**, and the largest single attack correction is **+1,515**.
+
 `friendship_*` coefficients are per species and now travel in
 `gamedata.json.gz` (`scripts/build-gamedata.py`); without them the trust term
 cannot be evaluated at all, and unlike every other term there is no default,
