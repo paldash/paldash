@@ -159,7 +159,8 @@ Asked directly, and the answer splits three ways.
 
 | What | Replaced by | Notes |
 |---|---|---|
-| **PST archive → `gamedata.json.gz`** | `DT_ItemDataTable`, `DT_PalMonsterParameter`, `DT_PalHumanParameter`, `DT_TechnologyRecipeUnlock`, `*Text` | Phase 1.10. Real `gameBuild` is the actual prize. |
+| **PST archive → `gamedata.json.gz` numbers** | `DT_ItemDataTable`, `DT_PalMonsterParameter`, `DT_PalHumanParameter`, `DT_TechnologyRecipeUnlock` | **Verified 2026-08-05: 13,836 of 13,836 values agree.** `scripts/verify-gamedata.py`. |
+| **PST archive → names and descriptions** | `Game.locres` in the **client** pak, 17 languages | NOT the server pak's `*Text` tables — those are FText and opaque. Needs a LocRes reader: task #34. |
 | **palcalc → breeding combinations** | `DT_PalCombiUnique` + `CombiRank` on `DT_PalMonsterParameter` | Only after #64's diff. |
 | **Community "`MAX_LEVEL` = 80"** | `BP_PalGameSetting.CharacterMaxLevel` | **Already superseded**; some docstrings still say "community-sourced, not read from the game files". Needs a sweep. |
 | **Community effigy count (313)** | Our own 396 from the relic cell | Already superseded. |
