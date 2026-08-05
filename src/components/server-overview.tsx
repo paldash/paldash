@@ -28,6 +28,17 @@ function formatUptime(seconds: number): string {
 export default function ServerOverview() {
   const { serverMetrics, serverInfo, fpsHistory, serverStatus, onlinePlayers, capabilities } =
     useDashboardStore();
+  // How many online players this viewer is not allowed to see.
+  //
+  // The game's own count minus the filtered list. Never negative: the two are
+  // polled separately and a player can leave between the calls, which would
+  // otherwise render as "-1 more online".
+  const hiddenCount = Math.max(
+    0,
+    (typeof serverMetrics?.currentplayernum === 'number' ? serverMetrics.currentplayernum : 0) -
+      onlinePlayers.length
+  );
+
   const [announceText, setAnnounceText] = useState('');
   const [shutdownWait, setShutdownWait] = useState(60);
   const [actionFeedback, setActionFeedback] = useState<string | null>(null);
@@ -324,6 +335,20 @@ export default function ServerOverview() {
             <h3 style={{ fontSize: 14, fontWeight: 600 }}>Online Players</h3>
             <span className="badge badge-online" style={{ marginLeft: 8 }}>{onlinePlayers.length}</span>
           </div>
+          {/* The count above the fold is the game's own `currentplayernum` and
+              this list is privacy-filtered, so the two legitimately disagree —
+              which read as a broken dashboard until it said so.
+
+              The count is deliberately NOT filtered to match. It is a capacity
+              figure, not a roster: anyone who joins the server sees who is on,
+              so concealing the number buys no privacy while making the one
+              thing it measures wrong. Per-player privacy governs map position
+              and roster detail, which is what the list below actually is. */}
+          {hiddenCount > 0 && (
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 12 }}>
+              {hiddenCount} more online, hidden from you by their privacy settings.
+            </div>
+          )}
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
             {/* A composite key, not `p.userId`.
                 The game's REST API returns an empty `userId` for players in
