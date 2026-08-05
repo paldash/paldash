@@ -39,7 +39,7 @@ logger = logging.getLogger(__name__)
 # update, with nothing anywhere saying why. `savecache` now discards a cache
 # whose schema does not match this, so the worst case is one re-parse instead of
 # a wrong number.
-SCHEMA_VERSION = 7
+SCHEMA_VERSION = 8
 
 
 def lower_priority() -> None:
@@ -108,6 +108,7 @@ def main() -> int:
     # Imported after the priority drop so even module import is niced.
     from parser import (
         extract_base_camps,
+        extract_base_worker_capacity,
         extract_base_workers,
         extract_characters,
         extract_container_ownership,
@@ -168,6 +169,10 @@ def main() -> int:
     # Pal actually is. See `extract_base_workers` — this used to be documented as
     # unobtainable, and the `guildPalCount` fallback below exists because of that.
     worker_containers = extract_base_workers(gvas)
+    # The denominator `palCount` never had. Read from the base's own worker
+    # container rather than computed from a setting — see the function's
+    # docstring for why a server-wide figure cannot answer a per-base question.
+    worker_capacity = extract_base_worker_capacity(gvas)
     player_containers = _player_container_roles(players)
     # Pal-holding *structures* — a Dimensional Pal Storage, a Global Pal
     # Storage, a Flea Market stand. See `extract_pal_storage`: these used to
@@ -236,6 +241,12 @@ def main() -> int:
         # legitimately shares — so summing it across bases triples a three-base
         # guild's total. The Bases tab counts it once per guild for that reason.
         base["palCount"] = pals_at_base.get(base["id"], 0)
+        # **Absent, not 0, when the container did not resolve.** "No cap known"
+        # and "a cap of zero" must stay distinguishable: a zero denominator
+        # renders as a base that is infinitely full.
+        capacity = worker_capacity.get(base["id"])
+        if capacity:
+            base["workerCapacity"] = capacity
         base["guildPalCount"] = sum(
             1 for p in pals if p.get("guildId") == base.get("guildId")
         )

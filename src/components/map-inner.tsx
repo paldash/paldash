@@ -927,7 +927,7 @@ export default function MapInner({
         .bindPopup(
           `<div style="min-width:180px">
              <div style="font-weight:600;margin-bottom:3px">${escapeHtml(base.guildName)}</div>
-             <div style="font-size:12px;color:#a1a7b0">${base.palCount ?? 0} Pals working &middot; ${base.guildPalCount ?? 0} in guild</div>
+             <div style="font-size:12px;color:#a1a7b0">${base.workerCapacity ? `${base.palCount ?? 0} / ${base.workerCapacity}` : `${base.palCount ?? 0}`} Pals working &middot; ${base.guildPalCount ?? 0} in guild</div>
              <div style="font-size:11px;color:#6d747e;margin-top:4px">${coords.x}, ${coords.y}</div>
            </div>`
         )

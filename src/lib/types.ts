@@ -118,6 +118,20 @@ export interface BaseCamp {
    * discards such a cache now, and `?? 0` is the belt to that braces.
    */
   guildPalCount?: number;
+  /**
+   * How many workers this base can hold — the denominator for `palCount`.
+   *
+   * `SlotNum` on the base's own worker container, so it is the game's answer
+   * for **this** base after applying both the server's `BaseCampWorkerMaxNum`
+   * and the base's level. It is not derived from a setting, and a server-wide
+   * setting could not answer it: measured capacities run 8–25 across four real
+   * worlds.
+   *
+   * **Absent means "not known", never zero.** The worker container may fail to
+   * resolve, and a base rendered as `n/0` reads as infinitely full. Show the
+   * bare count when this is missing.
+   */
+  workerCapacity?: number;
   containerIds: string[];
   storedItemCount?: number;
   usedSlots?: number;

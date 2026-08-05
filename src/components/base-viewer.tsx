@@ -253,8 +253,19 @@ export default function BaseViewer() {
 
               <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
                 <Stat icon={<Users size={12} style={{ color: 'var(--accent-cyan)' }} />}
-                      text={`${base.palCount ?? 0} Pals working`}
-                      title="Pals assigned to this base's worker container." />
+                      /* A count with no denominator answers nothing: "11 Pals
+                         here" is full on one base and a third full on another.
+                         The capacity is absent rather than 0 when the worker
+                         container did not resolve, so fall back to the bare
+                         count instead of rendering "11 / 0". */
+                      text={base.workerCapacity
+                        ? `${base.palCount ?? 0} / ${base.workerCapacity} Pals working`
+                        : `${base.palCount ?? 0} Pals working`}
+                      title={base.workerCapacity
+                        ? `Pals assigned to this base's worker container, of ${base.workerCapacity} slots. `
+                          + 'The capacity is what the game allocated for this base — it already '
+                          + "accounts for the server's BaseCampWorkerMaxNum and the base's level."
+                        : "Pals assigned to this base's worker container. Capacity unknown."} />
                 <Stat icon={<Users size={12} style={{ color: 'var(--accent-purple)' }} />}
                       text={`${base.guildPalCount ?? 0} in guild`}
                       title="Every Pal this guild owns, palboxes included. Shared across the guild's bases — do not add these up." />
