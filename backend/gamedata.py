@@ -1023,6 +1023,90 @@ def moves() -> dict[str, Any]:
     return _moves
 
 
+def species_moves(species_id: str) -> dict[str, Any]:
+    """
+    Every move a species can have, and **how each is obtained**.
+
+    Three sources, kept apart because the distinction is the whole point:
+
+    - `levelUp` — `DT_WazaMasterLevel`, with the level each is learned at.
+    - `egg` — `DT_WazaMasterTamago`. **These can ONLY be inherited by breeding**,
+      which is what decides whether a breeding target is worth chasing at all. A
+      Pal that already exists cannot be taught one.
+    - `active` — what this species starts with, from the bundled catalogue.
+
+    None of this was read by anything before 2026-08-05. The Pal view showed the
+    three moves a Pal has equipped and said nothing about what it *could* have.
+
+    Resolved through the same prefix-stripping every other species lookup here
+    uses, so an alpha resolves to its base species — an alpha Lamball learns what
+    a Lamball learns.
+
+    **EGG POOLS ARE KEYED ON THE `BOSS_` FORM. ALL 283 OF THEM.** Not some: the
+    table contains zero unprefixed keys. A first attempt looked the species up
+    exactly and fell back to the stem, reasoning that `BOSS_Carbunclo`'s pool
+    was its own and folding it into `Carbunclo` would report moves the base form
+    could not inherit. That is backwards — the alpha entry IS where the game
+    stores the species' egg moves, so `Carbunclo` reported **0 egg moves when it
+    has 9**, silently, on every ordinary Pal in the game.
+
+    The tell was the shape: a feature that works only for alphas is not a
+    feature, and 283 pools against 753 forms does not divide into "some species
+    have them".
+    """
+    data = moves()
+    egg_pools = data.get("eggMoves") or {}
+    learn_lists = data.get("learned") or {}
+
+    def resolve(table: dict, exact_first: bool) -> Any:
+        index = {k.lower(): v for k, v in table.items()}
+        if exact_first:
+            hit = index.get(str(species_id).lower())
+            if hit is not None:
+                return hit
+        stem = species_id
+        for prefix in _SPECIES_PREFIXES:
+            if stem.upper().startswith(prefix):
+                stem = stem[len(prefix):]
+                break
+        return index.get(stem.lower())
+
+    level_up = resolve(learn_lists, exact_first=True) or []
+    # Try `BOSS_<stem>` first, because that is the only form the table uses.
+    egg = resolve(egg_pools, exact_first=True)
+    if not egg:
+        stem = species_id
+        for prefix in _SPECIES_PREFIXES:
+            if stem.upper().startswith(prefix):
+                stem = stem[len(prefix):]
+                break
+        egg = {k.lower(): v for k, v in egg_pools.items()}.get(f"boss_{stem}".lower())
+    egg = egg or []
+
+    def described(move_id: str) -> dict[str, Any]:
+        info = move(move_id) or {}
+        return {
+            "id": move_id,
+            "name": skill_name(move_id),
+            "element": info.get("element") or "",
+            "power": info.get("displayPower", info.get("power", 0)),
+            "cooldown": info.get("cooldown", 0),
+            "category": info.get("category") or "",
+        }
+
+    return {
+        "levelUp": [
+            {**described(str(row.get("moveId") or "")), "level": int(row.get("level") or 0)}
+            for row in level_up
+            if row.get("moveId")
+        ],
+        # Flagged, not merely listed. A caller must be able to say "breed for
+        # this" rather than presenting an unobtainable move as available.
+        "egg": [{**described(str(m)), "eggOnly": True} for m in egg],
+        "eggCount": len(egg),
+    }
+
+
 def move(move_id: str) -> Optional[dict[str, Any]]:
     """
     One move: element, category, power, cooldown and range.

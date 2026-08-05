@@ -385,3 +385,53 @@ def test_no_best_work_and_unknown_id_both_return_None():
     assert gamedata.best_work_suitability("Panthalus") is None
     assert gamedata.best_work_suitability("NoSuchPalAnywhere") is None
     assert gamedata.best_work_suitability("") is None
+
+
+# ── species moves ─────────────────────────────────────────────────────────
+
+
+def test_egg_pools_resolve_for_ordinary_species_not_just_alphas():
+    """
+    **All 283 egg pools are keyed on the `BOSS_` form** — the table contains
+    zero unprefixed keys. A first attempt looked the species up exactly and fell
+    back to the stem, which meant `Carbunclo` reported 0 egg moves when it has
+    9, silently, on every ordinary Pal in the game.
+
+    A feature that works only for alphas is not a feature, and 283 pools against
+    753 forms does not divide into "some species have them".
+    """
+    base = gamedata.species_moves("Carbunclo")
+    alpha = gamedata.species_moves("BOSS_Carbunclo")
+    assert base["eggCount"] == alpha["eggCount"] > 0
+    assert [m["id"] for m in base["egg"]] == [m["id"] for m in alpha["egg"]]
+
+
+def test_egg_moves_are_flagged_as_egg_only():
+    """A caller must be able to say "breed for this" rather than presenting an
+    unobtainable move as available on a Pal that already exists."""
+    moves = gamedata.species_moves("Anubis")
+    assert moves["egg"]
+    assert all(m["eggOnly"] is True for m in moves["egg"])
+
+
+def test_level_up_moves_carry_the_level_they_are_learned_at():
+    moves = gamedata.species_moves("Alpaca")
+    assert moves["levelUp"]
+    first = moves["levelUp"][0]
+    assert first["level"] >= 1
+    # Named and described, not a bare id — the Pal view shows equipped moves
+    # and said nothing about what a species could have.
+    assert first["name"] and first["name"] != first["id"]
+    assert first["element"]
+
+
+def test_pools_are_shared_between_species_and_that_is_the_game_not_a_bug():
+    """
+    283 pools resolve to **78 distinct** sets, so Lamball and Carbunclo really
+    do share one. Worth pinning: identical output for two unrelated species is
+    exactly what a collapsed lookup looks like, and this says it is not.
+    """
+    pools = gamedata.moves()["eggMoves"]
+    distinct = {tuple(sorted(v)) for v in pools.values()}
+    assert len(pools) == 283
+    assert 1 < len(distinct) < len(pools)
