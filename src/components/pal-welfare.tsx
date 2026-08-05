@@ -247,6 +247,49 @@ export default function PalWelfare({ canEdit }: { canEdit: boolean }) {
             attention. A Pal with more than one problem is counted once per problem above.
           </p>
 
+          {/* WHAT "SICK" ACTUALLY COSTS.
+              A red dot said a Pal was ill and nothing else — so there was no way
+              to tell a Sprain (move -5%, cured in a few hours) from a
+              Troublemaker (work AND move -50%, 3% an hour, effectively
+              permanent without medicine). The game ships all of it. */}
+          {(report.illnesses?.length ?? 0) > 0 && (
+            <div style={{ marginBottom: 12 }}>
+              {report.illnesses!.map((ill) => (
+                <div
+                  key={ill.id}
+                  title={ill.description}
+                  style={{
+                    display: 'flex', alignItems: 'baseline', gap: 8,
+                    fontSize: 11, padding: '3px 0',
+                    borderTop: '1px solid var(--border)',
+                  }}
+                >
+                  <strong style={{ minWidth: 96 }}>{ill.name}</strong>
+                  <span style={{ color: 'var(--text-muted)', flex: '1 1 auto' }}>
+                    {/* Only the penalties that are non-zero. A Sprain costs no
+                        work speed at all, and printing "work 0%" beside it
+                        reads as a measured zero rather than as "not affected". */}
+                    {[
+                      ill.workSpeed ? `work ${ill.workSpeed}%` : null,
+                      ill.moveSpeed ? `move ${ill.moveSpeed}%` : null,
+                      ill.satietyDecrease ? `hunger +${ill.satietyDecrease}%` : null,
+                    ].filter(Boolean).join(' · ') || 'no speed penalty'}
+                  </span>
+                  <span style={{ color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                    {/* A bare percentage is a rate with no denominator; the
+                        game rolls this once an hour. */}
+                    palbox cures {ill.palboxRecoveryPercent}%
+                    {report.palboxCurePeriodSeconds === 3600
+                      ? ' an hour'
+                      : report.palboxCurePeriodSeconds
+                        ? ` per ${Math.round(report.palboxCurePeriodSeconds / 60)} min`
+                        : ''}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+
           {canEdit && (
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
               {REMEDIES.map((remedy) => {

@@ -66,6 +66,11 @@ import palpak            # noqa: E402
 import uassettable       # noqa: E402
 from jsonout import write_json  # noqa: E402
 
+try:
+    import l10n  # noqa: E402
+except ImportError:  # pragma: no cover - the client pak is optional here
+    l10n = None
+
 OUT = os.path.join(os.path.dirname(HERE), "backend", "data", "basecamp.json.gz")
 
 LEVELS = "DT_BaseCampLevelData.uasset"
@@ -102,15 +107,54 @@ def build(pak=None) -> dict:
         })
     levels.sort(key=lambda r: r["level"])
 
+    # What the game CALLS each condition, and its own description of it.
+    #
+    # The table gives only an internal `SickType`, and the event table's
+    # `debugName` is Japanese — so before this the panel could say a Pal was
+    # "DepressionSprain". The game's own English is in the client pak's L10N
+    # overrides, keyed `COMMON_CONDITION_NAME_<SickType>`.
+    #
+    # **`Cold` displays as "Sick", not "Cold".** The internal id and the player-
+    # facing name genuinely disagree for that one, which is exactly why this is
+    # looked up rather than humanised from the id.
+    #
+    # Absent when the client pak is not present: the bundle stays valid and
+    # `nameIsInternal` says so, the same way `debugNameIsInternal` already does.
+    conditions = {}
+    if l10n is not None:
+        try:
+            ui = l10n.strings("DT_UI_Common_Text_Common", "en")
+            conditions = {
+                key[len("COMMON_CONDITION_NAME_"):]: value
+                for key, value in ui.items()
+                if key.startswith("COMMON_CONDITION_NAME_")
+            }
+            descriptions = {
+                key[len("COMMON_CONDITION_DESC_"):]: value
+                for key, value in ui.items()
+                if key.startswith("COMMON_CONDITION_DESC_")
+            }
+        except Exception as exc:  # noqa: BLE001
+            print(f"   (no condition names: {exc})", file=sys.stderr)
+            conditions, descriptions = {}, {}
+    else:
+        descriptions = {}
+
     illnesses = []
     for key, row in _read(pak, SICK).items():
         sick_type = _enum(row.get("SickType"))
         # `NoneSick` is the game's "not ill" row, not an illness.
         if sick_type in ("", "None"):
             continue
+        display = conditions.get(sick_type)
         illnesses.append({
             "id": sick_type,
             "row": str(key),
+            # The game's own name, or the internal id with a flag saying so.
+            "name": display or sick_type,
+            "nameIsInternal": display is None,
+            # CRLF survives the text tables; the UI wants real breaks.
+            "description": descriptions.get(sick_type, "").replace("\r\n", "\n").strip(),
             # Signed percentages, as the table stores them: Cold is -5 work
             # speed, GastricUlcer is -10 work and -5 move.
             "workSpeed": int(row.get("WorkSpeed") or 0),

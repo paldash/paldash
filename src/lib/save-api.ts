@@ -353,8 +353,49 @@ export interface WelfareReport {
   scanned: number;
   /** The sanity threshold the backend used, so the UI never hardcodes it. */
   lowSanityBelow: number;
+  /**
+   * What each condition actually present costs. Only the ones on this roster —
+   * a reference table of all eight beside two sick Pals is noise.
+   */
+  illnesses?: Illness[];
+  /** The palbox cure chance is rolled once per this many seconds (3600). */
+  palboxCurePeriodSeconds?: number | null;
+  /** Sanity levels at which a worker misbehaves, highest first. */
+  sanityThresholds?: SanityThreshold[];
   scope?: string;
   linkedToPlayer?: boolean;
+}
+
+/**
+ * One condition, and what it costs.
+ *
+ * **`name` is the game's, and it can disagree with the id** — `Cold` displays as
+ * "Sick". `nameIsInternal` is true only when the client pak was absent at build
+ * time and the id had to stand in.
+ *
+ * `effectiveItemRank` is deliberately NOT resolved to a medicine item: which
+ * item clears which rank is unverified, and naming one would be a mechanic
+ * claim nothing here can back.
+ */
+export interface Illness {
+  id: string;
+  name: string;
+  nameIsInternal: boolean;
+  description: string;
+  /** Signed percentages, as the game stores them. Cold is -5 work speed. */
+  workSpeed: number;
+  moveSpeed: number;
+  satietyDecrease: number;
+  /** Chance the palbox clears it per `palboxCurePeriodSeconds`. */
+  palboxRecoveryPercent: number;
+  effectiveItemRank: number;
+}
+
+export interface SanityThreshold {
+  id: string;
+  triggerSanity: number;
+  assignableWork: boolean;
+  assignableFixedWork: boolean;
 }
 
 export type WelfareProblem =
