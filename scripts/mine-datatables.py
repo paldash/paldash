@@ -154,7 +154,7 @@ def sweep_client(pak) -> tuple[list[dict], list[dict]]:
     stream and implied by a per-class schema this project does not have. What is
     plainly serialised is the name table, and that is enough to answer "does this
     table mention X" — the technique `extract-effigies.py` and
-    `extract-pal-habitats.py` already rest on.
+    `extract-world-objects.py` already rest on.
 
     So this index is deliberately thinner than the server one: table name, how
     many strings it references, and those strings. No columns, no row counts —

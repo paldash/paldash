@@ -1,11 +1,13 @@
 """
 Per-species spawn habitats, bundled from the game pak.
 
-The claim this data makes is narrower than it looks, and the tests pin the
-narrow version: a habitat says "spawners placed in these cells reference this
-species", not "this species spawns here at this rate". See
-`scripts/extract-pal-habitats.py` for why — the blueprints are cooked with
-unversioned properties, so the species list comes from the name table.
+Source: `DT_PalWildSpawner` + `DT_PalSpawnerPlacement`, via
+`scripts/build-habitats.py`. So an entry means "this species spawns in these
+cells, at these levels" — the strong claim, which the retired name-table
+workaround could not make.
+
+**One narrow claim survives and is pinned below**: `weight` is relative *within
+one spawner group* and is not a global spawn rate.
 """
 
 import pytest

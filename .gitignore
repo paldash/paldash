@@ -77,3 +77,5 @@ venv/
 # testing — both stay local. refworld/ contains real Steam IDs and player names.
 refs/
 /refworld/
+# Claude Code writes these atomically and one got committed once.
+.claude/settings.local.json.tmp.*
