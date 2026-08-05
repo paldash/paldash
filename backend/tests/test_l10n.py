@@ -15,7 +15,11 @@ plausible" name decode otherwise hides until a player reports the wrong Pal.
 
 So the assertions here are about **values and agreement**, never about shapes.
 
-They skip without the client pak, which is gitignored (40.5 GB).
+They skip without the client pak, which is gitignored (40.5 GB) — and they are
+marked `integration` for the same reason the refworld tests are: decoding 432
+packages out of a 40.5 GB archive is minutes of work, not the couple of seconds
+a unit test is allowed. Left unmarked they took the unit suite from ~2 minutes
+to well past ten.
 """
 
 from __future__ import annotations
@@ -24,6 +28,8 @@ import os
 import sys
 
 import pytest
+
+pytestmark = pytest.mark.integration
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 SCRIPTS = os.path.join(PROJECT_ROOT, "scripts")

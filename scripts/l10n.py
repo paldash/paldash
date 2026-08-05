@@ -105,9 +105,15 @@ _HISTORY_BASE = 0
 _HISTORY_NONE = 255
 
 # Untranslated markers, which the game ships in place for unreleased and test
-# content. Three spellings, and a reader that knew only the first would pass
+# content. Several spellings, and a reader that knew only the first would pass
 # "en Text" to the UI as a display name.
-PLACEHOLDERS = {"unidentified pal"}
+#
+# **A bare dash is one of them.** The game ships `-` for six entries (Gasoline,
+# Propellant, the oil-rig structures) and for `NAME_TEST_NPC`, which is what
+# identifies it as a null marker rather than a name. Nothing in Palworld is
+# actually called "-", and rendering one would be strictly worse than falling
+# back to the internal id.
+PLACEHOLDERS = {"unidentified pal", "-", "--", "---"}
 
 
 def _is_placeholder(value: str, lang: str) -> bool:
