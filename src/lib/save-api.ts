@@ -327,8 +327,14 @@ export interface PalRecord {
   previousOwners?: string[];
   /** The learned-move pool, as opposed to the three equipped. */
   masteredSkills?: string[] | null;
-  /** Work ranks bought with Pal Souls, e.g. `{Handcraft: 2}`. */
-  workRanks?: Record<string, number>;
+  /**
+   * Work ranks bought with Pal Souls, e.g. `{Handcraft: 2}`.
+   *
+   * `null` when the save has no `GotWorkSuitabilityAddRankList` at all — which
+   * is not the same as `{}`. There is no entry to copy a struct shape from, so
+   * the field is not editable on such a Pal; see `charedit._write_work_ranks`.
+   */
+  workRanks?: Record<string, number> | null;
   /** Work types the player switched off for this Pal. */
   workDisabled?: string[];
 }

@@ -910,9 +910,60 @@ table does not.** The API speaks bare ids everywhere — parser, editor, validat
 — and the prefix is re-attached only on write. Bounds are measured: at most
 **3** equipped moves (never more across 1,905 Pals), at most 4 passives.
 
-**`MasteredWaza` is deliberately not editable.** It is absent on 1,563 of the
-reference world's 1,905 Pals, and inventing an ArrayProperty means guessing its
-`array_type`. Equipped moves are editable; the learned-move pool is not.
+**`MasteredWaza` is editable WHERE IT EXISTS, which narrows an older blanket
+refusal rather than overturning it.** This file used to say the learned-move pool
+was not editable at all, because the property is absent on most Pals (1,563 of
+the reference world's 1,905; 2,225 of the live world's 2,963). That is an
+argument against **creating** it — inventing an ArrayProperty means guessing its
+`array_type` — and never was an argument against editing the quarter that have
+one. The rule is the one every property here follows: write into an existing
+shape, never construct one. Both halves are pinned by tests.
+
+## A struct list needs its own writer, and `str()` is the trap
+
+`GotWorkSuitabilityAddRankList` — the work ranks bought with Pal Souls — is an
+ArrayProperty of `{WorkSuitability: EnumProperty, Rank: IntProperty}`.
+`_write_list_property` coerces every value with `str()`, which is right for
+`EquipWaza` and silently wrong here: a struct stringified still serialises.
+`charedit._write_work_ranks` is separate for that reason.
+
+**No maximum rank is enforced, and that is measured rather than lazy.** Across
+refworld, the live world and a 07-29 snapshot, **39 Pals carry the property** and
+the ranks run `{1: 30, 2: 4, 3: 4, 6: 1}`. Six is the highest anyone has reached,
+which is not a cap — and the game ships none: `DT_GainWorkSuitabilityRankItem`
+decodes cleanly out of the server pak and holds one ticket item per work type
+with **no rank column**, and no other DataTable carries one. Asserting a ceiling
+would be inventing exactly the kind of number `editschema` refuses to invent.
+`fullStomach` is unbounded for the same reason.
+
+The *minimum* is real: rank 0 appears on none of the 39, so a zero is
+`parser._num`'s default rather than a value the game stores.
+
+Three things it will not do, each for a measured reason:
+
+- **It will not create the property.** No property means no `array_type` to
+  preserve *and* no struct to copy — a new entry needs both.
+- **It will not construct an entry.** A new work type deep-copies an existing one
+  from the same Pal, which is `palclone`'s rule: the right struct metadata is
+  whatever this save already uses.
+- **It will not hardcode the enum prefix.** That is read off the template's own
+  value, so a rename carries through instead of writing entries the game ignores.
+
+All 39 carry **exactly one entry**, so a multi-entry list is plausible and
+unobserved. Adding is allowed — the struct shape is what is risky and that is
+copied — but the fact is recorded rather than hidden.
+
+**`_flatten` expanded it and lost it.** That helper turns `{"ivs": {"hp": 1}}`
+into `ivs.hp` to match the field names, and did the same to `workRanks` — so the
+diff read `before: None`, and since `None` never equals the requested map, an
+edit that changed nothing planned as a change every time. It now expands a dict
+only when it is *not* itself a declared field. `ivs` is a grouping whose members
+are the real fields; `workRanks` is one field that happens to hold a map.
+
+**`DT_GainWorkSuitabilityRankItem` also names one dummy.**
+`Dummy_WorkSuitability_AddTicket_OilExtraction` — every other work type has a
+real ticket item. Not acted on, but it is the game saying oil extraction rank
+cannot be bought.
 
 ## Cloning creates records — everything else overwrites fields
 

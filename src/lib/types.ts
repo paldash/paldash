@@ -281,7 +281,7 @@ export interface EditField {
    * There is no value to type into a box, which is why the editor renders it as
    * a button.
    */
-  kind: 'int' | 'float' | 'string' | 'enum' | 'list' | 'bool' | 'clear';
+  kind: 'int' | 'float' | 'string' | 'enum' | 'list' | 'bool' | 'clear' | 'map';
   label: string;
   min: number | null;
   max: number | null;

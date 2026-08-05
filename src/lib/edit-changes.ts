@@ -1,7 +1,8 @@
 import type { EditField } from './types';
 
 /** What a draft field can hold. `null` is a request, not an absence — see below. */
-export type FieldValue = string | number | boolean | string[] | null;
+export type FieldValue =
+  | string | number | boolean | string[] | Record<string, number> | null;
 
 /**
  * Turn an editor draft into the change set the backend takes.
@@ -41,6 +42,13 @@ export function buildChanges(
         break;
       case 'list':
         out[key] = Array.isArray(value) ? value : [];
+        break;
+      case 'map':
+        // A plain object, passed through. `Array.isArray` guards the same way
+        // the list case does: an array here would validate as "not a map" on
+        // the backend rather than doing something surprising.
+        out[key] =
+          value && typeof value === 'object' && !Array.isArray(value) ? value : {};
         break;
       default:
         out[key] = value;

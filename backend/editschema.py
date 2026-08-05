@@ -197,6 +197,9 @@ class Field:
         elif self.kind == "bool":
             if not isinstance(value, bool):
                 return "must be true or false"
+        elif self.kind == "map":
+            if not isinstance(value, dict):
+                return "must be a map"
         elif self.kind == "clear":
             # A `clear` field has exactly one legal request: remove it. There is
             # no healthy value to write — a Pal that is not sick has no
@@ -261,6 +264,47 @@ def _mastered_skills_problem(value: Any) -> Optional[str]:
     unknown = [b for b in bare if not gamedata._lookup("activeSkills", b)]
     if unknown:
         return f"unknown move(s): {', '.join(unknown[:3])}"
+    return None
+
+
+def work_suitabilities() -> set:
+    """The 13 work types, from the bundled table rather than a hand-written list."""
+    return {
+        str(w.get("id"))
+        for w in (gamedata.load().get("workSuitability") or [])
+        if w.get("id")
+    }
+
+
+def _work_ranks_problem(value: Any) -> Optional[str]:
+    """
+    Work ranks bought with Pal Souls, as `{workType: rank}`.
+
+    NO MAXIMUM IS ENFORCED, and that is measured rather than lazy. Across
+    refworld, the live world and a 07-29 snapshot, 39 Pals carry the property and
+    the ranks run 1, 2, 3 and 6 — so 6 is the highest anyone has actually reached,
+    not a cap. The game ships no cap either: `DT_GainWorkSuitabilityRankItem`
+    decodes cleanly from the server pak and holds one ticket item per work type
+    with no rank column, and no other DataTable carries one. Asserting a ceiling
+    here would be inventing the one kind of number this module refuses to invent.
+    See `fullStomach`, which is bounded the same way and for the same reason.
+
+    The minimum is 1, which IS observed: rank 0 appears on none of the 39, so a
+    zero is `parser._num`'s default rather than a value the game stores.
+    """
+    if not isinstance(value, dict):
+        return "must be a map of work type to rank"
+    known = work_suitabilities()
+    for work_type, rank in value.items():
+        if work_type not in known:
+            return f"unknown work suitability: {work_type}"
+        if isinstance(rank, bool) or not isinstance(rank, int):
+            return f"{work_type}: rank must be a whole number"
+        if rank < 1:
+            return (
+                f"{work_type}: rank must be at least 1 — a Pal with no bought rank "
+                "carries no entry at all, so drop it from the map instead"
+            )
     return None
 
 
@@ -364,6 +408,15 @@ PAL_FIELDS: dict[str, Field] = {
         note="Set by the game on a Pal brought in from elsewhere. 136 of the "
              "live world's Pals carry it, which is why it is an advisory rather "
              "than evidence of anything.",
+    ),
+    "workRanks": Field(
+        "workRanks", "map", label="Bought work ranks",
+        validator=_work_ranks_problem,
+        note="Work suitability bought with Pal Souls, on top of what the species "
+             "has naturally. Editable only on a Pal that already has some — 39 of "
+             "three real worlds' Pals do — because a new entry is deep-copied from "
+             "an existing one rather than constructed. Removing a work type from "
+             "the map deletes its bought rank.",
     ),
     "masteredSkills": Field(
         "masteredSkills", "list", label="Learned moves",
@@ -502,7 +555,7 @@ def validate(target: str, changes: dict, current: Optional[dict] = None) -> dict
 
     cross_checked = False
     if current is not None and not problems:
-        merged = {**_flatten(current), **accepted}
+        merged = {**_flatten(current, fields), **accepted}
         for rule in CROSS_FIELD_RULES:
             problems.extend(rule(target, merged))
         cross_checked = True
@@ -515,11 +568,19 @@ def validate(target: str, changes: dict, current: Optional[dict] = None) -> dict
     }
 
 
-def _flatten(obj: dict) -> dict:
-    """`{"ivs": {"hp": 1}}` -> `{"ivs.hp": 1}`, matching the field names."""
+def _flatten(obj: dict, fields: Optional[dict] = None) -> dict:
+    """
+    `{"ivs": {"hp": 1}}` -> `{"ivs.hp": 1}`, matching the field names.
+
+    A dict is expanded ONLY when it is not itself a declared field. `ivs` is a
+    grouping whose members are the real fields (`ivs.hp`); `workRanks` is a
+    single field that happens to hold a map, and expanding it lost the value
+    entirely — the diff read `before: None`, and since `None` never equals the
+    requested map, an edit that changed nothing planned as a change every time.
+    """
     flat: dict[str, Any] = {}
     for key, value in (obj or {}).items():
-        if isinstance(value, dict):
+        if isinstance(value, dict) and not (fields and key in fields):
             for inner, inner_value in value.items():
                 flat[f"{key}.{inner}"] = inner_value
         else:
@@ -534,7 +595,7 @@ def diff(target: str, changes: dict, current: dict) -> list[dict]:
     Validation is the caller's job — this only describes.
     """
     fields = fields_for(target)
-    flat = _flatten(current)
+    flat = _flatten(current, fields)
 
     out: list[dict] = []
     for name, value in changes.items():

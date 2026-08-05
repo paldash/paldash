@@ -11,6 +11,7 @@ import type {
   EditSchema, EditPlan, PlayerSaveData, PalContainer, ClonePlan,
 } from '@/lib/types';
 import { buildChanges, type FieldValue as EditFieldValue } from '@/lib/edit-changes';
+import { getWorkTypes, type WorkType } from '@/lib/work-types';
 
 type Mode = 'pal' | 'player';
 
@@ -176,6 +177,10 @@ export default function CharacterEditor({ canEdit }: { canEdit: boolean }) {
         if (p.skinName != null) seed.skinName = p.skinName;
         if (p.isImported != null) seed.isImported = p.isImported;
         if (p.favoriteIndex != null) seed.favoriteIndex = p.favoriteIndex;
+        // `null` here means the Pal has never had a Pal Soul spent on it, so
+        // there is no entry to copy a struct shape from — distinct from `{}`,
+        // which would mean the property exists and is empty.
+        if (p.workRanks != null) seed.workRanks = { ...p.workRanks };
         // A player usually owns SEVERAL of the same species, often at the same
         // level, and "Lamball · Lv 50" three times over is a list you cannot
         // choose from — you can only guess and check afterwards. The row is
@@ -483,6 +488,16 @@ export default function CharacterEditor({ canEdit }: { canEdit: boolean }) {
                         max={LIST_MAX[field.name] ?? 4}
                         onChange={(next) => set(field.name, next)}
                       />
+                    ) : field.kind === 'map' ? (
+                      <RankMap
+                        values={
+                          draft[field.name] && typeof draft[field.name] === 'object'
+                            && !Array.isArray(draft[field.name])
+                            ? (draft[field.name] as Record<string, number>)
+                            : {}
+                        }
+                        onChange={(next) => set(field.name, next)}
+                      />
                     ) : field.kind === 'clear' ? (
                       <Cure
                         current={draft[field.name]}
@@ -624,6 +639,89 @@ function PlanView({
       >
         {busy ? 'Writing…' : 'Apply and verify'}
       </button>
+    </div>
+  );
+}
+
+/**
+ * Bought work ranks, as `{workType: rank}` rows.
+ *
+ * The work types come from `lib/work-types.ts`, which reads the bundled table —
+ * the same 13 the backend validates against, so the dropdown cannot offer
+ * something the writer will reject.
+ *
+ * **No maximum on the rank**, matching the schema. Six is the highest observed
+ * across three real worlds and the game ships no table carrying a cap, so a
+ * `max` here would be this file inventing one.
+ */
+function RankMap({
+  values, onChange,
+}: {
+  values: Record<string, number>;
+  onChange: (next: Record<string, number>) => void;
+}) {
+  const [types, setTypes] = useState<WorkType[]>([]);
+  useEffect(() => {
+    let live = true;
+    // Falls back to the bundled list inside `getWorkTypes` if the fetch fails,
+    // so an offline moment degrades to raw ids rather than an empty dropdown.
+    getWorkTypes().then((t) => { if (live) setTypes(t); }).catch(() => undefined);
+    return () => { live = false; };
+  }, []);
+  const unused = types.filter((t) => !(t.id in values));
+
+  const setRank = (id: string, rank: number) => {
+    onChange({ ...values, [id]: Number.isFinite(rank) ? rank : 1 });
+  };
+  const remove = (id: string) => {
+    const next = { ...values };
+    delete next[id];
+    onChange(next);
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+      {Object.entries(values).map(([id, rank]) => (
+        <div key={id} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ fontSize: 12, minWidth: 150 }}>
+            {types.find((t) => t.id === id)?.label ?? id}
+          </span>
+          <input
+            className="input"
+            type="number"
+            min={1}
+            style={{ width: 70 }}
+            value={rank}
+            onChange={(e) => setRank(id, e.target.valueAsNumber)}
+          />
+          <button
+            className="btn btn-ghost"
+            style={{ padding: '1px 6px', fontSize: 10 }}
+            onClick={() => remove(id)}
+            title="Removing a work type deletes its bought rank"
+          >
+            <X size={10} />
+          </button>
+        </div>
+      ))}
+      {unused.length > 0 && (
+        <select
+          className="input"
+          style={{ fontSize: 12 }}
+          value=""
+          onChange={(e) => e.target.value && setRank(e.target.value, 1)}
+        >
+          <option value="">Add a work type…</option>
+          {unused.map((t) => (
+            <option key={t.id} value={t.id}>{t.label}</option>
+          ))}
+        </select>
+      )}
+      {Object.keys(values).length === 0 && (
+        <p style={{ fontSize: 10, color: 'var(--text-muted)' }}>
+          None — applying this removes every bought rank from this Pal.
+        </p>
+      )}
     </div>
   );
 }

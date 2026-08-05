@@ -466,12 +466,17 @@ def _pal_record(
             # Work-suitability ranks the player bought with Pal Souls, and the
             # work types they switched OFF for this Pal. Both are per-Pal
             # decisions no species table can supply.
+            # `None` when the property is absent, not `{}` — the same distinction
+            # `_flag` draws and for the same reason. `charedit` refuses to write
+            # a property a Pal does not carry (there is no struct to copy), so an
+            # editor that cannot tell "no bought ranks" from "no property" offers
+            # a control the writer will always reject.
             "workRanks": {
                 str(_v(e, "WorkSuitability", "value", "value") or "").split("::")[-1]:
                     _num(e, "Rank", 0)
                 for e in (_v(obj, "GotWorkSuitabilityAddRankList", "value", "values") or [])
                 if isinstance(e, dict)
-            },
+            } if "GotWorkSuitabilityAddRankList" in obj else None,
             "workDisabled": [
                 str(w).split("::")[-1]
                 for w in (_v(obj, "WorkSuitabilityOptionInfo", "value",

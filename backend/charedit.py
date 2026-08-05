@@ -33,6 +33,7 @@ that IV rolled, and fabricating one is a change to game state we cannot verify.
 
 from __future__ import annotations
 
+import copy
 import logging
 import os
 from typing import Any, Optional
@@ -108,6 +109,21 @@ PAL_LIST_PROPERTY_MAP = {
 LIST_PREFIXES = {
     "EquipWaza": editschema.WAZA_PREFIX,
     "MasteredWaza": editschema.WAZA_PREFIX,
+}
+
+# Schema field name -> an ArrayProperty of STRUCTS, which the list writer above
+# cannot touch.
+#
+# `_write_list_property` coerces every value with `str()`. That is right for
+# `EquipWaza` and wrong here: a struct written as a string still serialises and
+# is silently wrong, the same family of failure as a `PassiveSkillList` rewritten
+# as an EnumProperty.
+#
+# Writable only where the property exists, for the usual reason and one extra:
+# there is no `array_type` to guess AND no struct to copy, so a Pal with no
+# entries offers nothing to build a new one from.
+PAL_STRUCT_MAP_PROPERTY = {
+    "workRanks": "GotWorkSuitabilityAddRankList",
 }
 
 # Fields the editor refuses to touch even though the schema can describe them.
@@ -207,6 +223,15 @@ def read_pal(obj: dict) -> dict:
     for field, prop in PAL_LIST_PROPERTY_MAP.items():
         if prop in obj:
             view[field] = _read_list(obj, prop)
+    # Work ranks read as `{workType: rank}` — the same shape the parser reports
+    # and the same shape the writer takes, so a round trip changes nothing.
+    for field, prop in PAL_STRUCT_MAP_PROPERTY.items():
+        if prop in obj:
+            view[field] = {
+                _struct_entry_work_type(e): _num(e, "Rank", 0)
+                for e in (_v(obj, prop, "value", "values") or [])
+                if isinstance(e, dict)
+            }
     return view
 
 
@@ -264,6 +289,79 @@ def _write_list_property(obj: dict, prop: str, values: list) -> None:
     ]
 
 
+def _struct_entry_work_type(entry: dict) -> str:
+    """The bare work-suitability id an entry names, e.g. `Handcraft`."""
+    return str(_v(entry, "WorkSuitability", "value", "value") or "").split("::")[-1]
+
+
+def _write_work_ranks(obj: dict, prop: str, ranks: dict) -> None:
+    """
+    Rewrite `GotWorkSuitabilityAddRankList` — the work ranks bought with Pal Souls.
+
+    An ArrayProperty of `{WorkSuitability: EnumProperty, Rank: IntProperty}`, and
+    the reason it needs its own writer is that `_write_list_property` calls
+    `str()` on every value. A struct stringified still serialises and is silently
+    wrong.
+
+    THREE THINGS THIS DOES NOT DO, each measured rather than assumed. Across
+    refworld, the live world and a 07-29 snapshot, 39 Pals carry the property:
+
+    - **It does not create it.** No property means no `array_type` to preserve
+      *and* no struct to copy — the only two things a new entry would need.
+    - **It does not construct an entry.** A new work type deep-copies an existing
+      entry from this same Pal and overwrites its two fields, which is
+      `palclone`'s rule: the right `CustomVersionData` and struct metadata are
+      whatever this save already uses.
+    - **It does not invent the enum prefix.** That is taken from the template's
+      own value string, so a game update that renames `EPalWorkSuitability::`
+      carries through instead of producing entries the game ignores.
+
+    Every one of those 39 Pals carries **exactly one entry**, so a multi-entry
+    list is plausible but unobserved. Adding a second type is allowed — the array
+    length is not the risky part, the struct shape is, and that is copied — but
+    it is worth knowing that it is untested against the game.
+    """
+    if prop not in obj:
+        raise EditError(
+            f"This Pal has no {prop!r} stored, so there is no entry to copy and no "
+            "array type to preserve. It appears once a Pal Soul has been spent on "
+            "this Pal — creating it would mean guessing both."
+        )
+
+    node = obj[prop]
+    container = node.get("value") if isinstance(node, dict) else None
+    if not isinstance(container, dict) or "values" not in container:
+        raise EditError(f"{prop!r} is not in the expected array-property shape")
+
+    entries = [e for e in (container.get("values") or []) if isinstance(e, dict)]
+    if not entries:
+        raise EditError(
+            f"{prop!r} is present but empty, so there is no entry to copy the "
+            "struct shape from."
+        )
+
+    # The prefix as this save spells it, not as this file remembers it.
+    sample = str(_v(entries[0], "WorkSuitability", "value", "value") or "")
+    prefix = f"{sample.rsplit('::', 1)[0]}::" if "::" in sample else ""
+
+    by_type = {_struct_entry_work_type(e): e for e in entries}
+    template = entries[0]
+
+    out = []
+    for work_type, rank in ranks.items():
+        entry = by_type.get(work_type)
+        if entry is None:
+            entry = copy.deepcopy(template)
+            _write_property(entry, "WorkSuitability", f"{prefix}{work_type}")
+        _write_property(entry, "Rank", int(rank))
+        out.append(entry)
+
+    # A work type left out of the request is dropped. That is a deletion, which
+    # is the safe direction here for the same reason curing is: the absent state
+    # is what 2,924 of the live world's 2,963 Pals already look like.
+    container["values"] = out
+
+
 def _clear_property(obj: dict, prop: str) -> None:
     """
     Remove an affliction property, which is what curing one is.
@@ -292,6 +390,8 @@ def _apply_pal_change(obj: dict, change: dict) -> None:
         _clear_property(obj, PAL_CLEARABLE[field])
     elif field in PAL_LIST_PROPERTY_MAP:
         _write_list_property(obj, PAL_LIST_PROPERTY_MAP[field], change["after"])
+    elif field in PAL_STRUCT_MAP_PROPERTY:
+        _write_work_ranks(obj, PAL_STRUCT_MAP_PROPERTY[field], change["after"] or {})
     else:
         _write_property(obj, PAL_PROPERTY_MAP[field], change["after"])
 
@@ -317,7 +417,10 @@ def plan_pal_edit(obj: dict, changes: dict) -> dict:
             "changes": [], "planHash": "",
         }
 
-    writable = {**PAL_PROPERTY_MAP, **PAL_LIST_PROPERTY_MAP, **PAL_CLEARABLE}
+    writable = {
+        **PAL_PROPERTY_MAP, **PAL_LIST_PROPERTY_MAP,
+        **PAL_CLEARABLE, **PAL_STRUCT_MAP_PROPERTY,
+    }
     unmapped = [f for f in changes if f not in writable]
     if unmapped:
         return {
