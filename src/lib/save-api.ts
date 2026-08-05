@@ -1591,3 +1591,39 @@ export async function getBaseAssignments(
   const query = base ? `?base=${encodeURIComponent(base)}` : '';
   return saveFetch(`/bases/assign${query}`);
 }
+
+/**
+ * One Lifmunk-effigy statue line, and what a player's relics bought on it.
+ *
+ * From `/api/progress`. Every line is returned including untouched ones —
+ * "nothing spent on Endurance" is what someone deciding where the next effigy
+ * goes actually needs.
+ *
+ * **`hasEffectRate` must be honoured.** `CapturePower` carries 0.0 on all 15 of
+ * its ranks while the other twelve carry real values, so its effect lives
+ * somewhere other than that column. Rendering "+0%" for it would be a confident
+ * wrong number rather than a missing one.
+ *
+ * **`requiredRelics` on a rank is the cost OF THAT RANK, not a running total**,
+ * and `effectRate` is already cumulative — adjacent columns meaning opposite
+ * things. The backend has summed the former; do not sum it again.
+ */
+export interface RelicLine {
+  type: string;
+  /** The game's own name — `HungerReduction` is "Satiety Duration". */
+  name: string;
+  /** True only when the client pak was absent at build time. */
+  nameIsInternal: boolean;
+  description: string;
+  /** Relics this player has put into this line. */
+  spent: number;
+  rank: number;
+  /** Cumulative effect at the current rank, as a percentage. */
+  effectRate: number;
+  /** False for CapturePower — show the rank, never a percentage. */
+  hasEffectRate: boolean;
+  /** Relics needed for the next rank, or absent at max. */
+  nextCost?: number;
+  /** Gold to reset this line and get the relics back. */
+  resetCost?: number;
+}

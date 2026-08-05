@@ -1213,6 +1213,27 @@ def extract_player_progress(gvas: Any) -> dict[str, Any]:
                 total += 1
         progress[label] = {"total": total, "distinct": len(entries)}
 
+    # Relics SPENT per statue line, which is what says what the effigies a
+    # player collected actually bought them. `gamedata.relic_rank` turns each
+    # figure into a rank, its cumulative effect and the cost of the next one.
+    #
+    # **`RelicPossessNum` — the scalar beside this — is NOT the total and is not
+    # read.** It equals the `CapturePower` figure on both reference-world
+    # players, which is what the field would be if it were the pre-1.0 record
+    # from when effigies raised Capture Power alone. Summing it, or using it as
+    # a denominator, would double-count one line and miss twelve.
+    spent: dict[str, int] = {}
+    for entry in _flag_entries(record, "RelicPossessNumMap"):
+        kind = str(entry.get("key") or "")
+        kind = kind.rsplit("::", 1)[-1] if "::" in kind else kind
+        value = entry.get("value")
+        # A line at 0 is carried: "you have spent nothing here" is a real and
+        # useful answer, and dropping it would make an untouched line
+        # indistinguishable from one this parser could not read.
+        if kind and isinstance(value, (int, float)) and not isinstance(value, bool):
+            spent[kind] = int(value)
+    progress["relicsSpent"] = spent
+
     return progress
 
 
