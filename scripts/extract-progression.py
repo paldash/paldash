@@ -65,6 +65,11 @@ import palpak            # noqa: E402
 import uassettable       # noqa: E402
 from jsonout import write_json  # noqa: E402
 
+try:
+    import l10n  # noqa: E402
+except ImportError:  # pragma: no cover - the client pak is optional here
+    l10n = None
+
 OUT = os.path.join(os.path.dirname(HERE), "backend", "data", "progression.json.gz")
 
 CELL_SIZE = 25600
@@ -109,10 +114,75 @@ def occupied_cells(pak) -> set:
     return out
 
 
+# The pairs a wrong positional offset could not survive. Not the whole mapping —
+# asserting all 13 would just restate the join. These four are distinctive and
+# spread across the range, so an off-by-one breaks at least one of them.
+_RELIC_NAME_ANCHORS = {
+    "CapturePower": "Capture Power",
+    "StaminaReduction": "Endurance",
+    "SphereHoming": "Sphere Tracking",
+    "MoveSpeed": "Movement Speed",
+}
+
+
+def _relic_text() -> tuple[dict[int, str], dict[int, str]]:
+    """`({index: name}, {index: description})` from `BUILDUP_PLAYER_STATUS_NN`."""
+    if l10n is None:
+        return {}, {}
+    try:
+        ui = l10n.strings("DT_UI_Common_Text_Common", "en")
+    except Exception as exc:  # noqa: BLE001
+        print(f"   (no relic names: {exc})", file=sys.stderr)
+        return {}, {}
+
+    def indexed(prefix: str) -> dict[int, str]:
+        out = {}
+        for key, value in ui.items():
+            if key.startswith(prefix) and key[len(prefix):].isdigit():
+                out[int(key[len(prefix):])] = value
+        return out
+
+    return indexed("BUILDUP_PLAYER_STATUS_"), indexed("BUILDUP_PLAYER_STATUS_DESC_")
+
+
+def _verify_relic_names(ordered: list[str], meta: dict) -> None:
+    """Refuse a positional join that has drifted, rather than mislabel a stat."""
+    if all(meta[k]["nameIsInternal"] for k in ordered):
+        print("   (relic names unavailable — ids will stand in)", file=sys.stderr)
+        return
+    if len(ordered) != 13:
+        raise SystemExit(f"!! expected 13 relic lines, found {len(ordered)}")
+    for kind, expected in _RELIC_NAME_ANCHORS.items():
+        got = (meta.get(kind) or {}).get("name")
+        if got != expected:
+            raise SystemExit(
+                f"!! relic name join drifted: {kind} resolved to {got!r}, "
+                f"expected {expected!r}. The BUILDUP_PLAYER_STATUS_NN order no "
+                f"longer matches the table's row order — do NOT relax this, a "
+                f"mislabelled stat line is unverifiable once shipped."
+            )
+
+
 def build(pak=None) -> dict:
     pak = pak or palpak.Pak()
 
-    # ── Relic ranks ──
+    # ── Relic statue lines ──
+    #
+    # WHAT THE GAME CALLS EACH LINE. The table gives only an internal
+    # `RelicType`, so before this a panel could offer "StatusAilmentResist".
+    # The names are in the client pak's L10N overrides as
+    # `BUILDUP_PLAYER_STATUS_00..12`, with `..._DESC_NN` beside them.
+    #
+    # **THEY ARE INDEXED, NOT KEYED**, so the join is positional — which is
+    # exactly the kind of pairing this project refuses elsewhere. It is
+    # acceptable here only because it is *verified*: all 13 pair semantically,
+    # and several are distinctive enough that a wrong offset could not survive
+    # them (00 "Capture Power"/CapturePower, 08 "Endurance"/StaminaReduction,
+    # 09 "Sphere Tracking"/SphereHoming, 12 "Movement Speed"/MoveSpeed).
+    # `_verify_relic_names` asserts those anchors and the count; a game update
+    # that reorders the enum fails the build rather than mislabelling a stat.
+    relic_names, relic_descs = _relic_text()
+
     relics: dict[str, list] = defaultdict(list)
     for row in _read(pak, "DT_PlayerStatusRankMasterDataTable").values():
         kind = _enum(row.get("RelicType"))
@@ -129,6 +199,18 @@ def build(pak=None) -> dict:
         })
     for rows in relics.values():
         rows.sort(key=lambda r: r["rank"])
+
+    # Positional join, in first-appearance order of the table's own rows.
+    ordered = list(relics.keys())
+    relic_meta = {}
+    for index, kind in enumerate(ordered):
+        name = relic_names.get(index)
+        relic_meta[kind] = {
+            "name": name or kind,
+            "nameIsInternal": name is None,
+            "description": (relic_descs.get(index) or "").replace("\r\n", "\n").strip(),
+        }
+    _verify_relic_names(ordered, relic_meta)
 
     # ── Stat elixirs ──
     elixirs = {}
@@ -188,6 +270,7 @@ def build(pak=None) -> dict:
 
     return {
         "relicRanks": dict(relics),
+        "relicTypes": relic_meta,
         "statusItems": elixirs,
         "areas": areas,
         "quests": quests,
