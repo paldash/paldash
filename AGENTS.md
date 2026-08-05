@@ -1431,30 +1431,61 @@ Four things that bite:
   speed climbing with level on a Pal whose in-game work speed has not moved —
   wrong in the direction you would expect it to move, so nobody questions it.
 
-### The element effectiveness chart is in neither source — a recorded negative
+### The element chart is the one hand-entered thing here, and it is quarantined
 
-Searched for, not found, so nobody has to search again. Which element beats
-which is **not** a DataTable in `Pal-LinuxServer.pak`: `--grep` finds no
-`Compatibility`, `Effectiveness`, `Weakness`, `AttributeDamage` or
-`ElementDamage` asset of any kind, and the only element DataTable that exists is
-`DT_PalAwakeningItemElement` (which item awakens which element, not damage
-multipliers). Everything else matching "Element" is visual effects, elemental
-treasure-box locks and player step-attack statuses.
+Which element beats which is in **neither** source, and both were searched
+exhaustively rather than guessed at. All 480 server-pak DataTables were listed
+and read: there is no `Compatibility`, `Effectiveness`, `Weakness`,
+`AttributeDamage` or `ElementDamage` asset of any kind, and the only element
+DataTable is `DT_PalAwakeningItemElement` (item → element, no multipliers).
+Everything else matching "Element" is visual effects, elemental treasure-box
+locks and player step-attack statuses. In `refs/PalWorldSaveTools-main.zip`, all
+78 matching entries are **icons**. So the chart lives in C++ or in a blueprint's
+unversioned properties — the same wall `DT_BossSpawnerLoactionData` hits, and
+unlike the passive-effect table it does not come down by switching paks.
 
-It is not in `refs/PalWorldSaveTools-main.zip` either — the 78 matching entries
-there are **all element icons**, with no data file among them.
+`backend/elements.py` therefore ships it as a **documented constant**, on the
+same footing as `editschema.MAX_LEVEL`. The rule this project holds is "do not
+hand-write game data *that already exists* in `refs/`", so the obligation here is
+provenance, not abstinence. Source is named in the module docstring.
 
-So the chart lives in C++ or in a blueprint's unversioned properties, which is
-the same wall `DT_BossSpawnerLoactionData` hits. Unlike the passive effects, this
-one does not come down by switching paks.
+**It lives in a module, not in `backend/data/`.** Everything in that directory is
+extracted and a script can re-derive it; this cannot. Filing it beside the real
+bundles would blur the distinction that makes them trustworthy.
 
-**That blocks only the per-element part of the optimiser.** Work assignment needs
-work suitabilities (bundled) and work speed; party strength needs the stats,
-which are now correct for the first time. If the chart is wanted, it has to be a
-hand-entered constant with its source named in a comment — the "do not
-hand-write game data" rule bites on data that *exists* in `refs/`, and this does
-not. Say where it came from, or it is a wiki number pretending to be a
-measurement.
+**The game data wins wherever the game has an opinion.** Only the *relation* is
+hand-entered. The element vocabulary is read off the bundled Pal data by
+`game_elements()`, so the game decides what elements exist; the hardcoded tuple
+is a fallback for a missing bundle, not the source. The source's "Ground" is an
+alias for the data's `Earth`, and `DT_PassiveSkill_Main`'s third vocabulary
+(`Leaf`, `Electricity`, `Normal`) resolves too, because three files disagree
+about these names and a caller holding any of them must not silently get "no
+effect".
+
+**This is the only thing here that can silently rot**, which is why
+`unknown_to_chart()` exists: a content update adding a tenth element would make
+every matchup involving it read as a confident "neutral" rather than as a visible
+gap. Empty is the healthy state, and a test pins both it and the detector.
+
+Two things checked before trusting the transcription, because a cited source is
+not a verified one:
+
+- **The relation is exactly reciprocal** — nine strength pairs, nine weakness
+  pairs, identical sets, no orphans either way. A chart copied with an error
+  almost certainly breaks this.
+- **Every name resolves against the bundled Pal data**, which uses
+  `Dark, Dragon, Earth, Electric, Fire, Grass, Ice, Neutral, Water`. Eight of
+  nine matched the source's spelling exactly.
+
+**No damage multipliers are shipped.** The source presents them as an image, so
+the numbers were never available as text. `effectiveness()` returns a *relation*
+— strong, weak or neutral — and callers must not invent a coefficient. "Water is
+strong against Fire" is supported; "for 1.5x" is not. A test asserts no
+multiplier table exists.
+
+Neutral is strong against nothing, which is the game's design (Neutral Pals trade
+matchups for base work) rather than a hole in the transcription, and Fire is the
+only element strong against two.
 
 ### The passive term was always zero, and 1,352 Pals were understated
 

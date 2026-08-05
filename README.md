@@ -540,7 +540,14 @@ This project stands on other people's work:
   reference for the save structure.
 - **[RNZ01/palworld-server-dashboard](https://github.com/RNZ01/palworld-server-dashboard)**
   — the dashboard that inspired this one.
+- **[Rock Paper Shotgun][rps]** — the element effectiveness chart, which is in
+  neither the game pak nor any data archive. Cited because it is the one piece of
+  game data here that was hand-entered rather than extracted; see "Element
+  matchups". Damage multipliers are *not* taken from it, since it presents those
+  as an image.
 - Palworld is © Pocketpair, Inc. This project is unofficial and unaffiliated.
+
+[rps]: https://www.rockpapershotgun.com/palworld-element-chart
 
 ---
 
@@ -620,6 +627,10 @@ All of it is implemented and verified against a real world:
 | Import / export | Versioned, checksummed documents; container import writes |
 | Inventory slots | Set, change or clear any slot — including key items |
 | Pal editor | Name, level, EXP, condenser rank, IVs, passive and active skills |
+| Pal condition | Cure sickness, injury and hunger; set sanity, fullness, favourite slot, skin |
+| Learned moves | The move *pool*, on Pals that carry one — separate from the three equipped |
+| Bought work ranks | The work suitability bought with Pal Souls, per work type |
+| Ownership history | Every previous owner — the only record of a trade a Pal has |
 | Bulk Pal edits | One change set across many Pals, all-or-nothing |
 | Pal duplication | Copy a Pal into a chosen palbox slot |
 | **Pal import** | From a `pal` or `player` export — level, stars, skills, passives, IVs |
@@ -627,6 +638,28 @@ All of it is implemented and verified against a real world:
 | Illegal-Pal check | Scan for out-of-range stats, repair by clamping |
 | Coordinate teleport | Move a player to any point, or to one of the 174 fast-travel presets |
 | World copy for co-op | Remap one player's uid across a **copy** of the world |
+
+### Pal welfare
+
+An affliction in Palworld is a **property that exists**: a healthy Pal carries no
+`WorkerSick` field at all. So none of this was readable until it was looked for —
+on a real 2,963-Pal world that is 54 sick, 97 hungry or starving, 21 injured and
+33 with sanity under 50, none of which the dashboard could see.
+
+The **My Pals** tab now leads with a welfare panel listing them worst-first, and
+an operator with save-edit rights gets bulk cure, heal, feed and restore-sanity
+buttons over the whole affected set.
+
+Curing is a **deletion**, which is why it is safe: it produces a record identical
+to a Pal that was never ill, rather than a "well" value this project invented.
+Inflicting one is not offered.
+
+Feeding writes **two** things. `HungerType` is a consequence of `FullStomach`,
+so clearing the flag alone leaves the fullness where it was and the game sets it
+straight back at the next tick — an edit you would watch succeed and then lose.
+The fullness figure comes from the highest reading among your own affected Pals
+and is shown before you press anything, because the real ceiling is per species
+and per level and is stored nowhere in the save.
 
 ### Moving a character between servers
 
@@ -769,7 +802,7 @@ have *done*, never what exists.
 this project already decompresses for saves. `scripts/palpak.py` lists and
 extracts any of its 158,444 files.
 
-Two results so far:
+Results so far:
 
 - **The World Partition cell grid.** Cells are named `MainGrid_L0_X<col>_Y<row>`,
   and those names are coordinates. Cell size is 25,600 world units — measured,
@@ -782,9 +815,58 @@ Two results so far:
   the package export map to pair each relic actor with its position;
   `scripts/extract-effigies.py` drives it. Bundled at 14 KB.
 
+- **Every passive skill's actual numbers.** The bundled tables carry an English
+  sentence — "Attack +5%" — which is right for showing a player and impossible to
+  compute with, so the passive term in the stat formula was **zero on every Pal
+  since the feature shipped**. `DT_PassiveSkill_Main` decodes out of the server
+  pak with structured effect types, signed values, targets and invoke conditions;
+  `scripts/extract-passive-effects.py` bundles all 1,897 at 20 KB. Cross-checked
+  against the game's own prose: 1,754 of the 1,759 with a numeric description
+  match exactly, and four of the five exceptions are the archive failing to
+  substitute its own `{EffectValue1}` placeholder. On a real world this corrected
+  **1,352 of 2,963 Pals**, the largest single attack figure by +1,515.
+
+  A passive's bonus is **per stat**, not one number: `Legend` is +20% attack *and*
+  +20% defence, `Noukin` is +30% attack and **−50%** work speed. 175 skills touch
+  more than one stat and 77 carry a negative.
+
+Two things it does **not** unlock, both recorded so nobody searches twice:
+
+- **Field boss levels.** Numeric properties in the unversioned block.
+- **The element effectiveness chart.** All 480 DataTables were listed and read;
+  no `Compatibility`, `Effectiveness`, `Weakness` or `ElementDamage` asset exists
+  under any name. It is not in the reference archive either — all 78 "element"
+  entries there are icons. See "Element matchups" below for what ships instead.
+
 `DefaultPalWorldSettings.ini` from the same install is the authoritative list of
 the 119 settings a 1.0 server accepts, and the test suite checks the parser and
 presets against it.
+
+### Element matchups — the one hand-entered thing here
+
+Everything else in this project is extracted, and a script can re-derive it. The
+element chart cannot be: it is in neither the game pak nor the reference archive
+(see above), so it lives in C++ or in a blueprint's unversioned properties.
+
+`backend/elements.py` therefore ships it as a **documented constant** with its
+source named — the same footing as the level cap. It sits in a module rather than
+in `backend/data/` on purpose, so it is never mistaken for extracted data.
+
+**The game still decides what elements exist.** Only the *relation* is
+hand-entered; the vocabulary is read off the bundled Pal data, and
+`unknown_to_chart()` reports any element the game ships that the chart says
+nothing about — because this is the one thing here that can silently rot, and a
+tenth element would otherwise read as a confident "neutral" rather than a gap.
+
+Two checks before it was trusted: the relation is **exactly reciprocal** (nine
+strength pairs, nine weakness pairs, identical sets), and every name resolves
+against the bundled Pals — eight of nine matched the source's spelling, with only
+"Ground" needing mapping to the game's `Earth`.
+
+**No damage multipliers ship.** The source gives them as an image, so the numbers
+were never available as text. The API returns *strong*, *weak* or *neutral*, and
+a test asserts no multiplier table exists — "Water is strong against Fire" is
+supported, "for 1.5x" is not.
 
 ---
 
@@ -820,6 +902,15 @@ Being straight about what is not done:
   the day one joins.
 - **Player and technology imports are refused**, with a reason. Container and Pal
   imports work.
+- **Element matchups carry no damage multipliers**, and the chart behind them is
+  the one piece of game data here that was hand-entered rather than extracted —
+  it is in neither the pak nor the reference archive. See "Element matchups".
+- **Field boss levels are unavailable.** They are numeric properties in the
+  unversioned block; name, artwork, rarity and description are what the data
+  supports, and nothing invents the rest.
+- **No optimiser yet.** The inputs are now in place — Pal stats are correct for
+  the first time since the passive term was fixed, work suitabilities and bought
+  work ranks are readable — but nothing yet answers "who should mine".
 - **No 2FA or password-reset flow**, and no dependency scanning in CI.
 - **`docker` is not in the runtime image**, so the container Stop/Start buttons
   stay hidden unless you configure them. Deliberate — see "Maintenance mode".
