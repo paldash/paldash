@@ -2150,6 +2150,45 @@ game data**. The game calls `BOSS_Alpaca` "Melpaca", which agrees with this
 file's own rule that an alpha Lamball is still called Lamball. `isBoss` travels
 separately; do not fold it back into the name.
 
+### The swap landed, and the resolver is the load-bearing part
+
+`scripts/gametext.py` joins the strings to the ids and `build-gamedata.py`
+overlays them, so `gamedata.json.gz` now carries the game's own names — plus
+**1,805 item and 303 Paldeck descriptions**, and two sections that did not exist
+before: **140 region names** (`Grass_1` → "Windswept Island", which is what
+`extract-progression.py` deliberately left unresolved rather than inventing) and
+**33 dungeon names**.
+
+**The evidence the joins are right is the disagreement rate, and it collapsed
+once the resolver ran.** Technology showed 410 apparent disagreements against
+the archive; with `<itemName id=|X|/>` resolved that fell to **3**, and all three
+are the archive shipping a raw id (`Cloth2`, `ItemBooth`, `WallSignboard`) where
+the game has a real name. `activeSkills` disagrees **0** times out of 326.
+
+**`Catalogue.name()` is the only entry point callers may use.** `item_name` and
+`pal_name` return the *raw* row because the resolver calls them while expanding
+a reference and must not recurse through a second resolve — which made them a
+trap, and the trap sprang immediately: two items shipped with
+`<characterName id=|FlowerPrince|/>'s Petal` as their literal name because the
+overlay called the raw form. A missing name is recoverable; a name that is
+markup reads as data the game provided.
+
+**A placeholder must never survive as a name, and the archive has them too.**
+`Scratch` and `Throw` have shipped as the literal string `en Text` since this
+bundle was first built — a pre-existing bug found only because the new test
+asserted on the *shipped bundle* rather than on the extractor. The fallback path
+now drops to `humanize()` instead. `test_gametext.py` pins that, the markup rule
+and the accessory tiers against `gamedata.json.gz` on disk, so those three run
+without the pak.
+
+`gamedata.json.gz` finally has a real **`gameBuild`** — it was the only bundle
+with `null`, which is why `gameversion.status()` could not say whether it was
+stale.
+
+**What the archive still supplies: icon paths, and which ids exist at all.**
+Nothing else. That is why `docs/LICENSING.md` does not change — the GPL comes
+from `palsav`, and pak-extracted data is Pocketpair's copyright either way.
+
 ## The SERVER pak's DataTables are fully decodable — numbers included
 
 **This supersedes the "rates, thresholds and coordinates are locked" conclusion

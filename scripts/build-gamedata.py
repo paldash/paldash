@@ -1,18 +1,36 @@
 #!/usr/bin/env python3
 """
-Build the bundled game-data blob from the PalworldSaveTools reference archive.
+Build the bundled game-data blob — display strings from the game, numbers
+verified against it, artwork paths from the reference archive.
 
-`refs/` holds 66 MB of third-party zips and is gitignored; the compact blob this
-produces (`backend/data/gamedata.json.gz`) IS committed, so the dashboard needs
-neither the archive nor any network access at runtime. The container has to work
-offline on a LAN.
-
-Run after dropping in a newer PalworldSaveTools release:
+`refs/` holds the paks and a 66 MB third-party zip and is gitignored; the compact
+blob this produces (`backend/data/gamedata.json.gz`) IS committed, so the
+dashboard needs neither of them, nor any network access, at runtime. The
+container has to work offline on a LAN.
 
     python3 scripts/build-gamedata.py
 
+THREE SOURCES, AND WHICH ONE WINS IS DELIBERATE
+-----------------------------------------------
+- **Display names and descriptions: the game.** `apply_game_names` overwrites
+  every one it can from the client pak's `L10N/en` overrides, via
+  `scripts/l10n.py` and `scripts/gametext.py`.
+- **Numbers: the game.** Not read here, but `scripts/verify-gamedata.py` checks
+  the archive's values against the server pak's DataTables — 13,836 of 13,836
+  agree, which is why this still reads them from the archive rather than
+  duplicating the extraction.
+- **Icon paths and catalogue membership: the archive.** Which ids exist, and
+  where their artwork lives. Re-deriving 2,468 textures is task-listed and
+  low-value.
+
+**Entries the game does not name keep the archive's value, and the count is
+printed per section as "still from archive" rather than being folded into a
+coverage figure that looks complete.** Same discipline as the icon report below
+it: one aggregate would bury a regression.
+
 Source data is MIT (© 2026 Pylar); see README "Credits". The underlying game
-content belongs to Pocketpair.
+content belongs to Pocketpair — extracting it ourselves changes who we owe
+credit to, not the copyright position.
 """
 
 from __future__ import annotations
@@ -20,6 +38,7 @@ from __future__ import annotations
 import gzip
 import io
 import json
+import re
 import os
 import sys
 import zipfile
@@ -320,9 +339,111 @@ def resolve_icons(data: dict) -> dict[str, int]:
     return stats
 
 
+# Untranslated markers. The game's spellings, plus the fact that the *archive*
+# carries them too — `Scratch` and `Throw` have shipped as the literal string
+# "en Text" since this bundle was first built.
+_PLACEHOLDER_NAMES = {"en text", "en_text", "unidentified pal", "-", "--", "---", ""}
+
+
+def _is_placeholder(name: str | None) -> bool:
+    return (name or "").strip().lower() in _PLACEHOLDER_NAMES
+
+
+def _humanize(ident: str) -> str:
+    """`Accessory_AirDash1` -> `Accessory Air Dash1`. Mirrors `gamedata.humanize`."""
+    spaced = re.sub(r"(?<=[a-z0-9])(?=[A-Z])", " ", ident.replace("_", " "))
+    return re.sub(r"\s+", " ", spaced).strip() or ident
+
+
+def apply_game_names(data: dict) -> dict[str, dict[str, int]]:
+    """
+    Replace every display name and description with the **game's own**.
+
+    This is the last piece of `docs/PLAN.md`'s attribution work: the numbers in
+    this bundle already come from the server pak (verified 13,836 of 13,836),
+    and after this the strings come from the client pak's `L10N/` overrides. The
+    third-party archive is left supplying artwork and catalogue membership only.
+
+    **The archive is kept as a fallback where the game names nothing**, and the
+    count of those is printed rather than hidden. An id the game does not name
+    is usually cut or unreleased content; silently dropping to an internal id
+    would be a visible regression, and silently keeping the archive's value
+    without saying so would make this look more complete than it is.
+
+    Joins are case-insensitive throughout, which is the same decision
+    `gamedata.py` documents: the upstream data is inconsistently capitalised and
+    exact matching silently loses real entries.
+    """
+    import gametext  # local: only needed when regenerating, and it wants the pak
+
+    cat = gametext.Catalogue("en")
+    stats: dict[str, dict[str, int]] = {}
+
+    for section in ("items", "pals", "structures", "technology",
+                    "activeSkills", "passives"):
+        entries = data.get(section) or {}
+        names = {k.lower(): v for k, v in cat.names(section).items()}
+        try:
+            descs = {k.lower(): v for k, v in cat.descriptions(section).items()}
+        except KeyError:
+            descs = {}
+
+        counts = stats.setdefault(
+            section, {"total": len(entries), "named": 0, "renamed": 0,
+                      "fellBack": 0, "described": 0}
+        )
+
+        for ident, entry in entries.items():
+            # One entry point, which joins *and* resolves. Calling the raw
+            # lookups here shipped `<characterName id=|FlowerPrince|/>'s Petal`
+            # as a literal item name.
+            text = cat.name(section, ident)
+
+            if text:
+                counts["named"] += 1
+                if entry.get("name") != text:
+                    counts["renamed"] += 1
+                entry["name"] = text
+            else:
+                counts["fellBack"] += 1
+                # **The archive ships placeholders too**, and this was already
+                # true before the swap: `Scratch` and `Throw` have shipped as
+                # the literal string "en Text" for as long as the bundle has
+                # existed. Falling back to it is worse than falling back to the
+                # id, which at least reads as an id.
+                if _is_placeholder(entry.get("name")):
+                    counts["placeholderDropped"] = counts.get("placeholderDropped", 0) + 1
+                    entry["name"] = _humanize(ident)
+
+            description = descs.get(ident.lower())
+            if description:
+                counts["described"] += 1
+                entry["description"] = description
+
+        stats[section] = counts
+
+    # Region and dungeon names were not in this bundle at all before — the
+    # progression extractor deliberately carried `REGION_Grass_1` unresolved
+    # rather than inventing "Grass 1". The game's own answer is
+    # "Windswept Island".
+    for section, source in (("regions", "regions"), ("dungeons", "dungeons")):
+        resolved = cat.names(source)
+        if resolved:
+            data[section] = resolved
+            stats[section] = {"total": len(resolved), "named": len(resolved),
+                              "renamed": 0, "fellBack": 0, "described": 0}
+
+    data["_source"] = (
+        "Numbers from Pal-LinuxServer.pak DataTables; display strings from "
+        "Pal-Windows.pak L10N/en overrides. See docs/GAMEDATA-SOURCES.md."
+    )
+    return stats
+
+
 def main() -> int:
     data = build()
 
+    names = apply_game_names(data)
     icons = resolve_icons(data)
 
     os.makedirs(os.path.dirname(OUT_PATH), exist_ok=True)
@@ -332,6 +453,17 @@ def main() -> int:
 
     totals = data["totals"]
     print(f"Wrote {OUT_PATH}")
+    # Per section for the same reason the icon report is: one aggregate would
+    # bury a regression. `fellBack` is the number that matters — those entries
+    # still carry the third-party archive's name.
+    print("  names (from the game's own L10N tables):")
+    for section, counts in names.items():
+        print(
+            f"    {section:13s} {counts['named']:5,}/{counts['total']:,} named"
+            f"  {counts['renamed']:5,} changed"
+            f"  {counts['fellBack']:5,} still from archive"
+            f"  {counts['described']:5,} described"
+        )
     # Per section, because one aggregate is unreadable here. `technology` and
     # `structures` are ~100% "missing" **by design** — `scripts/install-icons.py`
     # deliberately does not ship them (994 files, 6.4 MB, and nothing renders a
