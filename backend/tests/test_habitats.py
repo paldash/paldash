@@ -19,14 +19,47 @@ pytestmark = pytest.mark.skipif(
 
 
 def test_bundle_has_the_documented_shape():
-    """If these move, the docs and the Paldeck's footer are stale."""
+    """
+    If these move, the docs and the Paldeck's footer are stale.
+
+    **The figures changed on 2026-08-05 when the source did**, and the change is
+    the feature: the name-table workaround reported 348 species and an
+    *attribution rate* of 13,440 guessed out of 13,851 spawners, because its
+    whole difficulty was not knowing which species a spawner held.
+    `DT_PalWildSpawner` says outright, so every placement naming a defined
+    spawner is attributed exactly — 478 species, and the count here is coverage
+    rather than a success rate.
+    """
     s = habitats.summary()
     assert s["available"] is True
-    assert s["species"] == 348
-    assert s["spawnersTotal"] == 13_851
-    assert s["spawnersMatched"] == 13_440
+    assert s["species"] == 478
+    assert s["spawnersTotal"] == 8_253
+    # 71 placements name a spawner absent from the definition table.
+    assert s["spawnersMatched"] == 8_182
     # Same cell size as every other spatial figure in this project.
     assert s["cellSize"] == 25600.0
+
+
+def test_habitats_now_carry_a_level_range_which_the_workaround_could_not():
+    """
+    The old source could say *where* and never *what level*. This is the single
+    biggest gain: "Melpaca, levels 5-17" is a different answer from a shaded
+    blob, and it comes from the game rather than from an inference.
+    """
+    entry = habitats.for_species("Alpaca")
+    assert entry is not None
+    assert entry["levelMin"] > 0
+    assert entry["levelMax"] >= entry["levelMin"]
+
+
+def test_weight_is_labelled_as_within_group_only():
+    """
+    A weight is a real relative rate **inside one spawner group** and is not a
+    global spawn rate — two groups' weights are not comparable and nothing says
+    how often a spawner fires. The bundle says so, so a caller cannot quietly
+    treat it as one.
+    """
+    assert habitats.load()["weightIsWithinGroup"] is True
 
 
 def test_lookup_is_case_insensitive():
