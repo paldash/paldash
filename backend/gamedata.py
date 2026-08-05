@@ -69,6 +69,13 @@ BASECAMP_PATH = os.environ.get(
     ),
 )
 
+ECONOMY_PATH = os.environ.get(
+    "ECONOMY_DATA_PATH",
+    os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "data", "economy.json.gz"
+    ),
+)
+
 PASSIVE_EFFECT_PATH = os.environ.get(
     "PASSIVE_EFFECT_DATA_PATH",
     os.path.join(
@@ -83,6 +90,7 @@ _game_settings: Optional[dict[str, Any]] = None
 _boss_spawners: Optional[list[dict[str, Any]]] = None
 _work_assign: Optional[dict[str, Any]] = None
 _basecamp: Optional[dict[str, Any]] = None
+_economy: Optional[dict[str, Any]] = None
 _indexes: dict[str, dict[str, Any]] = {}
 
 
@@ -154,7 +162,7 @@ def _reset_cache() -> None:
     reset always has: it works until it silently does not.
     """
     global _data, _effigies, _passive_effects, _game_settings
-    global _boss_spawners, _work_assign, _basecamp
+    global _boss_spawners, _work_assign, _basecamp, _economy
     _data = None
     _effigies = None
     _passive_effects = None
@@ -162,6 +170,7 @@ def _reset_cache() -> None:
     _boss_spawners = None
     _work_assign = None
     _basecamp = None
+    _economy = None
     _indexes.clear()
 
 
@@ -706,6 +715,96 @@ def worker_sanity_thresholds() -> list[dict[str, Any]]:
     different question from the one it appears to answer.
     """
     return basecamp().get("workerEvents") or []
+
+
+def economy() -> dict[str, Any]:
+    """
+    Recipes, Pal drops, loot tables, shops, food effects and production yields.
+
+    From the server pak via `scripts/extract-economy.py`. Empty dict when the
+    bundle is absent, like every accessor here.
+    """
+    global _economy
+    if _economy is None:
+        try:
+            with gzip.open(ECONOMY_PATH, "rt", encoding="utf-8") as f:
+                _economy = json.load(f)
+        except (OSError, json.JSONDecodeError) as e:
+            logger.warning(
+                "Economy data unavailable (%s); recipes, drops and shop stock "
+                "will be missing", e
+            )
+            _economy = {}
+    return _economy
+
+
+def recipe(item_id: str) -> Optional[dict[str, Any]]:
+    """
+    How one item is crafted: materials, counts and work amount.
+
+    **Keyed by product, which collapses 1,414 rows to 1,399.** Fifteen products
+    have more than one recipe row and only one survives. That is right for "how
+    do I make X" and wrong for "every way to make X" — if the second question
+    ever matters, the extractor needs to emit a list.
+
+    Which *bench* crafts it is not here, and not anywhere: `WorkableAttribute`
+    is present on every recipe row and is 0 on all of them.
+    """
+    return (economy().get("recipes") or {}).get(str(item_id or ""))
+
+
+def drops_for(species_id: str) -> list[dict[str, Any]]:
+    """
+    What a species drops, by level band.
+
+    **`levelFrom` is a band, not a level.** The column holds only 0, 10, 20 … 80,
+    so a row covers "level 30-39". Interpolating between bands would be
+    inventing numbers the game does not have.
+
+    Case-insensitive, and `BOSS_`-prefixed variants have their own tables — an
+    alpha drops differently from the ordinary form, so this does *not* strip the
+    prefix the way `pal()` does.
+    """
+    table = economy().get("drops") or {}
+    key = str(species_id or "")
+    if key in table:
+        return table[key]
+    lowered = key.lower()
+    for name, rows in table.items():
+        if name.lower() == lowered:
+            return rows
+    return []
+
+
+def dropped_by(item_id: str) -> list[dict[str, Any]]:
+    """
+    Which species drop this item, with rates — the reverse lookup, and the one
+    a player actually asks ("where do I get Leather?").
+
+    Scans rather than indexes: ~890 species with a handful of bands each is a
+    few thousand comparisons, and building a reverse index would need
+    invalidating alongside the forward one for no measurable gain.
+    """
+    wanted = str(item_id or "").lower()
+    if not wanted:
+        return []
+    out = []
+    for species, bands in (economy().get("drops") or {}).items():
+        for band in bands:
+            for entry in band.get("items") or []:
+                if str(entry.get("itemId") or "").lower() == wanted:
+                    out.append({
+                        "speciesId": species,
+                        "levelFrom": band.get("levelFrom"),
+                        **entry,
+                    })
+    out.sort(key=lambda r: (-float(r.get("rate") or 0), r["speciesId"]))
+    return out
+
+
+def food_effect(item_id: str) -> Optional[dict[str, Any]]:
+    """What a cooked dish does, and for how long."""
+    return (economy().get("food") or {}).get(str(item_id or ""))
 
 
 def game_setting(name: str, default: Any = None) -> Any:
