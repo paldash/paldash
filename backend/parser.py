@@ -808,6 +808,17 @@ def extract_base_workers(gvas: Any) -> dict[str, str]:
     """
     `{character_container_id: base_camp_id}` — which base each Pal works at.
 
+    A thin projection of `_base_worker_join`, which also yields each base's
+    worker *capacity*. One join, two views: the offset read below is the risky
+    part of this module and must not exist in two places.
+    """
+    return _base_worker_join(gvas)[0]
+
+
+def _base_worker_join(gvas: Any) -> tuple[dict[str, str], dict[str, int]]:
+    """
+    `({container_id: base_id}, {base_id: slot capacity})` in one pass.
+
     This was previously documented here as impossible. It is not: every base's
     `WorkerDirector` names the character container holding its workers, and the
     join is exact rather than spatial. Measured on the reference world: **11 of
@@ -831,11 +842,16 @@ def extract_base_workers(gvas: Any) -> dict[str, str]:
 
     world = _world_save_data(gvas)
 
-    known: set[str] = set()
+    # Capacity comes along for the ride, because the same join already has it and
+    # deriving it separately would mean reading the offset twice. `SlotNum` is the
+    # *real* per-base worker cap: the game has already applied whatever this
+    # server's `BaseCampWorkerMaxNum` and the base's own level allow, so it beats
+    # any figure computed from a setting. See `extract_base_worker_capacity`.
+    known: dict[str, int] = {}
     for entry in _v(world, "CharacterContainerSaveData", "value", default=[]) or []:
         container_id = str(_v(entry, "key", "ID", "value") or "").lower()
         if container_id:
-            known.add(container_id)
+            known[container_id] = _num(entry.get("value") or {}, "SlotNum", 0)
 
     def _guid_at(blob: bytes, offset: int) -> str:
         a, b, c, d = struct.unpack_from("<4I", blob, offset)
@@ -844,6 +860,7 @@ def extract_base_workers(gvas: Any) -> dict[str, str]:
         )
 
     workers: dict[str, str] = {}
+    capacities: dict[str, int] = {}
     camps = _v(world, "BaseCampSaveData", "value", default=[]) or []
     for entry in camps if isinstance(camps, list) else []:
         raw = _v(entry, "value", "RawData", "value")
@@ -859,6 +876,7 @@ def extract_base_workers(gvas: Any) -> dict[str, str]:
         # nothing, so it is dropped rather than attributed.
         if base_id and container_id in known:
             workers[container_id] = base_id
+            capacities[base_id] = known[container_id]
 
     if camps and not workers:
         logger.warning(
@@ -867,7 +885,31 @@ def extract_base_workers(gvas: Any) -> dict[str, str]:
             "be unavailable",
             len(camps),
         )
-    return workers
+    return workers, capacities
+
+
+def extract_base_worker_capacity(gvas: Any) -> dict[str, int]:
+    """
+    `{base_camp_id: worker slots}` — the denominator `palCount` never had.
+
+    **This is the game's own answer for THIS base, not a figure derived from a
+    setting.** `SlotNum` on the base's worker container is what the game
+    allocated after applying this server's `BaseCampWorkerMaxNum` and the base's
+    own level, so it needs reconciling with neither. `gamedata.server_limit`
+    still says what the operator configured, but that is *context*: a
+    server-wide setting cannot tell you what one base can hold.
+
+    The measured spread is why this is read rather than computed. Refworld's
+    eleven bases are 20/16/13/8, the live world has 25s, and a 07-22 snapshot
+    has 10s and 14s. Only *neither-960-nor-5* generalises, which is the property
+    `extract_base_workers` already checks — and this shares that check by
+    sharing its implementation rather than repeating the offset read.
+
+    A base whose container did not resolve is **absent, never 0**. The caller
+    has to be able to tell "no cap known" from "a cap of zero", and a base with
+    a zero denominator renders as infinitely full.
+    """
+    return _base_worker_join(gvas)[1]
 
 
 def extract_guild_storage(gvas: Any) -> dict[str, str]:
