@@ -2083,6 +2083,73 @@ The 32 refusals are listed in the document with their errors rather than omitted
 because "this exists and we cannot read it" is a different and more useful
 statement than silence.
 
+## Display names come from the CLIENT pak, and every row is bound twice
+
+`scripts/l10n.py`. **The server pak's `*Text` tables are Japanese** — that is
+Palworld's source language, so the strings that decode there are `メルパカ`, not
+Melpaca. English and fourteen other languages are *per-language overrides* of
+those same tables under `Pal/Content/L10N/<lang>/`, in the client pak.
+
+Two dead ends were eliminated first, and both looked like the answer:
+`Localization/Game/<lang>/Game.locres` exists for 17 languages and **all 17 are
+37-byte placeholders with zero entries** — `scripts/locres.py` reads the format
+correctly, they are simply empty; and the server pak's source strings decode
+perfectly and are the wrong language.
+
+The overrides are in the **client** pak, so properties are unversioned and
+`uassettable`'s tag walk cannot run — zero property type names in the name table.
+**Do not respond to that by scanning `.uexp` for string-shaped bytes and pairing
+them with the name table in order.** That is the unverifiable half-decode this
+file refuses elsewhere, and a name is the worst possible place for it: an
+off-by-one is invisible until a player reports the wrong Pal.
+
+What makes it decodable is that an `FText` carries its **namespace and key
+inline**, so each row is self-identifying and bound by two independent parts of
+the file — the row name from the package name table, the key from the value
+stream:
+
+    row    PAL_NAME_Alpaca            (name table)
+    key    PAL_NAME_Alpaca_TextData   (inside the FText)
+    source Melpaca
+
+A one-byte drift breaks that agreement everywhere at once, so the agreement rate
+*measures* alignment instead of arguing for it. **235,696 of 235,696 rows**, 16
+languages × 27 tables, zero refusals — and every language decodes exactly 14,731
+rows, which is its own check, since a language is an override of one table.
+
+The row offset is **searched for, not hardcoded**: the acceptance criterion is
+the verification — the walk must end exactly at the end of the export. Same rule
+`uassettable` follows, for the same reason.
+
+Three traps, each of which produced plausible output rather than an error:
+
+- **An `FName` is (index, number), and the number is a suffix**, not a duplicate
+  marker. `ITEM_NAME_Accessory_NormalResist` with number 2 is the row
+  `..._NormalResist_1`. Ignoring it collapsed 784 of 1,994 item rows.
+- **History type 255 is a row nobody translated**, and its
+  `bHasCultureInvariantString` is an **int32, not one byte**. As a byte it
+  desynchronises everything after it — and it cost exactly 3 of 432
+  table×language combinations, all non-English, which is how it survived a pass
+  that looked complete.
+- **The untranslated marker has three spellings** — `en Text`, `en_text` and
+  `Unidentified Pal`. Knowing only the first hands `en Text` to the UI as a name.
+
+**The game distinguishes things the bundled archive does not.** `Accessory_AT_2`
+is "Attack Pendant **+1**"; the archive calls all three tiers "Attack Pendant",
+so the dashboard shows three different items under one name today. Tier variants
+otherwise inherit the base name (`AncientArmor_2` → `AncientArmor`), so the rule
+is **exact-first, base-fallback** — never base-first, or every `+1` disappears.
+
+**Technology names are rich-text references** — `<itemName id=|AIcore|/>` —
+because a technology that unlocks an item is named after it. Same tags appear in
+descriptions. A resolver must **refuse an unresolvable id** rather than leak
+markup into the UI.
+
+And the archive's `(Boss)` / `(Gym)` suffixes are **its own editorialising, not
+game data**. The game calls `BOSS_Alpaca` "Melpaca", which agrees with this
+file's own rule that an alpha Lamball is still called Lamball. `isBoss` travels
+separately; do not fold it back into the name.
+
 ## The SERVER pak's DataTables are fully decodable — numbers included
 
 **This supersedes the "rates, thresholds and coordinates are locked" conclusion
