@@ -69,6 +69,8 @@ container traps that only show up on a real build.
 | `docs/COMPATIBILITY.md` | Which server images work, and where they differ |
 | `docs/CROSSPLAY.md` | What is known about non-Steam players, and what is not |
 | `docs/LICENSING.md` | Why this is GPL-3.0, and what that does and does not require |
+| `docs/GAMEDATA-SOURCES.md` | Where every fact about the game comes from — read before designing |
+| `docs/DATATABLES.md` | Machine-generated index of all 471 server-pak DataTables |
 | `AGENTS.md` | The subtleties that have already caused bugs |
 
 ---

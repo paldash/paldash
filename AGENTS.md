@@ -2030,9 +2030,12 @@ at a map object the new guild does not own.
 The emptied guild is removed **last**, after its bases have been re-homed, so a
 failure anywhere earlier leaves it still holding them.
 
-## Read `docs/DATATABLES.md` BEFORE designing a feature, not after
+## Read `docs/GAMEDATA-SOURCES.md` BEFORE designing a feature, not after
 
-`scripts/mine-datatables.py` catalogues every DataTable in the server pak —
+`docs/GAMEDATA-SOURCES.md` is the curated map of every source — both paks, the
+INI files, the reference archive, the saves, and a section on what has been
+searched for and is **confirmed absent**. `scripts/mine-datatables.py` generates
+the exhaustive index behind it, cataloguing every DataTable in the server pak —
 **471 unique tables, 182,962 rows, 32 refusals** — with row counts and column
 names. It is a schema index, not data: it answers "does a table exist that knows
 X" so that question stops being answered by concluding it does not.
