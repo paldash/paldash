@@ -615,6 +615,26 @@ base chests, guild chests, player inventories, palboxes. On the test world that'
 645 item types and 8.3 million items across 11,639 containers. Totals are
 computed during the parse, so opening the tab costs nothing.
 
+**Base supply.** The Bases tab reports what each base is holding: its food boxes
+and whether any are empty, its breeding farms and whether there is cake in them,
+how many of its Pals are hungry, and how much of each staple material it has.
+
+Two things it is careful about, and both are limits rather than features:
+
+- **It reports facts, never mechanics.** The game's own
+  `DT_MapObjectMasterDataTable` confirms these are distinct structures but says
+  nothing about what any of them consumes — its columns are HP, defense and
+  material type. So "this base has a Feed Box and it is empty" is reported and
+  "move your food out of the chest" is not, because no file this project can read
+  backs the second.
+- **The threshold is yours, not the game's.** Every material stacks to 9,999, so
+  "keep a stack at each base" would mean 110,000 Wood across eleven bases. The
+  flag level is a control, shown next to the game's real stack size.
+
+The **Guild Chest is listed separately, once per guild**, because that is what it
+is — one 54-slot container shared by every base the guild owns. Two chests placed
+at two bases are two doors into the same box.
+
 ---
 
 ## Save editing

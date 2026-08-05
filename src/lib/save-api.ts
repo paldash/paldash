@@ -708,6 +708,76 @@ export async function getOneBaseStorage(baseId: string): Promise<BaseStorage> {
   return saveFetch(`/bases/${encodeURIComponent(baseId)}/storage`);
 }
 
+export interface SupplyItem {
+  itemId: string;
+  itemName: string;
+  /** Straight from the bundled catalogue — never derived from the id. */
+  icon: string;
+  count: number;
+}
+
+/** One container at a base, with what is in it. */
+export interface SupplyContainer {
+  containerId: string;
+  kind: string;
+  kindName: string;
+  usedSlots: number;
+  totalSlots: number;
+  itemCount: number;
+  items: SupplyItem[];
+}
+
+export interface SupplyStaple extends SupplyItem {
+  floor: number;
+  /** The game's own stack ceiling — 9999 for every material. Not the floor. */
+  stackSize: number;
+  below: boolean;
+}
+
+export interface BaseSupply {
+  baseId: string;
+  baseName: string;
+  guildId: string;
+  guildName: string;
+  palCount: number;
+  hungryPals: number;
+  feedBoxes: SupplyContainer[];
+  breedingFarms: SupplyContainer[];
+  medicineBoxes: SupplyContainer[];
+  staples: SupplyStaple[];
+  /**
+   * Observations, never instructions. The backend deliberately does not claim
+   * what a structure consumes — no game file this project can read says so.
+   */
+  notes: { kind: string; text: string }[];
+}
+
+export interface GuildChest {
+  guildId: string;
+  guildName: string;
+  containerId: string;
+  usedSlots: number;
+  totalSlots: number;
+  itemCount: number;
+  items: SupplyItem[];
+  staples: SupplyItem[];
+}
+
+export interface SupplyReport {
+  bases: BaseSupply[];
+  /** One per guild, shared by all its bases — never a per-base figure. */
+  guildChests: GuildChest[];
+  materials: string[];
+  floor: number;
+  floorIsOperatorSetting: boolean;
+  cakeItems: string[];
+}
+
+export async function getBaseSupply(floor?: number): Promise<SupplyReport> {
+  const query = floor === undefined ? '' : `?floor=${encodeURIComponent(floor)}`;
+  return saveFetch(`/bases/supply${query}`);
+}
+
 export type ReportFormat = 'csv' | 'json' | 'txt';
 
 export async function listReports(): Promise<{

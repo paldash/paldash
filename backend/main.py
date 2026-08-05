@@ -28,6 +28,7 @@ import announcements
 import audit
 import authz
 import baseprivacy
+import basesupply
 import breeding
 import charedit
 import db
@@ -1055,7 +1056,102 @@ def get_one_base_storage(base_id: str, request: Request) -> dict:
     for summary in savecache.get_section("baseStorage"):
         if summary["baseId"] == base_id:
             return summary
+
     raise HTTPException(404, f"No base {base_id}, or the world has not been parsed yet")
+
+
+@app.get("/api/bases/supply")
+def get_base_supply(
+    request: Request,
+    materials: Optional[str] = None,
+    floor: int = basesupply.DEFAULT_FLOOR,
+) -> dict:
+    """
+    What each base holds, what is conspicuously missing, and the guild chest.
+
+    **Scoped through exactly the same two filters as `/api/bases/storage`**, and
+    that is not incidental. A supply report names container contents per base, so
+    a filter applied to one of two endpoints serving the same data is not a
+    filter — `/api/world/fasttravel` is the standing example, and
+    `/api/inventory/{id}` is the worse one, because it looked up a container *by
+    id* and thereby went around every base-privacy check built on top of it.
+    Nothing here queries a container by id from the request; it reads the same
+    already-scoped summaries.
+
+    The guild chest is a **guild-level** container (see `basesupply`), so it is
+    returned for the caller's own guilds, or for all of them above `VIEW_DETAIL`.
+    Folding it into the per-base numbers would count one shared box once per
+    base and report stock that does not exist.
+
+    **Facts, not mechanics.** See the module docstring: the game files confirm
+    these are distinct structures and say nothing about what they consume, so
+    this reports what is where and never what to move.
+    """
+    authz.require(request, roles_module.VIEW_SELF)
+
+    staples = basesupply.parse_materials(materials)
+    floor = max(0, int(floor))
+
+    summaries = baseprivacy.filter_storage(
+        savecache.get_section("baseStorage"), _hidden_base_ids(request)
+    )
+    own = _own_guild_base_ids(request)
+    if own is not None:
+        summaries = [s for s in summaries if str(s.get("baseId") or "") in own]
+
+    # NOT `get_section`: it returns `[]` for anything that is not a list, and
+    # both of these are dicts. That is the trap `_export_sections` documents —
+    # the report would come back looking fine with every container empty.
+    data = savecache.get_data() or {}
+    containers = data.get("containers") if isinstance(data.get("containers"), dict) else {}
+    guild_storage = (
+        data.get("guildStorage") if isinstance(data.get("guildStorage"), dict) else {}
+    )
+    bases = {str(b.get("id") or ""): b for b in savecache.get_section("bases")}
+
+    # Hunger per base, counted off the same Pal records `/api/welfare` reads.
+    # `hungerType` is the game's own field: absent means fed.
+    hungry: dict[str, int] = {}
+    for pal in savecache.get_section("pals"):
+        if pal.get("hungerType") and pal.get("baseId"):
+            base_id = str(pal["baseId"])
+            hungry[base_id] = hungry.get(base_id, 0) + 1
+
+    reports = [
+        basesupply.base_report(
+            summary,
+            containers,
+            staples=staples,
+            floor=floor,
+            hungry=hungry.get(str(summary.get("baseId") or ""), 0),
+            pal_count=int(
+                (bases.get(str(summary.get("baseId") or "")) or {}).get("palCount") or 0
+            ),
+        )
+        for summary in summaries
+    ]
+
+    # Guild chests, for the guilds whose bases this caller can already see. That
+    # keeps the two halves of the answer scoped by one rule rather than two.
+    visible_guilds = {str(r.get("guildId") or "") for r in reports if r.get("guildId")}
+    chests = [
+        basesupply.guild_report(guild, guild_storage[str(guild.get("id") or "")],
+                                containers, staples=staples)
+        for guild in savecache.get_section("guilds")
+        if str(guild.get("id") or "") in guild_storage
+        and str(guild.get("id") or "") in visible_guilds
+    ]
+
+    return {
+        "bases": reports,
+        "guildChests": chests,
+        "materials": list(staples),
+        "floor": floor,
+        # Said outright so the UI never presents the floor as a game rule. The
+        # game's own stack ceiling for these is 9999; the floor is the operator's.
+        "floorIsOperatorSetting": True,
+        "cakeItems": basesupply.cake_ids(),
+    }
 
 
 def _named_map_objects() -> list[dict]:

@@ -75,7 +75,10 @@ const LAYERS: { id: string; label: string; color: string; group: 'live' | 'disco
   { id: 'static:supply', label: 'Supply drops', color: '#5b9dd9', group: 'static' },
 
   { id: 'palbox', label: 'Palboxes', color: '#5b9dd9', group: 'base' },
-  { id: 'breeding', label: 'Breeding', color: '#8d84c7', group: 'base' },
+  // `breeding` used to be the Ranch. The Breeding Farm matched no category at
+  // all, so none were ever drawn — see `_POI_CATEGORIES` in the parser.
+  { id: 'breeding', label: 'Breeding farms', color: '#8d84c7', group: 'base' },
+  { id: 'ranch', label: 'Ranches', color: '#b58cc7', group: 'base' },
   { id: 'statue', label: 'Statues', color: '#4d9e75', group: 'base' },
   { id: 'crafting', label: 'Crafting', color: '#a1a7b0', group: 'base' },
   { id: 'production', label: 'Production', color: '#6d747e', group: 'base' },

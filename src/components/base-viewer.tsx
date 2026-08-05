@@ -10,6 +10,7 @@ import { formatCoords } from '@/lib/map-coordinates';
 import { getBaseStorage, downloadReport, downloadExport, type ReportFormat } from '@/lib/save-api';
 import type { BaseStorage } from '@/lib/types';
 import { CAPABILITIES } from '@/lib/permissions';
+import BaseSupplyPanel from '@/components/base-supply';
 
 /** A base this full is about to start dropping what its Pals produce. */
 const NEARLY_FULL = 90;
@@ -337,6 +338,11 @@ export default function BaseViewer() {
           </div>
         </div>
       )}
+
+      {/* Supply. Its own section rather than a column on the base list, because
+          the guild chest is a guild-level container and does not belong in a
+          per-base row at all — see `basesupply`. */}
+      <BaseSupplyPanel />
     </div>
   );
 }

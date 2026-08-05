@@ -30,7 +30,11 @@ from parser import ZERO_GUID, _categorise
         ("MeteorDrop_Damagable", "oreNode"),
         # Base structures.
         ("PalBoxV2", "palbox"),
-        ("MonsterFarm", "breeding"),
+        # Two structures, and this row used to hold the wrong one. `MonsterFarm`
+        # is the Ranch; the Breeding Farm is `BreedFarm` and matched no category
+        # at all, so every one of them was dropped before reaching the map.
+        ("MonsterFarm", "ranch"),
+        ("BreedFarm", "breeding"),
         ("FarmBlockV2_tomato", "farm"),
         ("DefenseWall_Wood", "defense"),
         ("CoalPit", "production"),

@@ -161,6 +161,9 @@ const ROUTES: RouteRule[] = [
   // `baseVisibility` opening the map does NOT hand out other guilds' contents.
   { pattern: /^bases\/storage$/, methods: ['GET'], capability: CAPABILITIES.VIEW_SELF, feature: FEATURES.ITEMS },
   { pattern: /^bases\/[A-Za-z0-9-]+\/storage$/, methods: ['GET'], capability: CAPABILITIES.VIEW_SELF, feature: FEATURES.ITEMS },
+  // Same capability and feature as the storage routes above, because it is the
+  // same disclosure in a different shape — per-base container contents.
+  { pattern: /^bases\/supply$/, methods: ['GET'], capability: CAPABILITIES.VIEW_SELF, feature: FEATURES.ITEMS },
   // Literal `export/verify` before the `export/{kind}` pattern: verify is a POST
   // and must not be reachable as a GET export of a kind called "verify".
   { pattern: /^export\/verify$/, methods: ['POST'], capability: CAPABILITIES.VIEW_DETAIL, feature: null },

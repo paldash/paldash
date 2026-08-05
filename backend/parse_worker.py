@@ -39,7 +39,7 @@ logger = logging.getLogger(__name__)
 # update, with nothing anywhere saying why. `savecache` now discards a cache
 # whose schema does not match this, so the worst case is one re-parse instead of
 # a wrong number.
-SCHEMA_VERSION = 6
+SCHEMA_VERSION = 7
 
 
 def lower_priority() -> None:
@@ -113,6 +113,7 @@ def main() -> int:
         extract_container_ownership,
         extract_containers,
         extract_dimension_storage,
+        extract_guild_storage,
         extract_guilds,
         extract_map_objects,
         extract_pal_storage,
@@ -156,6 +157,10 @@ def main() -> int:
     # (it re-walks an already-decoded MapObjectSaveData) and it is what turns a
     # single undifferentiated item pile into per-base storage.
     ownership = extract_container_ownership(gvas)
+    # The Guild Chest, which is *not* one of the above: it hangs no ItemContainer
+    # module off its placed object, so `ownership` never sees it. Its contents
+    # are guild property held one level up. See `extract_guild_storage`.
+    guild_storage = extract_guild_storage(gvas)
     base_storage = summarise_base_storage(containers, ownership, bases) if args.items else []
     storage_by_base = {s["baseId"]: s for s in base_storage}
 
@@ -271,6 +276,7 @@ def main() -> int:
         "containers": containers,
         "containerOwnership": ownership,
         "baseStorage": base_storage,
+        "guildStorage": guild_storage,
         "mapObjects": map_objects,
         "items": items,
         "counts": {
@@ -280,6 +286,7 @@ def main() -> int:
             "pals": len(pals),
             "containers": len(containers),
             "ownedContainers": len(ownership),
+            "guildChests": len(guild_storage),
             "mapObjects": len(map_objects),
             "itemTypes": len(items),
         },

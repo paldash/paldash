@@ -205,6 +205,7 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
     effigies: false,
     palbox: true,
     breeding: true,
+    ranch: true,
     statue: true,
     chest: false,
     oreNode: false,

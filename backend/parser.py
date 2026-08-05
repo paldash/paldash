@@ -639,7 +639,17 @@ _POI_CATEGORIES: list[tuple[str, re.Pattern]] = [
     ("drop", re.compile(r"CommonDropItem3D|DroppedCharacter", re.I)),
 
     ("palbox", re.compile(r"PalBox", re.I)),
-    ("breeding", re.compile(r"MonsterFarm", re.I)),
+    # `breeding` used to match MonsterFarm, which is the **Ranch** — the pasture
+    # that produces wool and eggs. The Breeding Farm is `BreedFarm`, and it
+    # matched nothing at all, so all five on the reference world were dropped by
+    # `_categorise` and never appeared on the map. One category was pointing at
+    # the wrong structure while the structure it was named for was invisible.
+    #
+    # `structure_name` had the answer the whole time: MonsterFarm -> "Ranch",
+    # BreedFarm -> "Breeding Farm". A category whose name disagrees with what the
+    # game calls the thing is worth checking rather than trusting.
+    ("breeding", re.compile(r"BreedFarm", re.I)),
+    ("ranch", re.compile(r"MonsterFarm", re.I)),
     ("statue", re.compile(r"GoddessStatue", re.I)),
     ("crafting", re.compile(r"WeaponFactory|SphereFactory|Workbench|WorkBench|RepairBench", re.I)),
     ("production", re.compile(r"OilPump|StonePit|QuartzPit|CoalPit|CopperPit|BlastFurnace|Deforest|ElectricGenerator|Crusher|FlourMill|IceCrusher", re.I)),
@@ -858,6 +868,70 @@ def extract_base_workers(gvas: Any) -> dict[str, str]:
             len(camps),
         )
     return workers
+
+
+def extract_guild_storage(gvas: Any) -> dict[str, str]:
+    """
+    `{guild_id: item_container_id}` — the Guild Chest.
+
+    **The Guild Chest is not a base container and never was.** Every other
+    storage structure in the game hangs an `ItemContainer` module off its
+    `MapObjectSaveData` entry, which is how `extract_container_ownership` finds
+    chests, feed boxes and breeding farms. `GuildChest` does not: all eight on
+    the reference world carry `GuildSecurity` and nothing else, so a per-base
+    walk finds them placed on the map and holding nothing.
+
+    Their contents live one level up, in `GuildExtraSaveDataMap`, because the
+    chest is **shared by the whole guild** rather than owned by the base it
+    stands in. Eight placed chests on the reference world, five guilds, five
+    containers — the count difference is the point: two chests in the same guild
+    are two doors into one 54-slot box.
+
+    `GuildItemStorage.RawData` is an opaque 20-byte ByteProperty: the container
+    GUID at offset 0 and four trailing bytes. That is the same measured-offset
+    read `extract_base_workers` performs, and it carries the same obligation —
+    the decoded id **must resolve to a real `ItemContainerSaveData` entry** or it
+    is dropped. A layout change therefore yields nothing rather than a confident
+    wrong answer about what a guild is holding. Measured: **5 of 5** guilds
+    resolve, to containers of 54 slots.
+
+    GUID byte order is `u32le`, as in `extract_base_workers`.
+    """
+    import struct
+
+    world = _world_save_data(gvas)
+
+    known: set[str] = set()
+    for entry in _v(world, "ItemContainerSaveData", "value", default=[]) or []:
+        container_id = str(_v(entry, "key", "ID", "value") or "").lower()
+        if container_id:
+            known.add(container_id)
+
+    def _guid_at(blob: bytes, offset: int) -> str:
+        a, b, c, d = struct.unpack_from("<4I", blob, offset)
+        return "%08x-%04x-%04x-%04x-%04x%08x" % (
+            a, b >> 16, b & 0xFFFF, c >> 16, c & 0xFFFF, d
+        )
+
+    storage: dict[str, str] = {}
+    guilds = _v(world, "GuildExtraSaveDataMap", "value", default=[]) or []
+    for entry in guilds if isinstance(guilds, list) else []:
+        guild_id = str(_v(entry, "key", "value") or entry.get("key") or "")
+        blob = _v(entry, "value", "GuildItemStorage", "value", "RawData", "value", "values")
+        if not isinstance(blob, (bytes, bytearray)) or len(blob) < 16:
+            continue
+        container_id = _guid_at(bytes(blob), 0)
+        if guild_id and container_id in known:
+            storage[guild_id] = container_id
+
+    if guilds and not storage:
+        logger.warning(
+            "No guild chest containers resolved across %d guilds — the "
+            "GuildItemStorage layout may have changed; guild chest contents "
+            "will be unavailable",
+            len(guilds),
+        )
+    return storage
 
 
 _CHARACTER_CONTAINER_MODULE = "CharacterContainer"

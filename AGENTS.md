@@ -467,6 +467,52 @@ Unnamed bases keep the game's placeholder (`新規生成拠点テンプレート
 rather than an empty string, so `_base_name` swaps in positional numbering and
 flags `playerNamed: false`. Every base on the reference world hits this.
 
+### The Guild Chest is not one of them, and that is why it looked empty
+
+**`GuildChest` hangs no `ItemContainer` module off its placed object.** All eight
+on the reference world carry `GuildSecurity` and nothing else, so the join above
+finds them standing in a base and holding nothing — which reads as a chest nobody
+has filled rather than as a chest this code cannot see into.
+
+Its contents are one level up, in `GuildExtraSaveDataMap`, because the chest
+belongs to the **guild** rather than to the base it stands in:
+
+```
+GuildExtraSaveDataMap[].GuildItemStorage.RawData   # opaque, 20 bytes
+  -> container GUID at offset 0
+  -> ItemContainerSaveData[].key.ID
+```
+
+`parser.extract_guild_storage` reads it. Same measured-offset discipline as
+`extract_base_workers`, and the same obligation: the decoded id **must resolve to
+a real `ItemContainerSaveData` entry** or it is dropped, so a layout change yields
+nothing rather than a confident wrong answer about what a guild is holding.
+Measured: **5 of 5** guilds resolve, to 54-slot containers.
+
+**Eight placed chests, five guilds, five containers — the count difference is the
+point.** Two chests in one guild are two doors into one box. So "stock each
+base's guild chest" is not a thing that can be done, and folding the chest into a
+per-base figure would report the same items once per base. It travels at guild
+level for the same reason `guildPalCount` does.
+
+### And `breeding` was pointing at the Ranch
+
+`_POI_CATEGORIES` matched `MonsterFarm` for its `breeding` category. `MonsterFarm`
+is the **Ranch**; the Breeding Farm is `BreedFarm`, which matched nothing at all —
+so all five on the reference world were dropped by `_categorise` and never reached
+the map. One category named for a structure it did not match, while the structure
+it was named for was invisible.
+
+`structure_name` had the answer the whole time (`MonsterFarm` → "Ranch",
+`BreedFarm` → "Breeding Farm"). **A category whose name disagrees with what the
+game calls the thing is worth checking rather than trusting** — the same shape as
+the tower-boss and `FBOSS` count checks. They are now `breeding` and `ranch`, two
+layers.
+
+Note the Breeding Farm's contents were never lost: `extract_container_ownership`
+does not filter on category, so its `ItemContainer` was always in per-base
+storage. Only the map layer was affected.
+
 ## The container: three things that will bite
 
 All three were invisible to the test suite and only showed up on a real build
@@ -1468,6 +1514,27 @@ If someone does want the mechanic settled, the place to look is the build-object
 Blueprints themselves via the CDO technique below — a container's accepted-item
 filter is plausibly a UPROPERTY on `BP_BuildObject_PalFoodBox`'s class default.
 That technique is proven and cheap; nobody has pointed it at these.
+
+**`backend/basesupply.py` is what got built on that**, and it holds the line: it
+reports where things are and never what to move. A test asserts that no note it
+emits contains "move" or "should", so the refusal is pinned rather than merely
+intended — the moment someone has a source for the mechanic, that test is the
+thing to change, deliberately.
+
+Two figures it needs that are *not* game data, and both say so where they live:
+
+- **The staple material list** is an operator judgement. Nothing in the game
+  ranks materials by how often a base needs them, so this is on the same footing
+  as `elements.py`'s chart: hand-written is allowed because the data does not
+  exist, and the obligation is provenance plus configurability. It is written as
+  **ids, never display names** — "Ore" is `CopperOre`, "Ingot" is `CopperIngot`,
+  "Refined Ingot" is `IronIngot` and "Paldium Fragment" is `Pal_crystal_S`, so a
+  list keyed on what the UI shows would silently miss four basic materials.
+- **The floor is not `maxStack`.** Every material in the game stacks to **9,999**,
+  so "keep one stack at each base" — the shape the request arrived in — resolves
+  to 110,000 Wood across an eleven-base world. The floor is therefore an operator
+  setting with `stackSize` carried beside it in the payload, so the UI can show
+  the difference instead of letting a chosen threshold read as a game rule.
 
 ## A Blueprint's CDO decodes too, and 347 tuning constants were in there
 
