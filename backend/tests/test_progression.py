@@ -132,3 +132,48 @@ def test_a_missing_bundle_costs_the_panel_not_the_page(monkeypatch):
     assert gamedata.relic_rank("HungerReduction", 5) is None
     assert gamedata.area_ids() == {}
     assert gamedata.quest_location("x") is None
+
+
+# ── relic line names ──────────────────────────────────────────────────────
+
+
+def test_every_relic_line_carries_the_games_own_name():
+    """
+    The table gives only an internal `RelicType`, so a panel could have offered
+    "StatusAilmentResist". Names come from the client pak's
+    `BUILDUP_PLAYER_STATUS_NN`, with descriptions beside them.
+    """
+    meta = gamedata.progression().get("relicTypes") or {}
+    assert len(meta) == 13
+    for kind, row in meta.items():
+        assert row["name"], kind
+        assert row["nameIsInternal"] is False, kind
+        assert row["description"], kind
+
+
+def test_the_positional_join_is_anchored_not_assumed():
+    """
+    **`BUILDUP_PLAYER_STATUS_NN` is indexed, not keyed**, so pairing it with the
+    table is positional — the kind of join this project refuses when it cannot
+    be checked. It is acceptable here because it *is* checked: these four are
+    distinctive and spread across the range, so an off-by-one breaks at least
+    one. `extract-progression.py` refuses the build if any drift.
+    """
+    meta = gamedata.progression()["relicTypes"]
+    assert meta["CapturePower"]["name"] == "Capture Power"
+    assert meta["StaminaReduction"]["name"] == "Endurance"
+    assert meta["SphereHoming"]["name"] == "Sphere Tracking"
+    assert meta["MoveSpeed"]["name"] == "Movement Speed"
+
+
+def test_names_are_not_derivable_from_the_ids_which_is_why_they_are_looked_up():
+    """
+    Half of these could not be humanised into the right words. `HungerReduction`
+    is "Satiety Duration", `GliderSpeed` is "Flight Capacity",
+    `StaminaReduction` is "Endurance", `RainbowPassiveRate` is "Rainbow
+    Fortune". A `humanize()` would have produced plausible, wrong labels.
+    """
+    meta = gamedata.progression()["relicTypes"]
+    assert meta["HungerReduction"]["name"] == "Satiety Duration"
+    assert meta["GliderSpeed"]["name"] == "Flight Capacity"
+    assert meta["RainbowPassiveRate"]["name"] == "Rainbow Fortune"
