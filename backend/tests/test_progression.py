@@ -177,3 +177,55 @@ def test_names_are_not_derivable_from_the_ids_which_is_why_they_are_looked_up():
     assert meta["HungerReduction"]["name"] == "Satiety Duration"
     assert meta["GliderSpeed"]["name"] == "Flight Capacity"
     assert meta["RainbowPassiveRate"]["name"] == "Rainbow Fortune"
+
+
+# ── what the relics bought ────────────────────────────────────────────────
+
+
+def test_relic_lines_return_every_line_including_untouched_ones():
+    """
+    "Nothing spent on Endurance" is what someone deciding where the next effigy
+    goes needs. Dropping empty lines would make the panel look like it only
+    knows about lines already invested in.
+    """
+    import main
+
+    lines = main._relic_lines({"MoveSpeed": 18})
+    assert len(lines) == 13
+    assert {l["type"] for l in lines} == set(gamedata.progression()["relicTypes"])
+
+
+def test_a_spend_resolves_to_a_rank_and_a_cumulative_effect():
+    import main
+
+    line = next(l for l in main._relic_lines({"MoveSpeed": 18}) if l["type"] == "MoveSpeed")
+    assert line["name"] == "Movement Speed"
+    assert line["spent"] == 18
+    # `requiredRelics` is the cost OF EACH RANK, so 18 relics buys rank 6 on a
+    # line that runs 1 then 3 per rank. A cumulative reading of that column
+    # would put this at rank 18.
+    assert line["rank"] == 6
+    assert line["effectRate"] > 0
+    assert line["hasEffectRate"] is True
+
+
+def test_capture_power_never_reports_an_effect_rate():
+    """
+    **All 15 of its ranks are 0.0** while the other twelve carry real values, so
+    its effect is expressed somewhere other than that column. Rendering "+0%"
+    would be a confident wrong number rather than a missing one.
+    """
+    import main
+
+    line = next(
+        l for l in main._relic_lines({"CapturePower": 3}) if l["type"] == "CapturePower"
+    )
+    assert line["rank"] > 0, "the rank itself is real and must still be reported"
+    assert line["hasEffectRate"] is False
+
+
+def test_lines_sort_most_invested_first():
+    import main
+
+    lines = main._relic_lines({"MoveSpeed": 18, "CapturePower": 3})
+    assert [l["type"] for l in lines[:2]] == ["MoveSpeed", "CapturePower"]

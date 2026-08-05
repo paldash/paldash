@@ -2234,6 +2234,41 @@ def get_players() -> list[dict]:
     return enriched
 
 
+def _relic_lines(spent: dict[str, Any]) -> list[dict[str, Any]]:
+    """
+    Each statue line: what this player bought, and what the next rank costs.
+
+    **Every line is returned, including the ones at zero.** "You have spent
+    nothing on Endurance" is a real answer and is exactly what someone deciding
+    where to put the next effigy needs; dropping empty lines would make the
+    panel look like it only knows about the ones already invested in.
+
+    `hasEffectRate` is passed straight through and must be honoured.
+    `CapturePower` carries 0.0 on all 15 of its ranks while the other twelve
+    carry real values — its effect is expressed somewhere other than that
+    column, so rendering "+0%" for it would be a confident wrong number rather
+    than a missing one.
+    """
+    lines = []
+    for kind, meta in (gamedata.progression().get("relicTypes") or {}).items():
+        used = int(spent.get(kind) or 0)
+        rank = gamedata.relic_rank(kind, used)
+        if rank is None:
+            continue
+        lines.append({
+            "type": kind,
+            "name": meta.get("name") or kind,
+            "nameIsInternal": bool(meta.get("nameIsInternal")),
+            "description": meta.get("description") or "",
+            "spent": used,
+            **rank,
+        })
+    # Most invested first — the lines someone has actually committed to are the
+    # ones they are reasoning about, and thirteen alphabetical rows bury them.
+    lines.sort(key=lambda r: (-r["spent"], r["name"]))
+    return lines
+
+
 @app.get("/api/progress")
 def get_progress(request: Request) -> dict[str, Any]:
     """
@@ -2290,6 +2325,10 @@ def get_progress(request: Request) -> dict[str, Any]:
                     "source": info["source"],
                 }
         entry["remaining"] = remaining
+        # What the effigies this player collected actually bought them. The map
+        # has shown all 396 and which are found since the layer shipped, and has
+        # never said what finding them did.
+        entry["relicLines"] = _relic_lines(entry.pop("relicsSpent", None) or {})
 
     return {
         "players": entries,
