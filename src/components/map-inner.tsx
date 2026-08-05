@@ -807,8 +807,19 @@ export default function MapInner({
       : effigies;
     if (points.length === 0) return;
 
+    // **The per-kind filter was never consulted here.** The panel offers one
+    // checkbox per effigy kind and counts them, and every box did nothing —
+    // `kindsOff` was absent from both the body and the dependency array, so the
+    // layer never even re-rendered when a box was ticked. The fast-travel layer
+    // directly above does this correctly; this one was written without it.
+    const off = kindsOff.effigies ?? [];
+
     const transform = getRegion(region);
+    const size = px(5) + 2;
     for (const point of points.filter((p) => transform.contains(p.x, p.y))) {
+      const kind = point.kind || 'Effigy';
+      if (off.includes(kind)) continue;
+
       const coords = worldToGameMap(point.x, point.y);
       const found = point.discovered;
       const unknown = found === undefined;
@@ -817,15 +828,31 @@ export default function MapInner({
       // and the whole reason to switch the mode on is to find the missing ones.
       if (hideCollected && found === true) continue;
 
-      L.circleMarker(worldToMap(point.x, point.y, region), {
-        radius: px(4) / 2 + 2,
-        // A dark edge on both states. An uncollected effigy at 25% fill and a
-        // matching outline was nearly invisible, which defeated the point — the
-        // ones you have *not* found are the ones you are looking for.
-        color: 'rgba(0,0,0,.55)',
-        weight: 1,
-        fillColor: unknown ? '#8d84c7' : found ? '#4d9e75' : '#8d84c7',
-        fillOpacity: unknown ? 0.7 : found ? 0.9 : 0.5,
+      // Colour says which kind, exactly as the world-object layer does — and
+      // it is the same `kindColor` the filter panel draws its swatches with, so
+      // the legend and the map cannot disagree. Every effigy used to be one
+      // shade of purple, which made a 396-marker layer unreadable and the
+      // per-kind swatches a promise the map did not keep.
+      //
+      // A collected one is green regardless of kind: on a collectathon map
+      // "done" outranks "which" — that is the distinction being hunted for.
+      const color = found === true ? '#4d9e75' : kindColor(kind, '#8d84c7');
+      // **Triangle, because that is what the panel shows.** `SHAPES.effigies`
+      // has said `triangle` all along while this drew a `circleMarker`, so the
+      // filter's swatch and the marker beside it were different shapes for the
+      // same thing.
+      const shape = markerShape('effigies');
+
+      L.marker(worldToMap(point.x, point.y, region), {
+        icon: L.divIcon({
+          className: 'shape-marker',
+          html: shapeSvg(shape, size, color),
+          iconSize: [size, size],
+          iconAnchor: [size / 2, size / 2],
+        }),
+        // Uncollected ones are what the layer is for, so they sit on top.
+        zIndexOffset: found === true ? 0 : 40,
+        opacity: unknown ? 0.75 : found ? 0.55 : 1,
       })
         .bindPopup(
           `<div style="min-width:150px">
@@ -838,7 +865,7 @@ export default function MapInner({
         )
         .addTo(group);
     }
-  }, [discoveries, effigies, layers.effigies, region, hideCollected]);
+  }, [discoveries, effigies, layers.effigies, kindsOff, region, hideCollected]);
 
   // ─── Field bosses ───────────────────────────────────────
   useEffect(() => {

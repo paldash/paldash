@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSession, isGuestEnabled } from '@/lib/auth';
+import { getSession, isGuestEnabled, publicUser } from '@/lib/auth';
 
 /**
  * Lets the client restore its session on reload and learn what it may do.
@@ -13,15 +13,7 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json({
     role: session.role,
-    user: session.user
-      ? {
-          username: session.user.username,
-          displayName: session.user.displayName,
-          role: session.user.role,
-          steamUid: session.user.steamUid,
-          mustChangePassword: session.user.mustChangePassword,
-        }
-      : null,
+    user: session.user ? publicUser(session.user) : null,
     capabilities: session.capabilities,
     securityLevel: session.securityLevel,
     // Guests are told what they may see so the UI can hide empty tabs; signed-in
