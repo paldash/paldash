@@ -55,6 +55,13 @@ GAME_SETTINGS_PATH = os.environ.get(
     ),
 )
 
+WORK_ASSIGN_PATH = os.environ.get(
+    "WORK_ASSIGN_DATA_PATH",
+    os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "data", "work_assign.json.gz"
+    ),
+)
+
 PASSIVE_EFFECT_PATH = os.environ.get(
     "PASSIVE_EFFECT_DATA_PATH",
     os.path.join(
@@ -67,6 +74,7 @@ _effigies: Optional[list[dict[str, Any]]] = None
 _passive_effects: Optional[dict[str, Any]] = None
 _game_settings: Optional[dict[str, Any]] = None
 _boss_spawners: Optional[list[dict[str, Any]]] = None
+_work_assign: Optional[dict[str, Any]] = None
 _indexes: dict[str, dict[str, Any]] = {}
 
 
@@ -128,10 +136,23 @@ def _lookup(section: str, key: str) -> Optional[dict]:
 
 
 def _reset_cache() -> None:
-    """Test hook — drops the module-level caches."""
-    global _data, _effigies
+    """
+    Test hook — drops **every** module-level cache.
+
+    It used to drop only `_data` and `_effigies`, so a test pointing
+    `BOSS_SPAWNER_DATA_PATH` or `PASSIVE_EFFECT_DATA_PATH` at a fixture got
+    whatever the previous test had loaded. Each bundle added since arrived with
+    its own global and none were added here, which is the failure mode a partial
+    reset always has: it works until it silently does not.
+    """
+    global _data, _effigies, _passive_effects, _game_settings
+    global _boss_spawners, _work_assign
     _data = None
     _effigies = None
+    _passive_effects = None
+    _game_settings = None
+    _boss_spawners = None
+    _work_assign = None
     _indexes.clear()
 
 
@@ -486,6 +507,54 @@ def describe_boss(entry: dict[str, Any]) -> dict[str, Any]:
         "elements": info.get("elements") or [],
         "paldeckNumber": info.get("paldeckNumber"),
     }
+
+
+def work_assign(structure_id: str) -> Optional[dict[str, Any]]:
+    """
+    Which work a structure needs, from `DT_MapObjectAssignData`.
+
+    Returns None for anything not in the table, and **that is a meaningful
+    answer rather than a gap**: the structures absent from it are exactly the
+    ones no Pal is ever assigned to. On the reference world 44 of 63 base-placed
+    kinds resolve and the 19 that do not are chests, beds, the palbox, the spa,
+    walls and the food boxes. `test_work_assign.py` pins that.
+
+    **Case-insensitive**, like every other lookup here: the save spells it
+    `Workbench` and the table says `WorkBench`, so an exact match loses a real
+    structure without saying so.
+
+    A structure can need more than one kind of work — a farm plot needs Seeding,
+    Watering and Collection — so `slots` is a list. Reading only the first
+    answers a third of the question and looks complete.
+    """
+    global _work_assign
+    if _work_assign is None:
+        try:
+            with gzip.open(WORK_ASSIGN_PATH, "rt", encoding="utf-8") as f:
+                objects = json.load(f).get("objects") or {}
+            # Keyed lowercase on load rather than lowercasing per lookup: this
+            # is read once per structure in a per-base walk.
+            _work_assign = {str(k).lower(): v for k, v in objects.items()}
+        except (OSError, json.JSONDecodeError) as e:
+            logger.warning(
+                "Work assignment data unavailable (%s); per-structure work "
+                "requirements will be unknown", e
+            )
+            _work_assign = {}
+    return _work_assign.get(str(structure_id or "").lower())
+
+
+def work_assign_available() -> bool:
+    """
+    Whether the bundle loaded at all.
+
+    Distinct from a structure simply not being in it, which is normal. A caller
+    reporting "this base needs no work" must be able to tell the two apart —
+    that is the `.catch(() => [])` lesson: an empty answer and a failed load
+    must not share a representation.
+    """
+    work_assign("")
+    return bool(_work_assign)
 
 
 def game_setting(name: str, default: Any = None) -> Any:

@@ -67,5 +67,11 @@
     "gameBuild": "24370498",
     "regenerateWith": "python3 scripts/install-icons.py",
     "note": "1,409 icons (pals, items, elements, npcs) into public/icons/, filenames preserved so the `icon` paths already recorded in gamedata.json.gz resolve directly. A game update adding Pals or items adds icons; existing ones rarely change. Underlying artwork is Pocketpair's — see docs/LICENSING.md."
+  },
+  "work_assign.json.gz": {
+    "source": "Pal-LinuxServer.pak (DT_MapObjectAssignData)",
+    "gameBuild": "24370498",
+    "regenerateWith": "python3 scripts/extract-work-assign.py",
+    "note": "158 structures with the work suitability each needs, the MINIMUM rank a Pal must have, worker cap, sanity drain per tick and species restrictions. 271 rows because a structure can have several work slots — a farm plot needs Seeding, Watering and Collection, so reading only slot 0 answers a third of the question. This mapping was twice documented as absent from every game file (backend/optimise.py and backend/basesupply.py); it was in a sibling of the table those checked. Verified two ways: every work id resolves against the bundled list of 13, and the structures ABSENT from the table are exactly the ones no Pal is assigned to — on refworld, 44 of 63 base-placed kinds resolve and the 19 that do not are chests, beds, palbox, spa, walls and food boxes. WorkerMaxNum is 0 on 178 of 271 rows including quarries that plainly take workers, so it is NOT a capacity of zero; workerMaxIsUnset travels beside it."
   }
 }
