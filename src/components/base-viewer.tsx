@@ -11,6 +11,7 @@ import { getBaseStorage, downloadReport, downloadExport, type ReportFormat } fro
 import type { BaseStorage } from '@/lib/types';
 import { CAPABILITIES } from '@/lib/permissions';
 import BaseSupplyPanel from '@/components/base-supply';
+import BaseAssignPanel from '@/components/base-assign';
 
 /** A base this full is about to start dropping what its Pals produce. */
 const NEARLY_FULL = 90;
@@ -354,6 +355,12 @@ export default function BaseViewer() {
           the guild chest is a guild-level container and does not belong in a
           per-base row at all — see `basesupply`. */}
       <BaseSupplyPanel />
+
+      {/* Who should work where. Separate from supply because it answers a
+          different question off different data — structures and Pals rather
+          than containers — and because it recommends where supply only
+          reports. */}
+      <BaseAssignPanel />
     </div>
   );
 }
