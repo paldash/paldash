@@ -26,6 +26,12 @@
     "regenerateWith": "python3 scripts/extract-passive-effects.py",
     "note": "The numeric effects of all 1,897 passives — effect type, signed percentage, target and invoke conditions. gamedata.json.gz carries only the English sentence (\"Attack +5%\"), which cannot be computed with. Verified against that prose: 1,754 of the 1,759 passives with a numeric description match exactly; four of the five exceptions are the archive failing to substitute its own {EffectValue1} placeholder, and the fifth (FullStomach_Down_1_BossDefeat) is an unresolved disagreement."
   },
+  "game_settings.json.gz": {
+    "source": "Pal-LinuxServer.pak (BP_PalGameSetting class-default object)",
+    "gameBuild": "24370498",
+    "regenerateWith": "python3 scripts/extract-game-settings.py",
+    "note": "Pocketpair's own 347 tuning constants — damage rates, sanity and hunger thresholds, capture rates, base-camp ranges. Decoded from a Blueprint CDO rather than a DataTable, which is a capability nothing else here had. Self-verifying: the walk must terminate at the end of the export (41,416 of 41,420 bytes) AND reproduce CharacterMaxLevel=80 and CharacterMaxRank=5, two constants previously held from sources that could not be checked against the install. Run with --verify after a game update."
+  },
   "pal_breeding.json.gz": {
     "source": "tylercamp/palcalc precomputed table, layered with refs/PalWorldSaveTools-main.zip",
     "gameBuild": null,

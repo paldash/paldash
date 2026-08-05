@@ -830,13 +830,29 @@ Results so far:
   +20% defence, `Noukin` is +30% attack and **−50%** work speed. 175 skills touch
   more than one stat and 77 carry a negative.
 
-Two things it does **not** unlock, both recorded so nobody searches twice:
+- **347 of the game's own tuning constants.** `BP_PalGameSetting`'s class-default
+  object decodes out of the server pak — which supersedes the assumption that
+  only DataTables come out of a pak, and is the answer to "surely that number is
+  in the files somewhere". It usually is.
+
+  **The decode verifies itself**: `CharacterMaxLevel` comes out **80** and
+  `CharacterMaxRank` **5**, two constants this project already held from sources
+  that explicitly could not be checked against the install. A misaligned read
+  does not land two independently-known values in the right places, and
+  `--verify` asserts them after a game update.
+
+  Three numbers that had been guessed at were in there: the level cap above, the
+  low-sanity threshold the welfare panel uses
+  (`FriendshipPoint_AutoIncrementRequireSanity = 50`, which had been *chosen* at
+  50), and the element damage multiplier.
+
+Something it does **not** unlock, recorded so nobody searches twice:
 
 - **Field boss levels.** Numeric properties in the unversioned block.
-- **The element effectiveness chart.** All 480 DataTables were listed and read;
-  no `Compatibility`, `Effectiveness`, `Weakness` or `ElementDamage` asset exists
-  under any name. It is not in the reference archive either — all 78 "element"
-  entries there are icons. See "Element matchups" below for what ships instead.
+
+The element *relation* is also not in any file — all 480 DataTables were listed
+and read, and no `Compatibility`, `Effectiveness` or `ElementDamage` asset exists
+under any name. Its **multiplier**, however, is: see "Element matchups".
 
 `DefaultPalWorldSettings.ini` from the same install is the authoritative list of
 the 119 settings a 1.0 server accepts, and the test suite checks the parser and
@@ -863,10 +879,16 @@ strength pairs, nine weakness pairs, identical sets), and every name resolves
 against the bundled Pals — eight of nine matched the source's spelling, with only
 "Ground" needing mapping to the game's `Earth`.
 
-**No damage multipliers ship.** The source gives them as an image, so the numbers
-were never available as text. The API returns *strong*, *weak* or *neutral*, and
-a test asserts no multiplier table exists — "Water is strong against Fire" is
-supported, "for 1.5x" is not.
+**The multiplier is the game's, and it is not 2x.** Only the *relation* was
+hand-entered; the number came out of `BP_PalGameSetting` —
+`DamageElementMatchRate = **1.2**`. The widely repeated figure is 2x damage dealt
+and half taken, and the game's settings object holds **exactly one**
+element-damage constant with no halving counterpart, so neither popular number is
+reproduced by the files.
+
+The API still returns *strong*, *weak* or *neutral* rather than a damage
+estimate, because that constant's meaning is inferred from its name and the
+binary exports two more element-damage symbols that are C++ and unread.
 
 ---
 

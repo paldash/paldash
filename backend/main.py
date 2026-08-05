@@ -926,12 +926,19 @@ def get_pals(request: Request, owner: Optional[str] = None) -> list[dict]:
 
 #: How low sanity has to get before it is worth telling someone about.
 #
-# Not a game constant — the save stores the number and nothing stores the
-# threshold. Chosen because a Pal below roughly this point starts refusing work,
-# and because it is where the live world's distribution actually separates: 33
-# of 2,963 Pals sit under 50 while the rest cluster in the nineties. A threshold
-# that flags a fifth of a base is a threshold nobody reads twice.
-LOW_SANITY = 50.0
+# **This is the game's own threshold, and that was a lucky escape.** It was
+# picked here as a judgement call — 50, because a Pal below roughly that point
+# starts refusing work and because the live world's distribution separates there
+# (33 of 2,963 Pals under 50, the rest clustered in the nineties). It is written
+# down as a judgement call in the git history.
+#
+# `BP_PalGameSetting` turns out to carry `FriendshipPoint_AutoIncrementRequireSanity
+# = 50`: the sanity a Pal must hold to keep gaining trust. So the number is the
+# game's, not ours, and it now comes from the file rather than from agreement
+# with it. The literal remains as the fallback for a missing bundle.
+LOW_SANITY = float(
+    gamedata.game_setting("FriendshipPoint_AutoIncrementRequireSanity", 50.0)
+)
 
 
 @app.get("/api/welfare")

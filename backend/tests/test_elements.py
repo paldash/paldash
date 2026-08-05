@@ -151,11 +151,18 @@ def test_an_empty_element_list_is_neutral_rather_than_an_error():
     assert elements.matchup(["Fire"], []) == "neutral"
 
 
-def test_no_multiplier_is_exposed_anywhere():
+def test_the_relation_and_the_multiplier_stay_separate():
     """
-    The source presents its damage values as an IMAGE, so the numbers were never
-    available as text. Shipping a relation and letting a caller invent a
-    coefficient is the failure this guards against.
+    The multiplier is NOT hand-entered — `match_rate()` reads
+    `DamageElementMatchRate` out of the game's own settings object. What must not
+    exist is a hardcoded table beside it: the website's 2x and the file's 1.2
+    disagree, the file wins, and a second copy here is how that gets quietly
+    undone.
+
+    `effectiveness()` stays a relation because the *semantic* of that constant is
+    inferred from its name, so folding it into a damage estimate would assert
+    more than has been established.
     """
     assert not hasattr(elements, "MULTIPLIERS")
-    assert elements.effectiveness("Water", "Fire") == "strong"  # not 1.5
+    assert elements.effectiveness("Water", "Fire") == "strong"
+    assert elements.match_rate() == 1.2

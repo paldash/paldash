@@ -48,13 +48,30 @@ checked one:
    the nine match the article's spelling exactly; only `Ground` needed mapping to
    `Earth`. So this is not a vocabulary invented here.
 
-WHAT IS DELIBERATELY ABSENT
----------------------------
-**Damage multipliers.** The article presents them in an image, which is not text
-that could be transcribed, so no numbers are shipped. `effectiveness()` returns a
-*relation* — strong, weak or neutral — and callers must not invent a coefficient
-to go with it. Saying "Water is strong against Fire" is supported; saying "for
-1.5x damage" is not.
+THE MULTIPLIER **IS** IN THE GAME FILES, AND IT IS NOT 2x
+---------------------------------------------------------
+The relation had to be hand-entered. The *number* did not, and looking harder
+found it: `BP_PalGameSetting`'s class-default object carries
+
+    DamageElementMatchRate = 1.2
+
+decoded from the server pak by `scripts/extract-game-settings.py`, whose walk
+terminates at 41,416 of 41,420 bytes and independently reproduces
+`CharacterMaxLevel = 80` and `CharacterMaxRank = 5` — two constants this project
+already held from sources that could not be checked against the install.
+
+**The commonly cited figure is 2x damage dealt and 1/2 taken. The game's own
+settings object says 1.2, and there is no second element constant of any kind in
+it** — no halving rate, no resist rate, nothing. So the popular numbers are not
+reproduced by the files, and `MATCH_RATE` reports what the game ships.
+
+One honest limit: the *semantic* of `DamageElementMatchRate` is inferred from its
+name and from being the only element-damage constant present. The binary also
+exports `DamageUpElement_ByElementStatus` and `DamageDownElement_ByElementStatus`,
+which are C++ and unread, so whether some additional effect stacks on top of 1.2
+is not established here. `effectiveness()` therefore still returns a **relation**,
+and the multiplier is offered separately and labelled, rather than being folded
+into a damage estimate this cannot stand behind.
 """
 
 from __future__ import annotations
@@ -166,6 +183,23 @@ def unknown_to_chart() -> tuple[str, ...]:
 def chart_is_current() -> bool:
     """Whether the relation covers every element the game actually ships."""
     return not unknown_to_chart()
+
+
+def match_rate() -> float:
+    """
+    The damage multiplier for an advantageous matchup, from the game's own files.
+
+    `BP_PalGameSetting.DamageElementMatchRate` — **1.2**, not the widely repeated
+    2x. It is the only element-damage constant in that object; there is no
+    halving or resist counterpart, so the "1/2 damage taken" half of the popular
+    chart is not reproduced by the files either.
+
+    Falls back to 1.0 — *no* effect — rather than to 1.2 when the bundle is
+    missing, because a hardcoded second copy is how the two drift apart, and a
+    matchup that quietly does nothing is a better failure than one that asserts
+    a number nothing verified.
+    """
+    return float(gamedata.game_setting("DamageElementMatchRate", 1.0))
 
 
 def canonical(element: str) -> Optional[str]:

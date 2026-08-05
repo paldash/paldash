@@ -41,6 +41,13 @@ EFFIGY_PATH = os.environ.get(
     os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "effigies.json.gz"),
 )
 
+GAME_SETTINGS_PATH = os.environ.get(
+    "GAME_SETTINGS_DATA_PATH",
+    os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "data", "game_settings.json.gz"
+    ),
+)
+
 PASSIVE_EFFECT_PATH = os.environ.get(
     "PASSIVE_EFFECT_DATA_PATH",
     os.path.join(
@@ -51,6 +58,7 @@ PASSIVE_EFFECT_PATH = os.environ.get(
 _data: Optional[dict[str, Any]] = None
 _effigies: Optional[list[dict[str, Any]]] = None
 _passive_effects: Optional[dict[str, Any]] = None
+_game_settings: Optional[dict[str, Any]] = None
 _indexes: dict[str, dict[str, Any]] = {}
 
 
@@ -427,6 +435,38 @@ def effigies() -> list[dict[str, Any]]:
     for effigy in _effigies:
         effigy["kindName"] = effigy_kind_name(str(effigy.get("kind") or ""))
     return _effigies
+
+
+def game_setting(name: str, default: Any = None) -> Any:
+    """
+    One of Pocketpair's own tuning constants, from `BP_PalGameSetting`.
+
+    347 of them, decoded from the Blueprint's class-default object by
+    `scripts/extract-game-settings.py` — damage rates, sanity and hunger
+    thresholds, capture rates, base-camp ranges. This is the answer to "surely
+    that number is in the files somewhere", which it usually is.
+
+    THE DECODE VERIFIES ITSELF: `CharacterMaxLevel` comes out 80 and
+    `CharacterMaxRank` 5, two constants this project already held from sources
+    that explicitly could not be checked against the install. A misaligned walk
+    does not land two independently-known values in the right places.
+
+    Case-sensitive, unlike the id lookups here — these are UPROPERTY names with
+    one fixed spelling rather than ids three files disagree about.
+    """
+    global _game_settings
+    if _game_settings is None:
+        try:
+            with gzip.open(GAME_SETTINGS_PATH, "rt", encoding="utf-8") as f:
+                _game_settings = json.load(f)
+        except (OSError, json.JSONDecodeError) as e:
+            logger.warning(
+                "Game settings unavailable (%s); callers fall back to their own "
+                "documented defaults", e,
+            )
+            _game_settings = {}
+    value = _game_settings.get(name)
+    return default if value is None else value
 
 
 def passive_effects(passive_id: str) -> Optional[dict[str, Any]]:

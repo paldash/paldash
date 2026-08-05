@@ -1431,6 +1431,56 @@ Four things that bite:
   speed climbing with level on a Pal whose in-game work speed has not moved —
   wrong in the direction you would expect it to move, so nobody questions it.
 
+## A Blueprint's CDO decodes too, and 347 tuning constants were in there
+
+**This supersedes the assumption that only DataTables come out of the pak.** That
+was true of the client pak and wrong about the server pak's *Blueprints*:
+`BP_PalGameSetting`'s class-default object is tagged the same way, so every
+balance constant Pocketpair exposes as a UPROPERTY reads out.
+`scripts/extract-game-settings.py` bundles all 347 at 6 KB.
+
+**The decode verifies itself, which is the only reason to trust it without a
+second source.** Two constants this project already held from sources that
+explicitly could not be checked against the install fall out exactly:
+
+    CharacterMaxLevel = 80    <- editschema.MAX_LEVEL, documented as
+                                 "community-sourced, not read from the game files"
+    CharacterMaxRank  = 5     <- editschema.MAX_RANK
+
+A drifted tagged walk does not land two independently-known values in the right
+places. `--verify` asserts them and is what to run after a game update. The
+second criterion is the one `uassettable` already uses: the walk must terminate
+at the end of the export — measured, **41,416 of 41,420 bytes**.
+
+**The CDO is found by its `Default__` prefix, never by size.** Picking the
+biggest export works today and would silently choose a function body after an
+update.
+
+**Unknown value types are skipped by the size in their own tag**, which is the
+difference from `read_table`'s outright refusal. There a bad offset makes
+everything after it garbage; here each property is self-describing and
+independently placed, so an undecodable type costs one property (5 of 352, all
+StructProperty) rather than the file.
+
+### Three numbers this project had guessed at were sitting in that file
+
+- **`FriendshipPoint_AutoIncrementRequireSanity = 50`** — the sanity a Pal must
+  hold to keep gaining trust. `main.LOW_SANITY` had been *chosen* at 50 as a
+  judgement call. It is the game's number, and now comes from the file rather
+  than merely agreeing with it.
+- **`CharacterMaxLevel = 80`** — see above. The `PALWORLD_MAX_LEVEL` override
+  stays, but the constant is no longer unverifiable.
+- **`DamageElementMatchRate = 1.2`** — see below. Not 2x.
+
+### What else is in there, unused (candidates for future work)
+
+`BaseCampAreaRange = 3500`, `BaseCampNeighborMinimumDistance = 1500` (`_PVP =
+8500`), `PalBoxTimePeriodRecoverySick = 3600` (a sick Pal recovers in an hour in
+the box — worth saying on the welfare panel), `HungerParameterRate_Hunger = 10`
+and `_Starvation = 20`, `DamageRate_SleepHit = 3.0`, `DamageRate_WealPoint = 1.5`,
+`RarePal_AppearanceProbability = 0.1`, `Combi_BossPalRate = 0.05`,
+`PlayerHPRateFromRespawn = 0.5`.
+
 ### The element chart is the one hand-entered thing here, and it is quarantined
 
 Which element beats which is in **neither** source, and both were searched
@@ -1477,11 +1527,21 @@ not a verified one:
   `Dark, Dragon, Earth, Electric, Fire, Grass, Ice, Neutral, Water`. Eight of
   nine matched the source's spelling exactly.
 
-**No damage multipliers are shipped.** The source presents them as an image, so
-the numbers were never available as text. `effectiveness()` returns a *relation*
-— strong, weak or neutral — and callers must not invent a coefficient. "Water is
-strong against Fire" is supported; "for 1.5x" is not. A test asserts no
-multiplier table exists.
+**The multiplier is NOT hand-entered, and it is not 2x.** The relation had to be;
+the number did not, and looking harder found it —
+`BP_PalGameSetting.DamageElementMatchRate = **1.2**`, exposed as
+`elements.match_rate()`. The widely repeated figure is 2x dealt and 1/2 taken,
+and **the game's settings object contains exactly one element-damage constant**
+with no halving or resist counterpart, so neither popular number is reproduced by
+the files. A test pins that there is only the one key, so "the other half is not
+in there" rests on having looked rather than on not having found it.
+
+`effectiveness()` still returns a *relation* rather than a damage estimate,
+because the constant's **semantic is inferred from its name**. The binary also
+exports `DamageUpElement_ByElementStatus` and `DamageDownElement_ByElementStatus`,
+which are C++ and unread, so whether something stacks on top of 1.2 is not
+established. `match_rate()` falls back to **1.0** — no effect — rather than to a
+hardcoded 1.2, because a second copy is how the file and the code drift apart.
 
 Neutral is strong against nothing, which is the game's design (Neutral Pals trade
 matchups for base work) rather than a hole in the transcription, and Fire is the
