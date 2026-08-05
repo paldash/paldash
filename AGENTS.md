@@ -1440,6 +1440,35 @@ Four things that bite:
   speed climbing with level on a Pal whose in-game work speed has not moved —
   wrong in the direction you would expect it to move, so nobody questions it.
 
+## `DT_MapObjectMasterDataTable` says what a structure IS, not what it eats
+
+Checked 2026-08-04 before building a base supply advisor, and recorded because
+the negative half is the useful half. The table decodes cleanly — 1,034 rows —
+and confirms that the base containers are **five distinct build objects**:
+
+    PalFoodBox        BP_BuildObject_PalFoodBox      bBelongToBaseCamp=True
+    CoolerPalFoodBox  BP_BuildObject_PalFoodBoxCool  bBelongToBaseCamp=True
+    GuildChest        BP_BuildObject_GuildChest      bBelongToBaseCamp=True
+    BreedFarm         BP_BuildObject_BreedFarm       bBelongToBaseCamp=True
+    PalMedicineBox    BP_BuildObject_PalMedicineBox  bBelongToBaseCamp=True
+
+**But its columns are HP, Defense, MaterialType, DeteriorationDamage and
+ExtinguishBurnWorkAmount — structure and combat.** Nothing about what a
+container accepts or what a structure pulls from. So "Pal food must be in a Feed
+Box" and "the Breeding Farm consumes Cake" remain *unconfirmed by any game file*,
+however obviously true they are in play. A dashboard must not assert them as
+rules.
+
+The fix is a better feature anyway: **report facts, not mechanics.** "This base
+has a Feed Box and it is empty" needs no rule cited and is worth flagging on its
+own; "move your food out of the chest" is a claim about game behaviour and is not
+supported. The first framing survives being wrong about the second.
+
+If someone does want the mechanic settled, the place to look is the build-object
+Blueprints themselves via the CDO technique below — a container's accepted-item
+filter is plausibly a UPROPERTY on `BP_BuildObject_PalFoodBox`'s class default.
+That technique is proven and cheap; nobody has pointed it at these.
+
 ## A Blueprint's CDO decodes too, and 347 tuning constants were in there
 
 **This supersedes the assumption that only DataTables come out of the pak.** That
