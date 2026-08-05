@@ -188,3 +188,93 @@ def test_indirect_targets_reports_whether_it_was_gender_aware():
     aware = breeding.indirect_targets([a, b], genders=breeding.gender_pool(pals))
     assert aware["genderAware"] is True
     assert breeding.indirect_targets([a, b])["genderAware"] is False
+
+
+# ─── The one pair where gender decides the child ─────────
+
+
+def test_the_game_has_exactly_one_gender_dependent_pair():
+    """
+    `DT_PalCombiUnique` says "either gender" on 256 of its 258 rows. The two that
+    do not are CatMage x FoxMage, and they give *different children*:
+
+        Male CatMage   + Female FoxMage  ->  FoxMage_Dark   (Wixen Noct)
+        Female CatMage + Male   FoxMage  ->  CatMage_Fire   (Katress Ignis)
+
+    palcalc's table is keyed on `sorted([a, b])`, so it can hold only one — it
+    holds `FoxMage_Dark`, and Katress Ignis was **unreachable through this
+    planner** until the game's own table was read. Pinned by count so a second
+    such pair appearing is a visible change rather than a silent one.
+    """
+    import gamedata
+
+    gendered = [
+        c for c in gamedata.unique_combos()
+        if "None" not in (c["genderA"], c["genderB"])
+    ]
+    assert len(gendered) == 2
+    assert {c["childId"] for c in gendered} == {"FoxMage_Dark", "CatMage_Fire"}
+
+
+def test_predict_child_resolves_both_outcomes_when_told_the_genders():
+    assert breeding.predict_child("CatMage", "FoxMage", "Male", "Female") == "FoxMage_Dark"
+    assert breeding.predict_child("CatMage", "FoxMage", "Female", "Male") == "CatMage_Fire"
+
+
+def test_the_genders_follow_the_parents_when_the_pair_is_stated_backwards():
+    """
+    A female FoxMage with a male CatMage is the same pen as a male CatMage with a
+    female FoxMage. Swapping the species without swapping the genders would
+    return the other child, which is the subtle way to get this wrong.
+    """
+    assert breeding.predict_child("FoxMage", "CatMage", "Female", "Male") == "FoxMage_Dark"
+    assert breeding.predict_child("FoxMage", "CatMage", "Male", "Female") == "CatMage_Fire"
+
+
+def test_omitting_genders_keeps_the_old_behaviour():
+    """
+    Callers that do not know the genders must not start failing. They get the
+    pair table's single answer, exactly as before.
+    """
+    assert breeding.predict_child("CatMage", "FoxMage") == "FoxMage_Dark"
+    assert breeding.predict_child("SheepBall", "SheepBall", "Male", "Female") == "SheepBall"
+
+
+def test_an_ordinary_pair_reports_no_gender_dependence():
+    assert breeding.gendered_outcomes("SheepBall", "SheepBall") == {}
+
+
+def test_both_children_reach_the_one_step_view_and_say_which_sex_is_needed():
+    """
+    The user-visible fix. A player holding both sexes of both species can make
+    either child, and the planner used to show only one of them.
+    """
+    pals = [
+        {"speciesId": species, "gender": gender, "level": 10,
+         "passiveSkills": [], "isBoss": False}
+        for species in ("CatMage", "FoxMage")
+        for gender in ("Male", "Female")
+    ]
+    rows = {r["internalName"]: r for r in breeding.possible_offspring(pals)}
+
+    assert "FoxMage_Dark" in rows and "CatMage_Fire" in rows
+    for name in ("FoxMage_Dark", "CatMage_Fire"):
+        assert rows[name]["genderDependent"] is True
+        assert rows[name]["requiresGenders"], name
+
+    # And the requirement is the right way round.
+    fire = rows["CatMage_Fire"]["requiresGenders"][0]
+    assert (fire["aId"], fire["aGender"]) == ("CatMage", "Female")
+
+
+def test_an_ordinary_offspring_row_still_carries_the_fields():
+    """Present on every row so a client can read them without guarding."""
+    pals = [
+        {"speciesId": "SheepBall", "gender": g, "level": 10,
+         "passiveSkills": [], "isBoss": False}
+        for g in ("Male", "Female")
+    ]
+    rows = breeding.possible_offspring(pals)
+    assert rows
+    assert all(r["genderDependent"] is False for r in rows)
+    assert all(r["requiresGenders"] == [] for r in rows)

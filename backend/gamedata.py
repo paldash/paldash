@@ -81,6 +81,11 @@ SPAWNS_PATH = os.environ.get(
     os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "spawns.json.gz"),
 )
 
+MOVES_PATH = os.environ.get(
+    "MOVES_DATA_PATH",
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "moves.json.gz"),
+)
+
 PASSIVE_EFFECT_PATH = os.environ.get(
     "PASSIVE_EFFECT_DATA_PATH",
     os.path.join(
@@ -97,6 +102,7 @@ _work_assign: Optional[dict[str, Any]] = None
 _basecamp: Optional[dict[str, Any]] = None
 _economy: Optional[dict[str, Any]] = None
 _spawns: Optional[dict[str, Any]] = None
+_moves: Optional[dict[str, Any]] = None
 _indexes: dict[str, dict[str, Any]] = {}
 
 
@@ -168,7 +174,7 @@ def _reset_cache() -> None:
     reset always has: it works until it silently does not.
     """
     global _data, _effigies, _passive_effects, _game_settings
-    global _boss_spawners, _work_assign, _basecamp, _economy, _spawns
+    global _boss_spawners, _work_assign, _basecamp, _economy, _spawns, _moves
     _data = None
     _effigies = None
     _passive_effects = None
@@ -178,6 +184,7 @@ def _reset_cache() -> None:
     _basecamp = None
     _economy = None
     _spawns = None
+    _moves = None
     _indexes.clear()
 
 
@@ -884,6 +891,62 @@ def spawns_for(species_id: str) -> list[dict[str, Any]]:
         for placement in (data.get("placements") or [])
         if placement.get("spawnerName") in matching
     ]
+
+
+def moves() -> dict[str, Any]:
+    """Move data, learn lists, egg-move pools and unique breeding combinations."""
+    global _moves
+    if _moves is None:
+        try:
+            with gzip.open(MOVES_PATH, "rt", encoding="utf-8") as f:
+                _moves = json.load(f)
+        except (OSError, json.JSONDecodeError) as e:
+            logger.warning("Move data unavailable (%s)", e)
+            _moves = {}
+    return _moves
+
+
+def move(move_id: str) -> Optional[dict[str, Any]]:
+    """
+    One move: element, category, power, cooldown and range.
+
+    **Bare ids, no `EPalWazaID::` prefix.** The API speaks bare ids everywhere
+    and `charedit` re-attaches the prefix only on write; the prefix is stripped
+    once at extraction, so a caller passing a prefixed id gets nothing. Handled
+    here rather than left as a trap.
+    """
+    table = moves().get("moves") or {}
+    key = str(move_id or "")
+    return table.get(key.rsplit("::", 1)[-1] if "::" in key else key)
+
+
+def learned_moves(species_id: str) -> list[dict[str, Any]]:
+    """Which moves a species learns by levelling, and at what level."""
+    return (moves().get("learned") or {}).get(str(species_id or "")) or []
+
+
+def egg_moves(species_id: str) -> list[str]:
+    """
+    Which moves a species can inherit through an egg.
+
+    This is the reason people breed past the species chart, and nothing in the
+    dashboard has ever surfaced it.
+    """
+    return (moves().get("eggMoves") or {}).get(str(species_id or "")) or []
+
+
+def unique_combos() -> list[dict[str, Any]]:
+    """
+    The game's own special breeding pairs, keyed on **tribes** with the member
+    species resolved alongside.
+
+    **Gender is load-bearing on exactly one pair.** 256 of 258 rows say "either
+    gender"; the two that do not are CatMage x FoxMage, which yields
+    `FoxMage_Dark` or `CatMage_Fire` depending on which parent is which. Any
+    consumer keying on an unordered pair can only hold one of those — which is
+    precisely what palcalc's table does, and the only thing it gets wrong.
+    """
+    return moves().get("uniqueCombos") or []
 
 
 def game_setting(name: str, default: Any = None) -> Any:

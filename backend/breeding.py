@@ -197,8 +197,84 @@ def all_pals(include_unreleased: bool = False) -> list[dict[str, Any]]:
     )
 
 
-def predict_child(parent_a: str, parent_b: str) -> Optional[str]:
-    """The Pal produced by this pair, or None if the pair cannot breed."""
+# Gender-dependent pairs, read off the game's own DT_PalCombiUnique.
+#
+# Cached because it is fixed reference data and `predict_child` is called once
+# per pair in a search that can walk thousands.
+_gendered: Optional[dict[tuple[str, str], dict[str, str]]] = None
+
+
+def _gendered_combos() -> dict[tuple[str, str], dict[str, str]]:
+    """
+    `{(speciesA, speciesB): {"Male+Female": child, "Female+Male": child}}`,
+    keyed on the *ordered* pair as the game states it.
+
+    **The whole game has exactly one of these**, and the palbox table cannot
+    express it. `CatMage x FoxMage` yields `FoxMage_Dark` when the CatMage is
+    male and `CatMage_Fire` when it is female — two outcomes for one unordered
+    pair, so palcalc's table (which is keyed on `sorted([a, b])`) can only hold
+    one and reports `FoxMage_Dark`. The other outcome was simply unreachable
+    through this planner.
+
+    Empty when the bundle is absent, which degrades to exactly the old
+    behaviour rather than failing.
+    """
+    global _gendered
+    if _gendered is None:
+        _gendered = {}
+        for combo in gamedata.unique_combos():
+            gender_a, gender_b = combo.get("genderA"), combo.get("genderB")
+            if "None" in (gender_a, gender_b) or not gender_a or not gender_b:
+                continue
+            child = str(combo.get("childId") or "")
+            if not child:
+                continue
+            for a in combo.get("parentSpeciesA") or []:
+                for b in combo.get("parentSpeciesB") or []:
+                    key = (canonical_species(a), canonical_species(b))
+                    _gendered.setdefault(key, {})[f"{gender_a}+{gender_b}"] = child
+    return _gendered
+
+
+def gendered_outcomes(parent_a: str, parent_b: str) -> dict[str, str]:
+    """
+    Every child this pair can produce, by parent gender — `{}` for the ordinary
+    case where gender does not matter.
+
+    Returned as a map rather than folded into `predict_child` because a planner
+    showing one answer for a pair with two is the bug this exists to fix. The
+    caller has to see both to report both.
+    """
+    table = _gendered_combos()
+    a, b = canonical_species(parent_a), canonical_species(parent_b)
+    if (a, b) in table:
+        return dict(table[(a, b)])
+    # Stated the other way round: swap the genders with the parents.
+    return {
+        "+".join(reversed(genders.split("+"))): child
+        for genders, child in table.get((b, a), {}).items()
+    }
+
+
+def predict_child(
+    parent_a: str, parent_b: str,
+    gender_a: Optional[str] = None, gender_b: Optional[str] = None,
+) -> Optional[str]:
+    """
+    The Pal produced by this pair, or None if the pair cannot breed.
+
+    **Genders are optional and only ever matter for one pair in the game.**
+    Supplied, they resolve `CatMage x FoxMage` to the right one of its two
+    outcomes; omitted, the behaviour is unchanged and the palbox table answers.
+    Callers that do know the genders should pass them — see `gendered_outcomes`
+    for reporting both.
+    """
+    if gender_a and gender_b:
+        outcomes = gendered_outcomes(parent_a, parent_b)
+        child = outcomes.get(f"{gender_a}+{gender_b}")
+        if child:
+            return child
+
     return _breeding()["pairs"].get(
         _pair_key(canonical_species(parent_a), canonical_species(parent_b))
     )
@@ -315,6 +391,16 @@ def possible_offspring(pals: Iterable[dict]) -> list[dict[str, Any]]:
     Every child reachable in ONE breeding step from the Pals on hand, honouring
     gender: a pair needs one male and one female, and same-species pairs need
     both genders of that species.
+
+    **One pair in the game yields a different child depending on which parent is
+    which sex**, and both outcomes are reported. `CatMage x FoxMage` gives
+    `FoxMage_Dark` with a male CatMage and `CatMage_Fire` with a female one. The
+    palbox pair table is keyed on an unordered pair, so it can only hold one —
+    it holds `FoxMage_Dark`, and `CatMage_Fire` was unreachable through this
+    planner until the game's own `DT_PalCombiUnique` was read.
+
+    Rows carry `genderDependent` and `requiresGenders` so the UI can say which
+    parent has to be which, rather than showing two identical-looking pairs.
     """
     summary = summarize_palbox(pals)
     species = {s["internalName"]: s for s in summary["species"]}
@@ -362,6 +448,25 @@ def possible_offspring(pals: Iterable[dict]) -> list[dict[str, Any]]:
                     or (species[a]["female"] and species[b]["male"])
                 ):
                     continue
+            # A pair with gender-dependent outcomes produces BOTH children —
+            # which one depends on which parent is which sex, and a player
+            # holding both sexes of both species can make either. Recording only
+            # `predict_child`'s single answer hid `CatMage_Fire` completely.
+            outcomes = gendered_outcomes(a, b)
+            if outcomes:
+                for genders, child in outcomes.items():
+                    gender_a, gender_b = genders.split("+")
+                    # Only if the player can actually assemble that pen.
+                    if not (species[a].get(gender_a.lower())
+                            and species[b].get(gender_b.lower())):
+                        continue
+                    record(child, a, b)
+                    results[child]["genderDependent"] = True
+                    results[child].setdefault("requiresGenders", []).append(
+                        {"aId": a, "bId": b, "aGender": gender_a, "bGender": gender_b}
+                    )
+                continue
+
             child = predict_child(a, b)
             if child:
                 record(child, a, b)
@@ -370,6 +475,10 @@ def possible_offspring(pals: Iterable[dict]) -> list[dict[str, Any]]:
         entry["owned"] = entry["internalName"] in owned_species
         entry["pairCount"] = len(entry["fromPairs"])
         entry["fromPairs"] = entry["fromPairs"][:12]
+        # Present on every row so a client can rely on it rather than testing
+        # for the key's existence.
+        entry.setdefault("genderDependent", False)
+        entry.setdefault("requiresGenders", [])
 
     return sorted(results.values(), key=lambda r: (r.get("dex") or 9999))
 
