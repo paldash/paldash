@@ -153,6 +153,7 @@ class Index:
                 "distinct": set(),
                 "sample": [],
                 "buckets": defaultdict(int),
+                "lengths": defaultdict(int),
                 "sensitive": False,
             }
         )
@@ -192,6 +193,21 @@ class Index:
                 entry["sample"].append(str(value)[:48])
 
 
+def _record_container(self, path: str, values: list, bucket: str | None) -> None:
+    """A list, by its length — so an always-empty one is visible as empty."""
+    entry = self.paths[path]
+    entry["seen"] += 1
+    entry["nonEmpty"] += int(len(values) > 0)
+    entry["nonZero"] += int(len(values) > 0)
+    entry["types"]["list"] += 1
+    entry["lengths"][len(values)] += 1
+    if bucket:
+        entry["buckets"][bucket] += 1
+
+
+Index.record_container = _record_container
+
+
 def _record_blob(self, path: str, values: list, bucket: str | None) -> None:
     """One numeric run as a single leaf, keyed on its length."""
     entry = self.paths[path]
@@ -200,6 +216,13 @@ def _record_blob(self, path: str, values: list, bucket: str | None) -> None:
     entry["nonZero"] += int(any(values))
     entry["types"]["numericRun"] += 1
     entry["byteLengths"][len(values)] += 1
+    # ALSO the plain length, or `alwaysEmpty` lies. A numeric list takes this
+    # branch only when non-empty, so its empty instances land in the container
+    # branch — and a field split across the two read as always empty on the
+    # strength of half its occurrences. `role_permissions[].permissions` is
+    # `[0,3,4,5,7]` for one role and `[]` for another, and reported as never
+    # populated until both branches fed the same counter.
+    entry["lengths"][len(values)] += 1
     if bucket:
         entry["buckets"][bucket] += 1
 
@@ -240,7 +263,13 @@ def walk(node: Any, path: str, index: Index, keep_values: bool,
                         for v in node):
             index.record_blob(path, node, bucket)
             return
-        index.paths[path]["seen"] += 0  # register the container path
+        # **AN EMPTY CONTAINER IS A FINDING, NOT AN ABSENCE.** The first version
+        # only recorded leaves, so a list that is empty on every entry never
+        # appeared at all — `guild_markers` vanished from the index entirely and
+        # read as "not in the save" when it is present on every guild and merely
+        # unused on these worlds. That is the precise distinction this tool
+        # exists to make, so containers are recorded with their length.
+        index.record_container(path, node, bucket)
         for entry in node:
             # THE POINT OF THE WHOLE EXERCISE: bucket by variant before
             # descending, so a field carried by one kind of entry is not
@@ -353,6 +382,11 @@ def summarise(index: Index) -> dict[str, Any]:
             # The property that made `WorkerDirector` readable: a fixed-width
             # blob is a prospect for a measured offset, a varying one is not.
             row["byteLengthConstant"] = len(lengths) == 1
+        if entry["lengths"]:
+            row["listLengths"] = dict(sorted(entry["lengths"].items()))
+            # The case the first version could not express: a field the game
+            # carries on every entry and nobody has ever put anything in.
+            row["alwaysEmpty"] = set(entry["lengths"]) == {0}
         if entry["buckets"]:
             row["byVariant"] = dict(sorted(entry["buckets"].items()))
         if entry["sensitive"]:

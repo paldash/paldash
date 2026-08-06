@@ -56,6 +56,16 @@ non-default counts rather than key names.
 carried by one variant reads as "rare" when averaged across all of them, and as
 "always present" when you happen to sample that variant first.
 
+**An empty container is a finding, not an absence.** `listLengths` records how
+long a list was each time it was seen, and `alwaysEmpty` marks the fields the
+game carries on every entry that nobody has ever put anything in — 10 of them
+across all three worlds, including `guild_markers`. The first version of this
+script recorded only leaves, so those vanished entirely and read as "not in the
+save" when they are present and merely unused. That distinction is most of the
+point: a field that is always empty needs a world where someone has used it
+before its shape can be read, and one that is absent needs a different game
+version.
+
 `readBy` is a **string-literal match** against `backend/*.py` and is approximate
 in one direction only: it cannot prove a module reads that name *from this path*,
 but a distinctive name appearing nowhere really is unread. Names in
@@ -85,7 +95,7 @@ has all of them.** refworld has 23.
 a single-world survey would have called it absent, and which world you happened
 to pick would decide the answer.
 
-Of the 111 paths that are not in every world, **82 are absent only from the
+Of the 128 paths that are not in every world, **most are absent only from the
 07-22 backup** — the smallest and earliest of the three (708k nodes against
 2.4M). That is occupancy, not a schema difference: an early world has no oil
 rigs and few dungeons, so the paths under them never appear. Fifteen more are
@@ -99,7 +109,7 @@ trend across dated snapshots is drift.**
 
 ## 4. Where the unread fields are
 
-260 paths carry a name no backend module mentions. By structure, with the
+295 paths carry a name no backend module mentions. By structure, with the
 highest populated count in any world:
 
 | Structure | unread paths | most populated |

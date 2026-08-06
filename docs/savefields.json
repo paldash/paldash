@@ -25,12 +25,15 @@
   "save.worldSaveData.BaseCampSaveData[].value.ModuleMap[].value.RawData.transport_item_character_infos[].character_location.x",
   "save.worldSaveData.BaseCampSaveData[].value.ModuleMap[].value.RawData.transport_item_character_infos[].character_location.y",
   "save.worldSaveData.BaseCampSaveData[].value.ModuleMap[].value.RawData.transport_item_character_infos[].character_location.z",
+  "save.worldSaveData.BaseCampSaveData[].value.ModuleMap[].value.RawData.transport_item_character_infos[].item_infos",
   "save.worldSaveData.BaseCampSaveData[].value.ModuleMap[].value.RawData.transport_item_character_infos[].item_infos[].item_id.dynamic_id.created_world_id",
   "save.worldSaveData.BaseCampSaveData[].value.ModuleMap[].value.RawData.transport_item_character_infos[].item_infos[].item_id.dynamic_id.local_id_in_created_world",
   "save.worldSaveData.BaseCampSaveData[].value.ModuleMap[].value.RawData.transport_item_character_infos[].item_infos[].item_id.static_id",
   "save.worldSaveData.BaseCampSaveData[].value.ModuleMap[].value.RawData.transport_item_character_infos[].item_infos[].num",
+  "save.worldSaveData.BossSpawnerSaveData.RespawnDisableFlag",
   "save.worldSaveData.BossSpawnerSaveData.RespawnDisableFlag[].key",
   "save.worldSaveData.BossSpawnerSaveData.RespawnDisableFlag[].value",
+  "save.worldSaveData.CharacterParameterStorageSaveData.StoredParameterInfoSaveData.values",
   "save.worldSaveData.CharacterParameterStorageSaveData.StoredParameterInfoSaveData.values[].ID.ID",
   "save.worldSaveData.CharacterParameterStorageSaveData.StoredParameterInfoSaveData.values[].InstanceId.DebugName",
   "save.worldSaveData.CharacterParameterStorageSaveData.StoredParameterInfoSaveData.values[].InstanceId.InstanceId",
@@ -45,6 +48,7 @@
   "save.worldSaveData.CharacterSaveParameterMap[].value.RawData.object.SaveParameter.BaseCampWorkerEventProgressTime",
   "save.worldSaveData.CharacterSaveParameterMap[].value.RawData.object.SaveParameter.BaseCampWorkerEventType",
   "save.worldSaveData.CharacterSaveParameterMap[].value.RawData.object.SaveParameter.FoodWithStatusEffect",
+  "save.worldSaveData.CharacterSaveParameterMap[].value.RawData.object.SaveParameter.GotWorkSuitabilityAddRankList.values",
   "save.worldSaveData.CharacterSaveParameterMap[].value.RawData.object.SaveParameter.GotWorkSuitabilityAddRankList.values[].Rank",
   "save.worldSaveData.CharacterSaveParameterMap[].value.RawData.object.SaveParameter.GotWorkSuitabilityAddRankList.values[].WorkSuitability",
   "save.worldSaveData.CharacterSaveParameterMap[].value.RawData.object.SaveParameter.PalReviveTimer",
@@ -55,11 +59,13 @@
   "save.worldSaveData.CharacterSaveParameterMap[].value.RawData.object.SaveParameter.Rank_HP",
   "save.worldSaveData.CharacterSaveParameterMap[].value.RawData.object.SaveParameter.Tiemr_FoodWithStatusEffect",
   "save.worldSaveData.CharacterSaveParameterMap[].value.RawData.object.SaveParameter.UnusedStatusPoint",
+  "save.worldSaveData.CharacterSaveParameterMap[].value.RawData.object.SaveParameter.WorkSuitabilityOptionInfo.OffWorkSuitabilityList",
   "save.worldSaveData.CharacterSaveParameterMap[].value.RawData.object.SaveParameter.WorkSuitabilityOptionInfo.OffWorkSuitabilityList[]",
   "save.worldSaveData.CharacterSaveParameterMap[].value.RawData.object.SaveParameter.WorkSuitabilityOptionInfo.bAllowBaseCampBattle",
   "save.worldSaveData.CharacterSaveParameterMap[].value.RawData.object.SaveParameter.bDisableSaleInPalLost",
   "save.worldSaveData.CharacterSaveParameterMap[].value.RawData.object.SaveParameter.bIsAwakening",
   "save.worldSaveData.DungeonSaveData.values[].MapObjectSaveData.values[].ConcreteModel.CustomVersionData.values",
+  "save.worldSaveData.DungeonSaveData.values[].MapObjectSaveData.values[].ConcreteModel.ModuleMap",
   "save.worldSaveData.DungeonSaveData.values[].MapObjectSaveData.values[].ConcreteModel.ModuleMap[].key",
   "save.worldSaveData.DungeonSaveData.values[].MapObjectSaveData.values[].ConcreteModel.ModuleMap[].value.CustomVersionData.values",
   "save.worldSaveData.DungeonSaveData.values[].MapObjectSaveData.values[].ConcreteModel.ModuleMap[].value.RawData.values",
@@ -70,29 +76,37 @@
   "save.worldSaveData.DungeonSaveData.values[].MapObjectSaveData.values[].Model.Connector.CustomVersionData.values",
   "save.worldSaveData.DungeonSaveData.values[].MapObjectSaveData.values[].Model.Connector.RawData.values",
   "save.worldSaveData.DungeonSaveData.values[].MapObjectSaveData.values[].Model.CustomVersionData.values",
+  "save.worldSaveData.DungeonSaveData.values[].MapObjectSaveData.values[].Model.EffectMap",
   "save.worldSaveData.DungeonSaveData.values[].MapObjectSaveData.values[].Model.Paint.CustomVersionData.values",
   "save.worldSaveData.DungeonSaveData.values[].MapObjectSaveData.values[].Model.Paint.RawData.values",
   "save.worldSaveData.DungeonSaveData.values[].MapObjectSaveData.values[].Model.RawData.values",
   "save.worldSaveData.DynamicItemSaveData.values[].RawData.object.SaveParameter.ArenaRestoreParameter.FoodRegeneEffectInfo.EffectTime",
   "save.worldSaveData.DynamicItemSaveData.values[].RawData.object.SaveParameter.CharacterID",
+  "save.worldSaveData.DynamicItemSaveData.values[].RawData.object.SaveParameter.EquipWaza",
   "save.worldSaveData.DynamicItemSaveData.values[].RawData.object.SaveParameter.EquipWaza[]",
   "save.worldSaveData.DynamicItemSaveData.values[].RawData.object.SaveParameter.FoodRegeneEffectInfo.EffectTime",
   "save.worldSaveData.DynamicItemSaveData.values[].RawData.object.SaveParameter.FoodRegeneEffectInfo.RemainingTime",
   "save.worldSaveData.DynamicItemSaveData.values[].RawData.object.SaveParameter.FullStomach",
   "save.worldSaveData.DynamicItemSaveData.values[].RawData.object.SaveParameter.Gender",
   "save.worldSaveData.DynamicItemSaveData.values[].RawData.object.SaveParameter.Hp.Value",
+  "save.worldSaveData.DynamicItemSaveData.values[].RawData.object.SaveParameter.MasteredWaza",
   "save.worldSaveData.DynamicItemSaveData.values[].RawData.object.SaveParameter.MasteredWaza[]",
+  "save.worldSaveData.DynamicItemSaveData.values[].RawData.object.SaveParameter.PassiveSkillList",
   "save.worldSaveData.DynamicItemSaveData.values[].RawData.object.SaveParameter.PassiveSkillList[]",
   "save.worldSaveData.DynamicItemSaveData.values[].RawData.object.SaveParameter.Talent_Defense",
   "save.worldSaveData.DynamicItemSaveData.values[].RawData.object.SaveParameter.Talent_HP",
   "save.worldSaveData.DynamicItemSaveData.values[].RawData.object.SaveParameter.Talent_Shot",
+  "save.worldSaveData.FixedWeaponDestroySaveData.DestroyedWeapon.values",
   "save.worldSaveData.FixedWeaponDestroySaveData.DestroyedWeapon.values[]",
+  "save.worldSaveData.LevelObjectRecoverPartySaveData",
   "save.worldSaveData.LevelObjectRecoverPartySaveData[].key",
+  "save.worldSaveData.LevelObjectRecoverPartySaveData[].value.PlayerLastUsedTimes",
   "save.worldSaveData.MapObjectSaveData.values[].ConcreteModel.RawData.created_at_real_time",
   "save.worldSaveData.MapObjectSaveData.values[].ConcreteModel.RawData.extinction_date_time",
   "save.worldSaveData.MapObjectSaveData.values[].ConcreteModel.RawData.hatched_character_save_parameter.SaveParameter.ArenaRestoreParameter.FoodRegeneEffectInfo.EffectTime",
   "save.worldSaveData.MapObjectSaveData.values[].ConcreteModel.RawData.hatched_character_save_parameter.SaveParameter.FoodRegeneEffectInfo.EffectTime",
   "save.worldSaveData.MapObjectSaveData.values[].ConcreteModel.RawData.hatched_character_save_parameter.SaveParameter.FoodRegeneEffectInfo.RemainingTime",
+  "save.worldSaveData.MapObjectSaveData.values[].ConcreteModel.RawData.hatched_character_save_parameter.SaveParameter.MasteredWaza",
   "save.worldSaveData.MapObjectSaveData.values[].ConcreteModel.RawData.hatched_character_save_parameter.SaveParameter.MasteredWaza[]",
   "save.worldSaveData.MapObjectSaveData.values[].ConcreteModel.RawData.ignition_minutes",
   "save.worldSaveData.MapObjectSaveData.values[].ConcreteModel.RawData.is_private_lock",
@@ -101,6 +115,7 @@
   "save.worldSaveData.MapObjectSaveData.values[].ConcreteModel.RawData.skill_fruits_id",
   "save.worldSaveData.MapObjectSaveData.values[].ConcreteModel.RawData.spawned_egg_instance_ids[]",
   "save.worldSaveData.MapObjectSaveData.values[].ConcreteModel.RawData.stored_parameter_id",
+  "save.worldSaveData.MapObjectSaveData.values[].ConcreteModel.RawData.trade_infos",
   "save.worldSaveData.MapObjectSaveData.values[].ConcreteModel.RawData.trade_infos[].cost.dynamic_id.created_world_id",
   "save.worldSaveData.MapObjectSaveData.values[].ConcreteModel.RawData.trade_infos[].cost.dynamic_id.local_id_in_created_world",
   "save.worldSaveData.MapObjectSaveData.values[].ConcreteModel.RawData.trade_infos[].cost.num",
@@ -121,7 +136,9 @@
   "save.worldSaveData.OilrigSaveData.OilrigMap[].value.DestroyedGasTank.values[]",
   "save.worldSaveData.OilrigSaveData.OilrigMap[].value.OpenedTreasureBoxSpawner.values[]",
   "save.worldSaveData.OilrigSaveData.OilrigMap[].value.WipedOutEnemySpawner.values[]",
+  "save.worldSaveData.SupplySaveData.SupplyInfos",
   "save.worldSaveData.SupplySaveData.SupplyInfos[].key",
+  "save.worldSaveData.SupplySaveData.SupplyInfos[].value.DropItemGuids.values",
   "save.worldSaveData.SupplySaveData.SupplyInfos[].value.DropItemGuids.values[]",
   "save.worldSaveData.SupplySaveData.SupplyInfos[].value.MapLocationId",
   "save.worldSaveData.SupplySaveData.SupplyInfos[].value.SupplyLandedTime",
@@ -276,6 +293,47 @@
     }
    }
   },
+  "save.worldSaveData.BaseCampSaveData": {
+   "2026.07.22-23.59.51": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "6": 1
+    },
+    "nonEmpty": 1,
+    "nonZero": 1,
+    "seen": 1,
+    "types": {
+     "list": 1
+    }
+   },
+   "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "16": 1
+    },
+    "nonEmpty": 1,
+    "nonZero": 1,
+    "seen": 1,
+    "types": {
+     "list": 1
+    }
+   },
+   "refworld": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "11": 1
+    },
+    "nonEmpty": 1,
+    "nonZero": 1,
+    "seen": 1,
+    "types": {
+     "list": 1
+    }
+   }
+  },
   "save.worldSaveData.BaseCampSaveData[].key": {
    "2026.07.22-23.59.51": {
     "distinctValues": 0,
@@ -343,6 +401,47 @@
     "seen": 11,
     "types": {
      "bytes": 11
+    }
+   }
+  },
+  "save.worldSaveData.BaseCampSaveData[].value.ModuleMap": {
+   "2026.07.22-23.59.51": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "9": 6
+    },
+    "nonEmpty": 6,
+    "nonZero": 6,
+    "seen": 6,
+    "types": {
+     "list": 6
+    }
+   },
+   "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "9": 16
+    },
+    "nonEmpty": 16,
+    "nonZero": 16,
+    "seen": 16,
+    "types": {
+     "list": 16
+    }
+   },
+   "refworld": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "9": 11
+    },
+    "nonEmpty": 11,
+    "nonZero": 11,
+    "seen": 11,
+    "types": {
+     "list": 11
     }
    }
   },
@@ -481,6 +580,50 @@
     }
    }
   },
+  "save.worldSaveData.BaseCampSaveData[].value.ModuleMap[].value.RawData.transport_item_character_infos": {
+   "2026.07.22-23.59.51": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "0": 3,
+     "1": 1,
+     "2": 2
+    },
+    "nonEmpty": 3,
+    "nonZero": 3,
+    "seen": 6,
+    "types": {
+     "list": 6
+    }
+   },
+   "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": true,
+    "distinctValues": 0,
+    "listLengths": {
+     "0": 16
+    },
+    "nonEmpty": 0,
+    "nonZero": 0,
+    "seen": 16,
+    "types": {
+     "list": 16
+    }
+   },
+   "refworld": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "0": 10,
+     "1": 1
+    },
+    "nonEmpty": 1,
+    "nonZero": 1,
+    "seen": 11,
+    "types": {
+     "list": 11
+    }
+   }
+  },
   "save.worldSaveData.BaseCampSaveData[].value.ModuleMap[].value.RawData.transport_item_character_infos[].character_location.x": {
    "2026.07.22-23.59.51": {
     "distinctValues": 5,
@@ -568,6 +711,34 @@
     "seen": 1,
     "types": {
      "float": 1
+    }
+   }
+  },
+  "save.worldSaveData.BaseCampSaveData[].value.ModuleMap[].value.RawData.transport_item_character_infos[].item_infos": {
+   "2026.07.22-23.59.51": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "1": 5
+    },
+    "nonEmpty": 5,
+    "nonZero": 5,
+    "seen": 5,
+    "types": {
+     "list": 5
+    }
+   },
+   "refworld": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "1": 1
+    },
+    "nonEmpty": 1,
+    "nonZero": 1,
+    "seen": 1,
+    "types": {
+     "list": 1
     }
    }
   },
@@ -1818,6 +1989,74 @@
     }
    }
   },
+  "save.worldSaveData.BaseCampSaveData[].value.WorkCollection.RawData.work_ids": {
+   "2026.07.22-23.59.51": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "9": 1,
+     "22": 2,
+     "33": 1,
+     "54": 1,
+     "55": 1
+    },
+    "nonEmpty": 6,
+    "nonZero": 6,
+    "seen": 6,
+    "types": {
+     "list": 6
+    }
+   },
+   "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "2": 1,
+     "12": 1,
+     "13": 1,
+     "15": 1,
+     "17": 2,
+     "18": 1,
+     "20": 1,
+     "21": 1,
+     "24": 2,
+     "26": 1,
+     "27": 1,
+     "31": 1,
+     "35": 1,
+     "75": 1
+    },
+    "nonEmpty": 16,
+    "nonZero": 16,
+    "seen": 16,
+    "types": {
+     "list": 16
+    }
+   },
+   "refworld": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "8": 1,
+     "9": 1,
+     "18": 1,
+     "19": 1,
+     "20": 1,
+     "26": 1,
+     "30": 1,
+     "31": 1,
+     "33": 1,
+     "38": 1,
+     "44": 1
+    },
+    "nonEmpty": 11,
+    "nonZero": 11,
+    "seen": 11,
+    "types": {
+     "list": 11
+    }
+   }
+  },
   "save.worldSaveData.BaseCampSaveData[].value.WorkCollection.RawData.work_ids[]": {
    "2026.07.22-23.59.51": {
     "distinctValues": 0,
@@ -2474,6 +2713,21 @@
     }
    }
   },
+  "save.worldSaveData.BossSpawnerSaveData.RespawnDisableFlag": {
+   "2026.07.22-23.59.51": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "1": 1
+    },
+    "nonEmpty": 1,
+    "nonZero": 1,
+    "seen": 1,
+    "types": {
+     "list": 1
+    }
+   }
+  },
   "save.worldSaveData.BossSpawnerSaveData.RespawnDisableFlag[].key": {
    "2026.07.22-23.59.51": {
     "distinctValues": 1,
@@ -2499,6 +2753,47 @@
     "seen": 1,
     "types": {
      "bool": 1
+    }
+   }
+  },
+  "save.worldSaveData.CharacterContainerSaveData": {
+   "2026.07.22-23.59.51": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "15": 1
+    },
+    "nonEmpty": 1,
+    "nonZero": 1,
+    "seen": 1,
+    "types": {
+     "list": 1
+    }
+   },
+   "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "32": 1
+    },
+    "nonEmpty": 1,
+    "nonZero": 1,
+    "seen": 1,
+    "types": {
+     "list": 1
+    }
+   },
+   "refworld": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "23": 1
+    },
+    "nonEmpty": 1,
+    "nonZero": 1,
+    "seen": 1,
+    "types": {
+     "list": 1
     }
    }
   },
@@ -2681,6 +2976,83 @@
     }
    }
   },
+  "save.worldSaveData.CharacterContainerSaveData[].value.Slots.values": {
+   "2026.07.22-23.59.51": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "0": 2,
+     "1": 2,
+     "5": 3,
+     "10": 3,
+     "12": 2,
+     "60": 1,
+     "124": 1,
+     "403": 1
+    },
+    "nonEmpty": 13,
+    "nonZero": 13,
+    "seen": 15,
+    "types": {
+     "list": 15
+    }
+   },
+   "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "0": 6,
+     "1": 1,
+     "3": 2,
+     "4": 1,
+     "5": 3,
+     "6": 1,
+     "9": 1,
+     "14": 1,
+     "15": 1,
+     "16": 1,
+     "18": 1,
+     "20": 4,
+     "21": 1,
+     "25": 4,
+     "450": 1,
+     "572": 1,
+     "707": 1,
+     "929": 1
+    },
+    "nonEmpty": 26,
+    "nonZero": 26,
+    "seen": 32,
+    "types": {
+     "list": 32
+    }
+   },
+   "refworld": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "0": 1,
+     "1": 3,
+     "5": 5,
+     "6": 1,
+     "13": 1,
+     "14": 1,
+     "16": 2,
+     "19": 1,
+     "20": 4,
+     "167": 1,
+     "321": 1,
+     "554": 1,
+     "671": 1
+    },
+    "nonEmpty": 22,
+    "nonZero": 22,
+    "seen": 23,
+    "types": {
+     "list": 23
+    }
+   }
+  },
   "save.worldSaveData.CharacterContainerSaveData[].value.Slots.values[].CustomVersionData.values": {
    "2026.07.22-23.59.51": {
     "byteLengthConstant": true,
@@ -2823,11 +3195,15 @@
   },
   "save.worldSaveData.CharacterContainerSaveData[].value.Slots.values[].RawData.unknown_bytes": {
    "2026.07.22-23.59.51": {
+    "alwaysEmpty": false,
     "byteLengthConstant": true,
     "byteLengths": {
      "5": 658
     },
     "distinctValues": 0,
+    "listLengths": {
+     "5": 658
+    },
     "nonEmpty": 658,
     "nonZero": 0,
     "seen": 658,
@@ -2836,11 +3212,15 @@
     }
    },
    "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": false,
     "byteLengthConstant": true,
     "byteLengths": {
      "5": 2963
     },
     "distinctValues": 0,
+    "listLengths": {
+     "5": 2963
+    },
     "nonEmpty": 2963,
     "nonZero": 0,
     "seen": 2963,
@@ -2849,11 +3229,15 @@
     }
    },
    "refworld": {
+    "alwaysEmpty": false,
     "byteLengthConstant": true,
     "byteLengths": {
      "5": 1899
     },
     "distinctValues": 0,
+    "listLengths": {
+     "5": 1899
+    },
     "nonEmpty": 1899,
     "nonZero": 0,
     "seen": 1899,
@@ -2965,6 +3349,34 @@
     "seen": 23,
     "types": {
      "bool": 23
+    }
+   }
+  },
+  "save.worldSaveData.CharacterParameterStorageSaveData.StoredParameterInfoSaveData.values": {
+   "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "62": 1
+    },
+    "nonEmpty": 1,
+    "nonZero": 1,
+    "seen": 1,
+    "types": {
+     "list": 1
+    }
+   },
+   "refworld": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "4": 1
+    },
+    "nonEmpty": 1,
+    "nonZero": 1,
+    "seen": 1,
+    "types": {
+     "list": 1
     }
    }
   },
@@ -3246,6 +3658,47 @@
     "seen": 4,
     "types": {
      "int": 4
+    }
+   }
+  },
+  "save.worldSaveData.CharacterSaveParameterMap": {
+   "2026.07.22-23.59.51": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "662": 1
+    },
+    "nonEmpty": 1,
+    "nonZero": 1,
+    "seen": 1,
+    "types": {
+     "list": 1
+    }
+   },
+   "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "2968": 1
+    },
+    "nonEmpty": 1,
+    "nonZero": 1,
+    "seen": 1,
+    "types": {
+     "list": 1
+    }
+   },
+   "refworld": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "1910": 1
+    },
+    "nonEmpty": 1,
+    "nonZero": 1,
+    "seen": 1,
+    "types": {
+     "list": 1
     }
    }
   },
@@ -3996,6 +4449,54 @@
     }
    }
   },
+  "save.worldSaveData.CharacterSaveParameterMap[].value.RawData.object.SaveParameter.EquipWaza": {
+   "2026.07.22-23.59.51": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "1": 226,
+     "2": 167,
+     "3": 265
+    },
+    "nonEmpty": 658,
+    "nonZero": 658,
+    "seen": 658,
+    "types": {
+     "list": 658
+    }
+   },
+   "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "1": 527,
+     "2": 430,
+     "3": 2006
+    },
+    "nonEmpty": 2963,
+    "nonZero": 2963,
+    "seen": 2963,
+    "types": {
+     "list": 2963
+    }
+   },
+   "refworld": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "0": 6,
+     "1": 413,
+     "2": 265,
+     "3": 1221
+    },
+    "nonEmpty": 1899,
+    "nonZero": 1899,
+    "seen": 1905,
+    "types": {
+     "list": 1905
+    }
+   }
+  },
   "save.worldSaveData.CharacterSaveParameterMap[].value.RawData.object.SaveParameter.EquipWaza[]": {
    "2026.07.22-23.59.51": {
     "distinctValues": 64,
@@ -4657,6 +5158,47 @@
     }
    }
   },
+  "save.worldSaveData.CharacterSaveParameterMap[].value.RawData.object.SaveParameter.GotExStatusPointList.values": {
+   "2026.07.22-23.59.51": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "5": 662
+    },
+    "nonEmpty": 662,
+    "nonZero": 662,
+    "seen": 662,
+    "types": {
+     "list": 662
+    }
+   },
+   "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "5": 2968
+    },
+    "nonEmpty": 2968,
+    "nonZero": 2968,
+    "seen": 2968,
+    "types": {
+     "list": 2968
+    }
+   },
+   "refworld": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "5": 1910
+    },
+    "nonEmpty": 1910,
+    "nonZero": 1910,
+    "seen": 1910,
+    "types": {
+     "list": 1910
+    }
+   }
+  },
   "save.worldSaveData.CharacterSaveParameterMap[].value.RawData.object.SaveParameter.GotExStatusPointList.values[].StatusName": {
    "2026.07.22-23.59.51": {
     "distinctValues": 5,
@@ -4757,6 +5299,56 @@
     }
    }
   },
+  "save.worldSaveData.CharacterSaveParameterMap[].value.RawData.object.SaveParameter.GotStatusPointList.values": {
+   "2026.07.22-23.59.51": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "6": 660,
+     "7": 1,
+     "8": 1
+    },
+    "nonEmpty": 662,
+    "nonZero": 662,
+    "seen": 662,
+    "types": {
+     "list": 662
+    }
+   },
+   "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "6": 2963,
+     "8": 1,
+     "14": 1,
+     "17": 1,
+     "18": 2
+    },
+    "nonEmpty": 2968,
+    "nonZero": 2968,
+    "seen": 2968,
+    "types": {
+     "list": 2968
+    }
+   },
+   "refworld": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "6": 1906,
+     "10": 1,
+     "12": 1,
+     "15": 2
+    },
+    "nonEmpty": 1910,
+    "nonZero": 1910,
+    "seen": 1910,
+    "types": {
+     "list": 1910
+    }
+   }
+  },
   "save.worldSaveData.CharacterSaveParameterMap[].value.RawData.object.SaveParameter.GotStatusPointList.values[].StatusName": {
    "2026.07.22-23.59.51": {
     "distinctValues": 8,
@@ -4854,6 +5446,34 @@
     "seen": 11488,
     "types": {
      "int": 11488
+    }
+   }
+  },
+  "save.worldSaveData.CharacterSaveParameterMap[].value.RawData.object.SaveParameter.GotWorkSuitabilityAddRankList.values": {
+   "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "1": 23
+    },
+    "nonEmpty": 23,
+    "nonZero": 23,
+    "seen": 23,
+    "types": {
+     "list": 23
+    }
+   },
+   "refworld": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "1": 7
+    },
+    "nonEmpty": 7,
+    "nonZero": 7,
+    "seen": 7,
+    "types": {
+     "list": 7
     }
    }
   },
@@ -5417,6 +6037,56 @@
     }
    }
   },
+  "save.worldSaveData.CharacterSaveParameterMap[].value.RawData.object.SaveParameter.MasteredWaza": {
+   "2026.07.22-23.59.51": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "1": 26
+    },
+    "nonEmpty": 26,
+    "nonZero": 26,
+    "seen": 26,
+    "types": {
+     "list": 26
+    }
+   },
+   "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "1": 688,
+     "2": 24,
+     "3": 5,
+     "4": 10,
+     "5": 6,
+     "6": 5
+    },
+    "nonEmpty": 738,
+    "nonZero": 738,
+    "seen": 738,
+    "types": {
+     "list": 738
+    }
+   },
+   "refworld": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "0": 6,
+     "1": 321,
+     "2": 7,
+     "3": 4,
+     "6": 4
+    },
+    "nonEmpty": 336,
+    "nonZero": 336,
+    "seen": 342,
+    "types": {
+     "list": 342
+    }
+   }
+  },
   "save.worldSaveData.CharacterSaveParameterMap[].value.RawData.object.SaveParameter.MasteredWaza[]": {
    "2026.07.22-23.59.51": {
     "distinctValues": 6,
@@ -5515,6 +6185,50 @@
      "str": 27
     },
     "valuesWithheld": true
+   }
+  },
+  "save.worldSaveData.CharacterSaveParameterMap[].value.RawData.object.SaveParameter.OldOwnerPlayerUIds.values": {
+   "2026.07.22-23.59.51": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "1": 563,
+     "2": 95
+    },
+    "nonEmpty": 658,
+    "nonZero": 658,
+    "seen": 658,
+    "types": {
+     "list": 658
+    }
+   },
+   "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "1": 2864,
+     "2": 99
+    },
+    "nonEmpty": 2963,
+    "nonZero": 2963,
+    "seen": 2963,
+    "types": {
+     "list": 2963
+    }
+   },
+   "refworld": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "1": 1807,
+     "2": 98
+    },
+    "nonEmpty": 1905,
+    "nonZero": 1905,
+    "seen": 1905,
+    "types": {
+     "list": 1905
+    }
    }
   },
   "save.worldSaveData.CharacterSaveParameterMap[].value.RawData.object.SaveParameter.OldOwnerPlayerUIds.values[]": {
@@ -5660,6 +6374,56 @@
     "seen": 3,
     "types": {
      "float": 3
+    }
+   }
+  },
+  "save.worldSaveData.CharacterSaveParameterMap[].value.RawData.object.SaveParameter.PassiveSkillList": {
+   "2026.07.22-23.59.51": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "1": 451,
+     "2": 104,
+     "3": 22,
+     "4": 21
+    },
+    "nonEmpty": 598,
+    "nonZero": 598,
+    "seen": 598,
+    "types": {
+     "list": 598
+    }
+   },
+   "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "1": 1520,
+     "2": 610,
+     "3": 316,
+     "4": 326
+    },
+    "nonEmpty": 2772,
+    "nonZero": 2772,
+    "seen": 2772,
+    "types": {
+     "list": 2772
+    }
+   },
+   "refworld": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "1": 1091,
+     "2": 397,
+     "3": 150,
+     "4": 124
+    },
+    "nonEmpty": 1762,
+    "nonZero": 1762,
+    "seen": 1762,
+    "types": {
+     "list": 1762
     }
    }
   },
@@ -6663,6 +7427,39 @@
     }
    }
   },
+  "save.worldSaveData.CharacterSaveParameterMap[].value.RawData.object.SaveParameter.WorkSuitabilityOptionInfo.OffWorkSuitabilityList": {
+   "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "1": 34,
+     "2": 15,
+     "3": 4,
+     "4": 1
+    },
+    "nonEmpty": 54,
+    "nonZero": 54,
+    "seen": 54,
+    "types": {
+     "list": 54
+    }
+   },
+   "refworld": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "1": 9,
+     "2": 4,
+     "3": 2
+    },
+    "nonEmpty": 15,
+    "nonZero": 15,
+    "seen": 15,
+    "types": {
+     "list": 15
+    }
+   }
+  },
   "save.worldSaveData.CharacterSaveParameterMap[].value.RawData.object.SaveParameter.WorkSuitabilityOptionInfo.OffWorkSuitabilityList[]": {
    "B8A1C9C171F944D3B9287F7390B76548": {
     "distinctValues": 9,
@@ -7105,6 +7902,47 @@
     }
    }
   },
+  "save.worldSaveData.DungeonPointMarkerSaveData.values": {
+   "2026.07.22-23.59.51": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "170": 1
+    },
+    "nonEmpty": 1,
+    "nonZero": 1,
+    "seen": 1,
+    "types": {
+     "list": 1
+    }
+   },
+   "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "170": 1
+    },
+    "nonEmpty": 1,
+    "nonZero": 1,
+    "seen": 1,
+    "types": {
+     "list": 1
+    }
+   },
+   "refworld": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "170": 1
+    },
+    "nonEmpty": 1,
+    "nonZero": 1,
+    "seen": 1,
+    "types": {
+     "list": 1
+    }
+   }
+  },
   "save.worldSaveData.DungeonPointMarkerSaveData.values[].ConnectedDungeonInstanceId": {
    "2026.07.22-23.59.51": {
     "distinctValues": 0,
@@ -7237,6 +8075,47 @@
     "seen": 170,
     "types": {
      "int": 170
+    }
+   }
+  },
+  "save.worldSaveData.DungeonSaveData.values": {
+   "2026.07.22-23.59.51": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "143": 1
+    },
+    "nonEmpty": 1,
+    "nonZero": 1,
+    "seen": 1,
+    "types": {
+     "list": 1
+    }
+   },
+   "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "148": 1
+    },
+    "nonEmpty": 1,
+    "nonZero": 1,
+    "seen": 1,
+    "types": {
+     "list": 1
+    }
+   },
+   "refworld": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "118": 1
+    },
+    "nonEmpty": 1,
+    "nonZero": 1,
+    "seen": 1,
+    "types": {
+     "list": 1
     }
    }
   },
@@ -7575,6 +8454,49 @@
     }
    }
   },
+  "save.worldSaveData.DungeonSaveData.values[].MapObjectSaveData.values": {
+   "2026.07.22-23.59.51": {
+    "alwaysEmpty": true,
+    "distinctValues": 0,
+    "listLengths": {
+     "0": 143
+    },
+    "nonEmpty": 0,
+    "nonZero": 0,
+    "seen": 143,
+    "types": {
+     "list": 143
+    }
+   },
+   "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "0": 146,
+     "2": 2
+    },
+    "nonEmpty": 2,
+    "nonZero": 2,
+    "seen": 148,
+    "types": {
+     "list": 148
+    }
+   },
+   "refworld": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "0": 115,
+     "2": 3
+    },
+    "nonEmpty": 3,
+    "nonZero": 3,
+    "seen": 118,
+    "types": {
+     "list": 118
+    }
+   }
+  },
   "save.worldSaveData.DungeonSaveData.values[].MapObjectSaveData.values[].ConcreteModel.CustomVersionData.values": {
    "B8A1C9C171F944D3B9287F7390B76548": {
     "byVariant": {
@@ -7606,6 +8528,40 @@
     "seen": 6,
     "types": {
      "bytes": 6
+    }
+   }
+  },
+  "save.worldSaveData.DungeonSaveData.values[].MapObjectSaveData.values[].ConcreteModel.ModuleMap": {
+   "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": false,
+    "byVariant": {
+     "CommonDropItem3D": 4
+    },
+    "distinctValues": 0,
+    "listLengths": {
+     "1": 4
+    },
+    "nonEmpty": 4,
+    "nonZero": 4,
+    "seen": 4,
+    "types": {
+     "list": 4
+    }
+   },
+   "refworld": {
+    "alwaysEmpty": false,
+    "byVariant": {
+     "CommonDropItem3D": 6
+    },
+    "distinctValues": 0,
+    "listLengths": {
+     "1": 6
+    },
+    "nonEmpty": 6,
+    "nonZero": 6,
+    "seen": 6,
+    "types": {
+     "list": 6
     }
    }
   },
@@ -7954,6 +8910,40 @@
     }
    }
   },
+  "save.worldSaveData.DungeonSaveData.values[].MapObjectSaveData.values[].Model.EffectMap": {
+   "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": true,
+    "byVariant": {
+     "CommonDropItem3D": 4
+    },
+    "distinctValues": 0,
+    "listLengths": {
+     "0": 4
+    },
+    "nonEmpty": 0,
+    "nonZero": 0,
+    "seen": 4,
+    "types": {
+     "list": 4
+    }
+   },
+   "refworld": {
+    "alwaysEmpty": true,
+    "byVariant": {
+     "CommonDropItem3D": 6
+    },
+    "distinctValues": 0,
+    "listLengths": {
+     "0": 6
+    },
+    "nonEmpty": 0,
+    "nonZero": 0,
+    "seen": 6,
+    "types": {
+     "list": 6
+    }
+   }
+  },
   "save.worldSaveData.DungeonSaveData.values[].MapObjectSaveData.values[].Model.Paint.CustomVersionData.values": {
    "B8A1C9C171F944D3B9287F7390B76548": {
     "byVariant": {
@@ -8094,6 +9084,47 @@
     }
    }
   },
+  "save.worldSaveData.DungeonSaveData.values[].ReceivedBonusExpPlayerIds.values": {
+   "2026.07.22-23.59.51": {
+    "alwaysEmpty": true,
+    "distinctValues": 0,
+    "listLengths": {
+     "0": 143
+    },
+    "nonEmpty": 0,
+    "nonZero": 0,
+    "seen": 143,
+    "types": {
+     "list": 143
+    }
+   },
+   "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": true,
+    "distinctValues": 0,
+    "listLengths": {
+     "0": 148
+    },
+    "nonEmpty": 0,
+    "nonZero": 0,
+    "seen": 148,
+    "types": {
+     "list": 148
+    }
+   },
+   "refworld": {
+    "alwaysEmpty": true,
+    "distinctValues": 0,
+    "listLengths": {
+     "0": 118
+    },
+    "nonEmpty": 0,
+    "nonZero": 0,
+    "seen": 118,
+    "types": {
+     "list": 118
+    }
+   }
+  },
   "save.worldSaveData.DungeonSaveData.values[].ReservedDataLayerAssetIndex": {
    "2026.07.22-23.59.51": {
     "distinctValues": 21,
@@ -8200,6 +9231,47 @@
     }
    }
   },
+  "save.worldSaveData.DungeonSaveData.values[].RewardSaveDataMap": {
+   "2026.07.22-23.59.51": {
+    "alwaysEmpty": true,
+    "distinctValues": 0,
+    "listLengths": {
+     "0": 143
+    },
+    "nonEmpty": 0,
+    "nonZero": 0,
+    "seen": 143,
+    "types": {
+     "list": 143
+    }
+   },
+   "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": true,
+    "distinctValues": 0,
+    "listLengths": {
+     "0": 148
+    },
+    "nonEmpty": 0,
+    "nonZero": 0,
+    "seen": 148,
+    "types": {
+     "list": 148
+    }
+   },
+   "refworld": {
+    "alwaysEmpty": true,
+    "distinctValues": 0,
+    "listLengths": {
+     "0": 118
+    },
+    "nonEmpty": 0,
+    "nonZero": 0,
+    "seen": 118,
+    "types": {
+     "list": 118
+    }
+   }
+  },
   "save.worldSaveData.DungeonSaveData.values[].StageInstanceId.InternalId": {
    "2026.07.22-23.59.51": {
     "distinctValues": 0,
@@ -8282,6 +9354,47 @@
     "seen": 118,
     "types": {
      "bool": 118
+    }
+   }
+  },
+  "save.worldSaveData.DynamicItemSaveData.values": {
+   "2026.07.22-23.59.51": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "571": 1
+    },
+    "nonEmpty": 1,
+    "nonZero": 1,
+    "seen": 1,
+    "types": {
+     "list": 1
+    }
+   },
+   "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "324": 1
+    },
+    "nonEmpty": 1,
+    "nonZero": 1,
+    "seen": 1,
+    "types": {
+     "list": 1
+    }
+   },
+   "refworld": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "32446": 1
+    },
+    "nonEmpty": 1,
+    "nonZero": 1,
+    "seen": 1,
+    "types": {
+     "list": 1
     }
    }
   },
@@ -8605,6 +9718,42 @@
     }
    }
   },
+  "save.worldSaveData.DynamicItemSaveData.values[].RawData.object.SaveParameter.EquipWaza": {
+   "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": false,
+    "byVariant": {
+     "egg": 8
+    },
+    "distinctValues": 0,
+    "listLengths": {
+     "2": 8
+    },
+    "nonEmpty": 8,
+    "nonZero": 8,
+    "seen": 8,
+    "types": {
+     "list": 8
+    }
+   },
+   "refworld": {
+    "alwaysEmpty": false,
+    "byVariant": {
+     "egg": 3586
+    },
+    "distinctValues": 0,
+    "listLengths": {
+     "1": 96,
+     "2": 3410,
+     "3": 80
+    },
+    "nonEmpty": 3586,
+    "nonZero": 3586,
+    "seen": 3586,
+    "types": {
+     "list": 3586
+    }
+   }
+  },
   "save.worldSaveData.DynamicItemSaveData.values[].RawData.object.SaveParameter.EquipWaza[]": {
    "B8A1C9C171F944D3B9287F7390B76548": {
     "byVariant": {
@@ -8857,6 +10006,42 @@
     }
    }
   },
+  "save.worldSaveData.DynamicItemSaveData.values[].RawData.object.SaveParameter.MasteredWaza": {
+   "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": false,
+    "byVariant": {
+     "egg": 8
+    },
+    "distinctValues": 0,
+    "listLengths": {
+     "1": 8
+    },
+    "nonEmpty": 8,
+    "nonZero": 8,
+    "seen": 8,
+    "types": {
+     "list": 8
+    }
+   },
+   "refworld": {
+    "alwaysEmpty": false,
+    "byVariant": {
+     "egg": 3586
+    },
+    "distinctValues": 0,
+    "listLengths": {
+     "1": 3506,
+     "5": 64,
+     "6": 16
+    },
+    "nonEmpty": 3586,
+    "nonZero": 3586,
+    "seen": 3586,
+    "types": {
+     "list": 3586
+    }
+   }
+  },
   "save.worldSaveData.DynamicItemSaveData.values[].RawData.object.SaveParameter.MasteredWaza[]": {
    "B8A1C9C171F944D3B9287F7390B76548": {
     "byVariant": {
@@ -8900,6 +10085,45 @@
     "seen": 3922,
     "types": {
      "str": 3922
+    }
+   }
+  },
+  "save.worldSaveData.DynamicItemSaveData.values[].RawData.object.SaveParameter.PassiveSkillList": {
+   "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": false,
+    "byVariant": {
+     "egg": 8
+    },
+    "distinctValues": 0,
+    "listLengths": {
+     "1": 1,
+     "2": 2,
+     "4": 5
+    },
+    "nonEmpty": 8,
+    "nonZero": 8,
+    "seen": 8,
+    "types": {
+     "list": 8
+    }
+   },
+   "refworld": {
+    "alwaysEmpty": false,
+    "byVariant": {
+     "egg": 3586
+    },
+    "distinctValues": 0,
+    "listLengths": {
+     "1": 530,
+     "2": 781,
+     "3": 849,
+     "4": 1426
+    },
+    "nonEmpty": 3586,
+    "nonZero": 3586,
+    "seen": 3586,
+    "types": {
+     "list": 3586
     }
    }
   },
@@ -9087,6 +10311,56 @@
     }
    }
   },
+  "save.worldSaveData.DynamicItemSaveData.values[].RawData.passive_skill_list": {
+   "2026.07.22-23.59.51": {
+    "alwaysEmpty": true,
+    "byVariant": {
+     "weapon": 22
+    },
+    "distinctValues": 0,
+    "listLengths": {
+     "0": 22
+    },
+    "nonEmpty": 0,
+    "nonZero": 0,
+    "seen": 22,
+    "types": {
+     "list": 22
+    }
+   },
+   "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": true,
+    "byVariant": {
+     "weapon": 63
+    },
+    "distinctValues": 0,
+    "listLengths": {
+     "0": 63
+    },
+    "nonEmpty": 0,
+    "nonZero": 0,
+    "seen": 63,
+    "types": {
+     "list": 63
+    }
+   },
+   "refworld": {
+    "alwaysEmpty": true,
+    "byVariant": {
+     "weapon": 814
+    },
+    "distinctValues": 0,
+    "listLengths": {
+     "0": 814
+    },
+    "nonEmpty": 0,
+    "nonZero": 0,
+    "seen": 814,
+    "types": {
+     "list": 814
+    }
+   }
+  },
   "save.worldSaveData.DynamicItemSaveData.values[].RawData.remaining_bullets": {
    "2026.07.22-23.59.51": {
     "byVariant": {
@@ -9263,6 +10537,7 @@
   },
   "save.worldSaveData.DynamicItemSaveData.values[].RawData.unknown_bytes": {
    "2026.07.22-23.59.51": {
+    "alwaysEmpty": false,
     "byVariant": {
      "weapon": 22
     },
@@ -9273,6 +10548,11 @@
      "15": 1
     },
     "distinctValues": 0,
+    "listLengths": {
+     "9": 20,
+     "10": 1,
+     "15": 1
+    },
     "nonEmpty": 22,
     "nonZero": 22,
     "seen": 22,
@@ -9281,6 +10561,7 @@
     }
    },
    "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": false,
     "byVariant": {
      "weapon": 63
     },
@@ -9290,6 +10571,10 @@
      "10": 2
     },
     "distinctValues": 0,
+    "listLengths": {
+     "9": 61,
+     "10": 2
+    },
     "nonEmpty": 63,
     "nonZero": 63,
     "seen": 63,
@@ -9298,6 +10583,7 @@
     }
    },
    "refworld": {
+    "alwaysEmpty": false,
     "byVariant": {
      "weapon": 813
     },
@@ -9307,11 +10593,56 @@
      "10": 22
     },
     "distinctValues": 0,
+    "listLengths": {
+     "9": 791,
+     "10": 22
+    },
     "nonEmpty": 813,
     "nonZero": 813,
     "seen": 813,
     "types": {
      "numericRun": 813
+    }
+   }
+  },
+  "save.worldSaveData.EnemyCampSaveData.EnemyCampStatusMap": {
+   "2026.07.22-23.59.51": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "22": 1
+    },
+    "nonEmpty": 1,
+    "nonZero": 1,
+    "seen": 1,
+    "types": {
+     "list": 1
+    }
+   },
+   "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "46": 1
+    },
+    "nonEmpty": 1,
+    "nonZero": 1,
+    "seen": 1,
+    "types": {
+     "list": 1
+    }
+   },
+   "refworld": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "41": 1
+    },
+    "nonEmpty": 1,
+    "nonZero": 1,
+    "seen": 1,
+    "types": {
+     "list": 1
     }
    }
   },
@@ -9627,6 +10958,68 @@
     }
    }
   },
+  "save.worldSaveData.EnemyCampSaveData.EnemyCampStatusMap[].value.TreasureBoxInfoMapBySpawnerName": {
+   "2026.07.22-23.59.51": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "0": 9,
+     "3": 3,
+     "4": 6,
+     "5": 1,
+     "6": 1,
+     "7": 1,
+     "9": 1
+    },
+    "nonEmpty": 13,
+    "nonZero": 13,
+    "seen": 22,
+    "types": {
+     "list": 22
+    }
+   },
+   "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "0": 19,
+     "3": 5,
+     "4": 9,
+     "5": 4,
+     "6": 3,
+     "7": 3,
+     "8": 1,
+     "9": 1,
+     "12": 1
+    },
+    "nonEmpty": 27,
+    "nonZero": 27,
+    "seen": 46,
+    "types": {
+     "list": 46
+    }
+   },
+   "refworld": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "0": 14,
+     "3": 4,
+     "4": 9,
+     "5": 5,
+     "6": 3,
+     "7": 4,
+     "8": 1,
+     "9": 1
+    },
+    "nonEmpty": 27,
+    "nonZero": 27,
+    "seen": 41,
+    "types": {
+     "list": 41
+    }
+   }
+  },
   "save.worldSaveData.EnemyCampSaveData.EnemyCampStatusMap[].value.TreasureBoxInfoMapBySpawnerName[].key": {
    "2026.07.22-23.59.51": {
     "byVariant": {
@@ -9757,6 +11150,66 @@
     "seen": 136,
     "types": {
      "str": 136
+    }
+   }
+  },
+  "save.worldSaveData.EnemyCampSaveData.EnemyCampStatusMap[].value.TreasureBoxInfoMapBySpawnerName[].value.Items.values": {
+   "2026.07.22-23.59.51": {
+    "alwaysEmpty": false,
+    "byVariant": {
+     "TreasureBox_EnemyCamp": 48,
+     "TreasureBox_EnemyCampGoal": 12
+    },
+    "distinctValues": 0,
+    "listLengths": {
+     "3": 46,
+     "4": 14
+    },
+    "nonEmpty": 60,
+    "nonZero": 60,
+    "seen": 60,
+    "types": {
+     "list": 60
+    }
+   },
+   "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": false,
+    "byVariant": {
+     "TreasureBox_EnemyCamp": 105,
+     "TreasureBox_EnemyCampGoal": 23
+    },
+    "distinctValues": 0,
+    "listLengths": {
+     "0": 11,
+     "3": 99,
+     "4": 27,
+     "5": 2
+    },
+    "nonEmpty": 128,
+    "nonZero": 128,
+    "seen": 139,
+    "types": {
+     "list": 139
+    }
+   },
+   "refworld": {
+    "alwaysEmpty": false,
+    "byVariant": {
+     "TreasureBox_EnemyCamp": 108,
+     "TreasureBox_EnemyCampGoal": 23
+    },
+    "distinctValues": 0,
+    "listLengths": {
+     "0": 5,
+     "3": 102,
+     "4": 28,
+     "5": 1
+    },
+    "nonEmpty": 131,
+    "nonZero": 131,
+    "seen": 136,
+    "types": {
+     "list": 136
     }
    }
   },
@@ -10319,6 +11772,21 @@
     }
    }
   },
+  "save.worldSaveData.FixedWeaponDestroySaveData.DestroyedWeapon.values": {
+   "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "10": 1
+    },
+    "nonEmpty": 1,
+    "nonZero": 1,
+    "seen": 1,
+    "types": {
+     "list": 1
+    }
+   }
+  },
   "save.worldSaveData.FixedWeaponDestroySaveData.DestroyedWeapon.values[]": {
    "B8A1C9C171F944D3B9287F7390B76548": {
     "distinctValues": 0,
@@ -10327,6 +11795,47 @@
     "seen": 10,
     "types": {
      "UUID": 10
+    }
+   }
+  },
+  "save.worldSaveData.FoliageGridSaveDataMap": {
+   "2026.07.22-23.59.51": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "540": 1
+    },
+    "nonEmpty": 1,
+    "nonZero": 1,
+    "seen": 1,
+    "types": {
+     "list": 1
+    }
+   },
+   "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "1355": 1
+    },
+    "nonEmpty": 1,
+    "nonZero": 1,
+    "seen": 1,
+    "types": {
+     "list": 1
+    }
+   },
+   "refworld": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "1113": 1
+    },
+    "nonEmpty": 1,
+    "nonZero": 1,
+    "seen": 1,
+    "types": {
+     "list": 1
     }
    }
   },
@@ -10506,6 +12015,73 @@
     }
    }
   },
+  "save.worldSaveData.FoliageGridSaveDataMap[].value.ModelMap": {
+   "2026.07.22-23.59.51": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "0": 437,
+     "1": 33,
+     "2": 25,
+     "3": 30,
+     "4": 9,
+     "5": 3,
+     "6": 2,
+     "7": 1
+    },
+    "nonEmpty": 103,
+    "nonZero": 103,
+    "seen": 540,
+    "types": {
+     "list": 540
+    }
+   },
+   "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "0": 922,
+     "1": 133,
+     "2": 99,
+     "3": 119,
+     "4": 30,
+     "5": 20,
+     "6": 15,
+     "7": 8,
+     "8": 5,
+     "9": 2,
+     "11": 1,
+     "12": 1
+    },
+    "nonEmpty": 433,
+    "nonZero": 433,
+    "seen": 1355,
+    "types": {
+     "list": 1355
+    }
+   },
+   "refworld": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "0": 798,
+     "1": 88,
+     "2": 71,
+     "3": 92,
+     "4": 28,
+     "5": 18,
+     "6": 9,
+     "7": 8,
+     "11": 1
+    },
+    "nonEmpty": 315,
+    "nonZero": 315,
+    "seen": 1113,
+    "types": {
+     "list": 1113
+    }
+   }
+  },
   "save.worldSaveData.FoliageGridSaveDataMap[].value.ModelMap[].key": {
    "2026.07.22-23.59.51": {
     "distinctValues": 64,
@@ -10594,6 +12170,133 @@
     "seen": 829,
     "types": {
      "bytes": 829
+    }
+   }
+  },
+  "save.worldSaveData.FoliageGridSaveDataMap[].value.ModelMap[].value.InstanceDataMap": {
+   "2026.07.22-23.59.51": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "1": 101,
+     "2": 52,
+     "3": 31,
+     "4": 12,
+     "5": 4,
+     "6": 9,
+     "7": 4,
+     "8": 7,
+     "9": 6,
+     "10": 1,
+     "11": 1,
+     "12": 1,
+     "13": 2,
+     "16": 1,
+     "18": 1,
+     "19": 2,
+     "20": 1,
+     "21": 1,
+     "24": 2,
+     "26": 1,
+     "27": 1,
+     "30": 1,
+     "51": 1
+    },
+    "nonEmpty": 243,
+    "nonZero": 243,
+    "seen": 243,
+    "types": {
+     "list": 243
+    }
+   },
+   "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "1": 444,
+     "2": 204,
+     "3": 122,
+     "4": 90,
+     "5": 46,
+     "6": 53,
+     "7": 32,
+     "8": 23,
+     "9": 19,
+     "10": 15,
+     "11": 9,
+     "12": 7,
+     "13": 5,
+     "14": 10,
+     "15": 6,
+     "16": 4,
+     "17": 7,
+     "18": 4,
+     "19": 4,
+     "20": 2,
+     "21": 2,
+     "22": 5,
+     "23": 1,
+     "25": 1,
+     "26": 5,
+     "27": 4,
+     "28": 3,
+     "31": 1,
+     "32": 2,
+     "34": 1,
+     "39": 1,
+     "53": 1,
+     "59": 1,
+     "67": 1
+    },
+    "nonEmpty": 1135,
+    "nonZero": 1135,
+    "seen": 1135,
+    "types": {
+     "list": 1135
+    }
+   },
+   "refworld": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "1": 309,
+     "2": 151,
+     "3": 104,
+     "4": 66,
+     "5": 36,
+     "6": 33,
+     "7": 23,
+     "8": 12,
+     "9": 18,
+     "10": 8,
+     "11": 8,
+     "12": 4,
+     "13": 7,
+     "14": 8,
+     "15": 1,
+     "16": 5,
+     "17": 3,
+     "18": 3,
+     "19": 2,
+     "20": 2,
+     "21": 3,
+     "22": 3,
+     "23": 2,
+     "24": 3,
+     "25": 6,
+     "26": 3,
+     "27": 1,
+     "33": 1,
+     "40": 1,
+     "50": 1,
+     "59": 1,
+     "66": 1
+    },
+    "nonEmpty": 829,
+    "nonZero": 829,
+    "seen": 829,
+    "types": {
+     "list": 829
     }
    }
   },
@@ -10760,11 +12463,15 @@
   },
   "save.worldSaveData.FoliageGridSaveDataMap[].value.ModelMap[].value.InstanceDataMap[].value.RawData.unknown_bytes": {
    "2026.07.22-23.59.51": {
+    "alwaysEmpty": false,
     "byteLengthConstant": true,
     "byteLengths": {
      "12": 912
     },
     "distinctValues": 0,
+    "listLengths": {
+     "12": 912
+    },
     "nonEmpty": 912,
     "nonZero": 83,
     "seen": 912,
@@ -10773,11 +12480,15 @@
     }
    },
    "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": false,
     "byteLengthConstant": true,
     "byteLengths": {
      "12": 4573
     },
     "distinctValues": 0,
+    "listLengths": {
+     "12": 4573
+    },
     "nonEmpty": 4573,
     "nonZero": 131,
     "seen": 4573,
@@ -10786,11 +12497,15 @@
     }
    },
    "refworld": {
+    "alwaysEmpty": false,
     "byteLengthConstant": true,
     "byteLengths": {
      "12": 3431
     },
     "distinctValues": 0,
+    "listLengths": {
+     "12": 3431
+    },
     "nonEmpty": 3431,
     "nonZero": 176,
     "seen": 3431,
@@ -11528,6 +13243,47 @@
     }
    }
   },
+  "save.worldSaveData.GroupSaveDataMap": {
+   "2026.07.22-23.59.51": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "11": 1
+    },
+    "nonEmpty": 1,
+    "nonZero": 1,
+    "seen": 1,
+    "types": {
+     "list": 1
+    }
+   },
+   "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "12": 1
+    },
+    "nonEmpty": 1,
+    "nonZero": 1,
+    "seen": 1,
+    "types": {
+     "list": 1
+    }
+   },
+   "refworld": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "12": 1
+    },
+    "nonEmpty": 1,
+    "nonZero": 1,
+    "seen": 1,
+    "types": {
+     "list": 1
+    }
+   }
+  },
   "save.worldSaveData.GroupSaveDataMap[].key": {
    "2026.07.22-23.59.51": {
     "byVariant": {
@@ -11784,6 +13540,60 @@
     }
    }
   },
+  "save.worldSaveData.GroupSaveDataMap[].value.RawData.base_ids": {
+   "2026.07.22-23.59.51": {
+    "alwaysEmpty": false,
+    "byVariant": {
+     "Guild": 4
+    },
+    "distinctValues": 0,
+    "listLengths": {
+     "1": 2,
+     "2": 2
+    },
+    "nonEmpty": 4,
+    "nonZero": 4,
+    "seen": 4,
+    "types": {
+     "list": 4
+    }
+   },
+   "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": false,
+    "byVariant": {
+     "Guild": 5
+    },
+    "distinctValues": 0,
+    "listLengths": {
+     "2": 2,
+     "4": 3
+    },
+    "nonEmpty": 5,
+    "nonZero": 5,
+    "seen": 5,
+    "types": {
+     "list": 5
+    }
+   },
+   "refworld": {
+    "alwaysEmpty": false,
+    "byVariant": {
+     "Guild": 5
+    },
+    "distinctValues": 0,
+    "listLengths": {
+     "1": 1,
+     "2": 2,
+     "3": 2
+    },
+    "nonEmpty": 5,
+    "nonZero": 5,
+    "seen": 5,
+    "types": {
+     "list": 5
+    }
+   }
+  },
   "save.worldSaveData.GroupSaveDataMap[].value.RawData.base_ids[]": {
    "2026.07.22-23.59.51": {
     "byVariant": {
@@ -11962,6 +13772,7 @@
   },
   "save.worldSaveData.GroupSaveDataMap[].value.RawData.guild_chest_allowed_roles": {
    "2026.07.22-23.59.51": {
+    "alwaysEmpty": false,
     "byVariant": {
      "Guild": 4
     },
@@ -11970,6 +13781,9 @@
      "2": 4
     },
     "distinctValues": 0,
+    "listLengths": {
+     "2": 4
+    },
     "nonEmpty": 4,
     "nonZero": 4,
     "seen": 4,
@@ -11978,6 +13792,7 @@
     }
    },
    "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": false,
     "byVariant": {
      "Guild": 5
     },
@@ -11986,6 +13801,9 @@
      "2": 5
     },
     "distinctValues": 0,
+    "listLengths": {
+     "2": 5
+    },
     "nonEmpty": 5,
     "nonZero": 5,
     "seen": 5,
@@ -11994,6 +13812,7 @@
     }
    },
    "refworld": {
+    "alwaysEmpty": false,
     "byVariant": {
      "Guild": 5
     },
@@ -12002,11 +13821,64 @@
      "2": 5
     },
     "distinctValues": 0,
+    "listLengths": {
+     "2": 5
+    },
     "nonEmpty": 5,
     "nonZero": 5,
     "seen": 5,
     "types": {
      "numericRun": 5
+    }
+   }
+  },
+  "save.worldSaveData.GroupSaveDataMap[].value.RawData.guild_markers": {
+   "2026.07.22-23.59.51": {
+    "alwaysEmpty": true,
+    "byVariant": {
+     "Guild": 4
+    },
+    "distinctValues": 0,
+    "listLengths": {
+     "0": 4
+    },
+    "nonEmpty": 0,
+    "nonZero": 0,
+    "seen": 4,
+    "types": {
+     "list": 4
+    }
+   },
+   "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": true,
+    "byVariant": {
+     "Guild": 5
+    },
+    "distinctValues": 0,
+    "listLengths": {
+     "0": 5
+    },
+    "nonEmpty": 0,
+    "nonZero": 0,
+    "seen": 5,
+    "types": {
+     "list": 5
+    }
+   },
+   "refworld": {
+    "alwaysEmpty": true,
+    "byVariant": {
+     "Guild": 5
+    },
+    "distinctValues": 0,
+    "listLengths": {
+     "0": 5
+    },
+    "nonEmpty": 0,
+    "nonZero": 0,
+    "seen": 5,
+    "types": {
+     "list": 5
     }
    }
   },
@@ -12049,6 +13921,76 @@
      "str": 5
     },
     "valuesWithheld": true
+   }
+  },
+  "save.worldSaveData.GroupSaveDataMap[].value.RawData.individual_character_handle_ids": {
+   "2026.07.22-23.59.51": {
+    "alwaysEmpty": false,
+    "byVariant": {
+     "Guild": 4,
+     "Organization": 7
+    },
+    "distinctValues": 0,
+    "listLengths": {
+     "0": 6,
+     "1": 1,
+     "3": 1,
+     "76": 1,
+     "150": 1,
+     "433": 1
+    },
+    "nonEmpty": 5,
+    "nonZero": 5,
+    "seen": 11,
+    "types": {
+     "list": 11
+    }
+   },
+   "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": false,
+    "byVariant": {
+     "Guild": 5,
+     "Organization": 7
+    },
+    "distinctValues": 0,
+    "listLengths": {
+     "0": 7,
+     "40": 1,
+     "530": 1,
+     "604": 1,
+     "777": 1,
+     "1017": 1
+    },
+    "nonEmpty": 5,
+    "nonZero": 5,
+    "seen": 12,
+    "types": {
+     "list": 12
+    }
+   },
+   "refworld": {
+    "alwaysEmpty": false,
+    "byVariant": {
+     "Guild": 5,
+     "Organization": 7
+    },
+    "distinctValues": 0,
+    "listLengths": {
+     "0": 5,
+     "4": 1,
+     "8": 1,
+     "205": 1,
+     "346": 1,
+     "609": 1,
+     "614": 1,
+     "737": 1
+    },
+    "nonEmpty": 7,
+    "nonZero": 7,
+    "seen": 12,
+    "types": {
+     "list": 12
+    }
    }
   },
   "save.worldSaveData.GroupSaveDataMap[].value.RawData.individual_character_handle_ids[].guid": {
@@ -12225,6 +14167,60 @@
     }
    }
   },
+  "save.worldSaveData.GroupSaveDataMap[].value.RawData.map_object_instance_ids_base_camp_points": {
+   "2026.07.22-23.59.51": {
+    "alwaysEmpty": false,
+    "byVariant": {
+     "Guild": 4
+    },
+    "distinctValues": 0,
+    "listLengths": {
+     "1": 2,
+     "2": 2
+    },
+    "nonEmpty": 4,
+    "nonZero": 4,
+    "seen": 4,
+    "types": {
+     "list": 4
+    }
+   },
+   "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": false,
+    "byVariant": {
+     "Guild": 5
+    },
+    "distinctValues": 0,
+    "listLengths": {
+     "2": 2,
+     "4": 3
+    },
+    "nonEmpty": 5,
+    "nonZero": 5,
+    "seen": 5,
+    "types": {
+     "list": 5
+    }
+   },
+   "refworld": {
+    "alwaysEmpty": false,
+    "byVariant": {
+     "Guild": 5
+    },
+    "distinctValues": 0,
+    "listLengths": {
+     "1": 1,
+     "2": 2,
+     "3": 2
+    },
+    "nonEmpty": 5,
+    "nonZero": 5,
+    "seen": 5,
+    "types": {
+     "list": 5
+    }
+   }
+  },
   "save.worldSaveData.GroupSaveDataMap[].value.RawData.map_object_instance_ids_base_camp_points[]": {
    "2026.07.22-23.59.51": {
     "byVariant": {
@@ -12310,6 +14306,56 @@
     "seen": 12,
     "types": {
      "int": 12
+    }
+   }
+  },
+  "save.worldSaveData.GroupSaveDataMap[].value.RawData.players": {
+   "2026.07.22-23.59.51": {
+    "alwaysEmpty": false,
+    "byVariant": {
+     "Guild": 4
+    },
+    "distinctValues": 0,
+    "listLengths": {
+     "1": 4
+    },
+    "nonEmpty": 4,
+    "nonZero": 4,
+    "seen": 4,
+    "types": {
+     "list": 4
+    }
+   },
+   "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": false,
+    "byVariant": {
+     "Guild": 5
+    },
+    "distinctValues": 0,
+    "listLengths": {
+     "1": 5
+    },
+    "nonEmpty": 5,
+    "nonZero": 5,
+    "seen": 5,
+    "types": {
+     "list": 5
+    }
+   },
+   "refworld": {
+    "alwaysEmpty": false,
+    "byVariant": {
+     "Guild": 5
+    },
+    "distinctValues": 0,
+    "listLengths": {
+     "1": 5
+    },
+    "nonEmpty": 5,
+    "nonZero": 5,
+    "seen": 5,
+    "types": {
+     "list": 5
     }
    }
   },
@@ -12500,10 +14546,61 @@
     }
    }
   },
+  "save.worldSaveData.GroupSaveDataMap[].value.RawData.role_permissions": {
+   "2026.07.22-23.59.51": {
+    "alwaysEmpty": false,
+    "byVariant": {
+     "Guild": 4
+    },
+    "distinctValues": 0,
+    "listLengths": {
+     "3": 4
+    },
+    "nonEmpty": 4,
+    "nonZero": 4,
+    "seen": 4,
+    "types": {
+     "list": 4
+    }
+   },
+   "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": false,
+    "byVariant": {
+     "Guild": 5
+    },
+    "distinctValues": 0,
+    "listLengths": {
+     "3": 5
+    },
+    "nonEmpty": 5,
+    "nonZero": 5,
+    "seen": 5,
+    "types": {
+     "list": 5
+    }
+   },
+   "refworld": {
+    "alwaysEmpty": false,
+    "byVariant": {
+     "Guild": 5
+    },
+    "distinctValues": 0,
+    "listLengths": {
+     "3": 5
+    },
+    "nonEmpty": 5,
+    "nonZero": 5,
+    "seen": 5,
+    "types": {
+     "list": 5
+    }
+   }
+  },
   "save.worldSaveData.GroupSaveDataMap[].value.RawData.role_permissions[].permissions": {
    "2026.07.22-23.59.51": {
+    "alwaysEmpty": false,
     "byVariant": {
-     "Guild": 8
+     "Guild": 12
     },
     "byteLengthConstant": false,
     "byteLengths": {
@@ -12511,16 +14608,23 @@
      "5": 4
     },
     "distinctValues": 0,
+    "listLengths": {
+     "0": 4,
+     "2": 4,
+     "5": 4
+    },
     "nonEmpty": 8,
     "nonZero": 8,
-    "seen": 8,
+    "seen": 12,
     "types": {
+     "list": 4,
      "numericRun": 8
     }
    },
    "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": false,
     "byVariant": {
-     "Guild": 10
+     "Guild": 15
     },
     "byteLengthConstant": false,
     "byteLengths": {
@@ -12528,16 +14632,23 @@
      "5": 5
     },
     "distinctValues": 0,
+    "listLengths": {
+     "0": 5,
+     "2": 5,
+     "5": 5
+    },
     "nonEmpty": 10,
     "nonZero": 10,
-    "seen": 10,
+    "seen": 15,
     "types": {
+     "list": 5,
      "numericRun": 10
     }
    },
    "refworld": {
+    "alwaysEmpty": false,
     "byVariant": {
-     "Guild": 10
+     "Guild": 15
     },
     "byteLengthConstant": false,
     "byteLengths": {
@@ -12545,10 +14656,16 @@
      "5": 5
     },
     "distinctValues": 0,
+    "listLengths": {
+     "0": 5,
+     "2": 5,
+     "5": 5
+    },
     "nonEmpty": 10,
     "nonZero": 10,
-    "seen": 10,
+    "seen": 15,
     "types": {
+     "list": 5,
      "numericRun": 10
     }
    }
@@ -12753,6 +14870,47 @@
     "seen": 5,
     "types": {
      "int": 5
+    }
+   }
+  },
+  "save.worldSaveData.GuildExtraSaveDataMap": {
+   "2026.07.22-23.59.51": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "4": 1
+    },
+    "nonEmpty": 1,
+    "nonZero": 1,
+    "seen": 1,
+    "types": {
+     "list": 1
+    }
+   },
+   "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "5": 1
+    },
+    "nonEmpty": 1,
+    "nonZero": 1,
+    "seen": 1,
+    "types": {
+     "list": 1
+    }
+   },
+   "refworld": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "5": 1
+    },
+    "nonEmpty": 1,
+    "nonZero": 1,
+    "seen": 1,
+    "types": {
+     "list": 1
     }
    }
   },
@@ -12980,11 +15138,15 @@
   },
   "save.worldSaveData.GuildExtraSaveDataMap[].value.GuildItemStorage.RawData.trailing_bytes": {
    "2026.07.22-23.59.51": {
+    "alwaysEmpty": false,
     "byteLengthConstant": true,
     "byteLengths": {
      "4": 4
     },
     "distinctValues": 0,
+    "listLengths": {
+     "4": 4
+    },
     "nonEmpty": 4,
     "nonZero": 0,
     "seen": 4,
@@ -12993,11 +15155,15 @@
     }
    },
    "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": false,
     "byteLengthConstant": true,
     "byteLengths": {
      "4": 5
     },
     "distinctValues": 0,
+    "listLengths": {
+     "4": 5
+    },
     "nonEmpty": 5,
     "nonZero": 0,
     "seen": 5,
@@ -13006,11 +15172,15 @@
     }
    },
    "refworld": {
+    "alwaysEmpty": false,
     "byteLengthConstant": true,
     "byteLengths": {
      "4": 5
     },
     "distinctValues": 0,
+    "listLengths": {
+     "4": 5
+    },
     "nonEmpty": 5,
     "nonZero": 0,
     "seen": 5,
@@ -13099,6 +15269,47 @@
     "seen": 5,
     "types": {
      "str": 5
+    }
+   }
+  },
+  "save.worldSaveData.GuildExtraSaveDataMap[].value.Lab.RawData.research_info": {
+   "2026.07.22-23.59.51": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "168": 4
+    },
+    "nonEmpty": 4,
+    "nonZero": 4,
+    "seen": 4,
+    "types": {
+     "list": 4
+    }
+   },
+   "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "168": 5
+    },
+    "nonEmpty": 5,
+    "nonZero": 5,
+    "seen": 5,
+    "types": {
+     "list": 5
+    }
+   },
+   "refworld": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "168": 5
+    },
+    "nonEmpty": 5,
+    "nonZero": 5,
+    "seen": 5,
+    "types": {
+     "list": 5
     }
    }
   },
@@ -13201,11 +15412,15 @@
   },
   "save.worldSaveData.GuildExtraSaveDataMap[].value.Lab.RawData.trailing_bytes": {
    "2026.07.22-23.59.51": {
+    "alwaysEmpty": false,
     "byteLengthConstant": true,
     "byteLengths": {
      "4": 4
     },
     "distinctValues": 0,
+    "listLengths": {
+     "4": 4
+    },
     "nonEmpty": 4,
     "nonZero": 0,
     "seen": 4,
@@ -13214,11 +15429,15 @@
     }
    },
    "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": false,
     "byteLengthConstant": true,
     "byteLengths": {
      "4": 5
     },
     "distinctValues": 0,
+    "listLengths": {
+     "4": 5
+    },
     "nonEmpty": 5,
     "nonZero": 0,
     "seen": 5,
@@ -13227,11 +15446,15 @@
     }
    },
    "refworld": {
+    "alwaysEmpty": false,
     "byteLengthConstant": true,
     "byteLengths": {
      "4": 5
     },
     "distinctValues": 0,
+    "listLengths": {
+     "4": 5
+    },
     "nonEmpty": 5,
     "nonZero": 0,
     "seen": 5,
@@ -13278,6 +15501,47 @@
     "seen": 5,
     "types": {
      "bytes": 5
+    }
+   }
+  },
+  "save.worldSaveData.InLockerCharacterInstanceIDArray": {
+   "2026.07.22-23.59.51": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "1": 1
+    },
+    "nonEmpty": 1,
+    "nonZero": 1,
+    "seen": 1,
+    "types": {
+     "list": 1
+    }
+   },
+   "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "55": 1
+    },
+    "nonEmpty": 1,
+    "nonZero": 1,
+    "seen": 1,
+    "types": {
+     "list": 1
+    }
+   },
+   "refworld": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "2": 1
+    },
+    "nonEmpty": 1,
+    "nonZero": 1,
+    "seen": 1,
+    "types": {
+     "list": 1
     }
    }
   },
@@ -13399,6 +15663,47 @@
      "UUID": 2
     },
     "valuesWithheld": true
+   }
+  },
+  "save.worldSaveData.InvaderSaveData": {
+   "2026.07.22-23.59.51": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "6": 1
+    },
+    "nonEmpty": 1,
+    "nonZero": 1,
+    "seen": 1,
+    "types": {
+     "list": 1
+    }
+   },
+   "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "16": 1
+    },
+    "nonEmpty": 1,
+    "nonZero": 1,
+    "seen": 1,
+    "types": {
+     "list": 1
+    }
+   },
+   "refworld": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "11": 1
+    },
+    "nonEmpty": 1,
+    "nonZero": 1,
+    "seen": 1,
+    "types": {
+     "list": 1
+    }
    }
   },
   "save.worldSaveData.InvaderSaveData[].key": {
@@ -13571,6 +15876,47 @@
     }
    }
   },
+  "save.worldSaveData.ItemContainerSaveData": {
+   "2026.07.22-23.59.51": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "4237": 1
+    },
+    "nonEmpty": 1,
+    "nonZero": 1,
+    "seen": 1,
+    "types": {
+     "list": 1
+    }
+   },
+   "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "6306": 1
+    },
+    "nonEmpty": 1,
+    "nonZero": 1,
+    "seen": 1,
+    "types": {
+     "list": 1
+    }
+   },
+   "refworld": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "11639": 1
+    },
+    "nonEmpty": 1,
+    "nonZero": 1,
+    "seen": 1,
+    "types": {
+     "list": 1
+    }
+   }
+  },
   "save.worldSaveData.ItemContainerSaveData[].key.ID": {
    "2026.07.22-23.59.51": {
     "distinctValues": 0,
@@ -13735,6 +16081,55 @@
     }
    }
   },
+  "save.worldSaveData.ItemContainerSaveData[].value.RawData.permission.item_static_ids": {
+   "2026.07.22-23.59.51": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "0": 4231,
+     "1": 5,
+     "5": 1
+    },
+    "nonEmpty": 6,
+    "nonZero": 6,
+    "seen": 4237,
+    "types": {
+     "list": 4237
+    }
+   },
+   "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "0": 6253,
+     "1": 41,
+     "5": 8,
+     "11": 4
+    },
+    "nonEmpty": 53,
+    "nonZero": 53,
+    "seen": 6306,
+    "types": {
+     "list": 6306
+    }
+   },
+   "refworld": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "0": 11602,
+     "1": 29,
+     "5": 5,
+     "11": 3
+    },
+    "nonEmpty": 37,
+    "nonZero": 37,
+    "seen": 11639,
+    "types": {
+     "list": 11639
+    }
+   }
+  },
   "save.worldSaveData.ItemContainerSaveData[].value.RawData.permission.item_static_ids[]": {
    "2026.07.22-23.59.51": {
     "distinctValues": 8,
@@ -13787,94 +16182,137 @@
   },
   "save.worldSaveData.ItemContainerSaveData[].value.RawData.permission.type_a": {
    "2026.07.22-23.59.51": {
+    "alwaysEmpty": false,
     "byteLengthConstant": false,
     "byteLengths": {
      "1": 21,
      "3": 4
     },
     "distinctValues": 0,
+    "listLengths": {
+     "0": 4212,
+     "1": 21,
+     "3": 4
+    },
     "nonEmpty": 25,
     "nonZero": 25,
-    "seen": 25,
+    "seen": 4237,
     "types": {
+     "list": 4212,
      "numericRun": 25
     }
    },
    "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": false,
     "byteLengthConstant": false,
     "byteLengths": {
      "1": 56,
      "3": 5
     },
     "distinctValues": 0,
+    "listLengths": {
+     "0": 6245,
+     "1": 56,
+     "3": 5
+    },
     "nonEmpty": 61,
     "nonZero": 61,
-    "seen": 61,
+    "seen": 6306,
     "types": {
+     "list": 6245,
      "numericRun": 61
     }
    },
    "refworld": {
+    "alwaysEmpty": false,
     "byteLengthConstant": false,
     "byteLengths": {
      "1": 47,
      "3": 5
     },
     "distinctValues": 0,
+    "listLengths": {
+     "0": 11587,
+     "1": 47,
+     "3": 5
+    },
     "nonEmpty": 52,
     "nonZero": 52,
-    "seen": 52,
+    "seen": 11639,
     "types": {
+     "list": 11587,
      "numericRun": 52
     }
    }
   },
   "save.worldSaveData.ItemContainerSaveData[].value.RawData.permission.type_b": {
    "2026.07.22-23.59.51": {
+    "alwaysEmpty": false,
     "byteLengthConstant": false,
     "byteLengths": {
      "1": 3,
      "7": 6
     },
     "distinctValues": 0,
+    "listLengths": {
+     "0": 4228,
+     "1": 3,
+     "7": 6
+    },
     "nonEmpty": 9,
     "nonZero": 9,
-    "seen": 9,
+    "seen": 4237,
     "types": {
+     "list": 4228,
      "numericRun": 9
     }
    },
    "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": false,
     "byteLengthConstant": false,
     "byteLengths": {
      "1": 24,
      "7": 17
     },
     "distinctValues": 0,
+    "listLengths": {
+     "0": 6265,
+     "1": 24,
+     "7": 17
+    },
     "nonEmpty": 41,
     "nonZero": 41,
-    "seen": 41,
+    "seen": 6306,
     "types": {
+     "list": 6265,
      "numericRun": 41
     }
    },
    "refworld": {
+    "alwaysEmpty": false,
     "byteLengthConstant": false,
     "byteLengths": {
      "1": 18,
      "7": 14
     },
     "distinctValues": 0,
+    "listLengths": {
+     "0": 11607,
+     "1": 18,
+     "7": 14
+    },
     "nonEmpty": 32,
     "nonZero": 32,
-    "seen": 32,
+    "seen": 11639,
     "types": {
+     "list": 11607,
      "numericRun": 32
     }
    }
   },
   "save.worldSaveData.ItemContainerSaveData[].value.RawData.trailing_unparsed_data": {
    "2026.07.22-23.59.51": {
+    "alwaysEmpty": false,
     "byteLengthConstant": false,
     "byteLengths": {
      "8": 4233,
@@ -13883,6 +16321,12 @@
      "258": 1
     },
     "distinctValues": 0,
+    "listLengths": {
+     "8": 4233,
+     "45": 2,
+     "61": 1,
+     "258": 1
+    },
     "nonEmpty": 4237,
     "nonZero": 4,
     "seen": 4237,
@@ -13891,6 +16335,7 @@
     }
    },
    "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": false,
     "byteLengthConstant": false,
     "byteLengths": {
      "8": 6279,
@@ -13910,6 +16355,23 @@
      "258": 4
     },
     "distinctValues": 0,
+    "listLengths": {
+     "8": 6279,
+     "17": 2,
+     "45": 5,
+     "63": 1,
+     "123": 1,
+     "177": 1,
+     "189": 1,
+     "195": 1,
+     "204": 1,
+     "232": 2,
+     "241": 1,
+     "253": 1,
+     "255": 5,
+     "257": 1,
+     "258": 4
+    },
     "nonEmpty": 6306,
     "nonZero": 27,
     "seen": 6306,
@@ -13918,6 +16380,7 @@
     }
    },
    "refworld": {
+    "alwaysEmpty": false,
     "byteLengthConstant": false,
     "byteLengths": {
      "8": 11605,
@@ -13936,6 +16399,22 @@
      "258": 4
     },
     "distinctValues": 0,
+    "listLengths": {
+     "8": 11605,
+     "17": 12,
+     "26": 1,
+     "63": 5,
+     "123": 1,
+     "177": 1,
+     "185": 1,
+     "195": 1,
+     "200": 1,
+     "204": 1,
+     "241": 2,
+     "255": 3,
+     "257": 1,
+     "258": 4
+    },
     "nonEmpty": 11639,
     "nonZero": 34,
     "seen": 11639,
@@ -14000,6 +16479,149 @@
     "seen": 11639,
     "types": {
      "int": 11639
+    }
+   }
+  },
+  "save.worldSaveData.ItemContainerSaveData[].value.Slots.values": {
+   "2026.07.22-23.59.51": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "0": 513,
+     "1": 2736,
+     "2": 202,
+     "3": 539,
+     "4": 211,
+     "5": 6,
+     "6": 3,
+     "8": 5,
+     "9": 2,
+     "10": 7,
+     "11": 1,
+     "12": 1,
+     "14": 2,
+     "15": 1,
+     "23": 1,
+     "24": 4,
+     "32": 1,
+     "33": 1,
+     "38": 1
+    },
+    "nonEmpty": 3724,
+    "nonZero": 3724,
+    "seen": 4237,
+    "types": {
+     "list": 4237
+    }
+   },
+   "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "0": 117,
+     "1": 151,
+     "2": 709,
+     "3": 2780,
+     "4": 2230,
+     "5": 211,
+     "6": 9,
+     "7": 3,
+     "8": 3,
+     "9": 10,
+     "10": 6,
+     "11": 3,
+     "12": 4,
+     "13": 2,
+     "14": 1,
+     "15": 1,
+     "16": 7,
+     "17": 1,
+     "18": 2,
+     "19": 1,
+     "20": 4,
+     "21": 1,
+     "22": 4,
+     "23": 2,
+     "24": 13,
+     "25": 3,
+     "26": 1,
+     "27": 1,
+     "28": 1,
+     "29": 1,
+     "30": 1,
+     "31": 1,
+     "32": 1,
+     "33": 1,
+     "34": 1,
+     "35": 1,
+     "37": 2,
+     "39": 1,
+     "40": 3,
+     "41": 1,
+     "44": 1,
+     "48": 2,
+     "50": 1,
+     "51": 1,
+     "52": 1,
+     "53": 2,
+     "54": 3
+    },
+    "nonEmpty": 6189,
+    "nonZero": 6189,
+    "seen": 6306,
+    "types": {
+     "list": 6306
+    }
+   },
+   "refworld": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "0": 1031,
+     "1": 7508,
+     "2": 550,
+     "3": 1650,
+     "4": 767,
+     "5": 53,
+     "6": 3,
+     "7": 3,
+     "8": 5,
+     "9": 1,
+     "10": 10,
+     "11": 3,
+     "12": 2,
+     "13": 2,
+     "14": 3,
+     "15": 2,
+     "16": 1,
+     "17": 2,
+     "18": 1,
+     "19": 4,
+     "20": 4,
+     "21": 3,
+     "22": 1,
+     "23": 2,
+     "24": 8,
+     "26": 2,
+     "30": 1,
+     "32": 1,
+     "33": 1,
+     "34": 1,
+     "35": 1,
+     "37": 1,
+     "38": 1,
+     "39": 1,
+     "40": 6,
+     "42": 1,
+     "51": 1,
+     "54": 1,
+     "230": 1
+    },
+    "nonEmpty": 10608,
+    "nonZero": 10608,
+    "seen": 11639,
+    "types": {
+     "list": 11639
     }
    }
   },
@@ -14255,6 +16877,7 @@
   },
   "save.worldSaveData.ItemContainerSaveData[].value.Slots.values[].RawData.trailing_bytes": {
    "2026.07.22-23.59.51": {
+    "alwaysEmpty": false,
     "byteLengthConstant": false,
     "byteLengths": {
      "20": 6041,
@@ -14268,6 +16891,17 @@
      "38": 1
     },
     "distinctValues": 0,
+    "listLengths": {
+     "20": 6041,
+     "25": 15,
+     "28": 1,
+     "29": 1,
+     "30": 2,
+     "33": 1,
+     "34": 1,
+     "36": 2,
+     "38": 1
+    },
     "nonEmpty": 6065,
     "nonZero": 49,
     "seen": 6065,
@@ -14276,6 +16910,7 @@
     }
    },
    "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": false,
     "byteLengthConstant": false,
     "byteLengths": {
      "20": 22167,
@@ -14291,6 +16926,19 @@
      "47": 1
     },
     "distinctValues": 0,
+    "listLengths": {
+     "20": 22167,
+     "25": 34,
+     "30": 3,
+     "31": 3,
+     "32": 1,
+     "37": 1,
+     "38": 2,
+     "39": 1,
+     "40": 1,
+     "41": 1,
+     "47": 1
+    },
     "nonEmpty": 22215,
     "nonZero": 194,
     "seen": 22215,
@@ -14299,6 +16947,7 @@
     }
    },
    "refworld": {
+    "alwaysEmpty": false,
     "byteLengthConstant": false,
     "byteLengths": {
      "16": 334,
@@ -14312,11 +16961,37 @@
      "39": 1
     },
     "distinctValues": 0,
+    "listLengths": {
+     "16": 334,
+     "20": 18362,
+     "25": 21,
+     "30": 3,
+     "32": 1,
+     "34": 2,
+     "36": 1,
+     "38": 3,
+     "39": 1
+    },
     "nonEmpty": 18728,
     "nonZero": 98,
     "seen": 18728,
     "types": {
      "numericRun": 18728
+    }
+   }
+  },
+  "save.worldSaveData.LevelObjectRecoverPartySaveData": {
+   "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "3": 1
+    },
+    "nonEmpty": 1,
+    "nonZero": 1,
+    "seen": 1,
+    "types": {
+     "list": 1
     }
    }
   },
@@ -14328,6 +17003,62 @@
     "seen": 3,
     "types": {
      "UUID": 3
+    }
+   }
+  },
+  "save.worldSaveData.LevelObjectRecoverPartySaveData[].value.PlayerLastUsedTimes": {
+   "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": true,
+    "distinctValues": 0,
+    "listLengths": {
+     "0": 3
+    },
+    "nonEmpty": 0,
+    "nonZero": 0,
+    "seen": 3,
+    "types": {
+     "list": 3
+    }
+   }
+  },
+  "save.worldSaveData.LockGimmickSaveData": {
+   "2026.07.22-23.59.51": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "20": 1
+    },
+    "nonEmpty": 1,
+    "nonZero": 1,
+    "seen": 1,
+    "types": {
+     "list": 1
+    }
+   },
+   "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "127": 1
+    },
+    "nonEmpty": 1,
+    "nonZero": 1,
+    "seen": 1,
+    "types": {
+     "list": 1
+    }
+   },
+   "refworld": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "76": 1
+    },
+    "nonEmpty": 1,
+    "nonZero": 1,
+    "seen": 1,
+    "types": {
+     "list": 1
     }
    }
   },
@@ -14404,6 +17135,47 @@
     "seen": 76,
     "types": {
      "bool": 76
+    }
+   }
+  },
+  "save.worldSaveData.MapObjectSaveData.values": {
+   "2026.07.22-23.59.51": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "1616": 1
+    },
+    "nonEmpty": 1,
+    "nonZero": 1,
+    "seen": 1,
+    "types": {
+     "list": 1
+    }
+   },
+   "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "9052": 1
+    },
+    "nonEmpty": 1,
+    "nonZero": 1,
+    "seen": 1,
+    "types": {
+     "list": 1
+    }
+   },
+   "refworld": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "4623": 1
+    },
+    "nonEmpty": 1,
+    "nonZero": 1,
+    "seen": 1,
+    "types": {
+     "list": 1
     }
    }
   },
@@ -14850,6 +17622,458 @@
     "seen": 4623,
     "types": {
      "bytes": 4623
+    }
+   }
+  },
+  "save.worldSaveData.MapObjectSaveData.values[].ConcreteModel.ModuleMap": {
+   "2026.07.22-23.59.51": {
+    "alwaysEmpty": false,
+    "byVariant": {
+     "BlastFurnace": 4,
+     "BlastFurnace2": 1,
+     "BreedFarm": 1,
+     "BuildableGoddessStatue": 3,
+     "CampFire": 2,
+     "CharacterRankUp": 1,
+     "CommonDropItem3D": 61,
+     "Container01_Iron": 1,
+     "CookingStove": 3,
+     "CoolerBox": 1,
+     "CopperPit": 1,
+     "Crusher": 3,
+     "DamagableRock0002": 44,
+     "DamagableRock0003": 1,
+     "DamagableRock0004": 1,
+     "DamagableRock0006": 16,
+     "DamagableRock0009": 25,
+     "DamagableRock0010": 23,
+     "DamagableRock0011": 21,
+     "DamagableRock0012": 27,
+     "DamagableRock0017": 8,
+     "DimensionPalStorage": 1,
+     "ElectricGenerator": 1,
+     "Expedition": 1,
+     "Factory_Hard_01": 3,
+     "Factory_Hard_02": 1,
+     "FarmBlockV2_Berries": 10,
+     "FarmBlockV2_wheet": 5,
+     "FlourMill": 3,
+     "GlobalPalStorage": 3,
+     "GuildChest": 2,
+     "HatchingPalEgg": 3,
+     "ItemChest": 21,
+     "ItemChest_02": 15,
+     "Lab": 2,
+     "MedicalPalBed_02": 54,
+     "MedicineFacility_01": 3,
+     "MonsterFarm": 3,
+     "OperatingTable": 1,
+     "PalBoxV2": 6,
+     "PalFoodBox": 6,
+     "PlayerBed_02": 4,
+     "RepairBench": 3,
+     "Spa": 4,
+     "Spa2": 2,
+     "SphereFactory_Black_01": 2,
+     "SphereFactory_Black_03": 1,
+     "StationDeforest2": 2,
+     "StonePit": 2,
+     "TreasureBox": 611,
+     "TreasureBox_Electric": 6,
+     "TreasureBox_Fire": 5,
+     "TreasureBox_FishingJunk_RequiredLongHold": 121,
+     "TreasureBox_FishingJunk_RequiredLongHold2": 19,
+     "TreasureBox_Oilrig": 5,
+     "TreasureBox_RequiredLongHold": 177,
+     "TreasureBox_Water": 2,
+     "WeaponFactory_Dirty_01": 2,
+     "WeaponFactory_Dirty_02": 1,
+     "Wood_WindowWall": 6,
+     "Wooden_DoorWall": 3,
+     "Wooden_PyramidRoof": 3,
+     "Wooden_foundation": 30,
+     "Wooden_pillar": 75,
+     "Wooden_roof": 105,
+     "Wooden_stair": 10,
+     "Wooden_wall": 17,
+     "WorkBench_SkillUnlock": 3,
+     "Workbench": 3
+    },
+    "distinctValues": 0,
+    "listLengths": {
+     "0": 328,
+     "1": 1190,
+     "2": 14,
+     "3": 83,
+     "4": 1
+    },
+    "nonEmpty": 1288,
+    "nonZero": 1288,
+    "seen": 1616,
+    "types": {
+     "list": 1616
+    }
+   },
+   "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": false,
+    "byVariant": {
+     "Altar": 4,
+     "AncientBlastFurnace": 4,
+     "AncientCookingStove": 1,
+     "AncientElectricGenerator": 1,
+     "AncientRelicRecycler": 2,
+     "AncientWorkBench": 3,
+     "Ancient_foundation": 33,
+     "Ancient_roof": 200,
+     "Ancient_stair": 12,
+     "Barrel_Wood": 2,
+     "BaseCampItemDispenser": 6,
+     "BaseCampWorkHard": 1,
+     "BaseCampWorkHard02": 10,
+     "BaseCampWorkHard03": 1,
+     "BaseCampWorkerExtraStation": 1,
+     "BlastFurnace": 1,
+     "BlastFurnace2": 1,
+     "BlastFurnace3": 1,
+     "BlastFurnace4": 1,
+     "BreedFarm": 5,
+     "BuildableGoddessStatue": 6,
+     "Byobu": 3,
+     "CampFire": 1,
+     "Cauldron": 2,
+     "Chair01_Pal": 2,
+     "CharacterRankUp": 5,
+     "Clinic": 7,
+     "CoalPit": 4,
+     "CommonDropItem3D": 9,
+     "CompositeDesk": 2,
+     "CookingStove": 1,
+     "CoolerBox": 1,
+     "CoolerPalFoodBox": 11,
+     "CopperPit": 1,
+     "CopperPit_2": 2,
+     "Crusher": 5,
+     "CrystalPit": 3,
+     "DamagableRock0001": 18,
+     "DamagableRock0002": 114,
+     "DamagableRock0003": 15,
+     "DamagableRock0004": 27,
+     "DamagableRock0006": 22,
+     "DamagableRock0008": 6,
+     "DamagableRock0009": 104,
+     "DamagableRock0010": 93,
+     "DamagableRock0011": 87,
+     "DamagableRock0012": 83,
+     "DamagableRock0017": 23,
+     "DamagableRock0019": 13,
+     "DamagableRock0021": 1,
+     "DamagableWood0001": 2,
+     "DimensionPalStorage": 2,
+     "DismantlingConveyor": 2,
+     "DroppedCharacter": 20,
+     "ElectricGenerator": 3,
+     "ElectricGenerator_Large": 15,
+     "ElectricKitchen": 4,
+     "EnergyStorage_Electric": 12,
+     "Expedition": 4,
+     "Factory_Hard_01": 3,
+     "Factory_Hard_03": 1,
+     "FarmBlockV2_Berries": 9,
+     "FarmBlockV2_Carrot": 2,
+     "FarmBlockV2_Lettuce": 4,
+     "FarmBlockV2_Onion": 2,
+     "FarmBlockV2_Potato": 1,
+     "FarmBlockV2_tomato": 4,
+     "FarmBlockV2_wheet": 6,
+     "Farm_SkillFruits": 2,
+     "FishingPond2": 2,
+     "FlourMill": 4,
+     "Fountain": 2,
+     "Fudukue": 1,
+     "FurnitureTree01_Cherry": 6,
+     "FurnitureTree02_Cherry": 11,
+     "FurnitureTree03_Cherry": 9,
+     "Glass_DoorWall": 1,
+     "Glass_TriangleWall": 2,
+     "Glass_WallGate": 1,
+     "Glass_foundation": 22,
+     "Glass_roof": 30,
+     "Glass_wall": 362,
+     "GlobalPalStorage": 4,
+     "GuildChest": 12,
+     "HatchingPalEgg": 12,
+     "HugeKitchen": 2,
+     "IceCrusher": 3,
+     "Irori": 1,
+     "ItemBooth": 4,
+     "ItemChest": 5,
+     "ItemChest_02": 32,
+     "ItemChest_03": 50,
+     "ItemChest_04": 11,
+     "JapaneseStyle_DoorWall_01": 1,
+     "JapaneseStyle_DoorWall_02": 1,
+     "JapaneseStyle_DoorWall_03": 1,
+     "JapaneseStyle_Fence": 8,
+     "JapaneseStyle_Pillar": 24,
+     "JapaneseStyle_SlantedRoof": 8,
+     "JapaneseStyle_TriangleWall": 2,
+     "JapaneseStyle_WallGate": 2,
+     "JapaneseStyle_WindowWall": 7,
+     "JapaneseStyle_foundation": 1,
+     "JapaneseStyle_roof_01": 10,
+     "JapaneseStyle_roof_02": 31,
+     "JapaneseStyle_stair": 23,
+     "JapaneseStyle_wall_01": 74,
+     "Kakejiku": 3,
+     "Koro": 2,
+     "Lab": 6,
+     "Light_FirePlace02": 1,
+     "MedicalPalBed_02": 87,
+     "MedicalPalBed_04": 124,
+     "MedicalPalBed_05": 89,
+     "MedicineFacility_01": 2,
+     "MedicineFacility_02": 4,
+     "MedicineFacility_03": 1,
+     "MeteorDrop_Damagable": 1,
+     "MiningTool": 1,
+     "MonsterFarm": 15,
+     "MultiElectricHatchingPalEgg": 3,
+     "MultiElectricHatchingPalEggWithBreed": 1,
+     "OilPump": 10,
+     "OilPump02": 1,
+     "OlympicCauldron": 2,
+     "OperatingTable": 3,
+     "PalBooth": 4,
+     "PalBoxV2": 16,
+     "PalFoodBox": 6,
+     "PalMedicineBox": 8,
+     "PlayerBed_02": 6,
+     "PlayerBed_03": 1,
+     "QuartzPit": 5,
+     "Refrigerator": 3,
+     "RepairBench": 5,
+     "Rug01_Stone": 1,
+     "SanityDecrease1": 6,
+     "Silo": 1,
+     "SkinChange": 4,
+     "SkyIslandOrePit": 2,
+     "Sofa01_Iron": 1,
+     "Sofa02_Iron": 1,
+     "Spa": 4,
+     "Spa2": 14,
+     "Spa3": 2,
+     "SphereFactory_Black_01": 1,
+     "SphereFactory_Black_03": 1,
+     "StationDeforest2": 4,
+     "StationDeforest3": 2,
+     "StonePit": 4,
+     "Stone_Fence": 14,
+     "Stone_Foundation": 19,
+     "Stone_Roof": 146,
+     "Stone_Stair": 6,
+     "Stone_TriangleRoof": 2,
+     "Stone_pillar": 57,
+     "Stone_wall": 3,
+     "SulfurPit": 1,
+     "SupplyDrop": 1,
+     "TableDresser01_Stone": 1,
+     "Toro": 2,
+     "TreasureBox": 3848,
+     "TreasureBox_Electric": 39,
+     "TreasureBox_Fire": 33,
+     "TreasureBox_FishingJunk_RequiredLongHold": 421,
+     "TreasureBox_FishingJunk_RequiredLongHold2": 790,
+     "TreasureBox_Oilrig": 201,
+     "TreasureBox_RequiredLongHold": 593,
+     "TreasureBox_Water": 38,
+     "WallTorch02": 10,
+     "WeaponFactory_Dirty_01": 1,
+     "WeaponFactory_Dirty_03": 1,
+     "Wood_WindowWall": 6,
+     "Wooden_DoorWall": 3,
+     "Wooden_PyramidRoof": 3,
+     "Wooden_TriangleFoundation": 28,
+     "Wooden_foundation": 244,
+     "Wooden_pillar": 85,
+     "Wooden_roof": 112,
+     "Wooden_stair": 11,
+     "Wooden_wall": 19,
+     "WorkBench_SkillUnlock": 4,
+     "WorkSpeedIncrease1": 7,
+     "Workbench": 1,
+     "Zabuton": 1,
+     "Zaisu": 2
+    },
+    "distinctValues": 0,
+    "listLengths": {
+     "0": 2098,
+     "1": 6582,
+     "2": 149,
+     "3": 217,
+     "4": 6
+    },
+    "nonEmpty": 6954,
+    "nonZero": 6954,
+    "seen": 9052,
+    "types": {
+     "list": 9052
+    }
+   },
+   "refworld": {
+    "alwaysEmpty": false,
+    "byVariant": {
+     "Altar": 3,
+     "Barrel_Wood": 1,
+     "BaseCampItemDispenser": 2,
+     "BaseCampWorkHard": 2,
+     "BaseCampWorkHard02": 6,
+     "BaseCampWorkerExtraStation": 1,
+     "BlastFurnace": 3,
+     "BlastFurnace2": 4,
+     "BlastFurnace3": 3,
+     "BlastFurnace4": 2,
+     "BreedFarm": 5,
+     "BuildableGoddessStatue": 6,
+     "CampFire": 2,
+     "CharacterRankUp": 3,
+     "Clinic": 5,
+     "CoalPit": 3,
+     "CommonDropItem3D": 149,
+     "CookingStove": 1,
+     "CoolerBox": 1,
+     "CoolerPalFoodBox": 4,
+     "CopperPit": 3,
+     "CopperPit_2": 2,
+     "Crusher": 3,
+     "DamagableRock0001": 1,
+     "DamagableRock0002": 87,
+     "DamagableRock0003": 8,
+     "DamagableRock0004": 25,
+     "DamagableRock0006": 19,
+     "DamagableRock0009": 92,
+     "DamagableRock0010": 82,
+     "DamagableRock0011": 75,
+     "DamagableRock0012": 76,
+     "DamagableRock0017": 19,
+     "DamagableRock0020": 16,
+     "DamagableWood0001": 1,
+     "DefenseWall_Wood": 13,
+     "DimensionPalStorage": 1,
+     "DroppedCharacter": 4,
+     "ElectricGenerator": 4,
+     "ElectricGenerator_Large": 5,
+     "ElectricKitchen": 2,
+     "EnergyStorage_Electric": 2,
+     "Expedition": 4,
+     "Factory_Hard_01": 5,
+     "Factory_Hard_02": 2,
+     "Factory_Hard_03": 2,
+     "FarmBlockV2_Berries": 6,
+     "FarmBlockV2_Lettuce": 4,
+     "FarmBlockV2_tomato": 4,
+     "FarmBlockV2_wheet": 5,
+     "FlourMill": 4,
+     "Glass_TriangleWall": 2,
+     "Glass_wall": 8,
+     "GlobalPalStorage": 3,
+     "GuildChest": 8,
+     "HatchingPalEgg": 12,
+     "HugeKitchen": 1,
+     "IceCrusher": 2,
+     "ItemBooth": 2,
+     "ItemChest": 13,
+     "ItemChest_02": 36,
+     "ItemChest_03": 33,
+     "JapaneseStyle_DoorWall_02": 1,
+     "JapaneseStyle_Pillar": 24,
+     "JapaneseStyle_SlantedRoof": 8,
+     "JapaneseStyle_TriangleWall": 2,
+     "JapaneseStyle_WallGate": 1,
+     "JapaneseStyle_WindowWall": 3,
+     "JapaneseStyle_foundation": 1,
+     "JapaneseStyle_stair": 2,
+     "JapaneseStyle_wall_01": 10,
+     "Koro": 1,
+     "Lab": 3,
+     "Light_FirePlace02": 1,
+     "ManualElectricGenerator": 1,
+     "MedicalPalBed_02": 121,
+     "MedicalPalBed_03": 9,
+     "MedicalPalBed_04": 13,
+     "MedicalPalBed_05": 34,
+     "MedicineFacility_01": 3,
+     "MedicineFacility_02": 2,
+     "MeteorDrop_Damagable": 1,
+     "MonsterFarm": 8,
+     "MultiElectricHatchingPalEgg": 1,
+     "MultiHatchingPalEgg": 1,
+     "OilPump": 5,
+     "OperatingTable": 2,
+     "PalBooth": 2,
+     "PalBoxV2": 11,
+     "PalEgg_Dragon": 10,
+     "PalFoodBox": 10,
+     "PalMedicineBox": 4,
+     "PlayerBed_02": 7,
+     "QuartzPit": 2,
+     "Refrigerator": 2,
+     "RepairBench": 5,
+     "Rug01_Stone": 1,
+     "SanityDecrease1": 4,
+     "SkinChange": 3,
+     "Sofa01_Iron": 1,
+     "Sofa02_Iron": 1,
+     "Spa": 6,
+     "Spa2": 7,
+     "SphereFactory_Black_01": 2,
+     "SphereFactory_Black_02": 1,
+     "SphereFactory_Black_03": 2,
+     "SphereFactory_Black_04": 1,
+     "StationDeforest2": 5,
+     "StationDeforest3": 3,
+     "StonePit": 6,
+     "Stone_Foundation": 7,
+     "Stone_Roof": 30,
+     "Stone_Stair": 2,
+     "Stone_pillar": 17,
+     "Stone_wall": 3,
+     "TreasureBox": 1803,
+     "TreasureBox_Electric": 26,
+     "TreasureBox_Fire": 25,
+     "TreasureBox_FishingJunk_RequiredLongHold": 329,
+     "TreasureBox_FishingJunk_RequiredLongHold2": 274,
+     "TreasureBox_Oilrig": 41,
+     "TreasureBox_RequiredLongHold": 467,
+     "TreasureBox_Water": 24,
+     "WeaponFactory_Dirty_01": 2,
+     "WeaponFactory_Dirty_02": 2,
+     "WeaponFactory_Dirty_03": 2,
+     "Wood_Gate": 1,
+     "Wood_WindowWall": 9,
+     "Wooden_DoorWall": 3,
+     "Wooden_PyramidRoof": 3,
+     "Wooden_foundation": 36,
+     "Wooden_pillar": 77,
+     "Wooden_roof": 140,
+     "Wooden_stair": 15,
+     "Wooden_wall": 19,
+     "WorkBench_SkillUnlock": 5,
+     "WorkSpeedIncrease1": 4,
+     "Workbench": 1
+    },
+    "distinctValues": 0,
+    "listLengths": {
+     "0": 692,
+     "1": 3633,
+     "2": 105,
+     "3": 190,
+     "4": 3
+    },
+    "nonEmpty": 3931,
+    "nonZero": 3931,
+    "seen": 4623,
+    "types": {
+     "list": 4623
     }
    }
   },
@@ -15449,12 +18673,212 @@
     }
    }
   },
+  "save.worldSaveData.MapObjectSaveData.values[].ConcreteModel.ModuleMap[].value.RawData": {
+   "2026.07.22-23.59.51": {
+    "alwaysEmpty": true,
+    "byVariant": {
+     "BlastFurnace": 4,
+     "BlastFurnace2": 1,
+     "CampFire": 2,
+     "CookingStove": 3,
+     "CopperPit": 1,
+     "Crusher": 3,
+     "DamagableRock0002": 44,
+     "DamagableRock0003": 1,
+     "DamagableRock0004": 1,
+     "DamagableRock0006": 16,
+     "DamagableRock0009": 25,
+     "DamagableRock0010": 23,
+     "DamagableRock0011": 21,
+     "DamagableRock0012": 27,
+     "DamagableRock0017": 8,
+     "Factory_Hard_01": 3,
+     "Factory_Hard_02": 1,
+     "FlourMill": 3,
+     "HatchingPalEgg": 3,
+     "MedicineFacility_01": 3,
+     "SphereFactory_Black_01": 2,
+     "SphereFactory_Black_03": 1,
+     "StationDeforest2": 2,
+     "StonePit": 2,
+     "WeaponFactory_Dirty_01": 2,
+     "WeaponFactory_Dirty_02": 1,
+     "WorkBench_SkillUnlock": 3,
+     "Workbench": 3
+    },
+    "distinctValues": 0,
+    "listLengths": {
+     "0": 209
+    },
+    "nonEmpty": 0,
+    "nonZero": 0,
+    "seen": 209,
+    "types": {
+     "list": 209
+    }
+   },
+   "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": true,
+    "byVariant": {
+     "AncientBlastFurnace": 4,
+     "AncientCookingStove": 1,
+     "AncientRelicRecycler": 2,
+     "AncientWorkBench": 3,
+     "BlastFurnace": 1,
+     "BlastFurnace2": 1,
+     "BlastFurnace3": 1,
+     "BlastFurnace4": 1,
+     "CampFire": 1,
+     "CoalPit": 4,
+     "CompositeDesk": 2,
+     "CookingStove": 1,
+     "CopperPit": 1,
+     "CopperPit_2": 2,
+     "Crusher": 5,
+     "CrystalPit": 3,
+     "DamagableRock0001": 18,
+     "DamagableRock0002": 114,
+     "DamagableRock0003": 15,
+     "DamagableRock0004": 27,
+     "DamagableRock0006": 22,
+     "DamagableRock0008": 6,
+     "DamagableRock0009": 104,
+     "DamagableRock0010": 93,
+     "DamagableRock0011": 87,
+     "DamagableRock0012": 83,
+     "DamagableRock0017": 23,
+     "DamagableRock0019": 13,
+     "DamagableRock0021": 1,
+     "DamagableWood0001": 2,
+     "ElectricKitchen": 4,
+     "Factory_Hard_01": 3,
+     "Factory_Hard_03": 1,
+     "FlourMill": 4,
+     "HatchingPalEgg": 12,
+     "HugeKitchen": 2,
+     "IceCrusher": 3,
+     "MedicineFacility_01": 2,
+     "MedicineFacility_02": 4,
+     "MedicineFacility_03": 1,
+     "MeteorDrop_Damagable": 1,
+     "MultiElectricHatchingPalEgg": 3,
+     "MultiElectricHatchingPalEggWithBreed": 1,
+     "OilPump": 10,
+     "OilPump02": 1,
+     "QuartzPit": 5,
+     "SkyIslandOrePit": 2,
+     "SphereFactory_Black_01": 1,
+     "SphereFactory_Black_03": 1,
+     "StationDeforest2": 4,
+     "StationDeforest3": 2,
+     "StonePit": 4,
+     "SulfurPit": 1,
+     "WeaponFactory_Dirty_01": 1,
+     "WeaponFactory_Dirty_03": 1,
+     "WorkBench_SkillUnlock": 4,
+     "Workbench": 1
+    },
+    "distinctValues": 0,
+    "listLengths": {
+     "0": 720
+    },
+    "nonEmpty": 0,
+    "nonZero": 0,
+    "seen": 720,
+    "types": {
+     "list": 720
+    }
+   },
+   "refworld": {
+    "alwaysEmpty": true,
+    "byVariant": {
+     "BlastFurnace": 3,
+     "BlastFurnace2": 4,
+     "BlastFurnace3": 3,
+     "BlastFurnace4": 2,
+     "CampFire": 2,
+     "CoalPit": 3,
+     "CookingStove": 1,
+     "CopperPit": 3,
+     "CopperPit_2": 2,
+     "Crusher": 3,
+     "DamagableRock0001": 1,
+     "DamagableRock0002": 87,
+     "DamagableRock0003": 8,
+     "DamagableRock0004": 25,
+     "DamagableRock0006": 19,
+     "DamagableRock0009": 92,
+     "DamagableRock0010": 82,
+     "DamagableRock0011": 75,
+     "DamagableRock0012": 76,
+     "DamagableRock0017": 19,
+     "DamagableRock0020": 32,
+     "DamagableWood0001": 1,
+     "ElectricKitchen": 2,
+     "Factory_Hard_01": 5,
+     "Factory_Hard_02": 2,
+     "Factory_Hard_03": 2,
+     "FlourMill": 4,
+     "HatchingPalEgg": 12,
+     "HugeKitchen": 1,
+     "IceCrusher": 2,
+     "MedicineFacility_01": 3,
+     "MedicineFacility_02": 2,
+     "MeteorDrop_Damagable": 1,
+     "MultiElectricHatchingPalEgg": 1,
+     "MultiHatchingPalEgg": 1,
+     "OilPump": 5,
+     "QuartzPit": 2,
+     "SphereFactory_Black_01": 2,
+     "SphereFactory_Black_02": 1,
+     "SphereFactory_Black_03": 2,
+     "SphereFactory_Black_04": 1,
+     "StationDeforest2": 5,
+     "StationDeforest3": 3,
+     "StonePit": 6,
+     "WeaponFactory_Dirty_01": 2,
+     "WeaponFactory_Dirty_02": 2,
+     "WeaponFactory_Dirty_03": 2,
+     "WorkBench_SkillUnlock": 5,
+     "Workbench": 1
+    },
+    "distinctValues": 0,
+    "listLengths": {
+     "0": 620
+    },
+    "nonEmpty": 0,
+    "nonZero": 0,
+    "seen": 620,
+    "types": {
+     "list": 620
+    }
+   }
+  },
   "save.worldSaveData.MapObjectSaveData.values[].ConcreteModel.ModuleMap[].value.RawData.all_slot_attribute": {
    "2026.07.22-23.59.51": {
+    "alwaysEmpty": false,
     "byVariant": {
+     "BlastFurnace": 4,
+     "BlastFurnace2": 1,
      "BreedFarm": 1,
+     "CampFire": 2,
+     "CommonDropItem3D": 61,
+     "Container01_Iron": 1,
+     "CookingStove": 3,
+     "CoolerBox": 1,
      "CopperPit": 1,
+     "Crusher": 3,
+     "Expedition": 1,
+     "Factory_Hard_01": 3,
+     "Factory_Hard_02": 1,
+     "FlourMill": 3,
+     "HatchingPalEgg": 3,
+     "ItemChest": 21,
+     "ItemChest_02": 15,
+     "MedicineFacility_01": 3,
      "PalFoodBox": 6,
+     "SphereFactory_Black_01": 2,
+     "SphereFactory_Black_03": 1,
      "StationDeforest2": 2,
      "StonePit": 2,
      "TreasureBox": 611,
@@ -15464,7 +18888,11 @@
      "TreasureBox_FishingJunk_RequiredLongHold2": 19,
      "TreasureBox_Oilrig": 5,
      "TreasureBox_RequiredLongHold": 177,
-     "TreasureBox_Water": 2
+     "TreasureBox_Water": 2,
+     "WeaponFactory_Dirty_01": 2,
+     "WeaponFactory_Dirty_02": 1,
+     "WorkBench_SkillUnlock": 3,
+     "Workbench": 3
     },
     "byteLengthConstant": false,
     "byteLengths": {
@@ -15472,32 +18900,74 @@
      "4": 6
     },
     "distinctValues": 0,
+    "listLengths": {
+     "0": 138,
+     "1": 952,
+     "4": 6
+    },
     "nonEmpty": 958,
     "nonZero": 958,
-    "seen": 958,
+    "seen": 1096,
     "types": {
+     "list": 138,
      "numericRun": 958
     }
    },
    "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": false,
     "byVariant": {
      "Altar": 4,
+     "AncientBlastFurnace": 4,
+     "AncientCookingStove": 1,
+     "AncientRelicRecycler": 2,
+     "AncientWorkBench": 3,
+     "Barrel_Wood": 2,
+     "BlastFurnace": 1,
+     "BlastFurnace2": 1,
+     "BlastFurnace3": 1,
+     "BlastFurnace4": 1,
      "BreedFarm": 5,
+     "CampFire": 1,
      "CoalPit": 4,
+     "CommonDropItem3D": 9,
+     "CompositeDesk": 2,
+     "CookingStove": 1,
+     "CoolerBox": 1,
      "CoolerPalFoodBox": 11,
      "CopperPit": 1,
      "CopperPit_2": 2,
+     "Crusher": 5,
      "CrystalPit": 3,
-     "Expedition": 2,
+     "ElectricKitchen": 4,
+     "Expedition": 4,
+     "Factory_Hard_01": 3,
+     "Factory_Hard_03": 1,
+     "Farm_SkillFruits": 2,
      "FishingPond2": 2,
+     "FlourMill": 4,
+     "HatchingPalEgg": 12,
+     "HugeKitchen": 2,
+     "IceCrusher": 3,
      "ItemBooth": 4,
+     "ItemChest": 5,
+     "ItemChest_02": 32,
+     "ItemChest_03": 50,
+     "ItemChest_04": 11,
+     "MedicineFacility_01": 2,
+     "MedicineFacility_02": 4,
+     "MedicineFacility_03": 1,
+     "MultiElectricHatchingPalEgg": 3,
+     "MultiElectricHatchingPalEggWithBreed": 1,
      "OilPump": 10,
      "OilPump02": 1,
      "PalBooth": 4,
      "PalFoodBox": 6,
      "PalMedicineBox": 8,
      "QuartzPit": 5,
+     "Refrigerator": 3,
      "SkyIslandOrePit": 2,
+     "SphereFactory_Black_01": 1,
+     "SphereFactory_Black_03": 1,
      "StationDeforest2": 4,
      "StationDeforest3": 2,
      "StonePit": 4,
@@ -15510,7 +18980,11 @@
      "TreasureBox_FishingJunk_RequiredLongHold2": 790,
      "TreasureBox_Oilrig": 201,
      "TreasureBox_RequiredLongHold": 593,
-     "TreasureBox_Water": 38
+     "TreasureBox_Water": 38,
+     "WeaponFactory_Dirty_01": 1,
+     "WeaponFactory_Dirty_03": 1,
+     "WorkBench_SkillUnlock": 4,
+     "Workbench": 1
     },
     "byteLengthConstant": false,
     "byteLengths": {
@@ -15519,29 +18993,67 @@
      "4": 25
     },
     "distinctValues": 0,
+    "listLengths": {
+     "0": 189,
+     "1": 6014,
+     "2": 10,
+     "4": 25
+    },
     "nonEmpty": 6049,
     "nonZero": 6049,
-    "seen": 6049,
+    "seen": 6238,
     "types": {
+     "list": 189,
      "numericRun": 6049
     }
    },
    "refworld": {
+    "alwaysEmpty": false,
     "byVariant": {
      "Altar": 3,
+     "Barrel_Wood": 1,
+     "BlastFurnace": 3,
+     "BlastFurnace2": 4,
+     "BlastFurnace3": 3,
+     "BlastFurnace4": 2,
      "BreedFarm": 5,
+     "CampFire": 2,
      "CoalPit": 3,
+     "CommonDropItem3D": 149,
+     "CookingStove": 1,
+     "CoolerBox": 1,
      "CoolerPalFoodBox": 4,
      "CopperPit": 3,
      "CopperPit_2": 2,
-     "Expedition": 1,
+     "Crusher": 3,
+     "ElectricKitchen": 2,
+     "Expedition": 4,
+     "Factory_Hard_01": 5,
+     "Factory_Hard_02": 2,
+     "Factory_Hard_03": 2,
+     "FlourMill": 4,
+     "HatchingPalEgg": 12,
+     "HugeKitchen": 1,
+     "IceCrusher": 2,
      "ItemBooth": 2,
+     "ItemChest": 13,
+     "ItemChest_02": 36,
+     "ItemChest_03": 33,
+     "MedicineFacility_01": 3,
+     "MedicineFacility_02": 2,
+     "MultiElectricHatchingPalEgg": 1,
+     "MultiHatchingPalEgg": 1,
      "OilPump": 5,
      "PalBooth": 2,
      "PalEgg_Dragon": 10,
      "PalFoodBox": 10,
      "PalMedicineBox": 4,
      "QuartzPit": 2,
+     "Refrigerator": 2,
+     "SphereFactory_Black_01": 2,
+     "SphereFactory_Black_02": 1,
+     "SphereFactory_Black_03": 2,
+     "SphereFactory_Black_04": 1,
      "StationDeforest2": 5,
      "StationDeforest3": 3,
      "StonePit": 6,
@@ -15552,7 +19064,12 @@
      "TreasureBox_FishingJunk_RequiredLongHold2": 274,
      "TreasureBox_Oilrig": 41,
      "TreasureBox_RequiredLongHold": 467,
-     "TreasureBox_Water": 24
+     "TreasureBox_Water": 24,
+     "WeaponFactory_Dirty_01": 2,
+     "WeaponFactory_Dirty_02": 2,
+     "WeaponFactory_Dirty_03": 2,
+     "WorkBench_SkillUnlock": 5,
+     "Workbench": 1
     },
     "byteLengthConstant": false,
     "byteLengths": {
@@ -15561,10 +19078,17 @@
      "4": 18
     },
     "distinctValues": 0,
+    "listLengths": {
+     "0": 311,
+     "1": 3027,
+     "2": 14,
+     "4": 18
+    },
     "nonEmpty": 3059,
     "nonZero": 3059,
-    "seen": 3059,
+    "seen": 3370,
     "types": {
+     "list": 311,
      "numericRun": 3059
     }
    }
@@ -15926,6 +19450,82 @@
     }
    }
   },
+  "save.worldSaveData.MapObjectSaveData.values[].ConcreteModel.ModuleMap[].value.RawData.player_infos": {
+   "2026.07.22-23.59.51": {
+    "alwaysEmpty": false,
+    "byVariant": {
+     "Container01_Iron": 1,
+     "CoolerBox": 1,
+     "ItemChest": 21,
+     "ItemChest_02": 15,
+     "Wooden_DoorWall": 3
+    },
+    "distinctValues": 0,
+    "listLengths": {
+     "0": 40,
+     "1": 1
+    },
+    "nonEmpty": 1,
+    "nonZero": 1,
+    "seen": 41,
+    "types": {
+     "list": 41
+    }
+   },
+   "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": false,
+    "byVariant": {
+     "Barrel_Wood": 2,
+     "CoolerBox": 1,
+     "Glass_DoorWall": 1,
+     "ItemChest": 5,
+     "ItemChest_02": 32,
+     "ItemChest_03": 50,
+     "ItemChest_04": 11,
+     "JapaneseStyle_DoorWall_01": 1,
+     "JapaneseStyle_DoorWall_02": 1,
+     "JapaneseStyle_DoorWall_03": 1,
+     "Refrigerator": 3,
+     "Wooden_DoorWall": 3
+    },
+    "distinctValues": 0,
+    "listLengths": {
+     "0": 110,
+     "1": 1
+    },
+    "nonEmpty": 1,
+    "nonZero": 1,
+    "seen": 111,
+    "types": {
+     "list": 111
+    }
+   },
+   "refworld": {
+    "alwaysEmpty": false,
+    "byVariant": {
+     "Barrel_Wood": 1,
+     "CoolerBox": 1,
+     "ItemChest": 13,
+     "ItemChest_02": 36,
+     "ItemChest_03": 33,
+     "JapaneseStyle_DoorWall_02": 1,
+     "Refrigerator": 2,
+     "Wood_Gate": 1,
+     "Wooden_DoorWall": 3
+    },
+    "distinctValues": 0,
+    "listLengths": {
+     "0": 90,
+     "1": 1
+    },
+    "nonEmpty": 1,
+    "nonZero": 1,
+    "seen": 91,
+    "types": {
+     "list": 91
+    }
+   }
+  },
   "save.worldSaveData.MapObjectSaveData.values[].ConcreteModel.ModuleMap[].value.RawData.player_infos[].player_uid": {
    "2026.07.22-23.59.51": {
     "byVariant": {
@@ -16061,6 +19661,223 @@
     }
    }
   },
+  "save.worldSaveData.MapObjectSaveData.values[].ConcreteModel.ModuleMap[].value.RawData.slot_attribute_indexes": {
+   "2026.07.22-23.59.51": {
+    "alwaysEmpty": false,
+    "byVariant": {
+     "BlastFurnace": 4,
+     "BlastFurnace2": 1,
+     "BreedFarm": 1,
+     "CampFire": 2,
+     "CommonDropItem3D": 61,
+     "Container01_Iron": 1,
+     "CookingStove": 3,
+     "CoolerBox": 1,
+     "CopperPit": 1,
+     "Crusher": 3,
+     "Expedition": 1,
+     "Factory_Hard_01": 3,
+     "Factory_Hard_02": 1,
+     "FlourMill": 3,
+     "HatchingPalEgg": 3,
+     "ItemChest": 21,
+     "ItemChest_02": 15,
+     "MedicineFacility_01": 3,
+     "PalFoodBox": 6,
+     "SphereFactory_Black_01": 2,
+     "SphereFactory_Black_03": 1,
+     "StationDeforest2": 2,
+     "StonePit": 2,
+     "TreasureBox": 611,
+     "TreasureBox_Electric": 6,
+     "TreasureBox_Fire": 5,
+     "TreasureBox_FishingJunk_RequiredLongHold": 121,
+     "TreasureBox_FishingJunk_RequiredLongHold2": 19,
+     "TreasureBox_Oilrig": 5,
+     "TreasureBox_RequiredLongHold": 177,
+     "TreasureBox_Water": 2,
+     "WeaponFactory_Dirty_01": 2,
+     "WeaponFactory_Dirty_02": 1,
+     "WorkBench_SkillUnlock": 3,
+     "Workbench": 3
+    },
+    "distinctValues": 0,
+    "listLengths": {
+     "0": 1000,
+     "1": 61,
+     "3": 35
+    },
+    "nonEmpty": 96,
+    "nonZero": 96,
+    "seen": 1096,
+    "types": {
+     "list": 1096
+    }
+   },
+   "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": false,
+    "byVariant": {
+     "Altar": 4,
+     "AncientBlastFurnace": 4,
+     "AncientCookingStove": 1,
+     "AncientRelicRecycler": 2,
+     "AncientWorkBench": 3,
+     "Barrel_Wood": 2,
+     "BlastFurnace": 1,
+     "BlastFurnace2": 1,
+     "BlastFurnace3": 1,
+     "BlastFurnace4": 1,
+     "BreedFarm": 5,
+     "CampFire": 1,
+     "CoalPit": 4,
+     "CommonDropItem3D": 9,
+     "CompositeDesk": 2,
+     "CookingStove": 1,
+     "CoolerBox": 1,
+     "CoolerPalFoodBox": 11,
+     "CopperPit": 1,
+     "CopperPit_2": 2,
+     "Crusher": 5,
+     "CrystalPit": 3,
+     "ElectricKitchen": 4,
+     "Expedition": 4,
+     "Factory_Hard_01": 3,
+     "Factory_Hard_03": 1,
+     "Farm_SkillFruits": 2,
+     "FishingPond2": 2,
+     "FlourMill": 4,
+     "HatchingPalEgg": 12,
+     "HugeKitchen": 2,
+     "IceCrusher": 3,
+     "ItemBooth": 4,
+     "ItemChest": 5,
+     "ItemChest_02": 32,
+     "ItemChest_03": 50,
+     "ItemChest_04": 11,
+     "MedicineFacility_01": 2,
+     "MedicineFacility_02": 4,
+     "MedicineFacility_03": 1,
+     "MultiElectricHatchingPalEgg": 3,
+     "MultiElectricHatchingPalEggWithBreed": 1,
+     "OilPump": 10,
+     "OilPump02": 1,
+     "PalBooth": 4,
+     "PalFoodBox": 6,
+     "PalMedicineBox": 8,
+     "QuartzPit": 5,
+     "Refrigerator": 3,
+     "SkyIslandOrePit": 2,
+     "SphereFactory_Black_01": 1,
+     "SphereFactory_Black_03": 1,
+     "StationDeforest2": 4,
+     "StationDeforest3": 2,
+     "StonePit": 4,
+     "SulfurPit": 1,
+     "SupplyDrop": 1,
+     "TreasureBox": 3848,
+     "TreasureBox_Electric": 39,
+     "TreasureBox_Fire": 33,
+     "TreasureBox_FishingJunk_RequiredLongHold": 421,
+     "TreasureBox_FishingJunk_RequiredLongHold2": 790,
+     "TreasureBox_Oilrig": 201,
+     "TreasureBox_RequiredLongHold": 593,
+     "TreasureBox_Water": 38,
+     "WeaponFactory_Dirty_01": 1,
+     "WeaponFactory_Dirty_03": 1,
+     "WorkBench_SkillUnlock": 4,
+     "Workbench": 1
+    },
+    "distinctValues": 0,
+    "listLengths": {
+     "0": 6173,
+     "1": 9,
+     "3": 56
+    },
+    "nonEmpty": 65,
+    "nonZero": 65,
+    "seen": 6238,
+    "types": {
+     "list": 6238
+    }
+   },
+   "refworld": {
+    "alwaysEmpty": false,
+    "byVariant": {
+     "Altar": 3,
+     "Barrel_Wood": 1,
+     "BlastFurnace": 3,
+     "BlastFurnace2": 4,
+     "BlastFurnace3": 3,
+     "BlastFurnace4": 2,
+     "BreedFarm": 5,
+     "CampFire": 2,
+     "CoalPit": 3,
+     "CommonDropItem3D": 149,
+     "CookingStove": 1,
+     "CoolerBox": 1,
+     "CoolerPalFoodBox": 4,
+     "CopperPit": 3,
+     "CopperPit_2": 2,
+     "Crusher": 3,
+     "ElectricKitchen": 2,
+     "Expedition": 4,
+     "Factory_Hard_01": 5,
+     "Factory_Hard_02": 2,
+     "Factory_Hard_03": 2,
+     "FlourMill": 4,
+     "HatchingPalEgg": 12,
+     "HugeKitchen": 1,
+     "IceCrusher": 2,
+     "ItemBooth": 2,
+     "ItemChest": 13,
+     "ItemChest_02": 36,
+     "ItemChest_03": 33,
+     "MedicineFacility_01": 3,
+     "MedicineFacility_02": 2,
+     "MultiElectricHatchingPalEgg": 1,
+     "MultiHatchingPalEgg": 1,
+     "OilPump": 5,
+     "PalBooth": 2,
+     "PalEgg_Dragon": 10,
+     "PalFoodBox": 10,
+     "PalMedicineBox": 4,
+     "QuartzPit": 2,
+     "Refrigerator": 2,
+     "SphereFactory_Black_01": 2,
+     "SphereFactory_Black_02": 1,
+     "SphereFactory_Black_03": 2,
+     "SphereFactory_Black_04": 1,
+     "StationDeforest2": 5,
+     "StationDeforest3": 3,
+     "StonePit": 6,
+     "TreasureBox": 1803,
+     "TreasureBox_Electric": 26,
+     "TreasureBox_Fire": 25,
+     "TreasureBox_FishingJunk_RequiredLongHold": 329,
+     "TreasureBox_FishingJunk_RequiredLongHold2": 274,
+     "TreasureBox_Oilrig": 41,
+     "TreasureBox_RequiredLongHold": 467,
+     "TreasureBox_Water": 24,
+     "WeaponFactory_Dirty_01": 2,
+     "WeaponFactory_Dirty_02": 2,
+     "WeaponFactory_Dirty_03": 2,
+     "WorkBench_SkillUnlock": 5,
+     "Workbench": 1
+    },
+    "distinctValues": 0,
+    "listLengths": {
+     "0": 3162,
+     "1": 149,
+     "3": 59
+    },
+    "nonEmpty": 208,
+    "nonZero": 208,
+    "seen": 3370,
+    "types": {
+     "list": 3370
+    }
+   }
+  },
   "save.worldSaveData.MapObjectSaveData.values[].ConcreteModel.ModuleMap[].value.RawData.slot_attribute_indexes[].attribute": {
    "2026.07.22-23.59.51": {
     "byVariant": {
@@ -16183,14 +20000,15 @@
   },
   "save.worldSaveData.MapObjectSaveData.values[].ConcreteModel.ModuleMap[].value.RawData.slot_attribute_indexes[].indexes": {
    "2026.07.22-23.59.51": {
+    "alwaysEmpty": false,
     "byVariant": {
-     "BlastFurnace": 10,
+     "BlastFurnace": 12,
      "BlastFurnace2": 3,
      "CampFire": 6,
      "CommonDropItem3D": 61,
      "CookingStove": 9,
-     "Crusher": 8,
-     "Factory_Hard_01": 8,
+     "Crusher": 9,
+     "Factory_Hard_01": 9,
      "Factory_Hard_02": 3,
      "FlourMill": 9,
      "MedicineFacility_01": 9,
@@ -16198,7 +20016,7 @@
      "SphereFactory_Black_03": 3,
      "WeaponFactory_Dirty_01": 6,
      "WeaponFactory_Dirty_02": 3,
-     "WorkBench_SkillUnlock": 8,
+     "WorkBench_SkillUnlock": 9,
      "Workbench": 9
     },
     "byteLengthConstant": false,
@@ -16207,18 +20025,25 @@
      "5": 35
     },
     "distinctValues": 0,
+    "listLengths": {
+     "0": 5,
+     "1": 126,
+     "5": 35
+    },
     "nonEmpty": 161,
     "nonZero": 100,
-    "seen": 161,
+    "seen": 166,
     "types": {
+     "list": 5,
      "numericRun": 161
     }
    },
    "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": false,
     "byVariant": {
-     "AncientBlastFurnace": 11,
+     "AncientBlastFurnace": 12,
      "AncientCookingStove": 3,
-     "AncientWorkBench": 8,
+     "AncientWorkBench": 9,
      "BlastFurnace": 3,
      "BlastFurnace2": 3,
      "BlastFurnace3": 3,
@@ -16233,8 +20058,8 @@
      "Factory_Hard_03": 3,
      "Farm_SkillFruits": 6,
      "FlourMill": 12,
-     "HugeKitchen": 5,
-     "IceCrusher": 8,
+     "HugeKitchen": 6,
+     "IceCrusher": 9,
      "MedicineFacility_01": 6,
      "MedicineFacility_02": 12,
      "MedicineFacility_03": 3,
@@ -16252,19 +20077,27 @@
      "5": 54
     },
     "distinctValues": 0,
+    "listLengths": {
+     "0": 4,
+     "1": 115,
+     "3": 4,
+     "5": 54
+    },
     "nonEmpty": 173,
     "nonZero": 162,
-    "seen": 173,
+    "seen": 177,
     "types": {
+     "list": 4,
      "numericRun": 173
     }
    },
    "refworld": {
+    "alwaysEmpty": false,
     "byVariant": {
      "BlastFurnace": 9,
      "BlastFurnace2": 12,
-     "BlastFurnace3": 7,
-     "BlastFurnace4": 5,
+     "BlastFurnace3": 9,
+     "BlastFurnace4": 6,
      "CampFire": 6,
      "CommonDropItem3D": 149,
      "CookingStove": 3,
@@ -16272,10 +20105,10 @@
      "ElectricKitchen": 6,
      "Factory_Hard_01": 15,
      "Factory_Hard_02": 6,
-     "Factory_Hard_03": 5,
-     "FlourMill": 11,
+     "Factory_Hard_03": 6,
+     "FlourMill": 12,
      "HugeKitchen": 3,
-     "IceCrusher": 5,
+     "IceCrusher": 6,
      "MedicineFacility_01": 9,
      "MedicineFacility_02": 6,
      "SphereFactory_Black_01": 6,
@@ -16294,10 +20127,16 @@
      "5": 59
     },
     "distinctValues": 0,
+    "listLengths": {
+     "0": 6,
+     "1": 261,
+     "5": 59
+    },
     "nonEmpty": 320,
     "nonZero": 171,
-    "seen": 320,
+    "seen": 326,
     "types": {
+     "list": 6,
      "numericRun": 320
     }
    }
@@ -16995,6 +20834,7 @@
   },
   "save.worldSaveData.MapObjectSaveData.values[].ConcreteModel.ModuleMap[].value.RawData.unknown_bytes": {
    "2026.07.22-23.59.51": {
+    "alwaysEmpty": false,
     "byVariant": {
      "Container01_Iron": 1,
      "CoolerBox": 1,
@@ -17008,6 +20848,9 @@
      "10": 43
     },
     "distinctValues": 0,
+    "listLengths": {
+     "10": 43
+    },
     "nonEmpty": 43,
     "nonZero": 43,
     "seen": 43,
@@ -17016,6 +20859,7 @@
     }
    },
    "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": false,
     "byVariant": {
      "AncientElectricGenerator": 1,
      "Barrel_Wood": 2,
@@ -17038,6 +20882,10 @@
      "12": 1
     },
     "distinctValues": 0,
+    "listLengths": {
+     "10": 123,
+     "12": 1
+    },
     "nonEmpty": 124,
     "nonZero": 124,
     "seen": 124,
@@ -17046,6 +20894,7 @@
     }
    },
    "refworld": {
+    "alwaysEmpty": false,
     "byVariant": {
      "Barrel_Wood": 1,
      "CoolerBox": 1,
@@ -17063,6 +20912,9 @@
      "10": 99
     },
     "distinctValues": 0,
+    "listLengths": {
+     "10": 99
+    },
     "nonEmpty": 99,
     "nonZero": 99,
     "seen": 99,
@@ -17338,6 +21190,129 @@
     "seen": 3370,
     "types": {
      "int": 3370
+    }
+   }
+  },
+  "save.worldSaveData.MapObjectSaveData.values[].ConcreteModel.RawData": {
+   "2026.07.22-23.59.51": {
+    "alwaysEmpty": true,
+    "byVariant": {
+     "Wood_WindowWall": 6,
+     "Wooden_PyramidRoof": 3,
+     "Wooden_foundation": 30,
+     "Wooden_pillar": 75,
+     "Wooden_roof": 105,
+     "Wooden_stair": 10,
+     "Wooden_wall": 17
+    },
+    "distinctValues": 0,
+    "listLengths": {
+     "0": 246
+    },
+    "nonEmpty": 0,
+    "nonZero": 0,
+    "seen": 246,
+    "types": {
+     "list": 246
+    }
+   },
+   "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": true,
+    "byVariant": {
+     "Ancient_foundation": 33,
+     "Ancient_roof": 200,
+     "Ancient_stair": 12,
+     "Byobu": 3,
+     "Fudukue": 1,
+     "FurnitureTree01_Cherry": 6,
+     "FurnitureTree02_Cherry": 11,
+     "FurnitureTree03_Cherry": 9,
+     "Glass_TriangleWall": 2,
+     "Glass_WallGate": 1,
+     "Glass_foundation": 22,
+     "Glass_roof": 30,
+     "Glass_wall": 362,
+     "Irori": 1,
+     "JapaneseStyle_Fence": 8,
+     "JapaneseStyle_Pillar": 24,
+     "JapaneseStyle_SlantedRoof": 8,
+     "JapaneseStyle_TriangleWall": 2,
+     "JapaneseStyle_WallGate": 2,
+     "JapaneseStyle_WindowWall": 7,
+     "JapaneseStyle_foundation": 1,
+     "JapaneseStyle_roof_01": 10,
+     "JapaneseStyle_roof_02": 31,
+     "JapaneseStyle_stair": 23,
+     "JapaneseStyle_wall_01": 74,
+     "Kakejiku": 3,
+     "Koro": 2,
+     "Rug01_Stone": 1,
+     "Stone_Fence": 14,
+     "Stone_Foundation": 19,
+     "Stone_Roof": 146,
+     "Stone_Stair": 6,
+     "Stone_TriangleRoof": 2,
+     "Stone_pillar": 57,
+     "Stone_wall": 3,
+     "Toro": 2,
+     "Wood_WindowWall": 6,
+     "Wooden_PyramidRoof": 3,
+     "Wooden_TriangleFoundation": 28,
+     "Wooden_foundation": 244,
+     "Wooden_pillar": 85,
+     "Wooden_roof": 112,
+     "Wooden_stair": 11,
+     "Wooden_wall": 19
+    },
+    "distinctValues": 0,
+    "listLengths": {
+     "0": 1646
+    },
+    "nonEmpty": 0,
+    "nonZero": 0,
+    "seen": 1646,
+    "types": {
+     "list": 1646
+    }
+   },
+   "refworld": {
+    "alwaysEmpty": true,
+    "byVariant": {
+     "DefenseWall_Wood": 13,
+     "Glass_TriangleWall": 2,
+     "Glass_wall": 8,
+     "JapaneseStyle_Pillar": 24,
+     "JapaneseStyle_SlantedRoof": 8,
+     "JapaneseStyle_TriangleWall": 2,
+     "JapaneseStyle_WallGate": 1,
+     "JapaneseStyle_WindowWall": 3,
+     "JapaneseStyle_foundation": 1,
+     "JapaneseStyle_stair": 2,
+     "JapaneseStyle_wall_01": 10,
+     "Koro": 1,
+     "Rug01_Stone": 1,
+     "Stone_Foundation": 7,
+     "Stone_Roof": 30,
+     "Stone_Stair": 2,
+     "Stone_pillar": 17,
+     "Stone_wall": 3,
+     "Wood_WindowWall": 9,
+     "Wooden_PyramidRoof": 3,
+     "Wooden_foundation": 36,
+     "Wooden_pillar": 77,
+     "Wooden_roof": 140,
+     "Wooden_stair": 15,
+     "Wooden_wall": 19
+    },
+    "distinctValues": 0,
+    "listLengths": {
+     "0": 434
+    },
+    "nonEmpty": 0,
+    "nonZero": 0,
+    "seen": 434,
+    "types": {
+     "list": 434
     }
    }
   },
@@ -18242,6 +22217,86 @@
     }
    }
   },
+  "save.worldSaveData.MapObjectSaveData.values[].ConcreteModel.RawData.drop_item_infos": {
+   "2026.07.22-23.59.51": {
+    "alwaysEmpty": true,
+    "byVariant": {
+     "DamagableRock0002": 44,
+     "DamagableRock0003": 1,
+     "DamagableRock0004": 1,
+     "DamagableRock0006": 16,
+     "DamagableRock0009": 25,
+     "DamagableRock0010": 23,
+     "DamagableRock0011": 21,
+     "DamagableRock0012": 27,
+     "DamagableRock0017": 8
+    },
+    "distinctValues": 0,
+    "listLengths": {
+     "0": 166
+    },
+    "nonEmpty": 0,
+    "nonZero": 0,
+    "seen": 166,
+    "types": {
+     "list": 166
+    }
+   },
+   "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": true,
+    "byVariant": {
+     "DamagableRock0001": 18,
+     "DamagableRock0002": 114,
+     "DamagableRock0003": 15,
+     "DamagableRock0004": 27,
+     "DamagableRock0006": 22,
+     "DamagableRock0008": 6,
+     "DamagableRock0009": 104,
+     "DamagableRock0010": 93,
+     "DamagableRock0011": 87,
+     "DamagableRock0012": 83,
+     "DamagableRock0017": 23,
+     "DamagableRock0019": 13,
+     "MeteorDrop_Damagable": 1
+    },
+    "distinctValues": 0,
+    "listLengths": {
+     "0": 606
+    },
+    "nonEmpty": 0,
+    "nonZero": 0,
+    "seen": 606,
+    "types": {
+     "list": 606
+    }
+   },
+   "refworld": {
+    "alwaysEmpty": true,
+    "byVariant": {
+     "DamagableRock0001": 1,
+     "DamagableRock0002": 87,
+     "DamagableRock0003": 8,
+     "DamagableRock0004": 25,
+     "DamagableRock0006": 19,
+     "DamagableRock0009": 92,
+     "DamagableRock0010": 82,
+     "DamagableRock0011": 75,
+     "DamagableRock0012": 76,
+     "DamagableRock0017": 19,
+     "MeteorDrop_Damagable": 1
+    },
+    "distinctValues": 0,
+    "listLengths": {
+     "0": 485
+    },
+    "nonEmpty": 0,
+    "nonZero": 0,
+    "seen": 485,
+    "types": {
+     "list": 485
+    }
+   }
+  },
   "save.worldSaveData.MapObjectSaveData.values[].ConcreteModel.RawData.extinction_date_time": {
    "B8A1C9C171F944D3B9287F7390B76548": {
     "byVariant": {
@@ -18462,6 +22517,57 @@
     "seen": 10,
     "types": {
      "str": 10
+    }
+   }
+  },
+  "save.worldSaveData.MapObjectSaveData.values[].ConcreteModel.RawData.hatched_character_save_parameter.SaveParameter.EquipWaza": {
+   "2026.07.22-23.59.51": {
+    "alwaysEmpty": false,
+    "byVariant": {
+     "HatchingPalEgg": 2
+    },
+    "distinctValues": 0,
+    "listLengths": {
+     "1": 2
+    },
+    "nonEmpty": 2,
+    "nonZero": 2,
+    "seen": 2,
+    "types": {
+     "list": 2
+    }
+   },
+   "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": false,
+    "byVariant": {
+     "HatchingPalEgg": 4
+    },
+    "distinctValues": 0,
+    "listLengths": {
+     "2": 4
+    },
+    "nonEmpty": 4,
+    "nonZero": 4,
+    "seen": 4,
+    "types": {
+     "list": 4
+    }
+   },
+   "refworld": {
+    "alwaysEmpty": false,
+    "byVariant": {
+     "HatchingPalEgg": 10
+    },
+    "distinctValues": 0,
+    "listLengths": {
+     "1": 2,
+     "2": 8
+    },
+    "nonEmpty": 10,
+    "nonZero": 10,
+    "seen": 10,
+    "types": {
+     "list": 10
     }
    }
   },
@@ -18774,6 +22880,40 @@
     }
    }
   },
+  "save.worldSaveData.MapObjectSaveData.values[].ConcreteModel.RawData.hatched_character_save_parameter.SaveParameter.MasteredWaza": {
+   "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": false,
+    "byVariant": {
+     "HatchingPalEgg": 4
+    },
+    "distinctValues": 0,
+    "listLengths": {
+     "1": 4
+    },
+    "nonEmpty": 4,
+    "nonZero": 4,
+    "seen": 4,
+    "types": {
+     "list": 4
+    }
+   },
+   "refworld": {
+    "alwaysEmpty": false,
+    "byVariant": {
+     "HatchingPalEgg": 9
+    },
+    "distinctValues": 0,
+    "listLengths": {
+     "1": 9
+    },
+    "nonEmpty": 9,
+    "nonZero": 9,
+    "seen": 9,
+    "types": {
+     "list": 9
+    }
+   }
+  },
   "save.worldSaveData.MapObjectSaveData.values[].ConcreteModel.RawData.hatched_character_save_parameter.SaveParameter.MasteredWaza[]": {
    "B8A1C9C171F944D3B9287F7390B76548": {
     "byVariant": {
@@ -18816,6 +22956,60 @@
     "seen": 9,
     "types": {
      "str": 9
+    }
+   }
+  },
+  "save.worldSaveData.MapObjectSaveData.values[].ConcreteModel.RawData.hatched_character_save_parameter.SaveParameter.PassiveSkillList": {
+   "2026.07.22-23.59.51": {
+    "alwaysEmpty": false,
+    "byVariant": {
+     "HatchingPalEgg": 1
+    },
+    "distinctValues": 0,
+    "listLengths": {
+     "1": 1
+    },
+    "nonEmpty": 1,
+    "nonZero": 1,
+    "seen": 1,
+    "types": {
+     "list": 1
+    }
+   },
+   "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": false,
+    "byVariant": {
+     "HatchingPalEgg": 4
+    },
+    "distinctValues": 0,
+    "listLengths": {
+     "2": 2,
+     "4": 2
+    },
+    "nonEmpty": 4,
+    "nonZero": 4,
+    "seen": 4,
+    "types": {
+     "list": 4
+    }
+   },
+   "refworld": {
+    "alwaysEmpty": false,
+    "byVariant": {
+     "HatchingPalEgg": 10
+    },
+    "distinctValues": 0,
+    "listLengths": {
+     "1": 4,
+     "2": 3,
+     "3": 1,
+     "4": 2
+    },
+    "nonEmpty": 10,
+    "nonZero": 10,
+    "seen": 10,
+    "types": {
+     "list": 10
     }
    }
   },
@@ -20917,6 +25111,58 @@
     }
    }
   },
+  "save.worldSaveData.MapObjectSaveData.values[].ConcreteModel.RawData.spawned_egg_instance_ids": {
+   "2026.07.22-23.59.51": {
+    "alwaysEmpty": true,
+    "byVariant": {
+     "BreedFarm": 1
+    },
+    "distinctValues": 0,
+    "listLengths": {
+     "0": 1
+    },
+    "nonEmpty": 0,
+    "nonZero": 0,
+    "seen": 1,
+    "types": {
+     "list": 1
+    }
+   },
+   "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": true,
+    "byVariant": {
+     "BreedFarm": 5
+    },
+    "distinctValues": 0,
+    "listLengths": {
+     "0": 5
+    },
+    "nonEmpty": 0,
+    "nonZero": 0,
+    "seen": 5,
+    "types": {
+     "list": 5
+    }
+   },
+   "refworld": {
+    "alwaysEmpty": false,
+    "byVariant": {
+     "BreedFarm": 5
+    },
+    "distinctValues": 0,
+    "listLengths": {
+     "0": 3,
+     "2": 1,
+     "8": 1
+    },
+    "nonEmpty": 2,
+    "nonZero": 2,
+    "seen": 5,
+    "types": {
+     "list": 5
+    }
+   }
+  },
   "save.worldSaveData.MapObjectSaveData.values[].ConcreteModel.RawData.spawned_egg_instance_ids[]": {
    "refworld": {
     "byVariant": {
@@ -21233,6 +25479,42 @@
     "seen": 4,
     "types": {
      "UUID": 4
+    }
+   }
+  },
+  "save.worldSaveData.MapObjectSaveData.values[].ConcreteModel.RawData.trade_infos": {
+   "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": false,
+    "byVariant": {
+     "ItemBooth": 4
+    },
+    "distinctValues": 0,
+    "listLengths": {
+     "0": 3,
+     "1": 1
+    },
+    "nonEmpty": 1,
+    "nonZero": 1,
+    "seen": 4,
+    "types": {
+     "list": 4
+    }
+   },
+   "refworld": {
+    "alwaysEmpty": false,
+    "byVariant": {
+     "ItemBooth": 2
+    },
+    "distinctValues": 0,
+    "listLengths": {
+     "0": 1,
+     "1": 1
+    },
+    "nonEmpty": 1,
+    "nonZero": 1,
+    "seen": 2,
+    "types": {
+     "list": 2
     }
    }
   },
@@ -24713,6 +28995,506 @@
     }
    }
   },
+  "save.worldSaveData.MapObjectSaveData.values[].Model.Connector.RawData": {
+   "2026.07.22-23.59.51": {
+    "alwaysEmpty": true,
+    "byVariant": {
+     "CommonDropItem3D": 61,
+     "DamagableRock0002": 44,
+     "DamagableRock0003": 1,
+     "DamagableRock0004": 1,
+     "DamagableRock0006": 16,
+     "DamagableRock0009": 25,
+     "DamagableRock0010": 23,
+     "DamagableRock0011": 21,
+     "DamagableRock0012": 27,
+     "DamagableRock0017": 8,
+     "TreasureBox": 611,
+     "TreasureBox_Electric": 6,
+     "TreasureBox_Fire": 5,
+     "TreasureBox_FishingJunk_RequiredLongHold": 121,
+     "TreasureBox_FishingJunk_RequiredLongHold2": 19,
+     "TreasureBox_Oilrig": 5,
+     "TreasureBox_RequiredLongHold": 177,
+     "TreasureBox_Water": 2
+    },
+    "distinctValues": 0,
+    "listLengths": {
+     "0": 1173
+    },
+    "nonEmpty": 0,
+    "nonZero": 0,
+    "seen": 1173,
+    "types": {
+     "list": 1173
+    }
+   },
+   "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": true,
+    "byVariant": {
+     "CommonDropItem3D": 9,
+     "DamagableRock0001": 18,
+     "DamagableRock0002": 114,
+     "DamagableRock0003": 15,
+     "DamagableRock0004": 27,
+     "DamagableRock0006": 22,
+     "DamagableRock0008": 6,
+     "DamagableRock0009": 104,
+     "DamagableRock0010": 93,
+     "DamagableRock0011": 87,
+     "DamagableRock0012": 83,
+     "DamagableRock0017": 23,
+     "DamagableRock0019": 13,
+     "DamagableRock0021": 1,
+     "DamagableWood0001": 2,
+     "DroppedCharacter": 20,
+     "MeteorDrop_Damagable": 1,
+     "SupplyDrop": 1,
+     "TreasureBox": 3848,
+     "TreasureBox_Electric": 39,
+     "TreasureBox_Fire": 33,
+     "TreasureBox_FishingJunk_RequiredLongHold": 421,
+     "TreasureBox_FishingJunk_RequiredLongHold2": 790,
+     "TreasureBox_Oilrig": 201,
+     "TreasureBox_RequiredLongHold": 593,
+     "TreasureBox_Water": 38
+    },
+    "distinctValues": 0,
+    "listLengths": {
+     "0": 6602
+    },
+    "nonEmpty": 0,
+    "nonZero": 0,
+    "seen": 6602,
+    "types": {
+     "list": 6602
+    }
+   },
+   "refworld": {
+    "alwaysEmpty": true,
+    "byVariant": {
+     "CommonDropItem3D": 149,
+     "DamagableRock0001": 1,
+     "DamagableRock0002": 87,
+     "DamagableRock0003": 8,
+     "DamagableRock0004": 25,
+     "DamagableRock0006": 19,
+     "DamagableRock0009": 92,
+     "DamagableRock0010": 82,
+     "DamagableRock0011": 75,
+     "DamagableRock0012": 76,
+     "DamagableRock0017": 19,
+     "DamagableRock0020": 16,
+     "DamagableWood0001": 1,
+     "DroppedCharacter": 4,
+     "MeteorDrop_Damagable": 1,
+     "PalEgg_Dragon": 10,
+     "TreasureBox": 1803,
+     "TreasureBox_Electric": 26,
+     "TreasureBox_Fire": 25,
+     "TreasureBox_FishingJunk_RequiredLongHold": 329,
+     "TreasureBox_FishingJunk_RequiredLongHold2": 274,
+     "TreasureBox_Oilrig": 41,
+     "TreasureBox_RequiredLongHold": 467,
+     "TreasureBox_Water": 24
+    },
+    "distinctValues": 0,
+    "listLengths": {
+     "0": 3654
+    },
+    "nonEmpty": 0,
+    "nonZero": 0,
+    "seen": 3654,
+    "types": {
+     "list": 3654
+    }
+   }
+  },
+  "save.worldSaveData.MapObjectSaveData.values[].Model.Connector.RawData.connect.any_place": {
+   "2026.07.22-23.59.51": {
+    "alwaysEmpty": false,
+    "byVariant": {
+     "BlastFurnace": 4,
+     "BlastFurnace2": 1,
+     "BreedFarm": 1,
+     "BuildableGoddessStatue": 3,
+     "CampFire": 2,
+     "CharacterRankUp": 1,
+     "Container01_Iron": 1,
+     "CookingStove": 3,
+     "CoolerBox": 1,
+     "CopperPit": 1,
+     "Crusher": 3,
+     "DimensionPalStorage": 1,
+     "ElectricGenerator": 1,
+     "Expedition": 1,
+     "Factory_Hard_01": 3,
+     "Factory_Hard_02": 1,
+     "FarmBlockV2_Berries": 10,
+     "FarmBlockV2_wheet": 5,
+     "FlourMill": 3,
+     "GlobalPalStorage": 3,
+     "GuildChest": 2,
+     "HatchingPalEgg": 3,
+     "ItemChest": 21,
+     "ItemChest_02": 15,
+     "Lab": 2,
+     "MedicalPalBed_02": 54,
+     "MedicineFacility_01": 3,
+     "MonsterFarm": 3,
+     "OperatingTable": 1,
+     "PalBoxV2": 6,
+     "PalFoodBox": 6,
+     "PlayerBed_02": 4,
+     "RepairBench": 3,
+     "Spa": 4,
+     "Spa2": 2,
+     "SphereFactory_Black_01": 2,
+     "SphereFactory_Black_03": 1,
+     "StationDeforest2": 2,
+     "StonePit": 2,
+     "WeaponFactory_Dirty_01": 2,
+     "WeaponFactory_Dirty_02": 1,
+     "Wood_WindowWall": 6,
+     "Wooden_DoorWall": 3,
+     "Wooden_PyramidRoof": 3,
+     "Wooden_foundation": 30,
+     "Wooden_pillar": 75,
+     "Wooden_roof": 105,
+     "Wooden_stair": 10,
+     "Wooden_wall": 17,
+     "WorkBench_SkillUnlock": 3,
+     "Workbench": 3
+    },
+    "distinctValues": 0,
+    "listLengths": {
+     "0": 386,
+     "1": 43,
+     "2": 10,
+     "3": 3,
+     "4": 1
+    },
+    "nonEmpty": 57,
+    "nonZero": 57,
+    "seen": 443,
+    "types": {
+     "list": 443
+    }
+   },
+   "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": false,
+    "byVariant": {
+     "Altar": 4,
+     "AncientBlastFurnace": 4,
+     "AncientCookingStove": 1,
+     "AncientElectricGenerator": 1,
+     "AncientRelicRecycler": 2,
+     "AncientWorkBench": 3,
+     "Ancient_foundation": 33,
+     "Ancient_roof": 200,
+     "Ancient_stair": 12,
+     "Barrel_Wood": 2,
+     "BaseCampItemDispenser": 6,
+     "BaseCampWorkHard": 1,
+     "BaseCampWorkHard02": 10,
+     "BaseCampWorkHard03": 1,
+     "BaseCampWorkerExtraStation": 1,
+     "BlastFurnace": 1,
+     "BlastFurnace2": 1,
+     "BlastFurnace3": 1,
+     "BlastFurnace4": 1,
+     "BreedFarm": 5,
+     "BuildableGoddessStatue": 6,
+     "Byobu": 3,
+     "CampFire": 1,
+     "Cauldron": 2,
+     "Chair01_Pal": 2,
+     "CharacterRankUp": 5,
+     "Clinic": 7,
+     "CoalPit": 4,
+     "CompositeDesk": 2,
+     "CookingStove": 1,
+     "CoolerBox": 1,
+     "CoolerPalFoodBox": 11,
+     "CopperPit": 1,
+     "CopperPit_2": 2,
+     "Crusher": 5,
+     "CrystalPit": 3,
+     "DimensionPalStorage": 2,
+     "DismantlingConveyor": 2,
+     "ElectricGenerator": 3,
+     "ElectricGenerator_Large": 15,
+     "ElectricKitchen": 4,
+     "EnergyStorage_Electric": 12,
+     "Expedition": 4,
+     "Factory_Hard_01": 3,
+     "Factory_Hard_03": 1,
+     "FarmBlockV2_Berries": 9,
+     "FarmBlockV2_Carrot": 2,
+     "FarmBlockV2_Lettuce": 4,
+     "FarmBlockV2_Onion": 2,
+     "FarmBlockV2_Potato": 1,
+     "FarmBlockV2_tomato": 4,
+     "FarmBlockV2_wheet": 6,
+     "Farm_SkillFruits": 2,
+     "FishingPond2": 2,
+     "FlourMill": 4,
+     "Fountain": 2,
+     "Fudukue": 1,
+     "FurnitureTree01_Cherry": 6,
+     "FurnitureTree02_Cherry": 11,
+     "FurnitureTree03_Cherry": 9,
+     "Glass_DoorWall": 1,
+     "Glass_TriangleWall": 2,
+     "Glass_WallGate": 1,
+     "Glass_foundation": 22,
+     "Glass_roof": 30,
+     "Glass_wall": 362,
+     "GlobalPalStorage": 4,
+     "GuildChest": 12,
+     "HatchingPalEgg": 12,
+     "HugeKitchen": 2,
+     "IceCrusher": 3,
+     "Irori": 1,
+     "ItemBooth": 4,
+     "ItemChest": 5,
+     "ItemChest_02": 32,
+     "ItemChest_03": 50,
+     "ItemChest_04": 11,
+     "JapaneseStyle_DoorWall_01": 1,
+     "JapaneseStyle_DoorWall_02": 1,
+     "JapaneseStyle_DoorWall_03": 1,
+     "JapaneseStyle_Fence": 8,
+     "JapaneseStyle_Pillar": 24,
+     "JapaneseStyle_SlantedRoof": 8,
+     "JapaneseStyle_TriangleWall": 2,
+     "JapaneseStyle_WallGate": 2,
+     "JapaneseStyle_WindowWall": 7,
+     "JapaneseStyle_foundation": 1,
+     "JapaneseStyle_roof_01": 10,
+     "JapaneseStyle_roof_02": 31,
+     "JapaneseStyle_stair": 23,
+     "JapaneseStyle_wall_01": 74,
+     "Kakejiku": 3,
+     "Koro": 2,
+     "Lab": 6,
+     "Light_FirePlace02": 1,
+     "MedicalPalBed_02": 87,
+     "MedicalPalBed_04": 124,
+     "MedicalPalBed_05": 89,
+     "MedicineFacility_01": 2,
+     "MedicineFacility_02": 4,
+     "MedicineFacility_03": 1,
+     "MiningTool": 1,
+     "MonsterFarm": 15,
+     "MultiElectricHatchingPalEgg": 3,
+     "MultiElectricHatchingPalEggWithBreed": 1,
+     "OilPump": 10,
+     "OilPump02": 1,
+     "OlympicCauldron": 2,
+     "OperatingTable": 3,
+     "PalBooth": 4,
+     "PalBoxV2": 16,
+     "PalFoodBox": 6,
+     "PalMedicineBox": 8,
+     "PlayerBed_02": 6,
+     "PlayerBed_03": 1,
+     "QuartzPit": 5,
+     "Refrigerator": 3,
+     "RepairBench": 5,
+     "Rug01_Stone": 1,
+     "SanityDecrease1": 6,
+     "Silo": 1,
+     "SkinChange": 4,
+     "SkyIslandOrePit": 2,
+     "Sofa01_Iron": 1,
+     "Sofa02_Iron": 1,
+     "Spa": 4,
+     "Spa2": 14,
+     "Spa3": 2,
+     "SphereFactory_Black_01": 1,
+     "SphereFactory_Black_03": 1,
+     "StationDeforest2": 4,
+     "StationDeforest3": 2,
+     "StonePit": 4,
+     "Stone_Fence": 14,
+     "Stone_Foundation": 19,
+     "Stone_Roof": 146,
+     "Stone_Stair": 6,
+     "Stone_TriangleRoof": 2,
+     "Stone_pillar": 57,
+     "Stone_wall": 3,
+     "SulfurPit": 1,
+     "TableDresser01_Stone": 1,
+     "Toro": 2,
+     "WallTorch02": 10,
+     "WeaponFactory_Dirty_01": 1,
+     "WeaponFactory_Dirty_03": 1,
+     "Wood_WindowWall": 6,
+     "Wooden_DoorWall": 3,
+     "Wooden_PyramidRoof": 3,
+     "Wooden_TriangleFoundation": 28,
+     "Wooden_foundation": 244,
+     "Wooden_pillar": 85,
+     "Wooden_roof": 112,
+     "Wooden_stair": 11,
+     "Wooden_wall": 19,
+     "WorkBench_SkillUnlock": 4,
+     "WorkSpeedIncrease1": 7,
+     "Workbench": 1,
+     "Zabuton": 1,
+     "Zaisu": 2
+    },
+    "distinctValues": 0,
+    "listLengths": {
+     "0": 2007,
+     "1": 356,
+     "2": 66,
+     "3": 16,
+     "4": 5
+    },
+    "nonEmpty": 443,
+    "nonZero": 443,
+    "seen": 2450,
+    "types": {
+     "list": 2450
+    }
+   },
+   "refworld": {
+    "alwaysEmpty": false,
+    "byVariant": {
+     "Altar": 3,
+     "Barrel_Wood": 1,
+     "BaseCampItemDispenser": 2,
+     "BaseCampWorkHard": 2,
+     "BaseCampWorkHard02": 6,
+     "BaseCampWorkerExtraStation": 1,
+     "BlastFurnace": 3,
+     "BlastFurnace2": 4,
+     "BlastFurnace3": 3,
+     "BlastFurnace4": 2,
+     "BreedFarm": 5,
+     "BuildableGoddessStatue": 6,
+     "CampFire": 2,
+     "CharacterRankUp": 3,
+     "Clinic": 5,
+     "CoalPit": 3,
+     "CookingStove": 1,
+     "CoolerBox": 1,
+     "CoolerPalFoodBox": 4,
+     "CopperPit": 3,
+     "CopperPit_2": 2,
+     "Crusher": 3,
+     "DefenseWall_Wood": 13,
+     "DimensionPalStorage": 1,
+     "ElectricGenerator": 4,
+     "ElectricGenerator_Large": 5,
+     "ElectricKitchen": 2,
+     "EnergyStorage_Electric": 2,
+     "Expedition": 4,
+     "Factory_Hard_01": 5,
+     "Factory_Hard_02": 2,
+     "Factory_Hard_03": 2,
+     "FarmBlockV2_Berries": 6,
+     "FarmBlockV2_Lettuce": 4,
+     "FarmBlockV2_tomato": 4,
+     "FarmBlockV2_wheet": 5,
+     "FlourMill": 4,
+     "Glass_TriangleWall": 2,
+     "Glass_wall": 8,
+     "GlobalPalStorage": 3,
+     "GuildChest": 8,
+     "HatchingPalEgg": 12,
+     "HugeKitchen": 1,
+     "IceCrusher": 2,
+     "ItemBooth": 2,
+     "ItemChest": 13,
+     "ItemChest_02": 36,
+     "ItemChest_03": 33,
+     "JapaneseStyle_DoorWall_02": 1,
+     "JapaneseStyle_Pillar": 24,
+     "JapaneseStyle_SlantedRoof": 8,
+     "JapaneseStyle_TriangleWall": 2,
+     "JapaneseStyle_WallGate": 1,
+     "JapaneseStyle_WindowWall": 3,
+     "JapaneseStyle_foundation": 1,
+     "JapaneseStyle_stair": 2,
+     "JapaneseStyle_wall_01": 10,
+     "Koro": 1,
+     "Lab": 3,
+     "Light_FirePlace02": 1,
+     "ManualElectricGenerator": 1,
+     "MedicalPalBed_02": 121,
+     "MedicalPalBed_03": 9,
+     "MedicalPalBed_04": 13,
+     "MedicalPalBed_05": 34,
+     "MedicineFacility_01": 3,
+     "MedicineFacility_02": 2,
+     "MonsterFarm": 8,
+     "MultiElectricHatchingPalEgg": 1,
+     "MultiHatchingPalEgg": 1,
+     "OilPump": 5,
+     "OperatingTable": 2,
+     "PalBooth": 2,
+     "PalBoxV2": 11,
+     "PalFoodBox": 10,
+     "PalMedicineBox": 4,
+     "PlayerBed_02": 7,
+     "QuartzPit": 2,
+     "Refrigerator": 2,
+     "RepairBench": 5,
+     "Rug01_Stone": 1,
+     "SanityDecrease1": 4,
+     "SkinChange": 3,
+     "Sofa01_Iron": 1,
+     "Sofa02_Iron": 1,
+     "Spa": 6,
+     "Spa2": 7,
+     "SphereFactory_Black_01": 2,
+     "SphereFactory_Black_02": 1,
+     "SphereFactory_Black_03": 2,
+     "SphereFactory_Black_04": 1,
+     "StationDeforest2": 5,
+     "StationDeforest3": 3,
+     "StonePit": 6,
+     "Stone_Foundation": 7,
+     "Stone_Roof": 30,
+     "Stone_Stair": 2,
+     "Stone_pillar": 17,
+     "Stone_wall": 3,
+     "WeaponFactory_Dirty_01": 2,
+     "WeaponFactory_Dirty_02": 2,
+     "WeaponFactory_Dirty_03": 2,
+     "Wood_Gate": 1,
+     "Wood_WindowWall": 9,
+     "Wooden_DoorWall": 3,
+     "Wooden_PyramidRoof": 3,
+     "Wooden_foundation": 36,
+     "Wooden_pillar": 77,
+     "Wooden_roof": 140,
+     "Wooden_stair": 15,
+     "Wooden_wall": 19,
+     "WorkBench_SkillUnlock": 5,
+     "WorkSpeedIncrease1": 4,
+     "Workbench": 1
+    },
+    "distinctValues": 0,
+    "listLengths": {
+     "0": 843,
+     "1": 96,
+     "2": 20,
+     "3": 7,
+     "4": 2,
+     "5": 1
+    },
+    "nonEmpty": 126,
+    "nonZero": 126,
+    "seen": 969,
+    "types": {
+     "list": 969
+    }
+   }
+  },
   "save.worldSaveData.MapObjectSaveData.values[].Model.Connector.RawData.connect.any_place[].connect_to_model_instance_id": {
    "2026.07.22-23.59.51": {
     "byVariant": {
@@ -25866,6 +30648,7 @@
   },
   "save.worldSaveData.MapObjectSaveData.values[].Model.Connector.RawData.unknown_bytes": {
    "2026.07.22-23.59.51": {
+    "alwaysEmpty": false,
     "byVariant": {
      "BlastFurnace": 4,
      "BlastFurnace2": 1,
@@ -25941,6 +30724,26 @@
      "167": 1
     },
     "distinctValues": 0,
+    "listLengths": {
+     "4": 194,
+     "35": 6,
+     "39": 19,
+     "52": 20,
+     "56": 30,
+     "62": 9,
+     "65": 3,
+     "73": 9,
+     "79": 1,
+     "82": 30,
+     "90": 6,
+     "99": 29,
+     "107": 10,
+     "116": 50,
+     "133": 21,
+     "141": 1,
+     "150": 4,
+     "167": 1
+    },
     "nonEmpty": 443,
     "nonZero": 249,
     "seen": 443,
@@ -25949,6 +30752,7 @@
     }
    },
    "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": false,
     "byVariant": {
      "Altar": 4,
      "AncientBlastFurnace": 4,
@@ -26147,6 +30951,40 @@
      "259": 2
     },
     "distinctValues": 0,
+    "listLengths": {
+     "4": 836,
+     "13": 17,
+     "30": 5,
+     "35": 24,
+     "39": 30,
+     "48": 1,
+     "52": 165,
+     "56": 54,
+     "62": 39,
+     "65": 9,
+     "69": 295,
+     "73": 31,
+     "79": 19,
+     "82": 40,
+     "86": 1,
+     "90": 13,
+     "96": 2,
+     "99": 97,
+     "107": 35,
+     "116": 394,
+     "124": 3,
+     "133": 199,
+     "150": 73,
+     "157": 1,
+     "167": 16,
+     "174": 9,
+     "184": 16,
+     "191": 15,
+     "201": 6,
+     "208": 1,
+     "242": 2,
+     "259": 2
+    },
     "nonEmpty": 2450,
     "nonZero": 1614,
     "seen": 2450,
@@ -26155,6 +30993,7 @@
     }
    },
    "refworld": {
+    "alwaysEmpty": false,
     "byVariant": {
      "Altar": 3,
      "Barrel_Wood": 1,
@@ -26299,6 +31138,32 @@
      "201": 1
     },
     "distinctValues": 0,
+    "listLengths": {
+     "4": 546,
+     "35": 10,
+     "39": 29,
+     "52": 45,
+     "56": 43,
+     "62": 21,
+     "65": 7,
+     "69": 5,
+     "73": 18,
+     "79": 4,
+     "82": 43,
+     "86": 1,
+     "90": 8,
+     "96": 2,
+     "99": 46,
+     "107": 18,
+     "116": 63,
+     "124": 1,
+     "133": 40,
+     "141": 1,
+     "150": 11,
+     "167": 5,
+     "184": 1,
+     "201": 1
+    },
     "nonEmpty": 969,
     "nonZero": 423,
     "seen": 969,
@@ -26744,6 +31609,448 @@
     "seen": 4623,
     "types": {
      "bytes": 4623
+    }
+   }
+  },
+  "save.worldSaveData.MapObjectSaveData.values[].Model.EffectMap": {
+   "2026.07.22-23.59.51": {
+    "alwaysEmpty": true,
+    "byVariant": {
+     "BlastFurnace": 4,
+     "BlastFurnace2": 1,
+     "BreedFarm": 1,
+     "BuildableGoddessStatue": 3,
+     "CampFire": 2,
+     "CharacterRankUp": 1,
+     "CommonDropItem3D": 61,
+     "Container01_Iron": 1,
+     "CookingStove": 3,
+     "CoolerBox": 1,
+     "CopperPit": 1,
+     "Crusher": 3,
+     "DamagableRock0002": 44,
+     "DamagableRock0003": 1,
+     "DamagableRock0004": 1,
+     "DamagableRock0006": 16,
+     "DamagableRock0009": 25,
+     "DamagableRock0010": 23,
+     "DamagableRock0011": 21,
+     "DamagableRock0012": 27,
+     "DamagableRock0017": 8,
+     "DimensionPalStorage": 1,
+     "ElectricGenerator": 1,
+     "Expedition": 1,
+     "Factory_Hard_01": 3,
+     "Factory_Hard_02": 1,
+     "FarmBlockV2_Berries": 10,
+     "FarmBlockV2_wheet": 5,
+     "FlourMill": 3,
+     "GlobalPalStorage": 3,
+     "GuildChest": 2,
+     "HatchingPalEgg": 3,
+     "ItemChest": 21,
+     "ItemChest_02": 15,
+     "Lab": 2,
+     "MedicalPalBed_02": 54,
+     "MedicineFacility_01": 3,
+     "MonsterFarm": 3,
+     "OperatingTable": 1,
+     "PalBoxV2": 6,
+     "PalFoodBox": 6,
+     "PlayerBed_02": 4,
+     "RepairBench": 3,
+     "Spa": 4,
+     "Spa2": 2,
+     "SphereFactory_Black_01": 2,
+     "SphereFactory_Black_03": 1,
+     "StationDeforest2": 2,
+     "StonePit": 2,
+     "TreasureBox": 611,
+     "TreasureBox_Electric": 6,
+     "TreasureBox_Fire": 5,
+     "TreasureBox_FishingJunk_RequiredLongHold": 121,
+     "TreasureBox_FishingJunk_RequiredLongHold2": 19,
+     "TreasureBox_Oilrig": 5,
+     "TreasureBox_RequiredLongHold": 177,
+     "TreasureBox_Water": 2,
+     "WeaponFactory_Dirty_01": 2,
+     "WeaponFactory_Dirty_02": 1,
+     "Wood_WindowWall": 6,
+     "Wooden_DoorWall": 3,
+     "Wooden_PyramidRoof": 3,
+     "Wooden_foundation": 30,
+     "Wooden_pillar": 75,
+     "Wooden_roof": 105,
+     "Wooden_stair": 10,
+     "Wooden_wall": 17,
+     "WorkBench_SkillUnlock": 3,
+     "Workbench": 3
+    },
+    "distinctValues": 0,
+    "listLengths": {
+     "0": 1616
+    },
+    "nonEmpty": 0,
+    "nonZero": 0,
+    "seen": 1616,
+    "types": {
+     "list": 1616
+    }
+   },
+   "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": false,
+    "byVariant": {
+     "Altar": 4,
+     "AncientBlastFurnace": 4,
+     "AncientCookingStove": 1,
+     "AncientElectricGenerator": 1,
+     "AncientRelicRecycler": 2,
+     "AncientWorkBench": 3,
+     "Ancient_foundation": 33,
+     "Ancient_roof": 200,
+     "Ancient_stair": 12,
+     "Barrel_Wood": 2,
+     "BaseCampItemDispenser": 6,
+     "BaseCampWorkHard": 1,
+     "BaseCampWorkHard02": 10,
+     "BaseCampWorkHard03": 1,
+     "BaseCampWorkerExtraStation": 1,
+     "BlastFurnace": 1,
+     "BlastFurnace2": 1,
+     "BlastFurnace3": 1,
+     "BlastFurnace4": 1,
+     "BreedFarm": 5,
+     "BuildableGoddessStatue": 6,
+     "Byobu": 3,
+     "CampFire": 1,
+     "Cauldron": 2,
+     "Chair01_Pal": 2,
+     "CharacterRankUp": 5,
+     "Clinic": 7,
+     "CoalPit": 4,
+     "CommonDropItem3D": 9,
+     "CompositeDesk": 2,
+     "CookingStove": 1,
+     "CoolerBox": 1,
+     "CoolerPalFoodBox": 11,
+     "CopperPit": 1,
+     "CopperPit_2": 2,
+     "Crusher": 5,
+     "CrystalPit": 3,
+     "DamagableRock0001": 18,
+     "DamagableRock0002": 114,
+     "DamagableRock0003": 15,
+     "DamagableRock0004": 27,
+     "DamagableRock0006": 22,
+     "DamagableRock0008": 6,
+     "DamagableRock0009": 104,
+     "DamagableRock0010": 93,
+     "DamagableRock0011": 87,
+     "DamagableRock0012": 83,
+     "DamagableRock0017": 23,
+     "DamagableRock0019": 13,
+     "DamagableRock0021": 1,
+     "DamagableWood0001": 2,
+     "DimensionPalStorage": 2,
+     "DismantlingConveyor": 2,
+     "DroppedCharacter": 20,
+     "ElectricGenerator": 3,
+     "ElectricGenerator_Large": 15,
+     "ElectricKitchen": 4,
+     "EnergyStorage_Electric": 12,
+     "Expedition": 4,
+     "Factory_Hard_01": 3,
+     "Factory_Hard_03": 1,
+     "FarmBlockV2_Berries": 9,
+     "FarmBlockV2_Carrot": 2,
+     "FarmBlockV2_Lettuce": 4,
+     "FarmBlockV2_Onion": 2,
+     "FarmBlockV2_Potato": 1,
+     "FarmBlockV2_tomato": 4,
+     "FarmBlockV2_wheet": 6,
+     "Farm_SkillFruits": 2,
+     "FishingPond2": 2,
+     "FlourMill": 4,
+     "Fountain": 2,
+     "Fudukue": 1,
+     "FurnitureTree01_Cherry": 6,
+     "FurnitureTree02_Cherry": 11,
+     "FurnitureTree03_Cherry": 9,
+     "Glass_DoorWall": 1,
+     "Glass_TriangleWall": 2,
+     "Glass_WallGate": 1,
+     "Glass_foundation": 22,
+     "Glass_roof": 30,
+     "Glass_wall": 362,
+     "GlobalPalStorage": 4,
+     "GuildChest": 12,
+     "HatchingPalEgg": 12,
+     "HugeKitchen": 2,
+     "IceCrusher": 3,
+     "Irori": 1,
+     "ItemBooth": 4,
+     "ItemChest": 5,
+     "ItemChest_02": 32,
+     "ItemChest_03": 50,
+     "ItemChest_04": 11,
+     "JapaneseStyle_DoorWall_01": 1,
+     "JapaneseStyle_DoorWall_02": 1,
+     "JapaneseStyle_DoorWall_03": 1,
+     "JapaneseStyle_Fence": 8,
+     "JapaneseStyle_Pillar": 24,
+     "JapaneseStyle_SlantedRoof": 8,
+     "JapaneseStyle_TriangleWall": 2,
+     "JapaneseStyle_WallGate": 2,
+     "JapaneseStyle_WindowWall": 7,
+     "JapaneseStyle_foundation": 1,
+     "JapaneseStyle_roof_01": 10,
+     "JapaneseStyle_roof_02": 31,
+     "JapaneseStyle_stair": 23,
+     "JapaneseStyle_wall_01": 74,
+     "Kakejiku": 3,
+     "Koro": 2,
+     "Lab": 6,
+     "Light_FirePlace02": 1,
+     "MedicalPalBed_02": 87,
+     "MedicalPalBed_04": 124,
+     "MedicalPalBed_05": 89,
+     "MedicineFacility_01": 2,
+     "MedicineFacility_02": 4,
+     "MedicineFacility_03": 1,
+     "MeteorDrop_Damagable": 1,
+     "MiningTool": 1,
+     "MonsterFarm": 15,
+     "MultiElectricHatchingPalEgg": 3,
+     "MultiElectricHatchingPalEggWithBreed": 1,
+     "OilPump": 10,
+     "OilPump02": 1,
+     "OlympicCauldron": 2,
+     "OperatingTable": 3,
+     "PalBooth": 4,
+     "PalBoxV2": 16,
+     "PalFoodBox": 6,
+     "PalMedicineBox": 8,
+     "PlayerBed_02": 6,
+     "PlayerBed_03": 1,
+     "QuartzPit": 5,
+     "Refrigerator": 3,
+     "RepairBench": 5,
+     "Rug01_Stone": 1,
+     "SanityDecrease1": 6,
+     "Silo": 1,
+     "SkinChange": 4,
+     "SkyIslandOrePit": 2,
+     "Sofa01_Iron": 1,
+     "Sofa02_Iron": 1,
+     "Spa": 4,
+     "Spa2": 14,
+     "Spa3": 2,
+     "SphereFactory_Black_01": 1,
+     "SphereFactory_Black_03": 1,
+     "StationDeforest2": 4,
+     "StationDeforest3": 2,
+     "StonePit": 4,
+     "Stone_Fence": 14,
+     "Stone_Foundation": 19,
+     "Stone_Roof": 146,
+     "Stone_Stair": 6,
+     "Stone_TriangleRoof": 2,
+     "Stone_pillar": 57,
+     "Stone_wall": 3,
+     "SulfurPit": 1,
+     "SupplyDrop": 1,
+     "TableDresser01_Stone": 1,
+     "Toro": 2,
+     "TreasureBox": 3848,
+     "TreasureBox_Electric": 39,
+     "TreasureBox_Fire": 33,
+     "TreasureBox_FishingJunk_RequiredLongHold": 421,
+     "TreasureBox_FishingJunk_RequiredLongHold2": 790,
+     "TreasureBox_Oilrig": 201,
+     "TreasureBox_RequiredLongHold": 593,
+     "TreasureBox_Water": 38,
+     "WallTorch02": 10,
+     "WeaponFactory_Dirty_01": 1,
+     "WeaponFactory_Dirty_03": 1,
+     "Wood_WindowWall": 6,
+     "Wooden_DoorWall": 3,
+     "Wooden_PyramidRoof": 3,
+     "Wooden_TriangleFoundation": 28,
+     "Wooden_foundation": 244,
+     "Wooden_pillar": 85,
+     "Wooden_roof": 112,
+     "Wooden_stair": 11,
+     "Wooden_wall": 19,
+     "WorkBench_SkillUnlock": 4,
+     "WorkSpeedIncrease1": 7,
+     "Workbench": 1,
+     "Zabuton": 1,
+     "Zaisu": 2
+    },
+    "distinctValues": 0,
+    "listLengths": {
+     "0": 9048,
+     "1": 4
+    },
+    "nonEmpty": 4,
+    "nonZero": 4,
+    "seen": 9052,
+    "types": {
+     "list": 9052
+    }
+   },
+   "refworld": {
+    "alwaysEmpty": false,
+    "byVariant": {
+     "Altar": 3,
+     "Barrel_Wood": 1,
+     "BaseCampItemDispenser": 2,
+     "BaseCampWorkHard": 2,
+     "BaseCampWorkHard02": 6,
+     "BaseCampWorkerExtraStation": 1,
+     "BlastFurnace": 3,
+     "BlastFurnace2": 4,
+     "BlastFurnace3": 3,
+     "BlastFurnace4": 2,
+     "BreedFarm": 5,
+     "BuildableGoddessStatue": 6,
+     "CampFire": 2,
+     "CharacterRankUp": 3,
+     "Clinic": 5,
+     "CoalPit": 3,
+     "CommonDropItem3D": 149,
+     "CookingStove": 1,
+     "CoolerBox": 1,
+     "CoolerPalFoodBox": 4,
+     "CopperPit": 3,
+     "CopperPit_2": 2,
+     "Crusher": 3,
+     "DamagableRock0001": 1,
+     "DamagableRock0002": 87,
+     "DamagableRock0003": 8,
+     "DamagableRock0004": 25,
+     "DamagableRock0006": 19,
+     "DamagableRock0009": 92,
+     "DamagableRock0010": 82,
+     "DamagableRock0011": 75,
+     "DamagableRock0012": 76,
+     "DamagableRock0017": 19,
+     "DamagableRock0020": 16,
+     "DamagableWood0001": 1,
+     "DefenseWall_Wood": 13,
+     "DimensionPalStorage": 1,
+     "DroppedCharacter": 4,
+     "ElectricGenerator": 4,
+     "ElectricGenerator_Large": 5,
+     "ElectricKitchen": 2,
+     "EnergyStorage_Electric": 2,
+     "Expedition": 4,
+     "Factory_Hard_01": 5,
+     "Factory_Hard_02": 2,
+     "Factory_Hard_03": 2,
+     "FarmBlockV2_Berries": 6,
+     "FarmBlockV2_Lettuce": 4,
+     "FarmBlockV2_tomato": 4,
+     "FarmBlockV2_wheet": 5,
+     "FlourMill": 4,
+     "Glass_TriangleWall": 2,
+     "Glass_wall": 8,
+     "GlobalPalStorage": 3,
+     "GuildChest": 8,
+     "HatchingPalEgg": 12,
+     "HugeKitchen": 1,
+     "IceCrusher": 2,
+     "ItemBooth": 2,
+     "ItemChest": 13,
+     "ItemChest_02": 36,
+     "ItemChest_03": 33,
+     "JapaneseStyle_DoorWall_02": 1,
+     "JapaneseStyle_Pillar": 24,
+     "JapaneseStyle_SlantedRoof": 8,
+     "JapaneseStyle_TriangleWall": 2,
+     "JapaneseStyle_WallGate": 1,
+     "JapaneseStyle_WindowWall": 3,
+     "JapaneseStyle_foundation": 1,
+     "JapaneseStyle_stair": 2,
+     "JapaneseStyle_wall_01": 10,
+     "Koro": 1,
+     "Lab": 3,
+     "Light_FirePlace02": 1,
+     "ManualElectricGenerator": 1,
+     "MedicalPalBed_02": 121,
+     "MedicalPalBed_03": 9,
+     "MedicalPalBed_04": 13,
+     "MedicalPalBed_05": 34,
+     "MedicineFacility_01": 3,
+     "MedicineFacility_02": 2,
+     "MeteorDrop_Damagable": 1,
+     "MonsterFarm": 8,
+     "MultiElectricHatchingPalEgg": 1,
+     "MultiHatchingPalEgg": 1,
+     "OilPump": 5,
+     "OperatingTable": 2,
+     "PalBooth": 2,
+     "PalBoxV2": 11,
+     "PalEgg_Dragon": 10,
+     "PalFoodBox": 10,
+     "PalMedicineBox": 4,
+     "PlayerBed_02": 7,
+     "QuartzPit": 2,
+     "Refrigerator": 2,
+     "RepairBench": 5,
+     "Rug01_Stone": 1,
+     "SanityDecrease1": 4,
+     "SkinChange": 3,
+     "Sofa01_Iron": 1,
+     "Sofa02_Iron": 1,
+     "Spa": 6,
+     "Spa2": 7,
+     "SphereFactory_Black_01": 2,
+     "SphereFactory_Black_02": 1,
+     "SphereFactory_Black_03": 2,
+     "SphereFactory_Black_04": 1,
+     "StationDeforest2": 5,
+     "StationDeforest3": 3,
+     "StonePit": 6,
+     "Stone_Foundation": 7,
+     "Stone_Roof": 30,
+     "Stone_Stair": 2,
+     "Stone_pillar": 17,
+     "Stone_wall": 3,
+     "TreasureBox": 1803,
+     "TreasureBox_Electric": 26,
+     "TreasureBox_Fire": 25,
+     "TreasureBox_FishingJunk_RequiredLongHold": 329,
+     "TreasureBox_FishingJunk_RequiredLongHold2": 274,
+     "TreasureBox_Oilrig": 41,
+     "TreasureBox_RequiredLongHold": 467,
+     "TreasureBox_Water": 24,
+     "WeaponFactory_Dirty_01": 2,
+     "WeaponFactory_Dirty_02": 2,
+     "WeaponFactory_Dirty_03": 2,
+     "Wood_Gate": 1,
+     "Wood_WindowWall": 9,
+     "Wooden_DoorWall": 3,
+     "Wooden_PyramidRoof": 3,
+     "Wooden_foundation": 36,
+     "Wooden_pillar": 77,
+     "Wooden_roof": 140,
+     "Wooden_stair": 15,
+     "Wooden_wall": 19,
+     "WorkBench_SkillUnlock": 5,
+     "WorkSpeedIncrease1": 4,
+     "Workbench": 1
+    },
+    "distinctValues": 0,
+    "listLengths": {
+     "0": 4620,
+     "1": 3
+    },
+    "nonEmpty": 3,
+    "nonZero": 3,
+    "seen": 4623,
+    "types": {
+     "list": 4623
     }
    }
   },
@@ -37885,6 +43192,7 @@
   },
   "save.worldSaveData.MapObjectSaveData.values[].Model.RawData.unknown_bytes": {
    "2026.07.22-23.59.51": {
+    "alwaysEmpty": false,
     "byVariant": {
      "BlastFurnace": 4,
      "BlastFurnace2": 1,
@@ -37961,6 +43269,9 @@
      "20": 1616
     },
     "distinctValues": 0,
+    "listLengths": {
+     "20": 1616
+    },
     "nonEmpty": 1616,
     "nonZero": 1616,
     "seen": 1616,
@@ -37969,6 +43280,7 @@
     }
    },
    "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": false,
     "byVariant": {
      "Altar": 4,
      "AncientBlastFurnace": 4,
@@ -38162,6 +43474,9 @@
      "20": 9052
     },
     "distinctValues": 0,
+    "listLengths": {
+     "20": 9052
+    },
     "nonEmpty": 9052,
     "nonZero": 9052,
     "seen": 9052,
@@ -38170,6 +43485,7 @@
     }
    },
    "refworld": {
+    "alwaysEmpty": false,
     "byVariant": {
      "Altar": 3,
      "Barrel_Wood": 1,
@@ -38315,11 +43631,55 @@
      "20": 4623
     },
     "distinctValues": 0,
+    "listLengths": {
+     "20": 4623
+    },
     "nonEmpty": 4623,
     "nonZero": 4623,
     "seen": 4623,
     "types": {
      "numericRun": 4623
+    }
+   }
+  },
+  "save.worldSaveData.MapObjectSpawnerInStageSaveData": {
+   "2026.07.22-23.59.51": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "1": 1
+    },
+    "nonEmpty": 1,
+    "nonZero": 1,
+    "seen": 1,
+    "types": {
+     "list": 1
+    }
+   },
+   "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "6": 1
+    },
+    "nonEmpty": 1,
+    "nonZero": 1,
+    "seen": 1,
+    "types": {
+     "list": 1
+    }
+   },
+   "refworld": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "1": 1
+    },
+    "nonEmpty": 1,
+    "nonZero": 1,
+    "seen": 1,
+    "types": {
+     "list": 1
     }
    }
   },
@@ -38408,6 +43768,48 @@
     }
    }
   },
+  "save.worldSaveData.MapObjectSpawnerInStageSaveData[].value.SpawnerDataMapByLevelObjectInstanceId": {
+   "2026.07.22-23.59.51": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "16449": 1
+    },
+    "nonEmpty": 1,
+    "nonZero": 1,
+    "seen": 1,
+    "types": {
+     "list": 1
+    }
+   },
+   "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "5": 5,
+     "37836": 1
+    },
+    "nonEmpty": 6,
+    "nonZero": 6,
+    "seen": 6,
+    "types": {
+     "list": 6
+    }
+   },
+   "refworld": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "31774": 1
+    },
+    "nonEmpty": 1,
+    "nonZero": 1,
+    "seen": 1,
+    "types": {
+     "list": 1
+    }
+   }
+  },
   "save.worldSaveData.MapObjectSpawnerInStageSaveData[].value.SpawnerDataMapByLevelObjectInstanceId[].key": {
    "2026.07.22-23.59.51": {
     "distinctValues": 0,
@@ -38434,6 +43836,50 @@
     "seen": 31774,
     "types": {
      "UUID": 31774
+    }
+   }
+  },
+  "save.worldSaveData.MapObjectSpawnerInStageSaveData[].value.SpawnerDataMapByLevelObjectInstanceId[].value.ItemMap": {
+   "2026.07.22-23.59.51": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "1": 16439,
+     "3": 10
+    },
+    "nonEmpty": 16449,
+    "nonZero": 16449,
+    "seen": 16449,
+    "types": {
+     "list": 16449
+    }
+   },
+   "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "1": 37821,
+     "3": 40
+    },
+    "nonEmpty": 37861,
+    "nonZero": 37861,
+    "seen": 37861,
+    "types": {
+     "list": 37861
+    }
+   },
+   "refworld": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "1": 31749,
+     "3": 25
+    },
+    "nonEmpty": 31774,
+    "nonZero": 31774,
+    "seen": 31774,
+    "types": {
+     "list": 31774
     }
    }
   },
@@ -38578,6 +44024,47 @@
     }
    }
   },
+  "save.worldSaveData.OilrigSaveData.OilrigMap": {
+   "2026.07.22-23.59.51": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "3": 1
+    },
+    "nonEmpty": 1,
+    "nonZero": 1,
+    "seen": 1,
+    "types": {
+     "list": 1
+    }
+   },
+   "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "3": 1
+    },
+    "nonEmpty": 1,
+    "nonZero": 1,
+    "seen": 1,
+    "types": {
+     "list": 1
+    }
+   },
+   "refworld": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "3": 1
+    },
+    "nonEmpty": 1,
+    "nonZero": 1,
+    "seen": 1,
+    "types": {
+     "list": 1
+    }
+   }
+  },
   "save.worldSaveData.OilrigSaveData.OilrigMap[].key": {
    "2026.07.22-23.59.51": {
     "distinctValues": 3,
@@ -38716,6 +44203,48 @@
     }
    }
   },
+  "save.worldSaveData.OilrigSaveData.OilrigMap[].value.DestroyedCannon.values": {
+   "2026.07.22-23.59.51": {
+    "alwaysEmpty": true,
+    "distinctValues": 0,
+    "listLengths": {
+     "0": 3
+    },
+    "nonEmpty": 0,
+    "nonZero": 0,
+    "seen": 3,
+    "types": {
+     "list": 3
+    }
+   },
+   "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "0": 2,
+     "5": 1
+    },
+    "nonEmpty": 1,
+    "nonZero": 1,
+    "seen": 3,
+    "types": {
+     "list": 3
+    }
+   },
+   "refworld": {
+    "alwaysEmpty": true,
+    "distinctValues": 0,
+    "listLengths": {
+     "0": 3
+    },
+    "nonEmpty": 0,
+    "nonZero": 0,
+    "seen": 3,
+    "types": {
+     "list": 3
+    }
+   }
+  },
   "save.worldSaveData.OilrigSaveData.OilrigMap[].value.DestroyedCannon.values[]": {
    "B8A1C9C171F944D3B9287F7390B76548": {
     "distinctValues": 0,
@@ -38724,6 +44253,48 @@
     "seen": 5,
     "types": {
      "UUID": 5
+    }
+   }
+  },
+  "save.worldSaveData.OilrigSaveData.OilrigMap[].value.DestroyedGasTank.values": {
+   "2026.07.22-23.59.51": {
+    "alwaysEmpty": true,
+    "distinctValues": 0,
+    "listLengths": {
+     "0": 3
+    },
+    "nonEmpty": 0,
+    "nonZero": 0,
+    "seen": 3,
+    "types": {
+     "list": 3
+    }
+   },
+   "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "0": 2,
+     "7": 1
+    },
+    "nonEmpty": 1,
+    "nonZero": 1,
+    "seen": 3,
+    "types": {
+     "list": 3
+    }
+   },
+   "refworld": {
+    "alwaysEmpty": true,
+    "distinctValues": 0,
+    "listLengths": {
+     "0": 3
+    },
+    "nonEmpty": 0,
+    "nonZero": 0,
+    "seen": 3,
+    "types": {
+     "list": 3
     }
    }
   },
@@ -38884,6 +44455,48 @@
     }
    }
   },
+  "save.worldSaveData.OilrigSaveData.OilrigMap[].value.OpenedTreasureBoxSpawner.values": {
+   "2026.07.22-23.59.51": {
+    "alwaysEmpty": true,
+    "distinctValues": 0,
+    "listLengths": {
+     "0": 3
+    },
+    "nonEmpty": 0,
+    "nonZero": 0,
+    "seen": 3,
+    "types": {
+     "list": 3
+    }
+   },
+   "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "0": 2,
+     "3": 1
+    },
+    "nonEmpty": 1,
+    "nonZero": 1,
+    "seen": 3,
+    "types": {
+     "list": 3
+    }
+   },
+   "refworld": {
+    "alwaysEmpty": true,
+    "distinctValues": 0,
+    "listLengths": {
+     "0": 3
+    },
+    "nonEmpty": 0,
+    "nonZero": 0,
+    "seen": 3,
+    "types": {
+     "list": 3
+    }
+   }
+  },
   "save.worldSaveData.OilrigSaveData.OilrigMap[].value.OpenedTreasureBoxSpawner.values[]": {
    "B8A1C9C171F944D3B9287F7390B76548": {
     "distinctValues": 0,
@@ -38939,6 +44552,48 @@
     "seen": 3,
     "types": {
      "float": 3
+    }
+   }
+  },
+  "save.worldSaveData.OilrigSaveData.OilrigMap[].value.WipedOutEnemySpawner.values": {
+   "2026.07.22-23.59.51": {
+    "alwaysEmpty": true,
+    "distinctValues": 0,
+    "listLengths": {
+     "0": 3
+    },
+    "nonEmpty": 0,
+    "nonZero": 0,
+    "seen": 3,
+    "types": {
+     "list": 3
+    }
+   },
+   "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "0": 2,
+     "35": 1
+    },
+    "nonEmpty": 1,
+    "nonZero": 1,
+    "seen": 3,
+    "types": {
+     "list": 3
+    }
+   },
+   "refworld": {
+    "alwaysEmpty": true,
+    "distinctValues": 0,
+    "listLengths": {
+     "0": 3
+    },
+    "nonEmpty": 0,
+    "nonZero": 0,
+    "seen": 3,
+    "types": {
+     "list": 3
     }
    }
   },
@@ -39088,6 +44743,34 @@
     }
    }
   },
+  "save.worldSaveData.SupplySaveData.SupplyInfos": {
+   "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "2": 1
+    },
+    "nonEmpty": 1,
+    "nonZero": 1,
+    "seen": 1,
+    "types": {
+     "list": 1
+    }
+   },
+   "refworld": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "1": 1
+    },
+    "nonEmpty": 1,
+    "nonZero": 1,
+    "seen": 1,
+    "types": {
+     "list": 1
+    }
+   }
+  },
   "save.worldSaveData.SupplySaveData.SupplyInfos[].key": {
    "B8A1C9C171F944D3B9287F7390B76548": {
     "distinctValues": 0,
@@ -39105,6 +44788,35 @@
     "seen": 1,
     "types": {
      "UUID": 1
+    }
+   }
+  },
+  "save.worldSaveData.SupplySaveData.SupplyInfos[].value.DropItemGuids.values": {
+   "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "0": 1,
+     "8": 1
+    },
+    "nonEmpty": 1,
+    "nonZero": 1,
+    "seen": 2,
+    "types": {
+     "list": 2
+    }
+   },
+   "refworld": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "8": 1
+    },
+    "nonEmpty": 1,
+    "nonZero": 1,
+    "seen": 1,
+    "types": {
+     "list": 1
     }
    }
   },
@@ -39363,6 +45075,47 @@
     "valuesWithheld": true
    }
   },
+  "save.worldSaveData.WorkSaveData.values": {
+   "2026.07.22-23.59.51": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "79": 1
+    },
+    "nonEmpty": 1,
+    "nonZero": 1,
+    "seen": 1,
+    "types": {
+     "list": 1
+    }
+   },
+   "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "212": 1
+    },
+    "nonEmpty": 1,
+    "nonZero": 1,
+    "seen": 1,
+    "types": {
+     "list": 1
+    }
+   },
+   "refworld": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "160": 1
+    },
+    "nonEmpty": 1,
+    "nonZero": 1,
+    "seen": 1,
+    "types": {
+     "list": 1
+    }
+   }
+  },
   "save.worldSaveData.WorkSaveData.values[].CustomVersionData.values": {
    "2026.07.22-23.59.51": {
     "byteLengthConstant": false,
@@ -39455,6 +45208,56 @@
     "seen": 160,
     "types": {
      "str": 160
+    }
+   }
+  },
+  "save.worldSaveData.WorkSaveData.values[].RawData.assign_locations": {
+   "2026.07.22-23.59.51": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "0": 41,
+     "1": 30,
+     "3": 7,
+     "4": 1
+    },
+    "nonEmpty": 38,
+    "nonZero": 38,
+    "seen": 79,
+    "types": {
+     "list": 79
+    }
+   },
+   "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "0": 118,
+     "1": 49,
+     "3": 28,
+     "4": 6
+    },
+    "nonEmpty": 83,
+    "nonZero": 83,
+    "seen": 201,
+    "types": {
+     "list": 201
+    }
+   },
+   "refworld": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "0": 74,
+     "1": 47,
+     "3": 29,
+     "4": 10
+    },
+    "nonEmpty": 86,
+    "nonZero": 86,
+    "seen": 160,
+    "types": {
+     "list": 160
     }
    }
   },
@@ -41177,6 +46980,58 @@
     }
    }
   },
+  "save.worldSaveData.WorkSaveData.values[].WorkAssignMap": {
+   "2026.07.22-23.59.51": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "0": 69,
+     "1": 5,
+     "2": 3,
+     "3": 2
+    },
+    "nonEmpty": 10,
+    "nonZero": 10,
+    "seen": 79,
+    "types": {
+     "list": 79
+    }
+   },
+   "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "0": 130,
+     "1": 47,
+     "2": 18,
+     "3": 8,
+     "4": 9
+    },
+    "nonEmpty": 82,
+    "nonZero": 82,
+    "seen": 212,
+    "types": {
+     "list": 212
+    }
+   },
+   "refworld": {
+    "alwaysEmpty": false,
+    "distinctValues": 0,
+    "listLengths": {
+     "0": 127,
+     "1": 14,
+     "2": 13,
+     "3": 4,
+     "4": 2
+    },
+    "nonEmpty": 33,
+    "nonZero": 33,
+    "seen": 160,
+    "types": {
+     "list": 160
+    }
+   }
+  },
   "save.worldSaveData.WorkSaveData.values[].WorkAssignMap[].key": {
    "2026.07.22-23.59.51": {
     "distinctValues": 3,
@@ -41536,11 +47391,15 @@
   },
   "save.worldSaveData.WorkSaveData.values[].WorkAssignMap[].value.RawData.unknown_bytes": {
    "B8A1C9C171F944D3B9287F7390B76548": {
+    "alwaysEmpty": false,
     "byteLengthConstant": true,
     "byteLengths": {
      "7": 12
     },
     "distinctValues": 0,
+    "listLengths": {
+     "7": 12
+    },
     "nonEmpty": 12,
     "nonZero": 12,
     "seen": 12,
@@ -41659,14 +47518,28 @@
  "readBy": {
   "Alarm": [],
   "ArenaRankPoint": [],
+  "BaseCampSaveData": [
+   "guildedit.py",
+   "parser.py"
+  ],
   "BaseCampWorkerEventProgressTime": [],
   "BaseCampWorkerEventType": [],
   "BossState": [],
   "CampPresetIndex": [],
+  "CharacterContainerSaveData": [
+   "palclone.py",
+   "parser.py"
+  ],
   "CharacterID": [
    "palclone.py",
    "palimport.py",
    "parser.py"
+  ],
+  "CharacterSaveParameterMap": [
+   "charedit.py",
+   "guildedit.py",
+   "parser.py",
+   "soloexport.py"
   ],
   "Clear": [],
   "ClearDate": [],
@@ -41682,8 +47555,10 @@
   "DungeonLevelVersion": [],
   "DungeonSpawnAreaId": [],
   "DungeonType": [],
+  "EffectMap": [],
   "EffectTime": [],
   "ElapsedTime": [],
+  "EnemyCampStatusMap": [],
   "EnemySpawnerDataBossRowName": [],
   "EquipWaza": [
    "charedit.py",
@@ -41699,6 +47574,7 @@
    "parser.py"
   ],
   "FilteredNickName": [],
+  "FoliageGridSaveDataMap": [],
   "FoodWithStatusEffect": [],
   "FriendshipActiveOtomoSec": [],
   "FriendshipBasecampSec": [],
@@ -41718,11 +47594,19 @@
   "GoalTreasureBoxSpawnerIndex": [],
   "GradeType": [],
   "GroupId": [],
+  "GroupSaveDataMap": [
+   "guildedit.py",
+   "parser.py",
+   "soloexport.py"
+  ],
   "GroupType": [
    "guildedit.py"
   ],
   "Guid": [
    "soloexport.py"
+  ],
+  "GuildExtraSaveDataMap": [
+   "parser.py"
   ],
   "HungerType": [
    "charedit.py",
@@ -41735,6 +47619,8 @@
    "saveedit.py",
    "soloexport.py"
   ],
+  "InLockerCharacterInstanceIDArray": [],
+  "InstanceDataMap": [],
   "InstanceId": [
    "charedit.py",
    "guildedit.py",
@@ -41745,6 +47631,7 @@
    "soloexport.py"
   ],
   "InternalId": [],
+  "InvaderSaveData": [],
   "IsMachineDestroyed": [],
   "IsMachineSpawned": [],
   "IsPlayer": [
@@ -41757,6 +47644,13 @@
   "IsRarePal": [
    "parser.py"
   ],
+  "ItemContainerSaveData": [
+   "itemclone.py",
+   "parser.py",
+   "saveedit.py",
+   "saveimport.py"
+  ],
+  "ItemMap": [],
   "LastLotteryTime": [],
   "LastNickNameModifierPlayerUid": [],
   "LastSupplyGuid": [],
@@ -41766,16 +47660,23 @@
    "editschema.py",
    "parser.py"
   ],
+  "LevelObjectRecoverPartySaveData": [],
   "LocalIdInCreatedWorld": [],
+  "LockGimmickSaveData": [],
   "LostPlayerUId": [],
   "MapLocationId": [],
   "MapObjectId": [
    "parser.py"
   ],
   "MapObjectInstanceId": [],
+  "MapObjectSpawnerInStageSaveData": [],
   "MarkerPointId": [],
   "MasteredWaza": [
    "charedit.py",
+   "parser.py"
+  ],
+  "ModelMap": [],
+  "ModuleMap": [
    "parser.py"
   ],
   "NextLotteryGameTime": [],
@@ -41788,6 +47689,7 @@
   "OffWorkSuitabilityList": [
    "parser.py"
   ],
+  "OilrigMap": [],
   "OwnedTime": [],
   "OwnerPlayerUId": [
    "guildedit.py",
@@ -41803,6 +47705,7 @@
    "charedit.py",
    "parser.py"
   ],
+  "PlayerLastUsedTimes": [],
   "PlayerUId": [
    "charedit.py",
    "guildedit.py",
@@ -41827,13 +47730,24 @@
   "Rank_HP": [
    "parser.py"
   ],
+  "RawData": [
+   "charedit.py",
+   "dynamicitem.py",
+   "guildedit.py",
+   "palclone.py",
+   "parser.py",
+   "saveedit.py",
+   "soloexport.py"
+  ],
   "RealDateTimeTicks": [],
   "RemainingTime": [],
   "ReservedDataLayerAssetIndex": [],
   "ResetTimer": [],
+  "RespawnDisableFlag": [],
   "Revision": [],
   "RewardPalId": [],
   "RewardPalLevel": [],
+  "RewardSaveDataMap": [],
   "SanityValue": [
    "charedit.py",
    "parser.py"
@@ -41852,9 +47766,11 @@
    "palclone.py",
    "parser.py"
   ],
+  "SpawnerDataMapByLevelObjectInstanceId": [],
   "StaticId": [],
   "StatusName": [],
   "StatusPoint": [],
+  "SupplyInfos": [],
   "SupplyLandedTime": [],
   "SupplyMapObjectId": [],
   "SupplySpawnerGuid": [],
@@ -41875,11 +47791,13 @@
   "Ticks": [],
   "Tiemr_FoodWithStatusEffect": [],
   "Timestamp": [],
+  "TreasureBoxInfoMapBySpawnerName": [],
   "UniqueNPCID": [],
   "UnusedStatusPoint": [],
   "Value": [],
   "Version": [],
   "VoiceID": [],
+  "WorkAssignMap": [],
   "WorkSuitability": [
    "charedit.py",
    "parser.py"
@@ -41899,10 +47817,12 @@
    "soloexport.py"
   ],
   "all_slot_attribute": [],
+  "any_place": [],
   "area_range": [
    "parser.py"
   ],
   "assign_define_data_id": [],
+  "assign_locations": [],
   "assign_type": [],
   "assignable_fixed_type": [],
   "assignable_otomo": [],
@@ -42000,6 +47920,7 @@
   "current_work_amount": [],
   "deterioration_damage": [],
   "drop_item_at_disposed": [],
+  "drop_item_infos": [],
   "durability": [
    "dynamicitem.py",
    "itemclone.py",
@@ -42032,6 +47953,7 @@
    "soloexport.py"
   ],
   "guild_chest_allowed_roles": [],
+  "guild_markers": [],
   "guild_name": [
    "guildedit.py",
    "parser.py"
@@ -42048,6 +47970,10 @@
   "ignition_minutes": [],
   "index": [],
   "indexes": [],
+  "individual_character_handle_ids": [
+   "guildedit.py",
+   "soloexport.py"
+  ],
   "instance_id": [
    "guildedit.py",
    "palclone.py",
@@ -42057,6 +47983,7 @@
   "interact_restrict_type": [],
   "is_lock_riding": [],
   "is_private_lock": [],
+  "item_infos": [],
   "item_static_ids": [],
   "key": [
    "charedit.py",
@@ -42135,6 +48062,10 @@
    "soloexport.py"
   ],
   "owner_spawner_level_object_instance_id": [],
+  "passive_skill_list": [
+   "dynamicitem.py",
+   "itemclone.py"
+  ],
   "password": [
    "main.py"
   ],
@@ -42142,6 +48073,7 @@
   "permissions": [],
   "pickupdable_player_uid": [],
   "pitch": [],
+  "player_infos": [],
   "player_name": [
    "guildedit.py",
    "parser.py"
@@ -42150,6 +48082,19 @@
    "guildedit.py",
    "palclone.py",
    "parser.py",
+   "soloexport.py"
+  ],
+  "players": [
+   "backup.py",
+   "gameapi.py",
+   "guildedit.py",
+   "main.py",
+   "metrics.py",
+   "palcheck.py",
+   "parse_worker.py",
+   "parser.py",
+   "privacy.py",
+   "saveexport.py",
    "soloexport.py"
   ],
   "private_lock_player_uid": [
@@ -42168,6 +48113,7 @@
   "requested_product_num": [],
   "required_work_amount": [],
   "research_id": [],
+  "research_info": [],
   "role": [
    "accounts.py",
    "announcements.py",
@@ -42179,10 +48125,12 @@
    "moderate.py",
    "privacy.py"
   ],
+  "role_permissions": [],
   "roll": [],
   "scale_x": [],
   "seller_player_uid": [],
   "skill_fruits_id": [],
+  "slot_attribute_indexes": [],
   "slot_index": [
    "itemclone.py",
    "parser.py",
@@ -42211,9 +48159,11 @@
   ],
   "target_work_id": [],
   "tick_process_min_interval": [],
+  "trade_infos": [],
   "trailing_bytes": [],
   "trailing_unknown_bytes": [],
   "trailing_unparsed_data": [],
+  "transport_item_character_infos": [],
   "treasure_grade_type": [
    "parser.py"
   ],
@@ -42308,15 +48258,19 @@
   "save.Timestamp",
   "save.Version",
   "save.worldSaveData.BaseCampSaveData[].value.ModuleMap[].value.RawData.trailing_bytes",
+  "save.worldSaveData.BaseCampSaveData[].value.ModuleMap[].value.RawData.transport_item_character_infos",
+  "save.worldSaveData.BaseCampSaveData[].value.ModuleMap[].value.RawData.transport_item_character_infos[].item_infos",
   "save.worldSaveData.BaseCampSaveData[].value.ModuleMap[].value.RawData.transport_item_character_infos[].item_infos[].num",
   "save.worldSaveData.BaseCampSaveData[].value.RawData.owner_map_object_instance_id",
   "save.worldSaveData.BaseCampSaveData[].value.RawData.trailing_bytes",
   "save.worldSaveData.BaseCampSaveData[].value.WorkCollection.RawData.trailing_bytes",
+  "save.worldSaveData.BaseCampSaveData[].value.WorkCollection.RawData.work_ids",
   "save.worldSaveData.BaseCampSaveData[].value.WorkCollection.RawData.work_ids[]",
   "save.worldSaveData.BaseCampSaveData[].value.WorkerDirector.RawData.container_id",
   "save.worldSaveData.BaseCampSaveData[].value.WorkerDirector.RawData.current_battle_type",
   "save.worldSaveData.BaseCampSaveData[].value.WorkerDirector.RawData.current_order_type",
   "save.worldSaveData.BaseCampSaveData[].value.WorkerDirector.RawData.trailing_bytes",
+  "save.worldSaveData.BossSpawnerSaveData.RespawnDisableFlag",
   "save.worldSaveData.CharacterContainerSaveData[].value.Slots.values[].RawData.permission_tribe_id",
   "save.worldSaveData.CharacterContainerSaveData[].value.Slots.values[].RawData.unknown_bytes",
   "save.worldSaveData.CharacterContainerSaveData[].value.bReferenceSlot",
@@ -42371,9 +48325,11 @@
   "save.worldSaveData.DungeonSaveData.values[].DungeonSpawnAreaId",
   "save.worldSaveData.DungeonSaveData.values[].DungeonType",
   "save.worldSaveData.DungeonSaveData.values[].EnemySpawnerDataBossRowName",
+  "save.worldSaveData.DungeonSaveData.values[].MapObjectSaveData.values[].Model.EffectMap",
   "save.worldSaveData.DungeonSaveData.values[].MarkerPointId",
   "save.worldSaveData.DungeonSaveData.values[].ReservedDataLayerAssetIndex",
   "save.worldSaveData.DungeonSaveData.values[].RespawnBossTimeAt.Ticks",
+  "save.worldSaveData.DungeonSaveData.values[].RewardSaveDataMap",
   "save.worldSaveData.DungeonSaveData.values[].StageInstanceId.InternalId",
   "save.worldSaveData.DungeonSaveData.values[].StageInstanceId.bValid",
   "save.worldSaveData.DynamicItemSaveData.values[].RawData.leading_bytes",
@@ -42383,11 +48339,13 @@
   "save.worldSaveData.DynamicItemSaveData.values[].RawData.object.SaveParameter.Hp.Value",
   "save.worldSaveData.DynamicItemSaveData.values[].RawData.trailing_bytes",
   "save.worldSaveData.DynamicItemSaveData.values[].RawData.unknown_bytes",
+  "save.worldSaveData.EnemyCampSaveData.EnemyCampStatusMap",
   "save.worldSaveData.EnemyCampSaveData.EnemyCampStatusMap[].value.CampPresetIndex",
   "save.worldSaveData.EnemyCampSaveData.EnemyCampStatusMap[].value.ClearDate",
   "save.worldSaveData.EnemyCampSaveData.EnemyCampStatusMap[].value.ElapsedTime",
   "save.worldSaveData.EnemyCampSaveData.EnemyCampStatusMap[].value.RewardPalId",
   "save.worldSaveData.EnemyCampSaveData.EnemyCampStatusMap[].value.RewardPalLevel",
+  "save.worldSaveData.EnemyCampSaveData.EnemyCampStatusMap[].value.TreasureBoxInfoMapBySpawnerName",
   "save.worldSaveData.EnemyCampSaveData.EnemyCampStatusMap[].value.TreasureBoxInfoMapBySpawnerName[].value.GradeType",
   "save.worldSaveData.EnemyCampSaveData.EnemyCampStatusMap[].value.TreasureBoxInfoMapBySpawnerName[].value.Items.values[].ItemId.DynamicId.CreatedWorldId",
   "save.worldSaveData.EnemyCampSaveData.EnemyCampStatusMap[].value.TreasureBoxInfoMapBySpawnerName[].value.Items.values[].ItemId.DynamicId.LocalIdInCreatedWorld",
@@ -42398,9 +48356,12 @@
   "save.worldSaveData.EnemyCampSaveData.EnemyCampStatusMap[].value.bIsEnemyAllDead",
   "save.worldSaveData.EnemyCampSaveData.EnemyCampStatusMap[].value.bIsSpawned",
   "save.worldSaveData.EnemyCampSaveData.EnemyCampStatusMap[].value.bRewardReceived",
+  "save.worldSaveData.FoliageGridSaveDataMap",
   "save.worldSaveData.FoliageGridSaveDataMap[].key.X",
   "save.worldSaveData.FoliageGridSaveDataMap[].key.Y",
   "save.worldSaveData.FoliageGridSaveDataMap[].key.Z",
+  "save.worldSaveData.FoliageGridSaveDataMap[].value.ModelMap",
+  "save.worldSaveData.FoliageGridSaveDataMap[].value.ModelMap[].value.InstanceDataMap",
   "save.worldSaveData.FoliageGridSaveDataMap[].value.ModelMap[].value.InstanceDataMap[].value.RawData.model_instance_id",
   "save.worldSaveData.FoliageGridSaveDataMap[].value.ModelMap[].value.InstanceDataMap[].value.RawData.unknown_bytes",
   "save.worldSaveData.FoliageGridSaveDataMap[].value.ModelMap[].value.InstanceDataMap[].value.RawData.world_transform.rotator.pitch",
@@ -42413,10 +48374,13 @@
   "save.worldSaveData.GameTimeSaveData.GameDateTimeTicks",
   "save.worldSaveData.GameTimeSaveData.RealDateTimeTicks",
   "save.worldSaveData.GroupSaveDataMap[].value.RawData.guild_chest_allowed_roles",
+  "save.worldSaveData.GroupSaveDataMap[].value.RawData.guild_markers",
   "save.worldSaveData.GroupSaveDataMap[].value.RawData.last_guild_name_modifier_player_uid",
   "save.worldSaveData.GroupSaveDataMap[].value.RawData.leading_bytes",
+  "save.worldSaveData.GroupSaveDataMap[].value.RawData.map_object_instance_ids_base_camp_points",
   "save.worldSaveData.GroupSaveDataMap[].value.RawData.map_object_instance_ids_base_camp_points[]",
   "save.worldSaveData.GroupSaveDataMap[].value.RawData.org_type",
+  "save.worldSaveData.GroupSaveDataMap[].value.RawData.role_permissions",
   "save.worldSaveData.GroupSaveDataMap[].value.RawData.role_permissions[].permissions",
   "save.worldSaveData.GroupSaveDataMap[].value.RawData.trailing_bytes",
   "save.worldSaveData.GroupSaveDataMap[].value.RawData.unknown_1",
@@ -42424,26 +48388,35 @@
   "save.worldSaveData.GuildExtraSaveDataMap[].value.GuildItemStorage.RawData.container_id",
   "save.worldSaveData.GuildExtraSaveDataMap[].value.GuildItemStorage.RawData.trailing_bytes",
   "save.worldSaveData.GuildExtraSaveDataMap[].value.Lab.RawData.current_research_id",
+  "save.worldSaveData.GuildExtraSaveDataMap[].value.Lab.RawData.research_info",
   "save.worldSaveData.GuildExtraSaveDataMap[].value.Lab.RawData.research_info[].research_id",
   "save.worldSaveData.GuildExtraSaveDataMap[].value.Lab.RawData.research_info[].work_amount",
   "save.worldSaveData.GuildExtraSaveDataMap[].value.Lab.RawData.trailing_bytes",
+  "save.worldSaveData.InLockerCharacterInstanceIDArray",
   "save.worldSaveData.InLockerCharacterInstanceIDArray[].DebugName",
+  "save.worldSaveData.InvaderSaveData",
   "save.worldSaveData.InvaderSaveData[].value.CoolTimeElapsed",
   "save.worldSaveData.InvaderSaveData[].value.CoolTimeFinish",
   "save.worldSaveData.InvaderSaveData[].value.bIsInvading",
   "save.worldSaveData.ItemContainerSaveData[].value.BelongInfo.GroupId",
   "save.worldSaveData.ItemContainerSaveData[].value.BelongInfo.bControllableOthers",
+  "save.worldSaveData.ItemContainerSaveData[].value.RawData.permission.item_static_ids",
   "save.worldSaveData.ItemContainerSaveData[].value.RawData.permission.item_static_ids[]",
   "save.worldSaveData.ItemContainerSaveData[].value.RawData.permission.type_a",
   "save.worldSaveData.ItemContainerSaveData[].value.RawData.permission.type_b",
   "save.worldSaveData.ItemContainerSaveData[].value.RawData.trailing_unparsed_data",
   "save.worldSaveData.ItemContainerSaveData[].value.Slots.values[].RawData.trailing_bytes",
+  "save.worldSaveData.LevelObjectRecoverPartySaveData",
+  "save.worldSaveData.LevelObjectRecoverPartySaveData[].value.PlayerLastUsedTimes",
+  "save.worldSaveData.LockGimmickSaveData",
   "save.worldSaveData.LockGimmickSaveData[].value.bCleared",
   "save.worldSaveData.MapObjectSaveData.values[].ConcreteModel.ModuleMap[].value.RawData.all_slot_attribute",
   "save.worldSaveData.MapObjectSaveData.values[].ConcreteModel.ModuleMap[].value.RawData.drop_item_at_disposed",
   "save.worldSaveData.MapObjectSaveData.values[].ConcreteModel.ModuleMap[].value.RawData.lock_state",
+  "save.worldSaveData.MapObjectSaveData.values[].ConcreteModel.ModuleMap[].value.RawData.player_infos",
   "save.worldSaveData.MapObjectSaveData.values[].ConcreteModel.ModuleMap[].value.RawData.player_infos[].try_failed_count",
   "save.worldSaveData.MapObjectSaveData.values[].ConcreteModel.ModuleMap[].value.RawData.player_infos[].try_success_cache",
+  "save.worldSaveData.MapObjectSaveData.values[].ConcreteModel.ModuleMap[].value.RawData.slot_attribute_indexes",
   "save.worldSaveData.MapObjectSaveData.values[].ConcreteModel.ModuleMap[].value.RawData.slot_attribute_indexes[].attribute",
   "save.worldSaveData.MapObjectSaveData.values[].ConcreteModel.ModuleMap[].value.RawData.slot_attribute_indexes[].indexes",
   "save.worldSaveData.MapObjectSaveData.values[].ConcreteModel.ModuleMap[].value.RawData.switch_state",
@@ -42463,6 +48436,7 @@
   "save.worldSaveData.MapObjectSaveData.values[].ConcreteModel.RawData.current_pal_egg_temp_diff",
   "save.worldSaveData.MapObjectSaveData.values[].ConcreteModel.RawData.current_recipe_id",
   "save.worldSaveData.MapObjectSaveData.values[].ConcreteModel.RawData.current_state",
+  "save.worldSaveData.MapObjectSaveData.values[].ConcreteModel.RawData.drop_item_infos",
   "save.worldSaveData.MapObjectSaveData.values[].ConcreteModel.RawData.extinction_date_time",
   "save.worldSaveData.MapObjectSaveData.values[].ConcreteModel.RawData.generate_energy_rate_by_worker",
   "save.worldSaveData.MapObjectSaveData.values[].ConcreteModel.RawData.hatched_character_guid",
@@ -42485,12 +48459,14 @@
   "save.worldSaveData.MapObjectSaveData.values[].ConcreteModel.RawData.remove_pickup_guard_timer_handle",
   "save.worldSaveData.MapObjectSaveData.values[].ConcreteModel.RawData.requested_product_num",
   "save.worldSaveData.MapObjectSaveData.values[].ConcreteModel.RawData.skill_fruits_id",
+  "save.worldSaveData.MapObjectSaveData.values[].ConcreteModel.RawData.spawned_egg_instance_ids",
   "save.worldSaveData.MapObjectSaveData.values[].ConcreteModel.RawData.spawned_egg_instance_ids[]",
   "save.worldSaveData.MapObjectSaveData.values[].ConcreteModel.RawData.start_time",
   "save.worldSaveData.MapObjectSaveData.values[].ConcreteModel.RawData.state_machine.growup_progress_time",
   "save.worldSaveData.MapObjectSaveData.values[].ConcreteModel.RawData.state_machine.growup_required_time",
   "save.worldSaveData.MapObjectSaveData.values[].ConcreteModel.RawData.stored_energy_amount",
   "save.worldSaveData.MapObjectSaveData.values[].ConcreteModel.RawData.stored_parameter_id",
+  "save.worldSaveData.MapObjectSaveData.values[].ConcreteModel.RawData.trade_infos",
   "save.worldSaveData.MapObjectSaveData.values[].ConcreteModel.RawData.trade_infos[].cost.num",
   "save.worldSaveData.MapObjectSaveData.values[].ConcreteModel.RawData.trade_infos[].product.num",
   "save.worldSaveData.MapObjectSaveData.values[].ConcreteModel.RawData.trade_infos[].seller_player_uid",
@@ -42505,9 +48481,11 @@
   "save.worldSaveData.MapObjectSaveData.values[].ConcreteModel.RawData.water_stack_rate_value",
   "save.worldSaveData.MapObjectSaveData.values[].ConcreteModel.RawData.work_speed_additional_rate",
   "save.worldSaveData.MapObjectSaveData.values[].Model.BuildProcess.RawData.trailing_bytes",
+  "save.worldSaveData.MapObjectSaveData.values[].Model.Connector.RawData.connect.any_place",
   "save.worldSaveData.MapObjectSaveData.values[].Model.Connector.RawData.connect.any_place[].connect_to_model_instance_id",
   "save.worldSaveData.MapObjectSaveData.values[].Model.Connector.RawData.supported_level",
   "save.worldSaveData.MapObjectSaveData.values[].Model.Connector.RawData.unknown_bytes",
+  "save.worldSaveData.MapObjectSaveData.values[].Model.EffectMap",
   "save.worldSaveData.MapObjectSaveData.values[].Model.RawData.concrete_model_instance_id",
   "save.worldSaveData.MapObjectSaveData.values[].Model.RawData.deterioration_damage",
   "save.worldSaveData.MapObjectSaveData.values[].Model.RawData.interact_restrict_type",
@@ -42516,10 +48494,14 @@
   "save.worldSaveData.MapObjectSaveData.values[].Model.RawData.repair_work_id",
   "save.worldSaveData.MapObjectSaveData.values[].Model.RawData.stage_instance_id_belong_to.valid",
   "save.worldSaveData.MapObjectSaveData.values[].Model.RawData.unknown_bytes",
+  "save.worldSaveData.MapObjectSpawnerInStageSaveData",
   "save.worldSaveData.MapObjectSpawnerInStageSaveData[].key.InternalId",
   "save.worldSaveData.MapObjectSpawnerInStageSaveData[].key.bValid",
+  "save.worldSaveData.MapObjectSpawnerInStageSaveData[].value.SpawnerDataMapByLevelObjectInstanceId",
+  "save.worldSaveData.MapObjectSpawnerInStageSaveData[].value.SpawnerDataMapByLevelObjectInstanceId[].value.ItemMap",
   "save.worldSaveData.MapObjectSpawnerInStageSaveData[].value.SpawnerDataMapByLevelObjectInstanceId[].value.ItemMap[].value.MapObjectInstanceId",
   "save.worldSaveData.MapObjectSpawnerInStageSaveData[].value.SpawnerDataMapByLevelObjectInstanceId[].value.ItemMap[].value.NextLotteryGameTime",
+  "save.worldSaveData.OilrigSaveData.OilrigMap",
   "save.worldSaveData.OilrigSaveData.OilrigMap[].value.Alarm",
   "save.worldSaveData.OilrigSaveData.OilrigMap[].value.Clear",
   "save.worldSaveData.OilrigSaveData.OilrigMap[].value.GoalTreasureBoxSpawnerIndex",
@@ -42529,6 +48511,7 @@
   "save.worldSaveData.SupplySaveData.LastLotteryTime",
   "save.worldSaveData.SupplySaveData.LastSupplyGuid",
   "save.worldSaveData.SupplySaveData.LastSupplyTime",
+  "save.worldSaveData.SupplySaveData.SupplyInfos",
   "save.worldSaveData.SupplySaveData.SupplyInfos[].value.MapLocationId",
   "save.worldSaveData.SupplySaveData.SupplyInfos[].value.SupplyLandedTime",
   "save.worldSaveData.SupplySaveData.SupplyInfos[].value.SupplyMapObjectId",
@@ -42538,6 +48521,7 @@
   "save.worldSaveData.SupplySaveData.SupplyInfos[].value.bWipedOut_NPC",
   "save.worldSaveData.SupplySaveData.SupplyInfos[].value.bWipedOut_Pal",
   "save.worldSaveData.WorkSaveData.values[].RawData.assign_define_data_id",
+  "save.worldSaveData.WorkSaveData.values[].RawData.assign_locations",
   "save.worldSaveData.WorkSaveData.values[].RawData.assignable_fixed_type",
   "save.worldSaveData.WorkSaveData.values[].RawData.assignable_otomo",
   "save.worldSaveData.WorkSaveData.values[].RawData.auto_work_self_amount_by_sec",
@@ -42557,6 +48541,7 @@
   "save.worldSaveData.WorkSaveData.values[].RawData.work_exp",
   "save.worldSaveData.WorkSaveData.values[].RawData.work_exp_calc_type",
   "save.worldSaveData.WorkSaveData.values[].RawData.workable_bounds.box_sphere_bounds.sphere_radius",
+  "save.worldSaveData.WorkSaveData.values[].WorkAssignMap",
   "save.worldSaveData.WorkSaveData.values[].WorkAssignMap[].value.RawData.assign_type",
   "save.worldSaveData.WorkSaveData.values[].WorkAssignMap[].value.RawData.fixed",
   "save.worldSaveData.WorkSaveData.values[].WorkAssignMap[].value.RawData.location_index",
