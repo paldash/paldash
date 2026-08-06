@@ -708,6 +708,11 @@ export default function MapInner({
       // here — and these are the markers people are actually hunting for.
       if (object.category === 'fieldboss') {
         const label = object.speciesName || prettyClass(object.cls);
+        // The backend joins `boss_spawners.json.gz` onto this placement by
+        // POSITION — see `gamedata.boss_level_at`, where the join is measured
+        // against a shuffled control. Absent means no boss row stands here, not
+        // that levels are unavailable, so the fallback line says which.
+        const level = typeof object.level === 'number' ? object.level : null;
         L.marker(worldToMap(object.x, object.y, region), {
           icon: bossIcon(object.icon, px(26)),
           zIndexOffset: 700,
@@ -715,10 +720,23 @@ export default function MapInner({
           .bindPopup(() => {
             const c = worldToGameMap(object.x, object.y);
             return `<div style="min-width:170px">
-               <div style="font-weight:600;margin-bottom:3px">${escapeHtml(label)}</div>
+               <div style="font-weight:600;margin-bottom:3px">${escapeHtml(label)}${
+                 level !== null
+                   ? ` <span style="color:#d14b4b;font-weight:500">Lv ${level}</span>`
+                   : ''
+               }</div>
                <div style="font-size:12px;color:#d14b4b">Field boss &middot; drops Ancient Technology</div>
+               ${
+                 level === null
+                   ? '<div style="font-size:11px;color:#6d747e;margin-top:2px">No level recorded for this spawn point</div>'
+                   : ''
+               }
                <div style="font-size:11px;color:#6d747e;margin-top:4px">${c.x}, ${c.y}</div>
              </div>`;
+          })
+          .bindTooltip(level !== null ? `${label} · Lv ${level}` : label, {
+            direction: 'top',
+            offset: [0, -10],
           })
           .addTo(group);
         continue;
@@ -1044,6 +1062,12 @@ export default function MapInner({
              <div style="font-size:11px;color:#6d747e;margin-top:4px">${coords.x}, ${coords.y}</div>
            </div>`
         )
+        // The level is the whole reason this layer exists — it was documented
+        // as unavailable for months — and it was reachable only by clicking.
+        .bindTooltip(`${boss.name} \u00b7 Lv ${boss.level}`, {
+          direction: 'top',
+          offset: [0, -4],
+        })
         .addTo(group);
     }
   }, [bosses, layers.bosses, region]);

@@ -795,6 +795,16 @@ export interface StaticWorldObject {
   speciesName?: string;
   /** The Pal's own artwork, resolved at request time. */
   icon?: string;
+  /**
+   * The boss's level, from `DT_BossSpawnerLoactionData` joined on **position**.
+   *
+   * Absent on 35 of the 99 placements, and that is the two extractions
+   * genuinely covering different spawn points rather than a lookup failure —
+   * so a missing level must read as "not recorded here", never as level 0.
+   */
+  level?: number;
+  /** Which boss-table row supplied that level, for tracing the join. */
+  levelSpawner?: string;
 }
 
 /** A viewport query's answer, which reports what it left out. */

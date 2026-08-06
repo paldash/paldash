@@ -231,6 +231,10 @@ def _reset_cache() -> None:
     global _boss_spawners, _work_assign, _basecamp, _economy, _spawns, _moves
     global _npcs, _guild
     global _progression, _raidbosses, _invaders, _worldpresets
+    # Derived from `_boss_spawners`, so it has to go with it — a stale index
+    # would keep answering from the bundle that was just replaced.
+    global _boss_level_index
+    _boss_level_index = None
     _data = None
     _effigies = None
     _passive_effects = None
@@ -651,6 +655,70 @@ def boss_spawners() -> list[dict[str, Any]]:
             )
             _boss_spawners = []
     return _boss_spawners
+
+
+#: How far apart two records of the same field boss may sit and still be the
+#: same field boss. **One World Partition cell**, the constant the cell grid is
+#: pinned at everywhere else here — chosen because it is already established
+#: rather than fitted to this join's own gap, which would be fitting the method
+#: to the answer.
+_SAME_BOSS = 25600.0
+
+_boss_level_index: Optional[dict[str, list[tuple[float, float, int, str]]]] = None
+
+
+def _boss_level_lookup() -> dict[str, list[tuple[float, float, int, str]]]:
+    global _boss_level_index
+    if _boss_level_index is None:
+        index: dict[str, list[tuple[float, float, int, str]]] = {}
+        for row in boss_spawners():
+            species = str(row.get("speciesId") or "")
+            if not species:
+                continue
+            index.setdefault(species, []).append(
+                (float(row.get("x") or 0.0), float(row.get("y") or 0.0),
+                 int(row.get("level") or 0), str(row.get("spawnerId") or ""))
+            )
+        _boss_level_index = index
+    return _boss_level_index
+
+
+def boss_level_at(species: str, x: float, y: float) -> Optional[dict[str, Any]]:
+    """
+    The level of the field boss standing at `(x, y)`, or None.
+
+    **Two extractions of overlapping things, joined on POSITION rather than on
+    species.** `worldobjects.json.gz` carries 99 `FBOSS` placements found by
+    name-table intersection; `boss_spawners.json.gz` carries 90 rows read out of
+    `DT_BossSpawnerLoactionData`, and AGENTS.md records that neither supersedes
+    the other. So the popup said "level is on the other layer" — technically
+    honest and useless to somebody looking at Silvegis, whose level the game's
+    own map shows.
+
+    **The join is measured, and it holds.** Of the 93 placements whose species
+    appears in the boss table, **60 sit at a distance of ~0** — byte-identical
+    coordinates, the same actor read two ways — and 64 fall inside one cell. The
+    control is what makes that evidence: shuffle the species labels across the
+    boss rows and the best of 200 trials matches **7**. A drifted or coincidental
+    correspondence does not put sixty points on top of each other.
+
+    **Species alone is NOT enough, and the data says why.** `BOSS_GrassGolem` is
+    the one species with two levels (55 and 75) — so a species-keyed lookup would
+    confidently hand one placement the other's level. It is also the reason
+    `remainsIsland_1_GrassGolem_FBOSS` is listed twice, noted in AGENTS.md.
+
+    The 35 placements with no match keep no level rather than borrowing one from
+    the same species elsewhere: a second placement of a species genuinely can
+    carry a different level, and an inferred number reads exactly like a read one.
+    """
+    candidates = _boss_level_lookup().get(species or "")
+    if not candidates:
+        return None
+    best = min(candidates, key=lambda c: (c[0] - x) ** 2 + (c[1] - y) ** 2)
+    distance = ((best[0] - x) ** 2 + (best[1] - y) ** 2) ** 0.5
+    if distance > _SAME_BOSS:
+        return None
+    return {"level": best[2], "spawnerId": best[3], "distance": round(distance, 1)}
 
 
 def describe_boss(entry: dict[str, Any]) -> dict[str, Any]:
@@ -1568,10 +1636,25 @@ def effigy_kind_name(kind: str) -> str:
     match would silently fall through to the raw name for exactly the entries
     this exists to fix.
 
-    Unrecognised suffixes fall back to a humanised form rather than failing, and
-    the two unsuffixed classes (`BP_LevelObject_Relic`, `BP_RelicObject` — 155 of
-    the 396 between them) are plain "Effigy", because they genuinely are not
-    tied to a species.
+    Unrecognised suffixes fall back to a humanised form rather than failing.
+
+    **THE RULE IS VERIFIED AGAINST THE GAME'S OWN ITEM NAMES, NOT MERELY
+    PLAUSIBLE.** The catalogue ships thirteen effigy items — `Relic` plus
+    `Relic_01`..`Relic_12` — and the suffix rule reproduces **9 of 9** of the
+    placed classes' names exactly: `…_IceCrocodile` gives "Munchill Effigy",
+    which is what `Relic_03` is called. Building a name out of a class-name
+    suffix is the kind of thing that reads right and is wrong, so the agreement
+    is the evidence rather than the reasoning.
+
+    **The two unsuffixed classes were rendering as bare "Effigy" — 155 of 396,
+    which is why they read as data that had failed to load.** They are the plain
+    relic, and the game's own name for the plain relic is `Relic` -> "Lifmunk
+    Effigy". Resolved through the catalogue rather than hardcoded, so a
+    localisation change carries and a missing bundle degrades to "Effigy"
+    instead of to a stale English string.
+
+    Three catalogue entries — Lunaris, Relaxaurus and Mimog — have no placed
+    class at all. Not a gap here: nothing in the world references them.
     """
     if not kind:
         return "Effigy"
@@ -1582,7 +1665,10 @@ def effigy_kind_name(kind: str) -> str:
             return f"{pal_name(species)} Effigy" if species else "Effigy"
 
     if kind in ("BP_LevelObject_Relic", "BP_RelicObject"):
-        return "Effigy"
+        plain = item_name("Relic")
+        # `item_name` echoes the id back when the catalogue has no row, and
+        # "Relic" is not a name to show anybody.
+        return plain if plain and plain != "Relic" else "Effigy"
     return f"{humanize(kind)} Effigy"
 
 
