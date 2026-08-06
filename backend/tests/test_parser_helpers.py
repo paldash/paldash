@@ -126,3 +126,46 @@ def test_prop_reads_plain_value():
 
 def test_prop_missing_returns_default():
     assert _prop({}, "Name", default="") == ""
+
+
+# ─── OwnedTime is a timestamp, not a duration ────────────
+
+
+def test_owned_time_decodes_as_a_date_not_a_duration():
+    """
+    **The field name misleads and this is what catches it.** `OwnedTime` reads
+    like "how long owned" and is an absolute .NET DateTime tick count — 100ns
+    intervals since 0001-01-01. Read as a duration, the reference world's values
+    are roughly two thousand years; read as a timestamp they are 2024-2026,
+    which is that save's actual lifespan.
+    """
+    from parser import _dotnet_ticks
+
+    assert _dotnet_ticks(638486453957560000) == "2024-04-13 22:49:55"
+    assert _dotnet_ticks(639208456013490000) == "2026-07-28 14:26:41"
+
+
+def test_an_implausible_tick_count_is_dropped_not_rendered():
+    """
+    A garbage value must not become a date in the year 3000 on somebody's Pal
+    list, and must not raise out of a parse with 1,904 other Pals to finish.
+    """
+    from parser import _dotnet_ticks
+
+    assert _dotnet_ticks(0) is None
+    assert _dotnet_ticks(-1) is None
+    assert _dotnet_ticks(1) is None                  # year 1
+    assert _dotnet_ticks(10**20) is None             # far future
+    assert _dotnet_ticks(2**70) is None              # overflows outright
+
+
+def test_no_timezone_is_asserted():
+    """
+    .NET stores a `DateTimeKind` beside the ticks and this save format drops it,
+    so a trailing `Z` or an offset would be a claim the data does not support.
+    """
+    from parser import _dotnet_ticks
+
+    stamp = _dotnet_ticks(639208456013490000)
+    assert stamp and not stamp.endswith("Z")
+    assert "+" not in stamp

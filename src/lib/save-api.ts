@@ -332,6 +332,25 @@ export interface PalRecord {
   favoriteIndex?: number | null;
   /** Every previous owner, oldest first — the only record of a trade there is. */
   previousOwners?: string[];
+  /** Who last renamed it. The other half of "where did this come from". */
+  lastRenamedBy?: string | null;
+  /**
+   * When this Pal was obtained, as an ISO string with **no timezone claimed**.
+   *
+   * The save field is `OwnedTime` and its name misleads: it reads like a
+   * duration and is an absolute .NET DateTime tick count. As a duration the
+   * reference world's values would be two thousand years; as a timestamp they
+   * are 2024-04-13 to 2026-07-28, which is that save's real lifespan.
+   *
+   * Wall-clock, not game time, so no server setting enters the conversion.
+   */
+  obtainedAt?: string | null;
+  /** The raw ticks, for sorting without reparsing the string. */
+  obtainedAtTicks?: number | null;
+  /** Seconds of trust accrued at a base — the clock behind the heart meter. */
+  basecampTrustSeconds?: number | null;
+  /** A named story encounter rather than an ordinary spawn. */
+  uniqueNpcId?: string | null;
   /** The learned-move pool, as opposed to the three equipped. */
   masteredSkills?: string[] | null;
   /**

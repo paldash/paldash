@@ -47518,13 +47518,17 @@
  "readBy": {
   "Alarm": [],
   "ArenaRankPoint": [],
+  "ArenaRestoreParameter": [],
   "BaseCampSaveData": [
    "guildedit.py",
    "parser.py"
   ],
   "BaseCampWorkerEventProgressTime": [],
   "BaseCampWorkerEventType": [],
+  "BelongInfo": [],
+  "BossSpawnerSaveData": [],
   "BossState": [],
+  "BuildProcess": [],
   "CampPresetIndex": [],
   "CharacterContainerSaveData": [
    "palclone.py",
@@ -47535,6 +47539,7 @@
    "palimport.py",
    "parser.py"
   ],
+  "CharacterParameterStorageSaveData": [],
   "CharacterSaveParameterMap": [
    "charedit.py",
    "guildedit.py",
@@ -47543,21 +47548,42 @@
   ],
   "Clear": [],
   "ClearDate": [],
+  "ConcreteModel": [
+   "parser.py"
+  ],
   "ConnectedDungeonInstanceId": [],
+  "Connector": [],
+  "ContainerId": [
+   "palclone.py",
+   "parser.py"
+  ],
   "CoolTimeElapsed": [],
   "CoolTimeFinish": [],
   "CreatedWorldId": [],
   "CurrentWorkSuitability": [
    "parser.py"
   ],
+  "CustomVersionData": [],
   "DebugName": [],
+  "DestroyedCannon": [],
+  "DestroyedGasTank": [],
+  "DestroyedWeapon": [],
+  "DisappearTimeAt": [],
+  "DropItemGuids": [],
   "DungeonLevelName": [],
   "DungeonLevelVersion": [],
+  "DungeonPointMarkerSaveData": [],
+  "DungeonSaveData": [],
   "DungeonSpawnAreaId": [],
   "DungeonType": [],
+  "DynamicId": [],
+  "DynamicItemSaveData": [
+   "dynamicitem.py"
+  ],
   "EffectMap": [],
   "EffectTime": [],
   "ElapsedTime": [],
+  "EnemyCampSaveData": [],
   "EnemyCampStatusMap": [],
   "EnemySpawnerDataBossRowName": [],
   "EquipWaza": [
@@ -47569,12 +47595,15 @@
    "parser.py"
   ],
   "ExpTableMigrationVersion": [],
+  "Expedition": [],
   "FavoriteIndex": [
    "charedit.py",
    "parser.py"
   ],
   "FilteredNickName": [],
+  "FixedWeaponDestroySaveData": [],
   "FoliageGridSaveDataMap": [],
+  "FoodRegeneEffectInfo": [],
   "FoodWithStatusEffect": [],
   "FriendshipActiveOtomoSec": [],
   "FriendshipBasecampSec": [],
@@ -47587,11 +47616,18 @@
    "parser.py"
   ],
   "GameDateTimeTicks": [],
+  "GameTimeSaveData": [],
   "Gender": [
    "editschema.py",
    "parser.py"
   ],
   "GoalTreasureBoxSpawnerIndex": [],
+  "GotExStatusPointList": [],
+  "GotStatusPointList": [],
+  "GotWorkSuitabilityAddRankList": [
+   "charedit.py",
+   "parser.py"
+  ],
   "GradeType": [],
   "GroupId": [],
   "GroupSaveDataMap": [
@@ -47606,6 +47642,12 @@
    "soloexport.py"
   ],
   "GuildExtraSaveDataMap": [
+   "parser.py"
+  ],
+  "GuildItemStorage": [
+   "parser.py"
+  ],
+  "Hp": [
    "parser.py"
   ],
   "HungerType": [
@@ -47644,13 +47686,18 @@
   "IsRarePal": [
    "parser.py"
   ],
+  "ItemContainerId": [],
   "ItemContainerSaveData": [
    "itemclone.py",
    "parser.py",
    "saveedit.py",
    "saveimport.py"
   ],
+  "ItemId": [],
   "ItemMap": [],
+  "Items": [],
+  "Lab": [],
+  "LastJumpedLocation": [],
   "LastLotteryTime": [],
   "LastNickNameModifierPlayerUid": [],
   "LastSupplyGuid": [],
@@ -47669,10 +47716,16 @@
    "parser.py"
   ],
   "MapObjectInstanceId": [],
+  "MapObjectSaveData": [
+   "parser.py"
+  ],
   "MapObjectSpawnerInStageSaveData": [],
   "MarkerPointId": [],
   "MasteredWaza": [
    "charedit.py",
+   "parser.py"
+  ],
+  "Model": [
    "parser.py"
   ],
   "ModelMap": [],
@@ -47680,6 +47733,7 @@
    "parser.py"
   ],
   "NextLotteryGameTime": [],
+  "NextRespawnGameTime": [],
   "NickName": [
    "charedit.py",
    "palclone.py",
@@ -47690,12 +47744,19 @@
    "parser.py"
   ],
   "OilrigMap": [],
+  "OilrigSaveData": [],
+  "OldOwnerPlayerUIds": [
+   "charedit.py",
+   "parser.py"
+  ],
+  "OpenedTreasureBoxSpawner": [],
   "OwnedTime": [],
   "OwnerPlayerUId": [
    "guildedit.py",
    "parser.py",
    "soloexport.py"
   ],
+  "Paint": [],
   "PalReviveTimer": [],
   "PassiveSkillList": [
    "charedit.py",
@@ -47740,9 +47801,11 @@
    "soloexport.py"
   ],
   "RealDateTimeTicks": [],
+  "ReceivedBonusExpPlayerIds": [],
   "RemainingTime": [],
   "ReservedDataLayerAssetIndex": [],
   "ResetTimer": [],
+  "RespawnBossTimeAt": [],
   "RespawnDisableFlag": [],
   "Revision": [],
   "RewardPalId": [],
@@ -47752,9 +47815,19 @@
    "charedit.py",
    "parser.py"
   ],
+  "SaveParameter": [
+   "charedit.py",
+   "guildedit.py",
+   "parser.py"
+  ],
+  "ShieldHP": [],
   "SkinAppliedCharacterId": [],
   "SkinName": [
    "charedit.py",
+   "parser.py"
+  ],
+  "SlotId": [
+   "palclone.py",
    "parser.py"
   ],
   "SlotIndex": [
@@ -47766,13 +47839,24 @@
    "palclone.py",
    "parser.py"
   ],
+  "Slots": [
+   "itemclone.py",
+   "palclone.py",
+   "parser.py",
+   "saveedit.py",
+   "saveimport.py"
+  ],
   "SpawnerDataMapByLevelObjectInstanceId": [],
+  "StageInstanceId": [],
   "StaticId": [],
   "StatusName": [],
   "StatusPoint": [],
+  "StoredAt": [],
+  "StoredParameterInfoSaveData": [],
   "SupplyInfos": [],
   "SupplyLandedTime": [],
   "SupplyMapObjectId": [],
+  "SupplySaveData": [],
   "SupplySpawnerGuid": [],
   "SupplyTime": [],
   "SupplyType": [],
@@ -47797,12 +47881,21 @@
   "Value": [],
   "Version": [],
   "VoiceID": [],
+  "WipedOutEnemySpawner": [],
   "WorkAssignMap": [],
+  "WorkCollection": [],
+  "WorkSaveData": [],
   "WorkSuitability": [
    "charedit.py",
    "parser.py"
   ],
+  "WorkSuitabilityOptionInfo": [
+   "parser.py"
+  ],
   "WorkableType": [],
+  "WorkerDirector": [
+   "parser.py"
+  ],
   "WorkerSick": [
    "charedit.py",
    "parser.py"
@@ -47826,6 +47919,7 @@
   "assign_type": [],
   "assignable_fixed_type": [],
   "assignable_otomo": [],
+  "assigned_individual_id": [],
   "attribute": [],
   "auto_picked_up": [],
   "auto_work_self_amount_by_sec": [],
@@ -47864,21 +47958,29 @@
    "parser.py"
   ],
   "behaviour_type": [],
+  "box_extent": [],
+  "box_sphere_bounds": [],
   "build_player_uid": [
    "parser.py",
    "soloexport.py"
   ],
   "can_steal_assign": [],
   "can_trigger_worker_event": [],
+  "cell_coord": [],
   "character_id": [
    "dynamicitem.py",
    "itemclone.py"
   ],
+  "character_location": [],
   "concrete_model_instance_id": [],
   "concrete_model_type": [],
+  "connect": [],
   "connect_to_model_instance_id": [],
   "consume_energy_speed": [],
   "container_id": [],
+  "cost": [
+   "itemsource.py"
+  ],
   "count": [
    "backup.py",
    "basesupply.py",
@@ -47926,7 +48028,15 @@
    "itemclone.py",
    "main.py"
   ],
+  "dynamic_id": [
+   "itemclone.py",
+   "parser.py",
+   "saveedit.py",
+   "saveimport.py"
+  ],
   "extinction_date_time": [],
+  "facing_direction": [],
+  "fast_travel_local_transform": [],
   "fixed": [],
   "foliage_preset_type": [],
   "generate_energy_rate_by_worker": [],
@@ -47952,13 +48062,16 @@
    "progresscheck.py",
    "soloexport.py"
   ],
-  "guild_chest_allowed_roles": [],
+  "guild_chest_allowed_roles": [
+   "parser.py"
+  ],
   "guild_markers": [],
   "guild_name": [
    "guildedit.py",
    "parser.py"
   ],
   "hatched_character_guid": [],
+  "hatched_character_save_parameter": [],
   "hp": [
    "breeding.py",
    "editschema.py",
@@ -47974,6 +48087,9 @@
    "guildedit.py",
    "soloexport.py"
   ],
+  "initital_transform_cache": [
+   "parser.py"
+  ],
   "instance_id": [
    "guildedit.py",
    "palclone.py",
@@ -47983,6 +48099,14 @@
   "interact_restrict_type": [],
   "is_lock_riding": [],
   "is_private_lock": [],
+  "item": [
+   "itemclone.py",
+   "parser.py",
+   "saveedit.py",
+   "saveimport.py",
+   "slotedit.py"
+  ],
+  "item_id": [],
   "item_infos": [],
   "item_static_ids": [],
   "key": [
@@ -48009,6 +48133,13 @@
    "parser.py",
    "saveedit.py",
    "saveimport.py"
+  ],
+  "location": [
+   "baseassign.py",
+   "breeding.py",
+   "optimise.py",
+   "parse_worker.py",
+   "parser.py"
   ],
   "location_index": [],
   "lock_state": [],
@@ -48049,10 +48180,19 @@
    "teleport.py"
   ],
   "num": [],
+  "object": [
+   "charedit.py",
+   "guildedit.py",
+   "itemclone.py",
+   "parser.py"
+  ],
   "opened": [
    "parser.py"
   ],
   "org_type": [],
+  "origin": [
+   "guildedit.py"
+  ],
   "override_work_type": [],
   "owner_instance_id": [],
   "owner_map_object_concrete_model_id": [],
@@ -48069,10 +48209,17 @@
   "password": [
    "main.py"
   ],
+  "permission": [],
   "permission_tribe_id": [],
-  "permissions": [],
+  "permissions": [
+   "parser.py"
+  ],
   "pickupdable_player_uid": [],
   "pitch": [],
+  "player_info": [
+   "guildedit.py",
+   "parser.py"
+  ],
   "player_infos": [],
   "player_name": [
    "guildedit.py",
@@ -48100,6 +48247,7 @@
   "private_lock_player_uid": [
    "soloexport.py"
   ],
+  "product": [],
   "product_item_id": [],
   "progress_rate": [],
   "progress_time_since_last_tick": [],
@@ -48123,10 +48271,19 @@
    "guildedit.py",
    "main.py",
    "moderate.py",
+   "parser.py",
    "privacy.py"
   ],
-  "role_permissions": [],
+  "role_permissions": [
+   "parser.py"
+  ],
   "roll": [],
+  "rotation": [],
+  "rotator": [],
+  "save": [
+   "gameapi.py"
+  ],
+  "scale3d": [],
   "scale_x": [],
   "seller_player_uid": [],
   "skill_fruits_id": [],
@@ -48136,13 +48293,16 @@
    "parser.py",
    "saveimport.py"
   ],
+  "spawn_transform": [],
   "spawned_egg_instance_ids": [],
   "sphere_radius": [],
+  "stage_instance_id_belong_to": [],
   "start_time": [],
   "state": [
    "gameversion.py",
    "parser.py"
   ],
+  "state_machine": [],
   "static_id": [
    "dynamicitem.py",
    "itemclone.py",
@@ -48163,6 +48323,12 @@
   "trailing_bytes": [],
   "trailing_unknown_bytes": [],
   "trailing_unparsed_data": [],
+  "transform": [
+   "parser.py"
+  ],
+  "translation": [
+   "parser.py"
+  ],
   "transport_item_character_infos": [],
   "treasure_grade_type": [
    "parser.py"
@@ -48233,6 +48399,16 @@
   "work_exp_calc_type": [],
   "work_ids": [],
   "work_speed_additional_rate": [],
+  "workable_bounds": [],
+  "worldSaveData": [
+   "guildedit.py",
+   "itemclone.py",
+   "parser.py",
+   "saveedit.py",
+   "saveimport.py",
+   "soloexport.py"
+  ],
+  "world_transform": [],
   "x": [
    "habitats.py",
    "parser.py",
@@ -48257,27 +48433,59 @@
   "save.Revision",
   "save.Timestamp",
   "save.Version",
+  "save.worldSaveData.BaseCampSaveData[].value.CustomVersionData.values",
+  "save.worldSaveData.BaseCampSaveData[].value.ModuleMap[].value.CustomVersionData.values",
   "save.worldSaveData.BaseCampSaveData[].value.ModuleMap[].value.RawData.trailing_bytes",
   "save.worldSaveData.BaseCampSaveData[].value.ModuleMap[].value.RawData.transport_item_character_infos",
+  "save.worldSaveData.BaseCampSaveData[].value.ModuleMap[].value.RawData.transport_item_character_infos[].character_location.x",
+  "save.worldSaveData.BaseCampSaveData[].value.ModuleMap[].value.RawData.transport_item_character_infos[].character_location.y",
+  "save.worldSaveData.BaseCampSaveData[].value.ModuleMap[].value.RawData.transport_item_character_infos[].character_location.z",
   "save.worldSaveData.BaseCampSaveData[].value.ModuleMap[].value.RawData.transport_item_character_infos[].item_infos",
   "save.worldSaveData.BaseCampSaveData[].value.ModuleMap[].value.RawData.transport_item_character_infos[].item_infos[].num",
+  "save.worldSaveData.BaseCampSaveData[].value.RawData.fast_travel_local_transform.rotation.x",
+  "save.worldSaveData.BaseCampSaveData[].value.RawData.fast_travel_local_transform.rotation.y",
+  "save.worldSaveData.BaseCampSaveData[].value.RawData.fast_travel_local_transform.rotation.z",
+  "save.worldSaveData.BaseCampSaveData[].value.RawData.fast_travel_local_transform.scale3d.x",
+  "save.worldSaveData.BaseCampSaveData[].value.RawData.fast_travel_local_transform.scale3d.y",
+  "save.worldSaveData.BaseCampSaveData[].value.RawData.fast_travel_local_transform.scale3d.z",
   "save.worldSaveData.BaseCampSaveData[].value.RawData.owner_map_object_instance_id",
   "save.worldSaveData.BaseCampSaveData[].value.RawData.trailing_bytes",
+  "save.worldSaveData.BaseCampSaveData[].value.RawData.transform.rotation.x",
+  "save.worldSaveData.BaseCampSaveData[].value.RawData.transform.rotation.y",
+  "save.worldSaveData.BaseCampSaveData[].value.RawData.transform.rotation.z",
+  "save.worldSaveData.BaseCampSaveData[].value.RawData.transform.scale3d.x",
+  "save.worldSaveData.BaseCampSaveData[].value.RawData.transform.scale3d.y",
+  "save.worldSaveData.BaseCampSaveData[].value.RawData.transform.scale3d.z",
+  "save.worldSaveData.BaseCampSaveData[].value.WorkCollection.CustomVersionData.values",
   "save.worldSaveData.BaseCampSaveData[].value.WorkCollection.RawData.trailing_bytes",
   "save.worldSaveData.BaseCampSaveData[].value.WorkCollection.RawData.work_ids",
   "save.worldSaveData.BaseCampSaveData[].value.WorkCollection.RawData.work_ids[]",
+  "save.worldSaveData.BaseCampSaveData[].value.WorkerDirector.CustomVersionData.values",
   "save.worldSaveData.BaseCampSaveData[].value.WorkerDirector.RawData.container_id",
   "save.worldSaveData.BaseCampSaveData[].value.WorkerDirector.RawData.current_battle_type",
   "save.worldSaveData.BaseCampSaveData[].value.WorkerDirector.RawData.current_order_type",
+  "save.worldSaveData.BaseCampSaveData[].value.WorkerDirector.RawData.spawn_transform.rotation.x",
+  "save.worldSaveData.BaseCampSaveData[].value.WorkerDirector.RawData.spawn_transform.rotation.y",
+  "save.worldSaveData.BaseCampSaveData[].value.WorkerDirector.RawData.spawn_transform.rotation.z",
+  "save.worldSaveData.BaseCampSaveData[].value.WorkerDirector.RawData.spawn_transform.scale3d.x",
+  "save.worldSaveData.BaseCampSaveData[].value.WorkerDirector.RawData.spawn_transform.scale3d.y",
+  "save.worldSaveData.BaseCampSaveData[].value.WorkerDirector.RawData.spawn_transform.scale3d.z",
   "save.worldSaveData.BaseCampSaveData[].value.WorkerDirector.RawData.trailing_bytes",
   "save.worldSaveData.BossSpawnerSaveData.RespawnDisableFlag",
+  "save.worldSaveData.BossSpawnerSaveData.RespawnDisableFlag[].key",
+  "save.worldSaveData.BossSpawnerSaveData.RespawnDisableFlag[].value",
+  "save.worldSaveData.CharacterContainerSaveData[].value.CustomVersionData.values",
+  "save.worldSaveData.CharacterContainerSaveData[].value.Slots.values[].CustomVersionData.values",
   "save.worldSaveData.CharacterContainerSaveData[].value.Slots.values[].RawData.permission_tribe_id",
   "save.worldSaveData.CharacterContainerSaveData[].value.Slots.values[].RawData.unknown_bytes",
   "save.worldSaveData.CharacterContainerSaveData[].value.bReferenceSlot",
+  "save.worldSaveData.CharacterParameterStorageSaveData.StoredParameterInfoSaveData.values",
   "save.worldSaveData.CharacterParameterStorageSaveData.StoredParameterInfoSaveData.values[].InstanceId.DebugName",
   "save.worldSaveData.CharacterParameterStorageSaveData.StoredParameterInfoSaveData.values[].LostPlayerUId",
+  "save.worldSaveData.CharacterParameterStorageSaveData.StoredParameterInfoSaveData.values[].SaveParameter.CustomVersionData.values",
   "save.worldSaveData.CharacterParameterStorageSaveData.StoredParameterInfoSaveData.values[].StoredAt.Ticks",
   "save.worldSaveData.CharacterSaveParameterMap[].key.DebugName",
+  "save.worldSaveData.CharacterSaveParameterMap[].value.CustomVersionData.values",
   "save.worldSaveData.CharacterSaveParameterMap[].value.RawData.object.SaveParameter.ArenaRankPoint",
   "save.worldSaveData.CharacterSaveParameterMap[].value.RawData.object.SaveParameter.ArenaRestoreParameter.FoodRegeneEffectInfo.EffectTime",
   "save.worldSaveData.CharacterSaveParameterMap[].value.RawData.object.SaveParameter.ArenaRestoreParameter.FoodRegeneEffectInfo.RemainingTime",
@@ -48294,11 +48502,16 @@
   "save.worldSaveData.CharacterSaveParameterMap[].value.RawData.object.SaveParameter.FriendshipActiveOtomoSec",
   "save.worldSaveData.CharacterSaveParameterMap[].value.RawData.object.SaveParameter.FriendshipBasecampSec",
   "save.worldSaveData.CharacterSaveParameterMap[].value.RawData.object.SaveParameter.FriendshipOtomoSec",
+  "save.worldSaveData.CharacterSaveParameterMap[].value.RawData.object.SaveParameter.GotExStatusPointList.values",
   "save.worldSaveData.CharacterSaveParameterMap[].value.RawData.object.SaveParameter.GotExStatusPointList.values[].StatusName",
   "save.worldSaveData.CharacterSaveParameterMap[].value.RawData.object.SaveParameter.GotExStatusPointList.values[].StatusPoint",
+  "save.worldSaveData.CharacterSaveParameterMap[].value.RawData.object.SaveParameter.GotStatusPointList.values",
   "save.worldSaveData.CharacterSaveParameterMap[].value.RawData.object.SaveParameter.GotStatusPointList.values[].StatusName",
   "save.worldSaveData.CharacterSaveParameterMap[].value.RawData.object.SaveParameter.GotStatusPointList.values[].StatusPoint",
   "save.worldSaveData.CharacterSaveParameterMap[].value.RawData.object.SaveParameter.Hp.Value",
+  "save.worldSaveData.CharacterSaveParameterMap[].value.RawData.object.SaveParameter.LastJumpedLocation.x",
+  "save.worldSaveData.CharacterSaveParameterMap[].value.RawData.object.SaveParameter.LastJumpedLocation.y",
+  "save.worldSaveData.CharacterSaveParameterMap[].value.RawData.object.SaveParameter.LastJumpedLocation.z",
   "save.worldSaveData.CharacterSaveParameterMap[].value.RawData.object.SaveParameter.LastNickNameModifierPlayerUid",
   "save.worldSaveData.CharacterSaveParameterMap[].value.RawData.object.SaveParameter.OwnedTime",
   "save.worldSaveData.CharacterSaveParameterMap[].value.RawData.object.SaveParameter.PalReviveTimer",
@@ -48316,22 +48529,32 @@
   "save.worldSaveData.CharacterSaveParameterMap[].value.RawData.trailing_bytes",
   "save.worldSaveData.CharacterSaveParameterMap[].value.RawData.unknown_bytes",
   "save.worldSaveData.DungeonLevelVersion",
+  "save.worldSaveData.DungeonPointMarkerSaveData.values",
   "save.worldSaveData.DungeonPointMarkerSaveData.values[].ConnectedDungeonInstanceId",
   "save.worldSaveData.DungeonPointMarkerSaveData.values[].MarkerPointId",
   "save.worldSaveData.DungeonPointMarkerSaveData.values[].NextRespawnGameTime.Ticks",
+  "save.worldSaveData.DungeonSaveData.values",
   "save.worldSaveData.DungeonSaveData.values[].BossState",
   "save.worldSaveData.DungeonSaveData.values[].DisappearTimeAt.Ticks",
   "save.worldSaveData.DungeonSaveData.values[].DungeonLevelName",
   "save.worldSaveData.DungeonSaveData.values[].DungeonSpawnAreaId",
   "save.worldSaveData.DungeonSaveData.values[].DungeonType",
   "save.worldSaveData.DungeonSaveData.values[].EnemySpawnerDataBossRowName",
+  "save.worldSaveData.DungeonSaveData.values[].MapObjectSaveData.values[].ConcreteModel.CustomVersionData.values",
+  "save.worldSaveData.DungeonSaveData.values[].MapObjectSaveData.values[].ConcreteModel.ModuleMap[].value.CustomVersionData.values",
+  "save.worldSaveData.DungeonSaveData.values[].MapObjectSaveData.values[].Model.BuildProcess.CustomVersionData.values",
+  "save.worldSaveData.DungeonSaveData.values[].MapObjectSaveData.values[].Model.Connector.CustomVersionData.values",
+  "save.worldSaveData.DungeonSaveData.values[].MapObjectSaveData.values[].Model.CustomVersionData.values",
   "save.worldSaveData.DungeonSaveData.values[].MapObjectSaveData.values[].Model.EffectMap",
+  "save.worldSaveData.DungeonSaveData.values[].MapObjectSaveData.values[].Model.Paint.CustomVersionData.values",
   "save.worldSaveData.DungeonSaveData.values[].MarkerPointId",
+  "save.worldSaveData.DungeonSaveData.values[].ReceivedBonusExpPlayerIds.values",
   "save.worldSaveData.DungeonSaveData.values[].ReservedDataLayerAssetIndex",
   "save.worldSaveData.DungeonSaveData.values[].RespawnBossTimeAt.Ticks",
   "save.worldSaveData.DungeonSaveData.values[].RewardSaveDataMap",
   "save.worldSaveData.DungeonSaveData.values[].StageInstanceId.InternalId",
   "save.worldSaveData.DungeonSaveData.values[].StageInstanceId.bValid",
+  "save.worldSaveData.DynamicItemSaveData.values[].CustomVersionData.values",
   "save.worldSaveData.DynamicItemSaveData.values[].RawData.leading_bytes",
   "save.worldSaveData.DynamicItemSaveData.values[].RawData.object.SaveParameter.ArenaRestoreParameter.FoodRegeneEffectInfo.EffectTime",
   "save.worldSaveData.DynamicItemSaveData.values[].RawData.object.SaveParameter.FoodRegeneEffectInfo.EffectTime",
@@ -48340,13 +48563,16 @@
   "save.worldSaveData.DynamicItemSaveData.values[].RawData.trailing_bytes",
   "save.worldSaveData.DynamicItemSaveData.values[].RawData.unknown_bytes",
   "save.worldSaveData.EnemyCampSaveData.EnemyCampStatusMap",
+  "save.worldSaveData.EnemyCampSaveData.EnemyCampStatusMap[].key",
   "save.worldSaveData.EnemyCampSaveData.EnemyCampStatusMap[].value.CampPresetIndex",
   "save.worldSaveData.EnemyCampSaveData.EnemyCampStatusMap[].value.ClearDate",
   "save.worldSaveData.EnemyCampSaveData.EnemyCampStatusMap[].value.ElapsedTime",
   "save.worldSaveData.EnemyCampSaveData.EnemyCampStatusMap[].value.RewardPalId",
   "save.worldSaveData.EnemyCampSaveData.EnemyCampStatusMap[].value.RewardPalLevel",
   "save.worldSaveData.EnemyCampSaveData.EnemyCampStatusMap[].value.TreasureBoxInfoMapBySpawnerName",
+  "save.worldSaveData.EnemyCampSaveData.EnemyCampStatusMap[].value.TreasureBoxInfoMapBySpawnerName[].key",
   "save.worldSaveData.EnemyCampSaveData.EnemyCampStatusMap[].value.TreasureBoxInfoMapBySpawnerName[].value.GradeType",
+  "save.worldSaveData.EnemyCampSaveData.EnemyCampStatusMap[].value.TreasureBoxInfoMapBySpawnerName[].value.Items.values",
   "save.worldSaveData.EnemyCampSaveData.EnemyCampStatusMap[].value.TreasureBoxInfoMapBySpawnerName[].value.Items.values[].ItemId.DynamicId.CreatedWorldId",
   "save.worldSaveData.EnemyCampSaveData.EnemyCampStatusMap[].value.TreasureBoxInfoMapBySpawnerName[].value.Items.values[].ItemId.DynamicId.LocalIdInCreatedWorld",
   "save.worldSaveData.EnemyCampSaveData.EnemyCampStatusMap[].value.TreasureBoxInfoMapBySpawnerName[].value.Items.values[].ItemId.StaticId",
@@ -48356,37 +48582,47 @@
   "save.worldSaveData.EnemyCampSaveData.EnemyCampStatusMap[].value.bIsEnemyAllDead",
   "save.worldSaveData.EnemyCampSaveData.EnemyCampStatusMap[].value.bIsSpawned",
   "save.worldSaveData.EnemyCampSaveData.EnemyCampStatusMap[].value.bRewardReceived",
+  "save.worldSaveData.FixedWeaponDestroySaveData.DestroyedWeapon.values",
+  "save.worldSaveData.FixedWeaponDestroySaveData.DestroyedWeapon.values[]",
   "save.worldSaveData.FoliageGridSaveDataMap",
   "save.worldSaveData.FoliageGridSaveDataMap[].key.X",
   "save.worldSaveData.FoliageGridSaveDataMap[].key.Y",
   "save.worldSaveData.FoliageGridSaveDataMap[].key.Z",
   "save.worldSaveData.FoliageGridSaveDataMap[].value.ModelMap",
+  "save.worldSaveData.FoliageGridSaveDataMap[].value.ModelMap[].key",
+  "save.worldSaveData.FoliageGridSaveDataMap[].value.ModelMap[].value.CustomVersionData.values",
   "save.worldSaveData.FoliageGridSaveDataMap[].value.ModelMap[].value.InstanceDataMap",
+  "save.worldSaveData.FoliageGridSaveDataMap[].value.ModelMap[].value.InstanceDataMap[].value.CustomVersionData.values",
   "save.worldSaveData.FoliageGridSaveDataMap[].value.ModelMap[].value.InstanceDataMap[].value.RawData.model_instance_id",
   "save.worldSaveData.FoliageGridSaveDataMap[].value.ModelMap[].value.InstanceDataMap[].value.RawData.unknown_bytes",
   "save.worldSaveData.FoliageGridSaveDataMap[].value.ModelMap[].value.InstanceDataMap[].value.RawData.world_transform.rotator.pitch",
   "save.worldSaveData.FoliageGridSaveDataMap[].value.ModelMap[].value.InstanceDataMap[].value.RawData.world_transform.rotator.roll",
   "save.worldSaveData.FoliageGridSaveDataMap[].value.ModelMap[].value.InstanceDataMap[].value.RawData.world_transform.rotator.yaw",
   "save.worldSaveData.FoliageGridSaveDataMap[].value.ModelMap[].value.InstanceDataMap[].value.RawData.world_transform.scale_x",
+  "save.worldSaveData.FoliageGridSaveDataMap[].value.ModelMap[].value.RawData.cell_coord.x",
+  "save.worldSaveData.FoliageGridSaveDataMap[].value.ModelMap[].value.RawData.cell_coord.y",
+  "save.worldSaveData.FoliageGridSaveDataMap[].value.ModelMap[].value.RawData.cell_coord.z",
   "save.worldSaveData.FoliageGridSaveDataMap[].value.ModelMap[].value.RawData.foliage_preset_type",
   "save.worldSaveData.FoliageGridSaveDataMap[].value.ModelMap[].value.RawData.model_id",
   "save.worldSaveData.FoliageGridSaveDataMap[].value.ModelMap[].value.RawData.trailing_bytes",
   "save.worldSaveData.GameTimeSaveData.GameDateTimeTicks",
   "save.worldSaveData.GameTimeSaveData.RealDateTimeTicks",
-  "save.worldSaveData.GroupSaveDataMap[].value.RawData.guild_chest_allowed_roles",
+  "save.worldSaveData.GroupSaveDataMap[].value.CustomVersionData.values",
   "save.worldSaveData.GroupSaveDataMap[].value.RawData.guild_markers",
   "save.worldSaveData.GroupSaveDataMap[].value.RawData.last_guild_name_modifier_player_uid",
   "save.worldSaveData.GroupSaveDataMap[].value.RawData.leading_bytes",
   "save.worldSaveData.GroupSaveDataMap[].value.RawData.map_object_instance_ids_base_camp_points",
   "save.worldSaveData.GroupSaveDataMap[].value.RawData.map_object_instance_ids_base_camp_points[]",
   "save.worldSaveData.GroupSaveDataMap[].value.RawData.org_type",
-  "save.worldSaveData.GroupSaveDataMap[].value.RawData.role_permissions",
-  "save.worldSaveData.GroupSaveDataMap[].value.RawData.role_permissions[].permissions",
   "save.worldSaveData.GroupSaveDataMap[].value.RawData.trailing_bytes",
   "save.worldSaveData.GroupSaveDataMap[].value.RawData.unknown_1",
   "save.worldSaveData.GroupSaveDataMap[].value.RawData.unknown_i32",
+  "save.worldSaveData.GuildExtraSaveDataMap[].value.CustomVersionData.values",
+  "save.worldSaveData.GuildExtraSaveDataMap[].value.Expedition.CustomVersionData.values",
+  "save.worldSaveData.GuildExtraSaveDataMap[].value.GuildItemStorage.CustomVersionData.values",
   "save.worldSaveData.GuildExtraSaveDataMap[].value.GuildItemStorage.RawData.container_id",
   "save.worldSaveData.GuildExtraSaveDataMap[].value.GuildItemStorage.RawData.trailing_bytes",
+  "save.worldSaveData.GuildExtraSaveDataMap[].value.Lab.CustomVersionData.values",
   "save.worldSaveData.GuildExtraSaveDataMap[].value.Lab.RawData.current_research_id",
   "save.worldSaveData.GuildExtraSaveDataMap[].value.Lab.RawData.research_info",
   "save.worldSaveData.GuildExtraSaveDataMap[].value.Lab.RawData.research_info[].research_id",
@@ -48395,21 +48631,28 @@
   "save.worldSaveData.InLockerCharacterInstanceIDArray",
   "save.worldSaveData.InLockerCharacterInstanceIDArray[].DebugName",
   "save.worldSaveData.InvaderSaveData",
+  "save.worldSaveData.InvaderSaveData[].key",
   "save.worldSaveData.InvaderSaveData[].value.CoolTimeElapsed",
   "save.worldSaveData.InvaderSaveData[].value.CoolTimeFinish",
   "save.worldSaveData.InvaderSaveData[].value.bIsInvading",
   "save.worldSaveData.ItemContainerSaveData[].value.BelongInfo.GroupId",
   "save.worldSaveData.ItemContainerSaveData[].value.BelongInfo.bControllableOthers",
+  "save.worldSaveData.ItemContainerSaveData[].value.CustomVersionData.values",
   "save.worldSaveData.ItemContainerSaveData[].value.RawData.permission.item_static_ids",
   "save.worldSaveData.ItemContainerSaveData[].value.RawData.permission.item_static_ids[]",
   "save.worldSaveData.ItemContainerSaveData[].value.RawData.permission.type_a",
   "save.worldSaveData.ItemContainerSaveData[].value.RawData.permission.type_b",
   "save.worldSaveData.ItemContainerSaveData[].value.RawData.trailing_unparsed_data",
+  "save.worldSaveData.ItemContainerSaveData[].value.Slots.values[].CustomVersionData.values",
   "save.worldSaveData.ItemContainerSaveData[].value.Slots.values[].RawData.trailing_bytes",
   "save.worldSaveData.LevelObjectRecoverPartySaveData",
+  "save.worldSaveData.LevelObjectRecoverPartySaveData[].key",
   "save.worldSaveData.LevelObjectRecoverPartySaveData[].value.PlayerLastUsedTimes",
   "save.worldSaveData.LockGimmickSaveData",
+  "save.worldSaveData.LockGimmickSaveData[].key",
   "save.worldSaveData.LockGimmickSaveData[].value.bCleared",
+  "save.worldSaveData.MapObjectSaveData.values[].ConcreteModel.CustomVersionData.values",
+  "save.worldSaveData.MapObjectSaveData.values[].ConcreteModel.ModuleMap[].value.CustomVersionData.values",
   "save.worldSaveData.MapObjectSaveData.values[].ConcreteModel.ModuleMap[].value.RawData.all_slot_attribute",
   "save.worldSaveData.MapObjectSaveData.values[].ConcreteModel.ModuleMap[].value.RawData.drop_item_at_disposed",
   "save.worldSaveData.MapObjectSaveData.values[].ConcreteModel.ModuleMap[].value.RawData.lock_state",
@@ -48480,14 +48723,28 @@
   "save.worldSaveData.MapObjectSaveData.values[].ConcreteModel.RawData.unknown_prefix",
   "save.worldSaveData.MapObjectSaveData.values[].ConcreteModel.RawData.water_stack_rate_value",
   "save.worldSaveData.MapObjectSaveData.values[].ConcreteModel.RawData.work_speed_additional_rate",
+  "save.worldSaveData.MapObjectSaveData.values[].Model.BuildProcess.CustomVersionData.values",
   "save.worldSaveData.MapObjectSaveData.values[].Model.BuildProcess.RawData.trailing_bytes",
+  "save.worldSaveData.MapObjectSaveData.values[].Model.Connector.CustomVersionData.values",
   "save.worldSaveData.MapObjectSaveData.values[].Model.Connector.RawData.connect.any_place",
   "save.worldSaveData.MapObjectSaveData.values[].Model.Connector.RawData.connect.any_place[].connect_to_model_instance_id",
+  "save.worldSaveData.MapObjectSaveData.values[].Model.Connector.RawData.connect.any_place[].index",
+  "save.worldSaveData.MapObjectSaveData.values[].Model.Connector.RawData.connect.index",
   "save.worldSaveData.MapObjectSaveData.values[].Model.Connector.RawData.supported_level",
   "save.worldSaveData.MapObjectSaveData.values[].Model.Connector.RawData.unknown_bytes",
+  "save.worldSaveData.MapObjectSaveData.values[].Model.CustomVersionData.values",
   "save.worldSaveData.MapObjectSaveData.values[].Model.EffectMap",
+  "save.worldSaveData.MapObjectSaveData.values[].Model.EffectMap[].key",
+  "save.worldSaveData.MapObjectSaveData.values[].Model.EffectMap[].value.CustomVersionData.values",
+  "save.worldSaveData.MapObjectSaveData.values[].Model.Paint.CustomVersionData.values",
   "save.worldSaveData.MapObjectSaveData.values[].Model.RawData.concrete_model_instance_id",
   "save.worldSaveData.MapObjectSaveData.values[].Model.RawData.deterioration_damage",
+  "save.worldSaveData.MapObjectSaveData.values[].Model.RawData.initital_transform_cache.rotation.x",
+  "save.worldSaveData.MapObjectSaveData.values[].Model.RawData.initital_transform_cache.rotation.y",
+  "save.worldSaveData.MapObjectSaveData.values[].Model.RawData.initital_transform_cache.rotation.z",
+  "save.worldSaveData.MapObjectSaveData.values[].Model.RawData.initital_transform_cache.scale3d.x",
+  "save.worldSaveData.MapObjectSaveData.values[].Model.RawData.initital_transform_cache.scale3d.y",
+  "save.worldSaveData.MapObjectSaveData.values[].Model.RawData.initital_transform_cache.scale3d.z",
   "save.worldSaveData.MapObjectSaveData.values[].Model.RawData.interact_restrict_type",
   "save.worldSaveData.MapObjectSaveData.values[].Model.RawData.owner_instance_id",
   "save.worldSaveData.MapObjectSaveData.values[].Model.RawData.owner_spawner_level_object_instance_id",
@@ -48498,20 +48755,34 @@
   "save.worldSaveData.MapObjectSpawnerInStageSaveData[].key.InternalId",
   "save.worldSaveData.MapObjectSpawnerInStageSaveData[].key.bValid",
   "save.worldSaveData.MapObjectSpawnerInStageSaveData[].value.SpawnerDataMapByLevelObjectInstanceId",
+  "save.worldSaveData.MapObjectSpawnerInStageSaveData[].value.SpawnerDataMapByLevelObjectInstanceId[].key",
   "save.worldSaveData.MapObjectSpawnerInStageSaveData[].value.SpawnerDataMapByLevelObjectInstanceId[].value.ItemMap",
+  "save.worldSaveData.MapObjectSpawnerInStageSaveData[].value.SpawnerDataMapByLevelObjectInstanceId[].value.ItemMap[].key",
   "save.worldSaveData.MapObjectSpawnerInStageSaveData[].value.SpawnerDataMapByLevelObjectInstanceId[].value.ItemMap[].value.MapObjectInstanceId",
   "save.worldSaveData.MapObjectSpawnerInStageSaveData[].value.SpawnerDataMapByLevelObjectInstanceId[].value.ItemMap[].value.NextLotteryGameTime",
   "save.worldSaveData.OilrigSaveData.OilrigMap",
+  "save.worldSaveData.OilrigSaveData.OilrigMap[].key",
   "save.worldSaveData.OilrigSaveData.OilrigMap[].value.Alarm",
   "save.worldSaveData.OilrigSaveData.OilrigMap[].value.Clear",
+  "save.worldSaveData.OilrigSaveData.OilrigMap[].value.DestroyedCannon.values",
+  "save.worldSaveData.OilrigSaveData.OilrigMap[].value.DestroyedCannon.values[]",
+  "save.worldSaveData.OilrigSaveData.OilrigMap[].value.DestroyedGasTank.values",
+  "save.worldSaveData.OilrigSaveData.OilrigMap[].value.DestroyedGasTank.values[]",
   "save.worldSaveData.OilrigSaveData.OilrigMap[].value.GoalTreasureBoxSpawnerIndex",
   "save.worldSaveData.OilrigSaveData.OilrigMap[].value.IsMachineDestroyed",
   "save.worldSaveData.OilrigSaveData.OilrigMap[].value.IsMachineSpawned",
+  "save.worldSaveData.OilrigSaveData.OilrigMap[].value.OpenedTreasureBoxSpawner.values",
+  "save.worldSaveData.OilrigSaveData.OilrigMap[].value.OpenedTreasureBoxSpawner.values[]",
   "save.worldSaveData.OilrigSaveData.OilrigMap[].value.ResetTimer",
+  "save.worldSaveData.OilrigSaveData.OilrigMap[].value.WipedOutEnemySpawner.values",
+  "save.worldSaveData.OilrigSaveData.OilrigMap[].value.WipedOutEnemySpawner.values[]",
   "save.worldSaveData.SupplySaveData.LastLotteryTime",
   "save.worldSaveData.SupplySaveData.LastSupplyGuid",
   "save.worldSaveData.SupplySaveData.LastSupplyTime",
   "save.worldSaveData.SupplySaveData.SupplyInfos",
+  "save.worldSaveData.SupplySaveData.SupplyInfos[].key",
+  "save.worldSaveData.SupplySaveData.SupplyInfos[].value.DropItemGuids.values",
+  "save.worldSaveData.SupplySaveData.SupplyInfos[].value.DropItemGuids.values[]",
   "save.worldSaveData.SupplySaveData.SupplyInfos[].value.MapLocationId",
   "save.worldSaveData.SupplySaveData.SupplyInfos[].value.SupplyLandedTime",
   "save.worldSaveData.SupplySaveData.SupplyInfos[].value.SupplyMapObjectId",
@@ -48520,8 +48791,13 @@
   "save.worldSaveData.SupplySaveData.SupplyInfos[].value.SupplyType",
   "save.worldSaveData.SupplySaveData.SupplyInfos[].value.bWipedOut_NPC",
   "save.worldSaveData.SupplySaveData.SupplyInfos[].value.bWipedOut_Pal",
+  "save.worldSaveData.WorkSaveData.values",
+  "save.worldSaveData.WorkSaveData.values[].CustomVersionData.values",
   "save.worldSaveData.WorkSaveData.values[].RawData.assign_define_data_id",
   "save.worldSaveData.WorkSaveData.values[].RawData.assign_locations",
+  "save.worldSaveData.WorkSaveData.values[].RawData.assign_locations[].facing_direction.x",
+  "save.worldSaveData.WorkSaveData.values[].RawData.assign_locations[].facing_direction.y",
+  "save.worldSaveData.WorkSaveData.values[].RawData.assign_locations[].facing_direction.z",
   "save.worldSaveData.WorkSaveData.values[].RawData.assignable_fixed_type",
   "save.worldSaveData.WorkSaveData.values[].RawData.assignable_otomo",
   "save.worldSaveData.WorkSaveData.values[].RawData.auto_work_self_amount_by_sec",
@@ -48540,8 +48816,16 @@
   "save.worldSaveData.WorkSaveData.values[].RawData.transform.trailing_bytes",
   "save.worldSaveData.WorkSaveData.values[].RawData.work_exp",
   "save.worldSaveData.WorkSaveData.values[].RawData.work_exp_calc_type",
+  "save.worldSaveData.WorkSaveData.values[].RawData.workable_bounds.box_sphere_bounds.box_extent.x",
+  "save.worldSaveData.WorkSaveData.values[].RawData.workable_bounds.box_sphere_bounds.box_extent.y",
+  "save.worldSaveData.WorkSaveData.values[].RawData.workable_bounds.box_sphere_bounds.box_extent.z",
   "save.worldSaveData.WorkSaveData.values[].RawData.workable_bounds.box_sphere_bounds.sphere_radius",
+  "save.worldSaveData.WorkSaveData.values[].RawData.workable_bounds.rotation.x",
+  "save.worldSaveData.WorkSaveData.values[].RawData.workable_bounds.rotation.y",
+  "save.worldSaveData.WorkSaveData.values[].RawData.workable_bounds.rotation.z",
   "save.worldSaveData.WorkSaveData.values[].WorkAssignMap",
+  "save.worldSaveData.WorkSaveData.values[].WorkAssignMap[].key",
+  "save.worldSaveData.WorkSaveData.values[].WorkAssignMap[].value.CustomVersionData.values",
   "save.worldSaveData.WorkSaveData.values[].WorkAssignMap[].value.RawData.assign_type",
   "save.worldSaveData.WorkSaveData.values[].WorkAssignMap[].value.RawData.fixed",
   "save.worldSaveData.WorkSaveData.values[].WorkAssignMap[].value.RawData.location_index",
