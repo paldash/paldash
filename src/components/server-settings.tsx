@@ -43,8 +43,15 @@ export default function ServerSettings() {
     // this is the "did the server come back?" banner, and the moment somebody
     // looks is exactly the moment they want the answer.
     const hidden = () => typeof document !== 'undefined' && document.hidden;
+    // Raising a window fires `focus` and `visibilitychange` together, so without
+    // this the catch-up is two requests every time. Same guard the other two
+    // pollers carry; keeping the three consistent is the point, since an
+    // exception here is how the next one gets written without it.
+    let last = Date.now();
     const guarded = () => {
-      if (!hidden()) tick();
+      if (hidden() || Date.now() - last < 3000) return;
+      last = Date.now();
+      tick();
     };
     document.addEventListener('visibilitychange', guarded);
     window.addEventListener('focus', guarded);
