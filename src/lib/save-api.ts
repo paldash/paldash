@@ -613,12 +613,18 @@ export interface ItemCreatePlan {
   durability?: number;
   maxDurability?: number;
   /**
-   * The species an egg will hatch, from the template's record.
+   * The species an egg will hatch.
    *
-   * Not a choice: the item id fixes the egg's kind, and the record decides the
-   * species. Shown so nobody is surprised by what comes out.
+   * **A CHOICE, as of 2026-08-06** — this comment used to say it was not. The
+   * item id does not fix the species: `PalEgg_Dark_03` hatches 18 different
+   * Pals, so a value inherited from a template is arbitrary rather than
+   * determined. Pass `hatches` to decide it.
    */
   hatchesInto?: string;
+  /** True when no species was asked for, so this one came from the template. */
+  hatchesFromTemplate?: boolean;
+  /** `hatchesInto` resolved to what a player reads. */
+  hatchesName?: string;
 }
 
 export interface ItemCreateResult {
@@ -638,11 +644,12 @@ export async function previewItemCreate(
   containerId: string,
   slotIndex: number,
   itemId: string,
-  durability?: number
+  durability?: number,
+  hatches?: string
 ): Promise<ItemCreatePlan> {
   return saveFetch(`/edit/container/${encodeURIComponent(containerId)}/create/preview`, {
     method: 'POST',
-    body: JSON.stringify({ slotIndex, itemId, durability }),
+    body: JSON.stringify({ slotIndex, itemId, durability, hatches }),
   });
 }
 
@@ -651,11 +658,12 @@ export async function applyItemCreate(
   slotIndex: number,
   itemId: string,
   planHash: string,
-  durability?: number
+  durability?: number,
+  hatches?: string
 ): Promise<ItemCreateResult> {
   return saveFetch(
     `/edit/container/${encodeURIComponent(containerId)}/create?planHash=${encodeURIComponent(planHash)}`,
-    { method: 'POST', body: JSON.stringify({ slotIndex, itemId, durability }) }
+    { method: 'POST', body: JSON.stringify({ slotIndex, itemId, durability, hatches }) }
   );
 }
 
