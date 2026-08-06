@@ -869,19 +869,169 @@ def economy() -> dict[str, Any]:
     return _economy
 
 
-def recipe(item_id: str) -> Optional[dict[str, Any]]:
+def recipes_for(item_id: str) -> list[dict[str, Any]]:
     """
-    How one item is crafted: materials, counts and work amount.
+    **Every** way to craft an item: materials, counts and work amount.
 
-    **Keyed by product, which collapses 1,414 rows to 1,399.** Fifteen products
-    have more than one recipe row and only one survives. That is right for "how
-    do I make X" and wrong for "every way to make X" — if the second question
-    ever matters, the extractor needs to emit a list.
+    The bundle used to key one recipe per product, which threw away fifteen rows
+    — including twelve of the thirteen ways to get a Paldium Fragment, since
+    dismantling each kind of Pal Sphere is its own row. That is survivable for
+    "how do I make X" and wrong for "where does X come from", which is the
+    question `itemsource` exists to answer.
 
     Which *bench* crafts it is not here, and not anywhere: `WorkableAttribute`
     is present on every recipe row and is 0 on all of them.
     """
-    return (economy().get("recipes") or {}).get(str(item_id or ""))
+    return (economy().get("recipes") or {}).get(str(item_id or "")) or []
+
+
+def recipe(item_id: str) -> Optional[dict[str, Any]]:
+    """The cheapest single recipe for an item, or `None`. See `recipes_for`."""
+    rows = recipes_for(item_id)
+    return rows[0] if rows else None
+
+
+def used_in_recipes(item_id: str) -> list[dict[str, Any]]:
+    """
+    What this item is a *material* for — the reverse of `recipes_for`.
+
+    Scans, like `dropped_by`, and for the same reason: ~1,400 recipes with at
+    most five materials each is a few thousand comparisons against a reverse
+    index that would need invalidating alongside the forward one.
+    """
+    wanted = str(item_id or "").lower()
+    if not wanted:
+        return []
+    out = []
+    for rows in (economy().get("recipes") or {}).values():
+        for row in rows:
+            for material in row.get("materials") or []:
+                if str(material.get("itemId") or "").lower() == wanted:
+                    out.append({
+                        "recipeId": row.get("recipeId"),
+                        "productId": row.get("productId"),
+                        "count": row.get("count"),
+                        "needs": material.get("count"),
+                    })
+    out.sort(key=lambda r: (r.get("needs") or 0, str(r.get("productId"))))
+    return out
+
+
+def found_in_loot(item_id: str) -> list[dict[str, Any]]:
+    """
+    Which loot fields — chests, dungeon rooms, field drops — contain this item.
+
+    **`weight` is relative within one field's slot, and nothing else.** Two
+    fields' weights are not comparable and nothing here says how often a field is
+    rolled, so this is honest as "which chests" and dishonest as a drop rate.
+    Same constraint `habitats.json.gz` carries as `weightIsWithinGroup`.
+    """
+    wanted = str(item_id or "").lower()
+    if not wanted:
+        return []
+    out = []
+    for field, rows in (economy().get("lottery") or {}).items():
+        total = {}
+        for row in rows:
+            total[row.get("slot")] = total.get(row.get("slot"), 0.0) + float(
+                row.get("weight") or 0.0
+            )
+        for row in rows:
+            if str(row.get("itemId") or "").lower() != wanted:
+                continue
+            slot_total = total.get(row.get("slot")) or 0.0
+            out.append({
+                "field": field,
+                "slot": row.get("slot"),
+                "weight": row.get("weight"),
+                # The share of its own slot, which IS comparable — it is the
+                # chance this item fills that slot when the field is rolled.
+                "slotShare": (
+                    round(float(row.get("weight") or 0.0) / slot_total, 4)
+                    if slot_total else None
+                ),
+                "min": row.get("min"),
+                "max": row.get("max"),
+                "grade": row.get("grade"),
+            })
+    out.sort(key=lambda r: (-(r.get("slotShare") or 0), r["field"]))
+    return out
+
+
+def sold_by(item_id: str) -> list[dict[str, Any]]:
+    """Which merchants stock this item, and at what price override."""
+    wanted = str(item_id or "").lower()
+    if not wanted:
+        return []
+    out = []
+    for shop, rows in (economy().get("shops") or {}).items():
+        for row in rows:
+            if str(row.get("itemId") or "").lower() == wanted:
+                out.append({"shop": shop, **row})
+    out.sort(key=lambda r: r["shop"])
+    return out
+
+
+def produced_by(item_id: str) -> list[dict[str, Any]]:
+    """Which base structures yield this item on their own, and how fast."""
+    wanted = str(item_id or "").lower()
+    if not wanted:
+        return []
+    return [
+        {"structureId": key, **row}
+        for key, row in sorted((economy().get("production") or {}).items())
+        if str(row.get("productId") or "").lower() == wanted
+    ]
+
+
+def technology_unlocks(tech_id: str) -> Optional[dict[str, Any]]:
+    """
+    What a technology unlocks, and what must be researched before it.
+
+    Distinct from `technology()`, which is the *catalogue* entry — name, icon,
+    cost, tier. This is the economy bundle's row and carries the two columns the
+    catalogue does not: `unlocksRecipes` and `requiresTechnology`.
+    """
+    return (economy().get("techUnlocks") or {}).get(str(tech_id or ""))
+
+
+def unlocked_by(recipe_id: str) -> list[dict[str, Any]]:
+    """
+    Which technology unlocks a given recipe **row**.
+
+    Keyed on `recipeId`, not on the product — a product with several recipes can
+    have them unlocked by different technologies, which is the whole reason the
+    row id is carried.
+    """
+    wanted = str(recipe_id or "").lower()
+    if not wanted:
+        return []
+    return [
+        tech for tech in (economy().get("techUnlocks") or {}).values()
+        if any(str(r).lower() == wanted for r in tech.get("unlocksRecipes") or [])
+    ]
+
+
+def technology_chain(tech_id: str) -> list[str]:
+    """
+    A technology and everything that must be researched before it, in order.
+
+    Guarded against a cycle rather than trusted not to have one: the data is the
+    game's and the walk is unbounded, so a self-referential row would hang the
+    request rather than raise.
+    """
+    chain: list[str] = []
+    seen: set[str] = set()
+    current = str(tech_id or "")
+    while current and current not in seen:
+        seen.add(current)
+        entry = technology_unlocks(current)
+        if entry is None:
+            break
+        chain.append(current)
+        current = str(entry.get("requiresTechnology") or "")
+    chain.reverse()
+    return chain
 
 
 def drops_for(species_id: str) -> list[dict[str, Any]]:

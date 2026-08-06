@@ -18,8 +18,13 @@ WHAT COMES OUT
     palShops        8  Pal merchants: roster and level range
     food           53  what a cooked dish actually does, and for how long
     production     16  what a production structure yields and how fast
+    techUnlocks   588  which technology unlocks which recipe, and what it needs
+    redirects      29  accessory tiers onto their base tier — NOT renames
 
-THREE THINGS MEASURED WHILE BUILDING IT, all worth recording
+`recipes` is a **list per product**. The first version kept one, which read as
+1,399 products and was really 1,414 rows with fifteen alternates thrown away.
+
+FOUR THINGS MEASURED WHILE BUILDING IT, all worth recording
 
 **`WorkableAttribute` is 0 on all 1,414 recipe rows.** It looked like the link
 from a recipe to the work suitability that crafts it, which would have paired
@@ -30,6 +35,17 @@ from the recipe table.
 **Drops are level-banded, not per-level.** `Level` takes exactly the values
 0, 10, 20 … 80, so a row is "this species at level 30-39" and not "at level 30".
 894 species have a table. Interpolating between bands would be inventing.
+
+**The technology-to-recipe join needs a case-fold, and the check is what found
+that.** Two of the 588 technologies spell a recipe row differently from the
+recipe table (`Bow_triple`/`Bow_Triple`). An exact join loses them and reports a
+number that looks like data. `FName` does not care about case; `dict` does.
+
+**`DT_PalStaticItemIDRedirectData` is not a rename map, and treating it as one
+would have been a regression.** All 29 rows point an accessory's `_2` and `_3`
+tiers at its `_1`, and all 58 source ids already resolve to distinct names —
+"Attack Pendant +1" and "+2". Applying it to a lookup replaces 58 correct names
+with 29 wrong ones. See `_redirects`.
 
 **One food row does not decode and is dropped rather than guessed at.**
 `BaconEggs_53` comes back with name-table strings where its property names should
@@ -83,6 +99,19 @@ def _enum(value) -> str:
     return text.rsplit("::", 1)[-1] if "::" in text else text
 
 
+def _key(value) -> str:
+    """
+    Unwrap a `FName`-valued cell, which decodes as `{"Key": "SheepBall"}`.
+
+    `str()` on that dict gives the literal string `"{'Key': 'SheepBall'}"`, which
+    serialises perfectly and is not an id — the Pal-shop rosters shipped that way
+    until this helper existed. Anything already flat passes through.
+    """
+    if isinstance(value, dict):
+        value = value.get("Key")
+    return str(value or "")
+
+
 def _read(pak, name: str) -> dict:
     path = next((p for p in pak.files if p.endswith(name + ".uasset")), None)
     if path is None:
@@ -91,8 +120,17 @@ def _read(pak, name: str) -> dict:
 
 
 def _recipes(pak) -> dict:
-    out = {}
-    for row in _read(pak, "DT_ItemRecipeDataTable").values():
+    """
+    Every recipe row, grouped by product — a **list**, not one recipe each.
+
+    The first version of this bundle keyed one recipe per product and so
+    collapsed 1,414 rows to 1,399, silently discarding the second way to make
+    fifteen items. That is fine for "how do I make X" and wrong for the question
+    this bundle now exists to answer, which is "where does X come from" — an
+    alternate recipe is exactly one of the answers.
+    """
+    out: dict[str, list] = defaultdict(list)
+    for key, row in _read(pak, "DT_ItemRecipeDataTable").items():
         product = str(row.get("Product_Id") or "")
         if product in UNSET:
             continue
@@ -103,16 +141,96 @@ def _recipes(pak) -> dict:
             if item_id not in UNSET and count > 0:
                 materials.append({"itemId": item_id, "count": count})
         unlock = str(row.get("UnlockItemID") or "")
-        out[product] = {
+        out[product].append({
+            # The row name, so two recipes for one product can be told apart.
+            "recipeId": str(key),
             "productId": product,
             "count": int(row.get("Product_Count") or 1),
             "workAmount": float(row.get("WorkAmount") or 0.0),
             "materials": materials,
             # The schematic that unlocks it, where one exists.
             "unlockItemId": "" if unlock in UNSET else unlock,
-        }
+        })
         # `WorkableAttribute` is deliberately not carried: measured 0 on every
         # row, so bundling it would imply a link that is not in the data.
+    for rows in out.values():
+        rows.sort(key=lambda r: (r["workAmount"], r["recipeId"]))
+    return dict(out)
+
+
+def _tech_unlocks(pak, recipes_by_row: dict) -> dict:
+    """
+    Which technology unlocks which recipe, and what that technology itself needs.
+
+    `gamedata.json.gz` already carries each technology's name, cost, tier and
+    level cap — everything except the two columns that make it answerable in the
+    direction a player asks. "What do I need to research to craft this" needs
+    `UnlockItemRecipes` to find the technology and `RequireTechnology` to walk
+    back up the chain.
+
+    **The join is case-insensitive because the game's own two tables disagree**,
+    and the recipe table's spelling wins. Two of the 588 technologies name
+    `Bow_triple` and `SkillUnlock_Sakurasaurus_Water` against recipe rows spelled
+    `Bow_Triple` and `SkillUnlock_SakuraSaurus_Water`. An `FName` compares
+    case-insensitively, so nothing is wrong in the game; a `dict` does not, so an
+    exact join drops two technologies and reports 586 of 588 as if that were the
+    data. Same inconsistency `gamedata`'s lookups already fold, one table over.
+    """
+    canonical = {row.lower(): row for row in recipes_by_row}
+    out = {}
+    for key, row in _read(pak, "DT_TechnologyRecipeUnlock_Common").items():
+        recipes = [_key(v) for v in (row.get("UnlockItemRecipes") or [])]
+        objects = [_key(v) for v in (row.get("UnlockBuildObjects") or [])]
+        recipes = [canonical.get(r.lower(), r) for r in recipes if r not in UNSET]
+        objects = [o for o in objects if o not in UNSET]
+        if not recipes and not objects:
+            continue
+        require = _key(row.get("RequireTechnology"))
+        boss = _enum(row.get("RequireDefeatTowerBoss"))
+        out[str(key)] = {
+            "technologyId": str(key),
+            "unlocksRecipes": recipes,
+            "unlocksStructures": objects,
+            "requiresTechnology": "" if require in UNSET else require,
+            # A boss technology is bought with Ancient Technology Points, which
+            # is a different currency from the ordinary one.
+            "isBossTechnology": bool(row.get("IsBossTechnology")),
+            "requiresBoss": "" if boss in UNSET else boss,
+            "cost": int(row.get("Cost") or 0),
+            "levelCap": int(row.get("LevelCap") or 0),
+        }
+    return out
+
+
+def _redirects(pak) -> dict:
+    """
+    `DT_PalStaticItemIDRedirectData` — and it is **not** a rename map.
+
+    It was reached for as one: 29 rows of `SourceItemIds -> DestinationItemId`
+    reads exactly like "an old save's ids now mean these", which would have been
+    worth wiring into every `gamedata` lookup so a stale id resolved instead of
+    falling back to `humanize()`.
+
+    Every one of the 29 is an accessory tier collapsing onto its own base tier —
+    `Accessory_AT_2` and `Accessory_AT_3` onto `Accessory_AT_1`, and so on for
+    all seventeen pendants and twelve whistles. There is not one genuine rename
+    in the table.
+
+    **And all 58 source ids already resolve, to distinct names.** The game calls
+    `Accessory_AT_2` "Attack Pendant +1" and `Accessory_AT_3` "Attack Pendant
+    +2"; applying this map to a lookup would replace 58 correct names with 29
+    wrong ones and undo the tier distinction the L10N join was built to get
+    right. So it is carried as data with its meaning stated, and no lookup
+    consults it.
+    """
+    out = {}
+    for key, row in _read(pak, "DT_PalStaticItemIDRedirectData").items():
+        sources = [_key(v) for v in (row.get("SourceItemIds") or [])]
+        sources = sorted(s for s in sources if s not in UNSET)
+        destination = _key(row.get("DestinationItemId"))
+        if not sources or destination in UNSET:
+            continue
+        out[str(key)] = {"to": destination, "from": sources}
     return out
 
 
@@ -197,7 +315,12 @@ def _shops(pak) -> dict:
 def _pal_shops(pak) -> dict:
     out = {}
     for key, row in _read(pak, "DT_PalShopCreateData").items():
-        species = [str(s) for s in (row.get("CharacterIDArray") or []) if str(s) not in UNSET]
+        # `_key`, not `str`: these cells decode as {"Key": "SheepBall"} and the
+        # rosters shipped as literal "{'Key': 'SheepBall'}" strings until they
+        # were unwrapped. A stringified dict is not an id and resolves to
+        # nothing, which is invisible until someone looks at a Pal merchant.
+        species = [_key(s) for s in (row.get("CharacterIDArray") or [])]
+        species = [s for s in species if s not in UNSET]
         if not species:
             continue
         out[str(key)] = {
@@ -254,14 +377,18 @@ def _production(pak) -> dict:
 def build(pak=None) -> tuple[dict, dict]:
     pak = pak or palpak.Pak()
     food, food_refused = _food(pak)
+    recipes = _recipes(pak)
+    recipe_rows = {r["recipeId"] for rows in recipes.values() for r in rows}
     data = {
-        "recipes": _recipes(pak),
+        "recipes": recipes,
         "drops": _drops(pak),
         "lottery": _lottery(pak),
         "shops": _shops(pak),
         "palShops": _pal_shops(pak),
         "food": food,
         "production": _production(pak),
+        "techUnlocks": _tech_unlocks(pak, recipe_rows),
+        "redirects": _redirects(pak),
     }
     return data, {"foodRefused": food_refused}
 
@@ -283,7 +410,8 @@ def verify(data: dict) -> list[str]:
 
     check_items(data["recipes"], "recipe products")
     check_items(
-        (m["itemId"] for r in data["recipes"].values() for m in r["materials"]),
+        (m["itemId"] for rows in data["recipes"].values()
+         for r in rows for m in r["materials"]),
         "recipe materials",
     )
     check_items(
@@ -296,6 +424,39 @@ def verify(data: dict) -> list[str]:
     check_items((p["itemId"] for rows in data["shops"].values() for p in rows), "shops")
     check_items(data["food"], "food")
     check_items((p["productId"] for p in data["production"].values()), "production")
+    check_items(
+        (i for r in data["redirects"].values() for i in [r["to"], *r["from"]]),
+        "redirects",
+    )
+
+    # THE TECHNOLOGY JOIN IS THE ONE THAT COULD SILENTLY BE WRONG, so it is
+    # checked rather than assumed. `UnlockItemRecipes` holds recipe ROW names
+    # (`Axe_Tier_00`), not product ids — reading them as items would resolve to
+    # nothing everywhere, which is loud, but reading them as products would
+    # resolve for the handful whose row name happens to match their product and
+    # look like a working join.
+    recipe_rows = {r["recipeId"] for rows in data["recipes"].values() for r in rows}
+    dangling = sorted({
+        r for t in data["techUnlocks"].values()
+        for r in t["unlocksRecipes"] if r not in recipe_rows
+    })
+    if dangling:
+        problems.append(
+            f"technology unlocks: {len(dangling)} name no recipe row, "
+            f"e.g. {dangling[:5]}"
+        )
+
+    # And every technology a chain points back at must itself exist, or "what do
+    # I need to research first" walks off the end of the table.
+    missing_parents = sorted({
+        t["requiresTechnology"] for t in data["techUnlocks"].values()
+        if t["requiresTechnology"] and t["requiresTechnology"] not in data["techUnlocks"]
+    })
+    if missing_parents:
+        problems.append(
+            f"technology prerequisites: {len(missing_parents)} unknown, "
+            f"e.g. {missing_parents[:5]}"
+        )
 
     return problems
 
@@ -346,20 +507,29 @@ def main() -> int:
     if "--verify" in sys.argv:
         print("verified: every product, material, drop, loot, shop and food id "
               "resolves in the catalogue")
+        print(f"  every recipe named by the {len(data['techUnlocks'])} "
+              "technologies resolves to a recipe row, and every prerequisite "
+              "technology exists")
         print(f"  {len(unknown)} of {len(data['drops'])} drop species are not in "
               "the bundled character tables (advisory — boss-rush variants and "
               "quest NPCs, see `unknown_drop_species`)")
         return 0
 
     write_json(OUT, data)
+    rows = sum(len(v) for v in data["recipes"].values())
+    alternates = sum(1 for v in data["recipes"].values() if len(v) > 1)
     print(f"wrote {OUT}")
-    print(f"  {len(data['recipes'])} recipes")
+    print(f"  {rows} recipe rows over {len(data['recipes'])} products "
+          f"({alternates} have more than one way to make them)")
     print(f"  {len(data['drops'])} species with drop tables")
     print(f"  {len(data['lottery'])} loot fields, "
           f"{sum(len(v) for v in data['lottery'].values())} entries")
     print(f"  {len(data['shops'])} item shops, {len(data['palShops'])} Pal shops")
     print(f"  {len(data['food'])} foods with effects")
     print(f"  {len(data['production'])} production structures")
+    print(f"  {len(data['techUnlocks'])} technologies with something to unlock")
+    print(f"  {len(data['redirects'])} item redirects — accessory tiers onto "
+          "their base tier, NOT renames; nothing consults them")
     if unknown:
         print(f"  advisory: {len(unknown)} of {len(data['drops'])} drop species "
               f"are not in the bundled character tables (e.g. {unknown[:3]}) — "
