@@ -219,3 +219,73 @@ def test_the_bundle_matches_the_installed_games_ini():
         f"missing from the bundle: {sorted(live - bundled)}; "
         f"stale in the bundle: {sorted(bundled - live)}"
     )
+
+
+# ─── The game's own difficulty presets ───────────────────
+
+
+def test_the_game_ships_four_difficulties_and_normal_is_the_baseline():
+    """
+    `DT_OptionWorldPresetTable`. Normal is every rate at 1.0, so it produces no
+    changes and is not offered — "apply Normal" would be a no-op that looked like
+    a rewrite of forty settings.
+    """
+    presets = settings_ini.game_presets()
+    ids = {p["id"] for p in presets}
+    assert ids == {"game_easy", "game_hard", "game_hardcore"}
+    assert all(p["source"] == "game" for p in presets)
+
+
+def test_only_keys_that_differ_from_normal_are_emitted():
+    """
+    Each preset row carries all 43 settings. Writing them all would set forty to
+    values they already hold, bury the three that matter in the audit diff, and
+    make a difficulty change read as a full reconfiguration.
+    """
+    for preset in settings_ini.game_presets():
+        assert 0 < len(preset["changes"]) < 12, preset["id"]
+
+
+def test_the_hand_made_hardcore_was_misnamed_and_no_longer_claims_to_be_hardcore():
+    """
+    **THE CROSS-CHECK THAT JUSTIFIED EXTRACTING THESE.** Against the game's own
+    `HardcorePreset`, the hand-made `hardcore` agreed on `PalCaptureRate`,
+    `PlayerDamageRateAttack` and `PlayerDamageRateDefense`, differed on `ExpRate`
+    (0.5 vs 0.8) and `PlayerStaminaDecreaceRate` (1.5 vs 1.0) — defensible taste —
+    and **omitted `bHardcore` and `bPalLost`**, which are what the game means by
+    hardcore: player permadeath and losing your Pals.
+
+    Those are not settings to add silently to a preset operators may already have
+    applied, so the rates stayed and the *name* changed.
+    """
+    ours = next(p for p in settings_ini.PRESETS if p["id"] == "hardcore")
+    assert "Hardcore" not in ours["label"]
+    assert "bHardcore" not in ours["changes"]
+
+    real = next(p for p in settings_ini.game_presets() if p["id"] == "game_hardcore")
+    assert real["changes"]["bHardcore"] is True
+    assert real["changes"]["bPalLost"] is True
+
+
+def test_the_agreeing_rates_still_agree():
+    """
+    The half of the cross-check that passed, pinned so a future edit to either
+    side surfaces as a disagreement rather than passing silently.
+    """
+    ours = next(p for p in settings_ini.PRESETS if p["id"] == "hardcore")["changes"]
+    game = next(
+        p for p in settings_ini.game_presets() if p["id"] == "game_hardcore"
+    )["changes"]
+    for key in ("PalCaptureRate", "PlayerDamageRateAttack", "PlayerDamageRateDefense"):
+        assert ours[key] == game[key], key
+
+
+def test_a_game_preset_is_applicable_and_resettable():
+    """
+    Offered in the same list, so it must be findable by `apply_preset` — and its
+    keys must be in the vanilla reset, or applying Hardcore would leave
+    `bHardcore` on with no way back through the UI.
+    """
+    assert {p["id"] for p in settings_ini.all_presets()} >= {"game_hardcore", "vanilla"}
+    reset = settings_ini._vanilla_changes()
+    assert "bHardcore" in reset and "bPalLost" in reset

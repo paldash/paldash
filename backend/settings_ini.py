@@ -27,6 +27,7 @@ import shutil
 from datetime import datetime, timezone
 from typing import Any, Optional
 
+import gamedata
 from savefiles import BACKUP_DIR, atomic_write, find_settings_ini
 
 logger = logging.getLogger(__name__)
@@ -460,12 +461,24 @@ PRESETS: list[dict[str, Any]] = [
         },
     },
     {
+        # **RENAMED, because it was not what its name claimed.** Cross-checked
+        # against the game's own `HardcorePreset` (`worldpresets.json.gz`): the
+        # rates agree on three of six, and the two that differ are defensible
+        # operator taste — but this preset **did not set `bHardcore` or
+        # `bPalLost`**, which are what the game means by hardcore: player
+        # permadeath, and losing your Pals on death.
+        #
+        # Those are not settings to add silently to a preset operators may
+        # already have applied. So this one keeps its rates and drops the claim,
+        # and the game's real Hardcore is offered separately by `game_presets()`.
         "id": "hardcore",
-        "label": "Hardcore — everything hurts",
+        "label": "Punishing — steeper rates, harsher death",
         "description": (
             "Death drops everything including equipment, players take double damage "
-            "and deal half, and progression is slowed. Does not enable PvP — combine "
-            "it with a PvP preset if that is what you want."
+            "and deal half, and progression is slowed. This is NOT the game's own "
+            "Hardcore difficulty — that one also enables player permadeath and "
+            "losing your Pals, and is offered separately below. Does not enable "
+            "PvP either; combine it with a PvP preset if that is what you want."
         ),
         "changes": {
             "DeathPenalty": "All",
@@ -597,7 +610,7 @@ def _vanilla_changes() -> dict[str, Any]:
     """
     defaults = game_defaults()
     keys: set[str] = set()
-    for preset in PRESETS:
+    for preset in all_presets():
         if preset.get("id") != "vanilla":
             keys.update(preset.get("changes", {}))
     for group in HIGHLIGHT_GROUPS:
@@ -610,7 +623,10 @@ def _vanilla_changes() -> dict[str, Any]:
 
 def apply_preset(preset_id: str, path: Optional[str] = None) -> dict[str, Any]:
     """Apply a named preset, skipping keys absent from this server's INI."""
-    preset = next((p for p in PRESETS if p["id"] == preset_id), None)
+    # `all_presets()`, not `PRESETS`: the game's own difficulties are offered in
+    # the same list and must be applicable, or the UI shows four buttons that
+    # 400.
+    preset = next((p for p in all_presets() if p["id"] == preset_id), None)
     if not preset:
         raise SettingsError(f"Unknown preset: {preset_id}")
 
@@ -639,3 +655,73 @@ def apply_preset(preset_id: str, path: Optional[str] = None) -> dict[str, Any]:
     result["preset"] = preset_id
     result["skippedKeys"] = skipped
     return result
+
+
+# ─── The game's own difficulty presets ───────────────────
+
+#: What each of the game's four difficulties is for, in a sentence. The tables
+#: carry no description — `DT_OptionWorldPresetTable` is rates only — so this is
+#: the one hand-written part, and it describes rather than asserts.
+_GAME_PRESET_BLURB = {
+    "Easy": "Faster levelling, easier captures, double gathering and drops.",
+    "Normal": "The game's baseline. Every rate at 1.0.",
+    "Hard": "Slower levelling, harder captures, half the drops, and you take more damage.",
+    "Hardcore": (
+        "Hard's combat plus PLAYER PERMADEATH and losing your Pals on death "
+        "(`bHardcore`, `bPalLost`). Global palbox transfer is disabled."
+    ),
+}
+
+
+def game_presets() -> list[dict[str, Any]]:
+    """
+    Palworld's own Easy / Normal / Hard / Hardcore, from `DT_OptionWorldPresetTable`.
+
+    **Offered ALONGSIDE the hand-made presets rather than replacing them**, because
+    they answer a different question. The hand-made ones are server-tuning tastes
+    ("small group", "boosted", "PvP with bases protected"); these are the
+    difficulty ladder the game itself ships, and only these can honestly be
+    labelled with the game's own difficulty names.
+
+    **The cross-check was the point of extracting them, and it found something.**
+    Against `HardcorePreset`, the hand-made `hardcore` agreed on `PalCaptureRate`,
+    `PlayerDamageRateAttack` and `PlayerDamageRateDefense`, differed on `ExpRate`
+    (0.5 against the game's 0.8) and `PlayerStaminaDecreaceRate` (1.5 against
+    1.0) — both defensible as taste — and **omitted `bHardcore` and `bPalLost`
+    entirely**. A preset called Hardcore that does not turn on permadeath is
+    misnamed, which is why that one is now "Punishing".
+
+    Only keys that **differ from the game's own Normal** are emitted. Writing all
+    43 would set forty settings to values they already hold, bury the three that
+    matter in the audit diff, and make "apply Easy" look like a rewrite of the
+    server. Normal itself is therefore empty of changes and is skipped.
+    """
+    presets = (gamedata.world_presets() or {}).get("presets") or {}
+    normal = (presets.get("NormalPreset") or {}).get("settings") or {}
+    if not normal:
+        return []
+
+    out: list[dict[str, Any]] = []
+    for key, entry in presets.items():
+        settings = entry.get("settings") or {}
+        difficulty = str(entry.get("difficulty") or "")
+        changes = {k: v for k, v in settings.items() if normal.get(k) != v}
+        if not changes:
+            continue
+        out.append({
+            "id": f"game_{difficulty.lower()}",
+            "label": f"{difficulty} — the game's own difficulty",
+            "description": _GAME_PRESET_BLURB.get(difficulty, ""),
+            "changes": changes,
+            # So the UI can group these apart and say where they came from. An
+            # operator choosing between "Hardcore" and "Punishing" deserves to
+            # know which one Pocketpair wrote.
+            "source": "game",
+        })
+    out.sort(key=lambda p: p["id"])
+    return out
+
+
+def all_presets() -> list[dict[str, Any]]:
+    """The hand-made presets plus the game's own, in one list for the UI."""
+    return [{**p, "source": p.get("source", "dashboard")} for p in PRESETS] + game_presets()

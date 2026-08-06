@@ -294,7 +294,9 @@ export default function ServerSettings() {
           <Sliders size={14} /> Presets
         </div>
         <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 12 }}>
-          One click writes several related keys at once.
+          One click writes several related keys at once. Presets marked{' '}
+          <em>from the game</em> are Palworld&rsquo;s own difficulty settings,
+          read from its data tables; the rest are this dashboard&rsquo;s.
         </p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {settings.presets.map((preset) => (
@@ -311,7 +313,14 @@ export default function ServerSettings() {
               }}
             >
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 13, fontWeight: 500 }}>{preset.label}</div>
+                <div style={{ fontSize: 13, fontWeight: 500 }}>
+                  {preset.label}
+                  {/* Which of the two "hardcore-ish" presets is Pocketpair's is
+                      exactly the thing an operator needs to tell apart. */}
+                  {preset.source === 'game' && (
+                    <span className="badge" style={{ marginLeft: 7 }}>from the game</span>
+                  )}
+                </div>
                 <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
                   {preset.description}
                 </div>

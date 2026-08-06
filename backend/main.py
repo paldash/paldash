@@ -3309,7 +3309,9 @@ def read_settings(request: Request) -> dict:
         raise HTTPException(404, str(e))
     return {
         **data,
-        "presets": settings_ini.PRESETS,
+        # `all_presets`, so the game's own difficulties reach the UI beside the
+        # hand-made ones. Each row carries `source` for grouping.
+        "presets": settings_ini.all_presets(),
         "groups": settings_ini.HIGHLIGHT_GROUPS,
         "serverRunning": get_server_state().running,
         # Nothing in this file is hot-swappable: the server reads it at boot only.
