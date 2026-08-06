@@ -205,9 +205,45 @@ function Technology({ tech }: { tech: TechnologyUnlock }) {
       {tech.requiresBoss ? `, after defeating ${tech.requiresBoss}` : ''}
       {tech.requires.length > 0 && (
         <div style={{ marginTop: 3 }}>
-          Research first: {tech.requires.map((r) => r.name).join(' → ')}
+          Research first:{' '}
+          {tech.requires.map((r, i) => (
+            <span key={r.technologyId}>
+              {i > 0 && ' → '}
+              {r.name}
+              {r.cost != null && <span className="mono"> ({r.cost})</span>}
+            </span>
+          ))}
+          <ChainCost tech={tech} />
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * What the whole chain costs — **per currency, never as one number**.
+ *
+ * A boss technology is bought with Ancient Technology Points, which come from
+ * beating a field boss, and an ordinary one with points from levelling. Adding
+ * them gives a figure a player cannot spend, so the two totals stay apart and
+ * only appear when the chain actually mixes or exceeds one step.
+ */
+function ChainCost({ tech }: { tech: TechnologyUnlock }) {
+  const steps = [...tech.requires, tech];
+  const ordinary = steps
+    .filter((s) => !s.isBossTechnology)
+    .reduce((sum, s) => sum + (s.cost ?? 0), 0);
+  const ancient = steps
+    .filter((s) => s.isBossTechnology)
+    .reduce((sum, s) => sum + (s.cost ?? 0), 0);
+  const parts = [
+    ordinary > 0 ? `${ordinary} Technology Point${ordinary === 1 ? '' : 's'}` : '',
+    ancient > 0 ? `${ancient} Ancient Technology Point${ancient === 1 ? '' : 's'}` : '',
+  ].filter(Boolean);
+  if (!parts.length) return null;
+  return (
+    <div style={{ marginTop: 2 }}>
+      The whole chain: {parts.join(' and ')}.
     </div>
   );
 }
