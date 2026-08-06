@@ -243,22 +243,50 @@ export default function Home() {
     //
     // On return the data is refreshed immediately rather than waiting out the
     // remaining interval, so coming back to the tab never shows a stale reading.
+    // **The catch-up is per-poller and it was live-only.** Save-derived data —
+    // bases and guilds — sat out the remainder of its 120s interval on return,
+    // so a tab picked up 119 seconds in showed a reading from two minutes ago
+    // for another two minutes. The live half refreshed instantly beside it,
+    // which makes the stale half read as broken rather than as merely late.
+    //
+    // Keyed on when each poller last actually ran, so a return fires exactly the
+    // ticks that were skipped and never more: focusing a tab four times in a
+    // minute is one live poll per five seconds, not four extra rounds of both.
+    const LIVE_MS = 5000;
+    const SAVE_MS = 120000;
     const hidden = () => typeof document !== 'undefined' && document.hidden;
+    let lastLive = Date.now();
+    let lastSave = Date.now();
+
     const liveTick = () => {
-      if (!hidden()) pollLive();
+      if (hidden()) return;
+      lastLive = Date.now();
+      pollLive();
     };
     const saveTick = () => {
-      if (!hidden()) pollSave();
+      if (hidden()) return;
+      lastSave = Date.now();
+      pollSave();
     };
     const onVisible = () => {
-      if (!hidden()) pollLive();
+      if (hidden()) return;
+      if (Date.now() - lastLive >= LIVE_MS) liveTick();
+      if (Date.now() - lastSave >= SAVE_MS) saveTick();
     };
 
+    // `focus` as well as `visibilitychange`, because they answer different
+    // questions: visibilitychange fires on switching tabs inside the browser,
+    // focus on switching to the browser from another application. Coming back
+    // from the game itself is the second, and on several browsers it does not
+    // fire the first — so a player alt-tabbing out of Palworld saw the stale
+    // dashboard the guard was supposed to have refreshed.
     document.addEventListener('visibilitychange', onVisible);
-    const live = setInterval(liveTick, 5000);
-    const save = setInterval(saveTick, 120000);
+    window.addEventListener('focus', onVisible);
+    const live = setInterval(liveTick, LIVE_MS);
+    const save = setInterval(saveTick, SAVE_MS);
     return () => {
       document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', onVisible);
       clearInterval(live);
       clearInterval(save);
     };

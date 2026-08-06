@@ -36,8 +36,24 @@ export default function ServerSettings() {
         .then((h) => setLifecycle(h.lifecycle ?? null))
         .catch(() => undefined);
     tick();
-    const id = setInterval(tick, 10000);
-    return () => clearInterval(id);
+
+    // Same guard as the dashboard's own pollers: nothing probes while the tab
+    // is hidden, and returning to it refreshes immediately rather than waiting
+    // out the interval. That second half matters more here than anywhere else —
+    // this is the "did the server come back?" banner, and the moment somebody
+    // looks is exactly the moment they want the answer.
+    const hidden = () => typeof document !== 'undefined' && document.hidden;
+    const guarded = () => {
+      if (!hidden()) tick();
+    };
+    document.addEventListener('visibilitychange', guarded);
+    window.addEventListener('focus', guarded);
+    const id = setInterval(guarded, 10000);
+    return () => {
+      document.removeEventListener('visibilitychange', guarded);
+      window.removeEventListener('focus', guarded);
+      clearInterval(id);
+    };
   }, []);
 
   const load = useCallback(async () => {
