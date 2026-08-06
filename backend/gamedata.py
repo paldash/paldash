@@ -779,6 +779,11 @@ def base_worker_cap(level: int) -> Optional[int]:
 # see `server_limit`.
 WORKER_CAP_SETTING = "BaseCampWorkerMaxNum"
 BASES_PER_GUILD_SETTING = "BaseCampMaxNumInGuild"
+# **A guild's member cap is a SETTING, not a game constraint.** It reads like a
+# rule of the game and is not: `GuildPlayerMaxNum` sits in the INI beside the
+# base and worker caps, so an operator can run guilds of 4 or 100 and no bundled
+# table bounds it. Same authority rule as the two above.
+GUILD_MEMBER_CAP_SETTING = "GuildPlayerMaxNum"
 BASES_TOTAL_SETTING = "BaseCampMaxNum"
 
 
@@ -827,6 +832,21 @@ def server_worker_cap() -> Optional[int]:
 def server_bases_per_guild() -> Optional[int]:
     """How many bases a guild may build on **this** server."""
     return server_limit(BASES_PER_GUILD_SETTING)
+
+
+def server_guild_member_cap() -> Optional[int]:
+    """
+    How many players a guild may hold on **this** server.
+
+    `GuildPlayerMaxNum`, and it belongs here rather than anywhere near the
+    bundled data: it is the operator's number. The game's own difficulty presets
+    all ship 20, which makes 20 look like a rule and is only a default.
+
+    `None` means not known — the usual case, since most deployments mount only
+    the save path — and a caller must then show no denominator rather than a
+    guessed one.
+    """
+    return server_limit(GUILD_MEMBER_CAP_SETTING)
 
 
 def illness(sick_id: str) -> Optional[dict[str, Any]]:
