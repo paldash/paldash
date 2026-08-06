@@ -285,6 +285,63 @@ def test_nothing_here_claims_a_mutation_mechanic():
     assert "no game file says" in egg["note"].lower()
 
 
+# ─── Reloading the bundles ───────────────────────────────
+
+
+def test_a_pack_reload_drops_this_modules_derived_caches():
+    """
+    **`gamedata.reload()` is not enough, and the gap is silent.**
+
+    The caches here hold *derivations* of the bundles rather than copies:
+    `_named_pairings` folds `moves.json.gz` into a child-keyed map. Drop
+    gamedata's caches alone and `gamedata.unique_combos()` returns the new file
+    while this returns the old shape of it — and `viewcache`, keyed on file
+    mtime, then rebuilds the limits view from stale input. A rebuild that
+    produces the old answer is worse than no rebuild, because it looks current.
+
+    `reset_caches` cannot live in `gamedata.reload()`: `breeding` imports
+    `gamedata`, so the dependency runs one way only and the route calls both.
+    """
+    # Warm everything, including the module globals the lru_caches do not cover.
+    before = breeding.unbreedable()
+    breeding.gendered_outcomes("CatMage", "FoxMage")
+    breeding.canonical_species("sheepball")
+    assert breeding._named_pairings.cache_info().currsize == 1
+    assert breeding._gendered is not None
+    assert breeding._pal_index is not None
+
+    breeding.reset_caches()
+    gamedata._reset_cache()
+
+    assert breeding._named_pairings.cache_info().currsize == 0
+    assert breeding._breeding.cache_info().currsize == 0
+    assert breeding._db.cache_info().currsize == 0
+    assert breeding._gendered is None
+    assert breeding._pal_index is None
+
+    # And it rebuilds to the same answer rather than to nothing.
+    assert breeding.unbreedable() == before
+
+
+def test_the_reload_route_calls_it(client, monkeypatch):
+    """
+    The wiring, not just the function. A `reset_caches` nothing calls is the
+    same bug with an extra step.
+    """
+    called: list[bool] = []
+    monkeypatch.setattr(breeding, "reset_caches", lambda: called.append(True))
+
+    accounts.create_user("owner1", PASSWORD, role="owner")
+    token = client.post(
+        "/api/auth/login", json={"username": "owner1", "password": PASSWORD}
+    ).json()["token"]
+    res = client.post(
+        "/api/world/packs/reload", headers={"X-Session-Token": token}
+    )
+    assert res.status_code == 200, res.text
+    assert called == [True]
+
+
 # ─── The route, and both of its gates ────────────────────
 
 
