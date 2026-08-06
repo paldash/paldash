@@ -91,6 +91,32 @@ const MARKER_SCALE = 1.6;
 const px = (size: number) => Math.round(size * MARKER_SCALE);
 
 /**
+ * Relic kind -> the Pal's own artwork.
+ *
+ * **A NAMED join, not a positional one.** Nine of the eleven relic kinds carry a
+ * species in the class name — `BP_LevelObject_Relic_Penguin` is Penguin — and
+ * all nine resolve in the bundled Pal data, which is what makes this safe.
+ * `T_itemicon_Relic_01..13` also ships, and mapping those numbers to species
+ * would have been exactly the unverifiable positional guess this project refuses
+ * elsewhere.
+ *
+ * The two generic kinds are deliberately absent: `BP_LevelObject_Relic` (89 of
+ * 396) and `BP_RelicObject` (66) name no species, so they keep the triangle.
+ * A wrong Pal on a marker is worse than a shape.
+ */
+const RELIC_ART: Record<string, string> = {
+  BP_LevelObject_Relic_Penguin: '/icons/pals/T_Penguin_icon_normal.webp',
+  BP_LevelObject_Relic_Monkey: '/icons/pals/T_Monkey_icon_normal.webp',
+  BP_LevelObject_Relic_NegativeKoala: '/icons/pals/T_NegativeKoala_icon_normal.webp',
+  BP_LevelObject_Relic_IceCrocodile: '/icons/pals/T_IceCrocodile_icon_normal.webp',
+  BP_LevelObject_Relic_SheepBall: '/icons/pals/T_SheepBall_icon_normal.webp',
+  BP_LevelObject_Relic_LeafMomonga: '/icons/pals/T_LeafMomonga_icon_normal.webp',
+  BP_LevelObject_Relic_FlameBambi: '/icons/pals/T_FlameBambi_icon_normal.webp',
+  BP_LevelObject_Relic_PinkCat: '/icons/pals/T_PinkCat_icon_normal.webp',
+  BP_LevelObject_Relic_GuardianDog: '/icons/pals/T_GuardianDog_icon_normal.webp',
+};
+
+/**
  * Marker styling per category. Muted and consistent — the map should read as
  * data, not decoration.
  */
@@ -796,6 +822,7 @@ export default function MapInner({
              <div style="font-size:11px;color:#6d747e;margin-top:4px">${c.x}, ${c.y}</div>
            </div>`;
         })
+        .bindTooltip(npc.name, { direction: 'top', offset: [0, -4] })
         .addTo(group);
     }
   }, [npcs, layers, region]);
@@ -848,7 +875,15 @@ export default function MapInner({
           html:
             `<div class="fasttravel-marker-icon is-${kind}" style="` +
             `${artStyle(kind === 'tower' ? PIN.tower : PIN.fastTravel)}` +
-            `${found ? '' : ';opacity:.4;filter:grayscale(1)'}"></div>`,
+            // **DIMMING THE UNDISCOVERED ONES WAS BACKWARDS.** They were drawn
+            // at 40% opacity and fully greyscaled — at 16px on a satellite
+            // image that is invisible, so "29 fast-travel points left" was a
+            // number with nothing on the map to match it. And in completion
+            // mode they are the ONLY things drawn, so the whole layer faded.
+            //
+            // What is left is the thing being hunted for, so it is now the
+            // prominent one; a found point is what gets dimmed.
+            `${found ? ';opacity:.55' : ''}"></div>`,
           iconSize: kind === 'tower' ? [22, 22] : [16, 16],
           iconAnchor: kind === 'tower' ? [11, 11] : [8, 8],
         }),
@@ -864,6 +899,10 @@ export default function MapInner({
              </div>
              <div style="font-size:11px;color:#6d747e;margin-top:4px">${coords.x}, ${coords.y}</div>
            </div>`
+        )
+        .bindTooltip(
+          `${point.name ?? label}${found ? '' : ' \u2014 not found'}`,
+          { direction: 'top', offset: [0, -6] }
         )
         .addTo(group);
     }
@@ -912,21 +951,43 @@ export default function MapInner({
       // shade of purple, which made a 396-marker layer unreadable and the
       // per-kind swatches a promise the map did not keep.
       //
-      // A collected one is green regardless of kind: on a collectathon map
-      // "done" outranks "which" — that is the distinction being hunted for.
-      const color = found === true ? '#4d9e75' : kindColor(kind, '#8d84c7');
+      // **THE HASHED KIND COLOUR COLLIDED WITH THE COLLECTED GREEN.**
+      // `kindColor` hashes at 45% saturation and 62% lightness, and the eleven
+      // relic kinds land on hues 5, 70, 121, 144, 187, 197, 210, 219, 270, 276
+      // and 288 — so 216 of 396 are muted blue-purples nobody can tell apart,
+      // and `LeafMomonga` (144) plus `GuardianDog` (121) are GREEN, the colour
+      // that means "collected". A green triangle meant either "you have this"
+      // or "it is a Momonga relic", with no way to tell.
+      //
+      // Kind is carried by ARTWORK now and collection state by colour, so the
+      // two cannot compete. Nine of the eleven kinds name a Pal and resolve to
+      // its own icon — a named join, not the positional one that mapping
+      // `T_itemicon_Relic_0N` would have required.
+      const color = found === true ? '#4d9e75' : '#8d84c7';
+      const art = RELIC_ART[kind];
       // **Triangle, because that is what the panel shows.** `SHAPES.effigies`
       // has said `triangle` all along while this drew a `circleMarker`, so the
       // filter's swatch and the marker beside it were different shapes for the
       // same thing.
       const shape = markerShape('effigies');
 
+      // Artwork where the relic names a Pal; the shape otherwise. The two
+      // generic kinds — `BP_LevelObject_Relic` (89) and `BP_RelicObject` (66) —
+      // name no species, and inventing one for them would be worse than a
+      // triangle.
+      const iconSize = art ? size + 8 : size;
       L.marker(worldToMap(point.x, point.y, region), {
         icon: L.divIcon({
           className: 'shape-marker',
-          html: shapeSvg(shape, size, color),
-          iconSize: [size, size],
-          iconAnchor: [size / 2, size / 2],
+          html: art
+            ? `<div style="width:${iconSize}px;height:${iconSize}px;` +
+              `background:url('${art}') center/contain no-repeat;` +
+              `border-radius:50%;box-shadow:0 0 0 2px ${color},0 0 3px rgba(0,0,0,.7);` +
+              `background-color:rgba(20,22,26,.85)` +
+              `${found === true ? ';opacity:.5' : ''}"></div>`
+            : shapeSvg(shape, size, color),
+          iconSize: [iconSize, iconSize],
+          iconAnchor: [iconSize / 2, iconSize / 2],
         }),
         // Uncollected ones are what the layer is for, so they sit on top.
         zIndexOffset: found === true ? 0 : 40,
@@ -940,6 +1001,14 @@ export default function MapInner({
              </div>
              <div style="font-size:11px;color:#6d747e;margin-top:4px">${coords.x}, ${coords.y}</div>
            </div>`
+        )
+        // **A POPUP OPENS ON CLICK.** There were eleven `bindPopup` calls on
+        // this map and no tooltips at all, so hovering any marker anywhere did
+        // nothing — which reads as a marker that carries no information rather
+        // than one you have not clicked.
+        .bindTooltip(
+          `${point.kindName || 'Effigy'}${found === true ? ' \u2713' : ''}`,
+          { direction: 'top', offset: [0, -4] }
         )
         .addTo(group);
     }
