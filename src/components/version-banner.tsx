@@ -28,9 +28,14 @@ import { RefreshCw } from 'lucide-react';
  * warnings become one ignored one.
  */
 
-// Slow on purpose. The answer only changes on a deploy, and this runs in every
-// open tab of every signed-in user.
+// Slow on purpose, and it is the FALLBACK rather than the mechanism. The answer
+// only changes on a deploy, this runs in every open tab of every signed-in user,
+// and the two checks below cover the moment anyone actually cares.
 const POLL_MS = 5 * 60 * 1000;
+
+// Focus and visibility fire together when a window is raised, and a browser
+// waking a throttled tab can fire both again. One probe is enough.
+const MIN_GAP_MS = 3000;
 
 export default function VersionBanner() {
   const running = process.env.NEXT_PUBLIC_BUILD_ID;
@@ -40,7 +45,9 @@ export default function VersionBanner() {
     if (!running || running === 'unknown') return;
 
     let cancelled = false;
+    let lastCheck = 0;
     const check = async () => {
+      lastCheck = Date.now();
       try {
         const res = await fetch('/api/version', { cache: 'no-store' });
         if (!res.ok) return;
@@ -56,10 +63,35 @@ export default function VersionBanner() {
     };
 
     void check();
-    const timer = setInterval(check, POLL_MS);
+
+    // **THE POLL WAS NEVER THE ANSWER TO "I JUST REBUILT".** Nothing can tell an
+    // open tab that a deploy happened — there is no push channel here — so the
+    // tab has to ask, and the only question is when. Waiting out an interval is
+    // the worst available answer for the one person who knows a deploy just
+    // happened: they are alt-tabbing back from the terminal that did it.
+    //
+    // So the real trigger is coming back to the tab. It costs one request at the
+    // exact moment somebody is about to look, and nothing at all while the tab
+    // sits on a second monitor — which is most of this audience most of the time.
+    const recheck = () => {
+      if (document.visibilityState !== 'visible') return;
+      if (Date.now() - lastCheck < MIN_GAP_MS) return;
+      void check();
+    };
+    document.addEventListener('visibilitychange', recheck);
+    window.addEventListener('focus', recheck);
+
+    // Both, because they answer different questions: `visibilitychange` fires on
+    // switching tabs within the browser, `focus` on switching to the browser
+    // from another application. Alt-tabbing from a terminal is the second one,
+    // and on several browsers it does not fire the first.
+
+    const timer = setInterval(recheck, POLL_MS);
     return () => {
       cancelled = true;
       clearInterval(timer);
+      document.removeEventListener('visibilitychange', recheck);
+      window.removeEventListener('focus', recheck);
     };
   }, [running]);
 
