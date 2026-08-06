@@ -904,11 +904,11 @@ leaves unnamed indices alone, so a partial document is a first-class thing: an
 unrecognised item elsewhere in the chest cannot block an edit that never touched
 it, and a stale view of the rest cannot revert someone else's change.
 
-## The pairing rule is derived, and an element variant is NOT a breeding outcome
+## The pairing rule is derived, and a variant is never a FALLBACK outcome
 
 `scripts/verify-breeding.py`. `backend/breeding.py` ships a precomputed 46,655
 pair table from the MIT-licensed tylercamp/palcalc. The game's own rule is now
-re-derived from the server pak and agrees with it on **99.72%**:
+re-derived from the server pak and agrees with it on **96.92%**:
 
 1. `DT_PalCombiUnique` wins outright — 256 pairs keyed on *tribe*.
 2. Otherwise `target = floor((rankA + rankB + 1) / 2)` over `CombiRank`, and the
@@ -924,25 +924,42 @@ was never the problem. Every pool criterion is a column the game ships:
 
     IgnoreCombi == False        breeds at all (226 of 753 say no)
     ZukanIndex > 0              Paldeck-listed; -2 gym, -1 unreleased
-    ZukanIndexSuffix != "B"     not a mutant-egg variant  <- the one that mattered
+    ZukanIndexSuffix != "B"     not an element variant  <- the one that mattered
     OverrideNameTextID == None  not an alias of another entry
 
-**Element variants hatch from MUTATED EGGS, not from a pairing.** Kelpie Ignis,
-Cryolinx Terra, the `_Ice`/`_Fire`/`_Gold` forms — the game ships six
-`PalEgg_MutationPal*` items whose own description reads *"extremely rarely
-obtained, having undergone a special mutation"*, and `BP_PalGameSetting` names
-`PalEggMapObjectId_Mutation`. A rule that can produce one hands a player a
-breeding target no pairing will ever reach. Excluding them alone is **70.6% ->
-92.5%**.
+### "AN ELEMENT VARIANT IS NOT A BREEDING OUTCOME" WAS WRONG
 
-The marker is the game's own: `ZukanIndexSuffix == "B"`, exactly 90 of 753 forms
-— the `B` a player already reads on Paldeck entry #98B. A hand-written
-`_(Ice|Fire|Water|…)` regex finds 80 of them and **misses `_Gold`**.
+**This section was titled that, said it in capitals, and the game's own ground
+truth contradicts it outright.** Corrected the same day, 2026-08-05.
+`DT_PalCombiUnique` names an element variant as the child in **159 of its 256
+tribe pairs — 81 distinct variants** — and 86 variant species appear in it as
+*parents*. Mossanda Lux is Mossanda x Grizzbolt and always was. What the filter
+actually encodes is narrower, and better in both directions:
+
+> The **rank fallback** never produces a variant. A variant comes only from a
+> pairing the game names outright.
+
+Better because it is read off ground truth rather than inferred from an item
+description, and because it lets the dashboard tell a player *which* pairing
+rather than only that a generic rule will not get there. Excluding variants from
+the fallback is still worth **70.66% -> 96.92%** and is not in doubt.
+
+**How the wrong version survived a run that looked clean, which is the part to
+learn from.** The comparison *skipped every pair whose palcalc child was a
+variant* — 1,459 of them, reported in the output as "species with no CombiRank",
+which only 303 of them were. That skip discarded 1,300 disagreements and 159
+agreements, and **99.72% was what was left of 96.92%**. Excluding a case from
+the measurement because the rule excludes it from the answer is circular. A
+skip whose printed label does not match its condition is how it stays invisible.
+
+The marker itself is unchanged and still the game's own: `ZukanIndexSuffix ==
+"B"`, exactly 90 of 753 forms — the `B` a player already reads on Paldeck entry
+#98B. A hand-written `_(Ice|Fire|Water|…)` regex finds 80 and **misses `_Gold`**.
 
 `OverrideNameTextID` is worth its own line. `Quest_Farmer03_SheepBall` is
 byte-identical to `SheepBall` on every breeding column — same rank, same
 priority, same zukan, same tribe — and differs *only* in borrowing its name. It
-was stealing SheepBall's results 30 times. That filter is **92.5% -> 99.72%**.
+was stealing SheepBall's results 30 times.
 
 **The check is membership, not size.** This script already carries a retraction
 for claiming "the species set agrees — 299" from a count, so the assertion is
@@ -953,13 +970,32 @@ palcalc's *list* is its parent set and legitimately holds variants and quest
 forms, while its *child* set is narrower. Substituting one for the other tested
 the wrong thing while looking like it had ruled the pool out.
 
-**126 pairs remain open and are not tuned away.** 124 are `WhiteDeer` (Cryolinx,
-rank 570), which this rule offers for any target in 565-575 while palcalc offers
-it for 2 pairs in the whole table. Nothing in `DT_PalMonsterParameter`
-distinguishes it. palcalc is **not** ground truth — `DT_PalCombiUnique` is, and
-both pass it 253 of 253 — so with no game column separating the answers,
-inventing a filter that happens to exclude one species would be fitting the
-method to the answer. It needs somebody to breed a 565-575 pair and look.
+### 1,427 pairs remain open, with exactly two causes and no scatter
+
+**1,300 are three species: the three variants the game names no pairing for.**
+Of the 90 variants, 87 are accounted for — 81 named as a unique-combo child, 6
+quest/tower/oilrig/unreleased forms carrying `IgnoreCombi = True`. These three
+are Paldeck-listed, `IgnoreCombi = False`, and appear in no unique combo at all:
+
+| Species | Paldeck | Disagreeing pairs |
+|---|---:|---:|
+| `Kelpie_Fire` — Kelpsea Ignis | 43 | 207 |
+| `MushroomDragon_Dark` — Shroomer Noct | 118 | 505 |
+| `Yeti_Grass` — Wumpo Botan | 134 | 588 |
+
+palcalc puts exactly those three, and no other variant, into its rank pool —
+which is a deliberate choice by somebody rather than an accident, and is why its
+child set is 81 + 3 = 84. **No column in `DT_PalMonsterParameter` separates them
+from the other 76 breedable variants**; checked column by column, there is none.
+
+**126 are `WhiteDeer`** (Cryolinx, rank 570), which this rule offers for any
+target in 565-575 while palcalc offers it for 2 pairs in the whole table.
+Nothing distinguishes it either.
+
+palcalc is **not** ground truth — `DT_PalCombiUnique` is, and both pass it 253 of
+253 — so with no game column separating the answers, inventing a filter that
+happens to exclude one species would be fitting the method to the answer. Both
+need somebody to breed one and look at the egg.
 
 `breeding.py` still ships palcalc's table. Nothing is replaced on the strength
 of this; the diff is the deliverable.
