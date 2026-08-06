@@ -6,7 +6,7 @@ import { useDashboardStore } from '@/lib/store';
 import { formatCoords, getRegion, MAP_REGIONS, type MapRegion } from '@/lib/map-coordinates';
 import {
   getMapObjects, getFastTravelPoints, getDiscoveries, getEffigyPoints,
-  getStaticWorldObjects, getStaticWorldSummary, getBossSpawners,
+  getStaticWorldObjects, getStaticWorldSummary, getBossSpawners, getNpcPlacements,
   type BossSpawner,
 } from '@/lib/save-api';
 import { Crosshair, RefreshCw, Search, Info } from 'lucide-react';
@@ -14,7 +14,7 @@ import dynamic from 'next/dynamic';
 import BuildBanner from './build-banner';
 import type {
   MapObject, FastTravelPoint, Discoveries, DiscoveryPoint,
-  StaticWorldObject, StaticWorldSummary,
+  StaticWorldObject, StaticWorldSummary, NpcPlacement,
 } from '@/lib/types';
 
 const MapComponent = dynamic(() => import('./map-inner'), { ssr: false });
@@ -26,7 +26,7 @@ const MapComponent = dynamic(() => import('./map-inner'), { ssr: false });
  * statues are static level actors, so their positions ship with the dashboard as
  * bundled game data. Everything else is read out of the world.
  */
-const LAYERS: { id: string; label: string; color: string; group: 'live' | 'discovery' | 'world' | 'static' | 'base' }[] = [
+const LAYERS: { id: string; label: string; color: string; group: 'live' | 'discovery' | 'world' | 'static' | 'npc' | 'base' }[] = [
   { id: 'players', label: 'Players', color: '#5b9dd9', group: 'live' },
   { id: 'bases', label: 'Bases', color: '#c9973f', group: 'live' },
 
@@ -60,7 +60,21 @@ const LAYERS: { id: string; label: string; color: string; group: 'live' | 'disco
   // withholds still gets no toggle — `visibleStaticIds` filters this list.
   { id: 'static:dungeon', label: 'Dungeons', color: '#9a6fb0', group: 'static' },
   { id: 'static:palspawner', label: 'Pal spawns', color: '#7fa05b', group: 'static' },
-  { id: 'static:npc', label: 'NPCs & camps', color: '#c9a227', group: 'static' },
+  // NAMED NPC LAYERS, one per role. These replace the anonymous
+  // `static:npc` toggle: 141 of those 220 points were the generic class
+  // `BP_MonoNPCSpawner`, so the layer could say "someone stands here" and never
+  // who. A spawner actor's tagged properties are readable in the server pak, so
+  // it now says "Black Marketeer, level 45".
+  //
+  // The role split is a NAME RULE — no game table carries a role — and it fails
+  // safe: anything unrecognised lands in "Other NPCs".
+  { id: 'npc:merchant', label: 'Merchants & traders', color: '#e0c060', group: 'npc' },
+  { id: 'npc:villager', label: 'Villagers', color: '#7fa05b', group: 'npc' },
+  { id: 'npc:police', label: 'PIDF & law', color: '#5b9dd9', group: 'npc' },
+  { id: 'npc:hunter', label: 'Hunters & raiders', color: '#d4574e', group: 'npc' },
+  { id: 'npc:scholar', label: 'Scholars & specialists', color: '#9a6fb0', group: 'npc' },
+  { id: 'npc:quest', label: 'Quest & event NPCs', color: '#d98cc4', group: 'npc' },
+  { id: 'npc:npc', label: 'Other NPCs', color: '#c9a227', group: 'npc' },
   // The alpha Pals that drop Ancient Technology Points. 99 in the world, named
   // and drawn with the Pal's own artwork — they were previously indistinguishable
   // from the other 13,851 spawn points.
@@ -99,6 +113,7 @@ export default function InteractiveMap() {
   const [discoveries, setDiscoveries] = useState<Discoveries | null>(null);
   const [effigies, setEffigies] = useState<DiscoveryPoint[]>([]);
   const [bosses, setBosses] = useState<BossSpawner[]>([]);
+  const [npcs, setNpcs] = useState<NpcPlacement[]>([]);
   const [discoveryError, setDiscoveryError] = useState<string | null>(null);
   const [region, setRegion] = useState<MapRegion>('palpagos');
   const [query, setQuery] = useState('');
@@ -193,7 +208,7 @@ export default function InteractiveMap() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [objects, points, found, relics, fieldBosses] = await Promise.allSettled([
+    const [objects, points, found, relics, fieldBosses, people] = await Promise.allSettled([
       getMapObjects(),
       getFastTravelPoints(),
       // Discoveries may legitimately fail — a guest has no character, and the
@@ -208,12 +223,17 @@ export default function InteractiveMap() {
       // state, so it neither needs nor has a fallback — it either loads or the
       // toggle draws nothing, which the empty-layer note below already covers.
       getBossSpawners(),
+      // Independent again, and settled rather than caught: an empty NPC list is
+      // a legitimate answer, so a `.catch(() => [])` would hide a failed fetch
+      // behind one.
+      getNpcPlacements(),
     ]);
     setMapObjects(objects.status === 'fulfilled' ? objects.value : []);
     setFastTravel(points.status === 'fulfilled' ? points.value : []);
     setDiscoveries(found.status === 'fulfilled' ? found.value : null);
     setEffigies(relics.status === 'fulfilled' ? relics.value : []);
     setBosses(fieldBosses.status === 'fulfilled' ? fieldBosses.value : []);
+    setNpcs(people.status === 'fulfilled' ? people.value.placements : []);
     // A layer that is switched on and empty is indistinguishable from a layer
     // that failed to load, which is how "effigies not showing" went undiagnosed.
     // Only reported when the fallback failed too — one endpoint being down while
@@ -598,6 +618,7 @@ export default function InteractiveMap() {
           discoveries={discoveries}
           effigies={effigies}
           bosses={bosses}
+          npcs={npcs}
           hideCollected={hideCollected}
           staticObjects={staticObjects}
           layers={mapLayers}

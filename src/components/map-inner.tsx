@@ -15,7 +15,7 @@ import {
 } from '@/lib/map-coordinates';
 import type {
   Discoveries, DiscoveryPoint, Player, BaseCamp, MapObject, FastTravelPoint,
-  StaticWorldObject } from '@/lib/types';
+  StaticWorldObject, NpcPlacement } from '@/lib/types';
 import type { BossSpawner } from '@/lib/save-api';
 
 interface Props {
@@ -49,6 +49,8 @@ interface Props {
   hideCollected: boolean;
   /** Static pak-derived objects for the current viewport. Fetched by the parent. */
   staticObjects: StaticWorldObject[];
+  /** Named NPC spawn points, one layer per role. Bundled, not viewport-fetched. */
+  npcs: NpcPlacement[];
   layers: Record<string, boolean>;
   /**
    * Per-category kind exclusions, for the save-derived POI layer.
@@ -318,6 +320,30 @@ const PIN_SOURCES = Object.values(PIN);
  * `CATEGORY_STYLE`: there are an order of magnitude more of these, and they are
  * terrain features rather than anything anyone owns.
  */
+// Colour and label per NPC role. Kept beside the marker code rather than taken
+// from the payload's `roles` map, because these have to agree with the layer
+// switches in `interactive-map.tsx` — one list the user toggles and a different
+// one the map draws is how a legend stops meaning anything.
+const NPC_ROLE_COLOR: Record<string, string> = {
+  merchant: '#e0c060',
+  villager: '#7fa05b',
+  police: '#5b9dd9',
+  hunter: '#d4574e',
+  scholar: '#9a6fb0',
+  quest: '#d98cc4',
+  npc: '#c9a227',
+};
+
+const NPC_ROLE_LABEL: Record<string, string> = {
+  merchant: 'Merchant',
+  villager: 'Villager',
+  police: 'PIDF',
+  hunter: 'Hunter / raider',
+  scholar: 'Scholar',
+  quest: 'Quest / event',
+  npc: 'NPC',
+};
+
 const STATIC_STYLE: Record<string, { color: string; size: number; label: string }> = {
   ore:      { color: '#8a8378', size: px(4), label: 'Ore / mineral node' },
   treasure: { color: '#c9973f', size: px(5), label: 'Treasure chest' },
@@ -356,6 +382,7 @@ export default function MapInner({
   bosses,
   hideCollected,
   staticObjects,
+  npcs,
   layers,
   kindsOff,
   region,
@@ -373,6 +400,7 @@ export default function MapInner({
   const travelLayer = useRef<L.LayerGroup>(L.layerGroup());
   const effigyLayer = useRef<L.LayerGroup>(L.layerGroup());
   const bossLayer = useRef<L.LayerGroup>(L.layerGroup());
+  const npcLayer = useRef<L.LayerGroup>(L.layerGroup());
   const baseLayer = useRef<L.LayerGroup>(L.layerGroup());
   const playerLayer = useRef<L.LayerGroup>(L.layerGroup());
 
@@ -436,6 +464,7 @@ export default function MapInner({
     // Static objects sit under everything else: there are far more of them than
     // anything player-owned, and a base marker buried under ore is useless.
     staticLayer.current.addTo(map);
+    npcLayer.current.addTo(map);
     poiLayer.current.addTo(map);
     travelLayer.current.addTo(map);
     effigyLayer.current.addTo(map);
@@ -721,6 +750,55 @@ export default function MapInner({
         .addTo(group);
     }
   }, [staticObjects, layers, region, artSettled]);
+
+  // ─── Named NPCs, one layer per role ─────────────────────
+  //
+  // These were the anonymous half of the static layer until a spawner actor's
+  // tagged properties turned out to be readable in the server pak. 438 markers
+  // is well inside what DOM markers handle — the count that rules them out for
+  // ore (24,359) and Pal spawners (13,752) is two orders of magnitude larger —
+  // and a name is the entire point of this layer, so a canvas dot would defeat
+  // it.
+  useEffect(() => {
+    const group = npcLayer.current;
+    group.clearLayers();
+
+    const transform = getRegion(region);
+    for (const npc of npcs) {
+      if (!layers[`npc:${npc.role}`]) continue;
+      if (!transform.contains(npc.x, npc.y)) continue;
+
+      const color = NPC_ROLE_COLOR[npc.role] ?? '#c9a227';
+      L.marker(worldToMap(npc.x, npc.y, region), {
+        icon: L.divIcon({
+          className: 'shape-marker',
+          html: shapeSvg('diamond', 9, color),
+          iconSize: [9, 9],
+          iconAnchor: [4.5, 4.5],
+        }),
+        zIndexOffset: 600,
+      })
+        .bindPopup(() => {
+          const c = worldToGameMap(npc.x, npc.y);
+          // `nameIsInternal` is the game never having named this NPC, which is
+          // different from this code failing to resolve one — so it is shown as
+          // a caveat rather than hidden behind a plausible-looking label.
+          const caveat = npc.nameIsInternal
+            ? '<div style="font-size:11px;color:#6d747e">Internal id — the game does not name this one</div>'
+            : '';
+          const level = npc.level
+            ? `<div style="font-size:12px;color:#a1a7b0">Level ${npc.level}</div>`
+            : '';
+          return `<div style="min-width:170px">
+             <div style="font-weight:600;margin-bottom:3px">${escapeHtml(npc.name)}</div>
+             <div style="font-size:12px;color:${color}">${escapeHtml(NPC_ROLE_LABEL[npc.role] ?? 'NPC')}</div>
+             ${level}${caveat}
+             <div style="font-size:11px;color:#6d747e;margin-top:4px">${c.x}, ${c.y}</div>
+           </div>`;
+        })
+        .addTo(group);
+    }
+  }, [npcs, layers, region]);
 
   // ─── Fast travel (bundled game data, not from the save) ──
   //

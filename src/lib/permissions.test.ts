@@ -113,6 +113,8 @@ describe('describeSavePath', () => {
       // which reads as broken rather than as policy.
       ['progress', 'GET', CAPABILITIES.VIEW_SELF],
       ['progress/detail', 'GET', CAPABILITIES.VIEW_SELF],
+      // Placed NPCs sit with the other pak-derived map layers.
+      ['world/npcs', 'GET', CAPABILITIES.VIEW_BASIC],
     ])('%s %s needs %s', (path, method, capability) => {
       const verdict = describeSavePath(path, method);
       expect(verdict.allowed).toBe(true);
