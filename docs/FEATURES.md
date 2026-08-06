@@ -18,7 +18,9 @@ Legend: ✅ works · 🟡 works with a caveat · 🔴 not built · ⚪ out of sc
 | Live server status | ✅ | REST API + TCP + save-mtime + process scan |
 | Player count / online list | ✅ | via Palworld REST API |
 | Server settings viewer & editor | ✅ | `PalWorldSettings.ini`, CRLF-preserving |
-| Settings presets | ✅ | **Phase 9.** `boosted`, `small_server`, `hardcore` and a derived `vanilla` reset, all checked against `DefaultPalWorldSettings.ini`'s 119 keys rather than against memory |
+| Settings presets | ✅ | **Phase 9.** `boosted`, `small_server`, `punishing` and a derived `vanilla` reset, all checked against `DefaultPalWorldSettings.ini`'s 119 keys rather than against memory |
+| The game's own difficulties | ✅ | Easy / Hard / Hardcore from `DT_OptionWorldPresetTable`, offered beside the hand-made ones and labelled *from the game*. Only keys that differ from the game's Normal are written |
+| Preset cross-check | ✅ | **It found a bug.** The hand-made `hardcore` agreed with the game's on three rates and omitted `bHardcore` and `bPalLost` — player permadeath and Pal loss. Renamed to "Punishing" rather than silently gaining permadeath |
 | Announce & graceful shutdown | ✅ | **Phase 8**, audited. Needs no container control — the game stops its own process |
 | Start / stop / restart container | 🟡 | Backend logic works. The `docker` binary is **not in the runtime image**, so a `docker …` command fails; `docs/DEPLOYMENT.md` §4 has working `node`-based commands. Left unconfigured by choice — manual `docker compose stop` works and the UI says so |
 | CPU / RAM / disk history | ✅ | **Phase 8**, 60s samples kept 30 days; outages drawn as gaps, not zeroes |

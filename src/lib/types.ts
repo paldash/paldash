@@ -1166,6 +1166,12 @@ export interface SettingsPreset {
   label: string;
   description: string;
   changes: Record<string, string | number | boolean>;
+  /**
+   * `game` for Palworld's own difficulty presets, `dashboard` for the
+   * hand-made ones. Shown because an operator choosing between "Hardcore" and
+   * "Punishing" deserves to know which one Pocketpair wrote.
+   */
+  source?: string;
 }
 
 // ─── Breeding ───────────────────────────────────────────
