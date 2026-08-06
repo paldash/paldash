@@ -2828,6 +2828,34 @@ def breeding_odds(request: Request) -> dict:
         raise HTTPException(503, str(e))
 
 
+@app.get("/api/breeding/limits")
+def breeding_limits(request: Request) -> dict:
+    """
+    What breeding cannot reach, and why — reference data, no world needed.
+
+    Split from the planner deliberately. "Not reachable from your Pals" is an
+    answer about a palbox and changes with it; "the game names no pairing for
+    this" is a fact about Palworld and does not. Serving them from one route
+    would make the second look like it depended on the first.
+
+    Cached on the bundles rather than the world for the same reason: nothing
+    here reads a save. **Both** bundles, because the answer joins the breeding
+    columns in `gamedata.json.gz` to the unique combos in `moves.json.gz` —
+    keying on either alone serves a stale answer when the other is replaced.
+    """
+    authz.require(request, roles_module.VIEW_SELF)
+    try:
+        return viewcache.per_files(
+            "breeding:limits",
+            [gamedata.DATA_PATH, gamedata.MOVES_PATH],
+            breeding.unbreedable,
+        )
+    except breeding.BreedingDataError as e:
+        raise HTTPException(503, str(e))
+    except gamedata.GameDataUnavailable as e:
+        raise HTTPException(503, str(e))
+
+
 @app.get("/api/breeding/predict")
 def breeding_predict(request: Request, a: str, b: str) -> dict:
     authz.require(request, roles_module.VIEW_SELF)

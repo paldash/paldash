@@ -739,6 +739,235 @@ def indirect_targets(
     }
 
 
+# ─── Why a species can or cannot be bred ─────────────────────────
+
+# The game's own wording for what a mutated egg is, quoted rather than
+# paraphrased. `PalEgg_MutationPal_01` and four siblings carry it verbatim.
+#
+# **This is a quote and not a mechanic.** The game says these eggs exist and are
+# rare; no file in either pak says what produces one, at what rate, or which
+# species it hatches — checked across all 471 server-pak DataTables, where
+# `PalEgg_MutationPal` appears only as an icon, a visual model, a pickup
+# blueprint and a particle effect. `basesupply.py`'s rule applies: report facts,
+# not mechanics.
+MUTATED_EGG_QUOTE = (
+    "An egg that is extremely rarely obtained, having undergone a special "
+    "mutation."
+)
+
+# The one other thing the game says out loud about mutation, on `Cake04`
+# (Extravagant Vegetable Cake). It ties mutation to the Breeding Farm in
+# Pocketpair's own words, which is why it is worth carrying and why it is
+# quoted rather than turned into a claim about rates.
+MUTATION_CAKE_QUOTE = (
+    "Place it in the chest at a Breeding Farm to make Pals lay a particularly "
+    "healthy egg. Mutations are more likely to occur, and talents will grow "
+    "more easily."
+)
+
+
+@lru_cache(maxsize=1)
+def _named_pairings() -> dict[str, list[dict[str, Any]]]:
+    """
+    `{childSpecies: [{a, b, aName, bName, genderA, genderB}]}` from
+    `DT_PalCombiUnique` — every pairing the game names outright.
+
+    Keyed on the **child**, which is the direction the table is not stored in
+    and the direction a player asks in: "how do I get one of these".
+
+    Tribes rather than species, because that is what the game keys on and it is
+    the more useful answer — "Mossanda x Grizzbolt" covers the alpha and
+    predator forms of both without listing six rows.
+    """
+    out: dict[str, list[dict[str, Any]]] = {}
+    for combo in gamedata.unique_combos():
+        child = str(combo.get("childId") or "")
+        a = str(combo.get("parentTribeA") or "")
+        b = str(combo.get("parentTribeB") or "")
+        if not (child and a and b):
+            continue
+        entry = {
+            "a": a,
+            "b": b,
+            "aName": gamedata.pal_name(a) or a,
+            "bName": gamedata.pal_name(b) or b,
+        }
+        # A variant paired with itself yields itself — the game states this
+        # explicitly for most of them. It is a real pairing and worth showing,
+        # but it is **not an answer to "how do I get my first one"**, so it is
+        # labelled rather than listed indistinguishably beside the pair that is.
+        if a == child and b == child:
+            entry["breedsTrue"] = True
+        # Carried only when the game states them, which is one pair in the
+        # whole table (CatMage x FoxMage). A gender on every row would read as
+        # a requirement everywhere.
+        for key, field in (("genderA", "genderA"), ("genderB", "genderB")):
+            value = str(combo.get(field) or "None")
+            if value != "None":
+                entry[key] = value
+        out.setdefault(child, []).append(entry)
+    return out
+
+
+def obtainability(species_id: str) -> dict[str, Any]:
+    """
+    Whether a species can be bred at all, and if so by what — from the game's
+    own columns, never from this project's opinion.
+
+    Four answers, and the middle two are the ones this exists for:
+
+    - `standard`      — an ordinary outcome of the rank rule.
+    - `named_pairing` — an element variant. The game names the pairings that
+                        produce it and the general rule never will, so the
+                        pairings are listed. 81 species.
+    - `unverified`    — an element variant the game names **no** pairing for,
+                        while the table this planner runs on offers one anyway.
+                        Three species, and the disagreement is reported rather
+                        than resolved. See `scripts/verify-breeding.py`.
+    - `never`         — `IgnoreCombi`, the game saying this species takes no
+                        part in breeding. 226 species.
+
+    **`named_pairing` is not "unbreedable", and an earlier version of this
+    project said it was.** `DT_PalCombiUnique` names an element variant as the
+    child in 159 of its 256 tribe pairs; what is true is only that the rank
+    fallback never produces one. Telling a player "no pairing reaches this"
+    when the game ships the pairing is worse than saying nothing.
+
+    Unknown species get `standard` with `known: False` rather than a refusal —
+    a modded or unreleased id is not evidence of anything, and the caller is a
+    UI badge.
+
+    **Read off the NORMALISED species, never `pal_exact`.** The game sets
+    `ZukanIndexSuffix` on the base row only and gives encounter forms
+    `zukanIndex = -1`: `BOSS_GrassPanda_Electric` carries no suffix at all, so
+    an exact lookup calls an alpha Mossanda Lux an ordinary Pal. `pal_exact`
+    exists because *stats* differ between an alpha and its base — breeding
+    eligibility is a property of the species and does not.
+    """
+    species, _ = gamedata.normalise_species(canonical_species(species_id))
+    entry = gamedata.pal(species) or {}
+    if not entry:
+        return {"species": species, "kind": "standard", "known": False}
+
+    result: dict[str, Any] = {"species": species, "known": True, "kind": "standard"}
+
+    if entry.get("ignoreCombi"):
+        result["kind"] = "never"
+        result["note"] = (
+            "The game marks this species as taking no part in breeding "
+            "(IgnoreCombi). No pairing produces it and it cannot be a parent."
+        )
+        return result
+
+    if entry.get("zukanSuffix") != "B":
+        return result
+
+    # An element variant from here down.
+    pairings = _named_pairings().get(species) or []
+    result["variant"] = True
+    if pairings:
+        result["kind"] = "named_pairing"
+        result["pairings"] = pairings
+        result["note"] = (
+            f"Element variant. The game names {len(pairings)} pairing"
+            f"{'' if len(pairings) == 1 else 's'} that produce it; the general "
+            "rank rule never does, so it comes from these pairs or not at all."
+        )
+        return result
+
+    result["kind"] = "unverified"
+    result["note"] = (
+        "Element variant. The game's own unique-combination table names no "
+        "pairing for it, while the breeding table this planner runs on offers "
+        "one — that disagreement is unresolved and nothing in the game files "
+        "settles it. Treat a suggested route for this Pal as unconfirmed."
+    )
+    result["mutatedEgg"] = {
+        "quote": MUTATED_EGG_QUOTE,
+        "cakeQuote": MUTATION_CAKE_QUOTE,
+        "cakeItem": "Cake04",
+        # Said explicitly, because the absence is the point. A UI that shows the
+        # quotes without this reads as "here is how you get one".
+        "note": (
+            "The game ships six mutated-egg items and says they are rare. No "
+            "game file says what produces one, at what rate, or which species "
+            "it hatches, so this dashboard does not."
+        ),
+    }
+    return result
+
+
+def unbreedable() -> dict[str, Any]:
+    """
+    Every species the game will not let a pairing produce, and why.
+
+    Exists because "not reachable" with no explanation reads as a dashboard gap
+    rather than as the game saying no — the same bug the Paldeck's empty
+    work-suitability panel had, with the same fix.
+
+    Unreleased and Paldeck-absent forms are excluded: a player cannot obtain
+    them by any means, so listing them under "cannot be bred" implies the rest
+    of the list is otherwise obtainable, which would be misleading in the one
+    direction that matters.
+
+    **A row is a PALDECK ENTRY, not a species, and getting that wrong said
+    "Mossanda Lux cannot be bred" about a Pal that plainly can.**
+    `GrassPanda_Electric_Tower` is the tower-boss encounter form of
+    `GrassPanda_Electric`: same Paldeck number, same suffix, same display name,
+    and `IgnoreCombi` true because *that form* is not a breeding outcome. Nine
+    of the eleven collisions are this shape (`_Oilrig` and `_Tower` forms).
+    Grouping on `(zukanIndex, zukanSuffix)` — the pair the Paldeck itself
+    identifies a Pal by — and keeping the **most permissive** answer is the fix:
+    if any form of a Paldeck entry can be bred, the player can breed that Pal.
+    """
+    ranked = {"standard": 0, "named_pairing": 1, "unverified": 2, "never": 3}
+    best: dict[tuple[int, str], tuple[int, dict[str, Any]]] = {}
+
+    for species, entry in (gamedata.load().get("pals") or {}).items():
+        paldeck = entry.get("zukanIndex") or 0
+        if paldeck <= 0:
+            continue
+        # `BOSS_`/`GYM_`/`PREDATOR_` forms share their base species' Paldeck
+        # number and would double every row. They are encounter forms of a
+        # species already in the list.
+        if species != gamedata.normalise_species(species)[0]:
+            continue
+        info = obtainability(species)
+        row = {
+            "species": species,
+            "name": gamedata.pal_name(species) or species,
+            "paldeck": paldeck,
+            "suffix": entry.get("zukanSuffix") or "",
+            "kind": info["kind"],
+            "note": info.get("note"),
+        }
+        if info["kind"] == "unverified":
+            row["mutatedEgg"] = info.get("mutatedEgg")
+        elif info["kind"] == "named_pairing":
+            row["pairings"] = info.get("pairings")
+
+        key = (paldeck, row["suffix"])
+        rank = ranked[info["kind"]]
+        if key not in best or rank < best[key][0]:
+            best[key] = (rank, row)
+
+    never = [r for _, r in best.values() if r["kind"] == "never"]
+    unverified = [r for _, r in best.values() if r["kind"] == "unverified"]
+    named = [r for _, r in best.values() if r["kind"] == "named_pairing"]
+
+    order = lambda r: (r["paldeck"], r["suffix"], r["name"])  # noqa: E731
+    return {
+        "never": sorted(never, key=order),
+        "unverified": sorted(unverified, key=order),
+        "namedPairingOnly": sorted(named, key=order),
+        "paldeckEntries": len(best),
+        # A bred Pal is an alpha 5% of the time — BP_PalGameSetting's own
+        # constant, carried here because the breeding tab is where somebody
+        # wonders why an egg hatched a boss form.
+        "alphaChance": gamedata.game_setting("Combi_BossPalRate"),
+    }
+
+
 # ─── Inheritance odds ────────────────────────────────────────────
 
 

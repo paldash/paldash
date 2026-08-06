@@ -9,7 +9,7 @@
     "match, because a wrong-but-plausible map is worse than an honest banner."
   ],
   "gamedata.json.gz": {
-    "source": "refs/palworld/.../Pal-LinuxServer.pak (numbers, plus DT_PalMonsterParameter.BestWorkSuitability) + refs/Pal-Windows.pak L10N/en (display strings); refs/PalWorldSaveTools-main.zip supplies artwork paths and catalogue membership only",
+    "source": "refs/palworld/.../Pal-LinuxServer.pak (numbers, plus DT_PalMonsterParameter.BestWorkSuitability/ZukanIndexSuffix/IgnoreCombi) + refs/Pal-Windows.pak L10N/en (display strings); refs/PalWorldSaveTools-main.zip supplies artwork paths and catalogue membership only",
     "gameBuild": "24370498",
     "regenerateWith": "python3 scripts/build-gamedata.py",
     "note": "Display names and descriptions now come from the game's own L10N tables (scripts/l10n.py, scripts/gametext.py) and the numeric columns were verified against the server pak's DataTables 13,836/13,836 by scripts/verify-gamedata.py. The archive remains the source of icon paths and of which ids exist at all, so the entries the game does not name still carry its value -- build-gamedata.py prints that count per section as 'still from archive'. gameBuild is the client pak's build, which is where the strings come from. `bestWorkSuitability` is read directly from the server pak (753/753) because the reference archive does not carry it: it is the per-species half of the condenser mechanic, whose magnitude is in no data file — see task #74."
