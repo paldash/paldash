@@ -342,6 +342,10 @@ export default function BaseViewer() {
                   <span style={{ fontSize: 13, fontWeight: 500 }}>{guild.name}</span>
                   <span style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 8 }}>
                     {guild.members.length} members · {guild.baseCampIds.length} bases
+                    {/* The save's own `base_camp_level`, parsed since Phase 4 and
+                        never shown. Rendered as a guild figure with no per-base
+                        arithmetic done to it — see GuildInfo for why. */}
+                    {guild.baseCampLevel ? ` · base camp level ${guild.baseCampLevel}` : ''}
                   </span>
                 </div>
                 <ChevronRight size={14} style={{ color: 'var(--text-muted)' }} />

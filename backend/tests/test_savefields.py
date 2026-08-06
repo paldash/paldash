@@ -131,3 +131,47 @@ def test_fixed_width_blobs_are_flagged(index):
         for row in worlds.values() if row.get("byteLengthConstant")
     ]
     assert constant, "no fixed-width blobs recorded — the length stats are missing"
+
+
+# ─── base_camp_level: guild-level, and it must stay that way ───
+
+
+def test_base_camp_level_is_recorded_as_read(index):
+    """
+    **The correction this file exists beside.** `base_camp_level` was twice
+    reported here as missing: once as "not in the save" (that check sampled an
+    `EPalGroupType::Organization` group, which has six keys and could never carry
+    it) and once as "unread" (it has been in `parser.py` since Phase 4).
+
+    The index gets both right, and pinning that is the point: it is the thing
+    that would have prevented either claim.
+    """
+    assert index["readBy"].get("base_camp_level") == ["parser.py"]
+    assert not [p for p in index["unreadPaths"] if p.endswith("base_camp_level")]
+
+
+def test_base_camp_level_lives_on_the_guild_not_the_base(index):
+    """
+    It is under `GroupSaveDataMap`, and there is no per-base counterpart —
+    checked against the palbox too: 11 of 11 join through
+    `owner_map_object_instance_id`, and neither the Model nor the ConcreteModel
+    (`PalMapObjectBaseCampPoint`) carries a level.
+
+    So anything that divides it by base count or stamps it on each base is
+    inventing a number. That is the `guildPalCount` mistake, which this project
+    made once and documents.
+    """
+    paths = [p for p in index["fields"] if p.endswith("base_camp_level")]
+    assert paths, "base_camp_level is not in the index"
+    for path in paths:
+        assert "GroupSaveDataMap" in path
+        assert "BaseCampSaveData" not in path
+
+    base_camp_paths = [
+        p for p in index["fields"]
+        if "BaseCampSaveData" in p and p.lower().endswith("level")
+    ]
+    assert base_camp_paths == [], (
+        f"a per-base level appeared: {base_camp_paths} — if this is real, it "
+        "changes the rule above and the UI can stop saying 'guild'"
+    )

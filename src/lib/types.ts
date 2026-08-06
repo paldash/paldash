@@ -169,6 +169,21 @@ export interface GuildInfo {
   name: string;
   members: GuildMember[];
   baseCampIds: string[];
+  /**
+   * The guild's `base_camp_level`, straight from the save.
+   *
+   * **A GUILD figure, not a per-base one**, and it must stay that way. Base
+   * level is not stored anywhere per base — neither `BaseCampSaveData` nor the
+   * palbox it points at carries one, checked on 11 of 11 — so dividing this by
+   * the base count or stamping it on each base would invent a number. That is
+   * the `guildPalCount` mistake, which this project already made once.
+   *
+   * What it MEANS is not established: it scales with base count, so "sum of the
+   * guild's base levels" is the obvious reading and exactly the kind of
+   * inference that needs evidence. Shown as the game's own number, unlabelled
+   * by interpretation.
+   */
+  baseCampLevel?: number;
 }
 
 export interface GuildMember {
