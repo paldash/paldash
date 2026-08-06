@@ -23,19 +23,21 @@ THE GAME'S RULE, re-derived here from the server pak:
      column sitting beside `CombiRank`, named for exactly this job. Ties are
      common: the pool holds 181 species over ~130 distinct ranks.
 
-SOLVED 2026-08-05 — 99.72%, AND THE MISSING TERM WAS THE CHILD POOL
+SOLVED 2026-08-05 — 96.92%, AND THE MISSING TERM WAS THE CHILD POOL
 -------------------------------------------------------------------
 Agreement was stuck at 67% and the previous version of this file recorded four
 tie-breaks tried and abandoned, with a note not to search that space further.
 That note was right: **the tie-break was never the problem.** Every filter below
-is a column the game ships, and each one is a fact about which species a pairing
-can *produce*:
+is a column the game ships, and each one is a fact about which species the
+*rank fallback* may produce:
 
     IgnoreCombi == False        does this species take part in breeding at all
                                 (226 of 753 say no — Yakushima bosses and such)
     ZukanIndex > 0              the Paldeck lists it; negatives are gym (-2) and
                                 unreleased (-1) entries
-    ZukanIndexSuffix != "B"     **NOT A VARIANT** — see below, this was the one
+    ZukanIndexSuffix != "B"     not an element variant — see below, this was the
+                                one, and it means something narrower than the
+                                first version of this file claimed
     OverrideNameTextID == None  not an alias of another entry. Catches
                                 `Quest_Farmer03_SheepBall`, which is otherwise
                                 byte-identical to `SheepBall` on every breeding
@@ -46,36 +48,63 @@ Applied together these give **181 species, and the set is exactly palcalc's own
 palcalc's list. Two independent derivations agreeing on the *membership* of a
 set, not merely its size, which is the mistake this file records below.
 
-    unfiltered pool               70.6%
-    + variants removed            92.5%
-    + name aliases removed        99.72%
+    unfiltered pool               70.66%
+    + variants and aliases        96.92%
 
-**THE VARIANT RULE IS THE FINDING, and it came from the user asking "there's
-mutant eggs too, is that what's messing you up".** Element variants — Kelpie
-Ignis, Cryolinx Terra, the `_Ice`/`_Fire`/`_Gold` forms — are **not ordinary
-breeding outcomes**. They hatch from mutant eggs, a separate mechanic, and a
-rule that can produce them will hand a player a target they cannot breed.
+"AN ELEMENT VARIANT IS NOT A BREEDING OUTCOME" WAS WRONG, SAME DAY
+-------------------------------------------------------------------
+**This file said that in capitals, and the game's own ground-truth table
+contradicts it outright.** `DT_PalCombiUnique` names an element variant as the
+child in **161 of its 258 rows — 81 distinct variants** — and 86 variant species
+appear in it as *parents*. Mossanda Lux is Mossanda x Grizzbolt and always was.
+Excluding variants from the pool is still right and still worth 26 points, but
+what it encodes is narrower than the claim:
 
-The marker is the game's own and not a suffix list: `ZukanIndexSuffix == "B"`,
-exactly 90 of 753 forms, which is the `B` a player sees on Paldeck entry #98B.
-A hand-written `_(Ice|Fire|Water|...)` regex found 80 of them and **missed
-`_Gold`**, which is precisely how a plausible-looking list quietly loses cases.
+    the RANK FALLBACK never produces a variant.
+    a variant comes only from a pairing the game names outright.
 
-WHAT IS STILL OPEN: 126 PAIRS, AND 124 ARE ONE SPECIES
-------------------------------------------------------
-`WhiteDeer` (Cryolinx, rank 570) sits between `WhiteShieldDragon` (560) and
-`Umihebi` (590). This rule offers it for any target in 565-575; palcalc offers
-it for **2 pairs in the entire table**. Nothing in `DT_PalMonsterParameter`
-distinguishes it — `IgnoreCombi` False, `ZukanIndex` 157, no suffix, no alias,
-`IsPal` True, every breeding column ordinary.
+That is a better statement in both directions — it is read off ground truth
+rather than inferred from an item description, and it lets the dashboard tell a
+player *which* pairing instead of only that a generic rule will not get there.
 
-**That is recorded rather than tuned away, and it is deliberately not resolved
-in palcalc's favour.** palcalc is not ground truth; `DT_PalCombiUnique` is, and
-both implementations pass it (253 of 253, below). With no game column
-separating the two answers, inventing a filter that happens to exclude one
-species would be fitting the method to the answer — the `fit-worldtree.py`
-mistake this repository keeps as a warning. It needs somebody to breed a
-565-575 pair in game and look at the egg.
+How the wrong version survived a run that looked clean: the comparison **skipped
+every pair whose palcalc child was a variant** — 1,459 of them, described in the
+output as "species with no CombiRank", which only 303 of them were. The skip
+removed 1,300 disagreements and 159 agreements, and 99.72% was what was left.
+Excluding a case from the measurement because the rule excludes it from the
+answer is circular; the skip is gone and the honest figure is **96.92% over all
+46,352 comparable pairs**.
+
+WHAT IS STILL OPEN: 1,427 PAIRS, AND THEY HAVE EXACTLY TWO CAUSES
+------------------------------------------------------------------
+**1,300 are three species, and they are the three variants the game does not
+name.** Of the 90 variants, 87 are accounted for — 81 named as a unique-combo
+child, 6 quest/tower/oilrig/unreleased forms carrying `IgnoreCombi = True`. The
+remaining three are Paldeck-listed, `IgnoreCombi = False`, and appear in no
+unique combo at all:
+
+    Kelpie_Fire          Kelpsea Ignis   #43     207 pairs
+    MushroomDragon_Dark  Shroomer Noct   #118    505 pairs
+    Yeti_Grass           Wumpo Botan     #134    588 pairs
+
+palcalc puts exactly those three — and no other variant — into its rank pool,
+which is a deliberate choice by somebody rather than an accident, and is why its
+child set is 81 + 3. **No column in `DT_PalMonsterParameter` separates them from
+the other 76 breedable variants**; checked column by column, there is none. So
+this is one clean question that needs somebody to breed a Kelpsea Ignis and look
+at what the egg came from, not a filter to be invented.
+
+**126 are `WhiteDeer`** (Cryolinx, rank 570), sitting between
+`WhiteShieldDragon` (560) and `Umihebi` (590). This rule offers it for any target
+in 565-575; palcalc offers it for **2 pairs in the entire table**. Nothing in
+`DT_PalMonsterParameter` distinguishes it either.
+
+**Both are recorded rather than tuned away, and neither is resolved in palcalc's
+favour.** palcalc is not ground truth; `DT_PalCombiUnique` is, and both
+implementations pass it (253 of 253, below). With no game column separating the
+answers, inventing a filter that happens to exclude one species would be fitting
+the method to the answer — the `fit-worldtree.py` mistake this repository keeps
+as a warning.
 
 WHAT IT DID *NOT* ESTABLISH — A CLAIM RETRACTED THE SAME DAY
 ------------------------------------------------------------
@@ -198,11 +227,15 @@ def breedable(info: dict) -> dict[str, int]:
         # A negative zukan index is the game's marker for something the Paldeck
         # does not list — -2 gym bosses, -1 unreleased. Neither is breedable.
         and v["zukan"] > 0
-        # **An element variant hatches from a MUTANT EGG, not from a pairing.**
-        # Offering one as a breeding target sends a player after something no
-        # pairing can produce. 90 forms, marked by the game rather than by a
-        # suffix list — a hand-written regex over `_Ice|_Fire|...` finds 80 and
-        # misses `_Gold`.
+        # **An element variant is never a RANK-FALLBACK outcome.** It is very
+        # much a breeding outcome — `DT_PalCombiUnique` names 81 of them
+        # outright — but only from a pairing the game lists, which `predict`
+        # has already answered before it consults this pool. Leaving them in
+        # here makes the fallback offer a variant for any pair whose average
+        # rank happens to land near one, which is 26 points of disagreement.
+        #
+        # 90 forms, marked by the game rather than by a suffix list — a
+        # hand-written regex over `_Ice|_Fire|...` finds 80 and misses `_Gold`.
         and v["suffix"] != "B"
         # A row borrowing another entry's name is a duplicate of it.
         # `Quest_Farmer03_SheepBall` is identical to `SheepBall` on every
@@ -325,19 +358,25 @@ def main() -> int:
     children = breedable(info)
     uniques = unique_children()
     variants = sum(1 for v in info.values() if v["suffix"] == "B")
+    named = sum(1 for c in uniques.values() if info.get(c, {}).get("suffix") == "B")
     print(
         f"game: {len(info)} species with a CombiRank, {len(children)} of them "
-        f"breedable outcomes, {len(uniques)} unique combos"
+        f"rank-fallback outcomes, {len(uniques)} unique combos"
     )
     print(
-        f"      {variants} are element variants (ZukanIndexSuffix 'B') and are "
-        f"EXCLUDED — they hatch from mutant eggs, not from a pairing"
+        f"      {variants} are element variants (ZukanIndexSuffix 'B'), excluded "
+        f"from the FALLBACK only — {named} of the {len(uniques)} unique combos "
+        f"name one as the child, so they are very much bred"
     )
     print(f"palcalc: {len(table):,} pairs")
 
     agree = disagree = skipped = 0
     tied = 0
     examples: list[tuple] = []
+    # Every disagreement is attributed to the species palcalc named, because
+    # the residual here is not scatter: 1,300 of 1,427 are three species. An
+    # aggregate would hide that and invite tuning.
+    by_child: dict[str, int] = defaultdict(int)
     # A pair where several species sit equally close to the target is decided by
     # a tie-break this script infers rather than reads, so those disagreements
     # are counted apart from the clear-cut ones.
@@ -346,12 +385,13 @@ def main() -> int:
         if a not in info or b not in info:
             skipped += 1
             continue
-        # A variant child is palcalc offering a mutant-egg outcome as an
-        # ordinary pairing. Counted apart rather than as a disagreement: the
-        # two implementations are answering different questions there.
-        if info.get(expected, {}).get("suffix") == "B":
-            skipped += 1
-            continue
+        # **NOTHING ELSE IS SKIPPED.** An earlier version dropped every pair
+        # whose palcalc child was a variant, on the grounds that the two
+        # implementations were answering different questions there. They are
+        # not: `DT_PalCombiUnique` names variants as children, so a variant
+        # child is an ordinary comparison. Skipping the cases the rule excludes
+        # is circular, and it turned 96.92% into 99.72% by discarding 1,300
+        # disagreements. See the module docstring.
         got = predict(a, b, info, uniques, children)
         if got == expected:
             agree += 1
@@ -362,6 +402,7 @@ def main() -> int:
         if len(near) > 1:
             tied += 1
         disagree += 1
+        by_child[expected] += 1
         if len(examples) < limit:
             examples.append((pair, expected, got, len(near)))
 
@@ -370,6 +411,12 @@ def main() -> int:
     print(f"compared {total:,} pairs ({skipped:,} skipped — species with no CombiRank)")
     print(f"  agree     {agree:,}  ({agree / total:.2%})" if total else "  agree 0")
     print(f"  disagree  {disagree:,}  of which {tied:,} are ties")
+    if by_child:
+        print()
+        print("disagreements by the child palcalc named — the residual is not scatter:")
+        for child, count in sorted(by_child.items(), key=lambda kv: -kv[1])[:8]:
+            note = "  (variant with no unique combo)" if info.get(child, {}).get("suffix") == "B" else ""
+            print(f"   {child:24s} {count:6,}{note}")
     if examples:
         print()
         print("examples (pair, palcalc, this rule, species tied at that distance):")
@@ -396,12 +443,12 @@ def main() -> int:
     if rate < REQUIRED_AGREEMENT:
         print()
         print(
-            f"REGRESSION. {rate:.2%} agreement, against 99.72% measured on\n"
+            f"REGRESSION. {rate:.2%} agreement, against 96.92% measured on\n"
             f"2026-08-05. The rule is derived entirely from columns the game\n"
             f"ships (see the module docstring); a drop means a filter stopped\n"
             f"matching, not that palcalc changed. Check `breedable()` first --\n"
             f"every one of its four column criteria is load-bearing, and the\n"
-            f"variant filter alone is worth 22 points.",
+            f"variant filter alone is worth 26 points.",
             file=sys.stderr,
         )
         return 1
@@ -411,8 +458,10 @@ def main() -> int:
         "A disagreement is not automatically palcalc being wrong, and it is not\n"
         "automatically this rule being wrong either. palcalc is NOT ground\n"
         "truth; DT_PalCombiUnique is, and both pass it. Nothing is replaced on\n"
-        "the strength of this — the diff IS the deliverable. The open residual\n"
-        "is WhiteDeer, 124 pairs, with no game column separating the answers."
+        "the strength of this — the diff IS the deliverable. The residual has\n"
+        "two causes and no game column resolves either: Kelpsea Ignis /\n"
+        "Shroomer Noct / Wumpo Botan, the three variants the game names no\n"
+        "pairing for, and WhiteDeer. Both need somebody to breed one and look."
     )
     return 0
 
