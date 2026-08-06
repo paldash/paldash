@@ -54,10 +54,11 @@ def test_no_recipe_claims_to_know_which_bench_crafts_it():
     looked like the link to `DT_MapObjectAssignData` and is not, so it is not
     bundled — a caller must not be able to read a work type off a recipe.
     """
-    for entry in (gamedata.economy().get("recipes") or {}).values():
-        assert "workableAttribute" not in entry
-        assert "work" not in entry
-        assert "bench" not in entry
+    for rows in (gamedata.economy().get("recipes") or {}).values():
+        for entry in rows:
+            assert "workableAttribute" not in entry
+            assert "work" not in entry
+            assert "bench" not in entry
 
 
 def test_every_recipe_material_resolves_in_the_catalogue():
@@ -67,11 +68,43 @@ def test_every_recipe_material_resolves_in_the_catalogue():
     """
     unknown = {
         m["itemId"]
-        for entry in (gamedata.economy().get("recipes") or {}).values()
+        for rows in (gamedata.economy().get("recipes") or {}).values()
+        for entry in rows
         for m in entry["materials"]
         if not gamedata.item(m["itemId"])
     }
     assert unknown == set()
+
+
+def test_a_product_keeps_every_way_of_making_it():
+    """
+    The bundle used to hold one recipe per product and threw fifteen rows away.
+
+    Paldium Fragment is the case that makes it matter: **thirteen** rows, one for
+    dismantling each kind of Pal Sphere, of which the old shape kept one. An
+    answer to "where does this come from" that names a twelfth of the ways is
+    worse than no answer, because nothing about it looks incomplete.
+    """
+    rows = gamedata.recipes_for("Pal_crystal_S")
+    assert len(rows) == 13
+    assert len({r["recipeId"] for r in rows}) == 13
+
+    # And the alternate that is a genuine choice rather than a tier: Carbon Fibre
+    # from Coal or from Charcoal.
+    carbon = {
+        m["itemId"]
+        for row in gamedata.recipes_for("CarbonFiber")
+        for m in row["materials"]
+    }
+    assert {"Coal", "Charcoal"} <= carbon
+
+
+def test_recipe_returns_one_of_them_and_recipes_for_returns_all():
+    """`recipe()` survives as the single-answer helper; it must agree."""
+    single = gamedata.recipe("Pal_crystal_S")
+    assert single in gamedata.recipes_for("Pal_crystal_S")
+    assert gamedata.recipe("__not_an_item__") is None
+    assert gamedata.recipes_for("__not_an_item__") == []
 
 
 # ─── Drops ───────────────────────────────────────────────
