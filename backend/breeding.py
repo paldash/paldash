@@ -888,10 +888,12 @@ def obtainability(species_id: str) -> dict[str, Any]:
         result["kind"] = "named_pairing"
         result["pairings"] = pairings
         lead = "Element variant. " if variant else ""
+        one = len(real) == 1
         result["note"] = (
-            f"{lead}The game names {len(real)} pairing"
-            f"{'' if len(real) == 1 else 's'} that produce it; the general "
-            "rank rule never does, so it comes from these pairs or not at all."
+            f"{lead}The game names {len(real)} pairing{'' if one else 's'} that "
+            f"{'produces' if one else 'produce'} it; the general rank rule never "
+            f"does, so it comes from {'that pair' if one else 'these pairs'} or "
+            "not at all."
         )
         return result
 
