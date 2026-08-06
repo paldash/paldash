@@ -397,6 +397,19 @@ So `palCount` (this base) and `guildPalCount` (this base's guild, repeated on
 each of its bases) are both present and named for what they are. Never sum the
 second.
 
+### Three caps that look like game rules and are settings
+
+`BaseCampWorkerMaxNum`, `BaseCampMaxNumInGuild` and **`GuildPlayerMaxNum`** are
+all INI keys, so the operator's file is the only authority and no bundled table
+bounds any of them. The third is the easiest to get wrong: every one of the
+game's own difficulty presets ships `GuildPlayerMaxNum = 20`, which makes 20 look
+like a rule of the game rather than a default somebody can change.
+
+`gamedata.server_limit()` reads them and returns **`None` when the INI cannot be
+read — which is the common deployment**, since most mount only the save path.
+None means "not known", never "unlimited" and never "use the game's value": show
+no denominator rather than a wrong one.
+
 ## The fourth kind of place a Pal can be, and it was called "orphaned"
 
 The row above used to read **Orphaned · 2 · none**, and this file said those two

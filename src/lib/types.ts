@@ -184,6 +184,15 @@ export interface GuildInfo {
    * by interpretation.
    */
   baseCampLevel?: number;
+  /**
+   * The server's `GuildPlayerMaxNum`, from its INI.
+   *
+   * **A SETTING, not a game constraint** — it reads like a rule of the game and
+   * is not, so it comes from the operator's INI rather than any bundled table.
+   * `null`/absent means the INI could not be read, which is the common
+   * deployment: show no denominator rather than a guessed one.
+   */
+  memberCap?: number | null;
   /** Rank indices allowed to open the guild chest, from the save. */
   chestAllowedRoles?: number[];
   /** Those indices named — "Sub Master", "Member". Never a bare number. */

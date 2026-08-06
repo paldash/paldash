@@ -827,10 +827,16 @@ def _name_guild_roles(guild: dict) -> dict:
     cannot. See `scripts/extract-guild-roles.py`.
     """
     allowed = guild.get("chestAllowedRoles") or []
-    if not allowed:
+    # The member cap is the OPERATOR'S, from the INI — not a game constraint,
+    # however much "20" looks like one (every difficulty preset ships 20). None
+    # when the INI is unreadable, which is the common deployment, and the UI
+    # must then show no denominator rather than a guessed one.
+    cap = gamedata.server_guild_member_cap()
+    if not allowed and cap is None:
         return guild
     return {
         **guild,
+        "memberCap": cap,
         "chestAllowedRoleNames": [gamedata.guild_role_name(r) for r in allowed],
         # So the UI can say "2 of 4 ranks" rather than implying a total.
         "roleCount": len((gamedata.guild_roles().get("roles") or {})) or None,

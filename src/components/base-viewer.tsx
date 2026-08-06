@@ -341,7 +341,12 @@ export default function BaseViewer() {
                 <div>
                   <span style={{ fontSize: 13, fontWeight: 500 }}>{guild.name}</span>
                   <span style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 8 }}>
-                    {guild.members.length} members · {guild.baseCampIds.length} bases
+                    {guild.members.length}
+                    {/* Only when the INI was readable. `GuildPlayerMaxNum` is
+                        the operator's setting, not a game rule, so an absent
+                        cap means no denominator rather than a default. */}
+                    {guild.memberCap ? ` of ${guild.memberCap}` : ''} members
+                    {' · '}{guild.baseCampIds.length} bases
                     {/* The save's own `base_camp_level`, parsed since Phase 4 and
                         never shown. Rendered as a guild figure with no per-base
                         arithmetic done to it — see GuildInfo for why. */}
