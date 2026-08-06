@@ -156,6 +156,7 @@ _raidbosses: Optional[dict[str, Any]] = None
 _invaders: Optional[dict[str, Any]] = None
 _worldpresets: Optional[dict[str, Any]] = None
 _npcs: Optional[dict[str, Any]] = None
+_guild: Optional[dict[str, Any]] = None
 _indexes: dict[str, dict[str, Any]] = {}
 
 
@@ -228,7 +229,7 @@ def _reset_cache() -> None:
     """
     global _data, _effigies, _passive_effects, _game_settings
     global _boss_spawners, _work_assign, _basecamp, _economy, _spawns, _moves
-    global _npcs
+    global _npcs, _guild
     global _progression, _raidbosses, _invaders, _worldpresets
     _data = None
     _effigies = None
@@ -239,6 +240,7 @@ def _reset_cache() -> None:
     _basecamp = None
     _economy = None
     _npcs = None
+    _guild = None
     _spawns = None
     _moves = None
     _progression = None
@@ -1704,3 +1706,36 @@ def npc_placements(role: Optional[str] = None) -> list[dict[str, Any]]:
 def npc_roles() -> dict[str, str]:
     """`{role: label}` for the layer switches. Empty when the bundle is absent."""
     return npcs().get("roleLabels") or {}
+
+
+GUILD_PATH = os.environ.get(
+    "GUILD_DATA_PATH",
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "guild.json.gz"),
+)
+
+
+def guild_roles() -> dict[str, Any]:
+    """
+    Guild rank and permission names, from the game's own UI text.
+
+    **The rank indices are joined; the permission ones are not.** Four role names
+    against the save's indices 2/3/4 pins a 1-based enum four ways over — see
+    `scripts/extract-guild-roles.py` — while eight permission names against
+    indices 0-7 agree only on the COUNT. Nothing establishes the order, so
+    `permissionOrderKnown` is false and callers must not index into the list.
+    """
+    global _guild
+    if _guild is None:
+        try:
+            with gzip.open(GUILD_PATH, "rt", encoding="utf-8") as f:
+                _guild = json.load(f)
+        except (OSError, json.JSONDecodeError) as e:
+            logger.warning("Guild role data unavailable (%s)", e)
+            _guild = {}
+    return _guild
+
+
+def guild_role_name(index: int) -> str:
+    """A rank's display name, or a labelled fallback — never a bare number."""
+    entry = (guild_roles().get("roles") or {}).get(str(index))
+    return str((entry or {}).get("name") or f"Rank {index}")

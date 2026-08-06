@@ -184,6 +184,19 @@ export interface GuildInfo {
    * by interpretation.
    */
   baseCampLevel?: number;
+  /** Rank indices allowed to open the guild chest, from the save. */
+  chestAllowedRoles?: number[];
+  /** Those indices named — "Sub Master", "Member". Never a bare number. */
+  chestAllowedRoleNames?: string[];
+  /** How many ranks the game has, so "2 of 4" does not imply a total. */
+  roleCount?: number | null;
+  /**
+   * Per-rank permission indices, straight from the save and **deliberately
+   * unnamed**. The game has eight permissions and the save uses indices 0-7, so
+   * the count agrees — but nothing establishes the ORDER, and a guessed mapping
+   * would tell an operator a rank can kick players when it cannot.
+   */
+  rolePermissions?: { role: number; permissions: number[] }[];
 }
 
 export interface GuildMember {
