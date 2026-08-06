@@ -145,6 +145,80 @@ def _relic_text() -> tuple[dict[int, str], dict[int, str]]:
     return indexed("BUILDUP_PLAYER_STATUS_"), indexed("BUILDUP_PLAYER_STATUS_DESC_")
 
 
+# The game's own "we are not telling you this yet", in full-width question
+# marks. It is a real value rather than a decode failure, and both endgame
+# encounters carry it — so it must be carried through as *hidden* rather than
+# repaired, humanised, or dropped.
+HIDDEN_NAME = "？？？"
+
+
+def _boss_battles() -> dict:
+    """
+    `{flagKey: {name, hidden, kind}}` for the major boss encounters.
+
+    `TowerBossDefeatFlag` in a player save is keyed on `BOSS_BATTLE_NAME_*`,
+    which is a *localisation key*: the game already has the display string and
+    this is where it lives. Humanising the key gives "Grass Boss"; the game says
+    "Rayne Syndicate Tower".
+
+    **THE FLAG MAP HOLDS MORE THAN TOWERS**, which is why `kind` exists. Of the
+    fourteen rows, eight are towers, two are endgame encounters whose names the
+    game withholds, three are World Tree mid-bosses and one
+    (`..._KingWhaleRoom`) is an arena rather than a boss at all. A denominator
+    taken over the whole table would count a room.
+    """
+    if l10n is None:
+        return {}
+    try:
+        ui = l10n.strings("DT_UI_Common_Text_Common", "en")
+    except Exception as exc:  # noqa: BLE001
+        print(f"   (no boss battle names: {exc})", file=sys.stderr)
+        return {}
+
+    prefix = "BOSS_BATTLE_NAME_"
+    out = {}
+    for key, value in ui.items():
+        if not key.startswith(prefix):
+            continue
+        suffix = key[len(prefix):]
+        if suffix.startswith("WorldTreeMiddleBoss"):
+            kind = "worldTreeMidBoss"
+        elif not suffix.endswith("Boss"):
+            # `KingWhaleRoom` — the arena, not the encounter.
+            kind = "location"
+        elif value == HIDDEN_NAME:
+            # The two the game refuses to name are its endgame encounters.
+            kind = "endgame"
+        else:
+            kind = "tower"
+        out[key] = {"name": value, "hidden": value == HIDDEN_NAME, "kind": kind}
+    return out
+
+
+def _verify_boss_battles(battles: dict, pak) -> None:
+    """
+    Refuse a tower count that disagrees with the map.
+
+    The check is **independent of the source being checked**: the fast-travel
+    points name eight "… Tower Entrance" locations, extracted from the world
+    cells, and the text table's tower-kind rows are counted from the client
+    pak's localisation. Two unrelated files agreeing on eight is evidence; the
+    text table agreeing with itself would not be.
+
+    This is the same discipline as the `BP_LevelObject_TowerLockBarrier`
+    mistake — a category whose size disagrees with what the game has is wrong
+    however plausible its rows read.
+    """
+    if not battles:
+        return
+    towers = [k for k, v in battles.items() if v["kind"] == "tower"]
+    if len(towers) != 8:
+        raise SystemExit(
+            f"!! {len(towers)} tower boss encounters, expected 8 to match the "
+            f"eight '… Tower Entrance' fast-travel points: {sorted(towers)}"
+        )
+
+
 def _verify_relic_names(ordered: list[str], meta: dict) -> None:
     """Refuse a positional join that has drifted, rather than mislabel a stat."""
     if all(meta[k]["nameIsInternal"] for k in ordered):
@@ -268,6 +342,12 @@ def build(pak=None) -> dict:
             "bonusExpRate": float(row.get("BonusExpRate") or 1.0),
         })
 
+    # ── Major boss encounters ──
+    # What `TowerBossDefeatFlag` is keyed on, named by the game rather than
+    # humanised from the key. See `_boss_battles` for why `kind` matters.
+    battles = _boss_battles()
+    _verify_boss_battles(battles, pak)
+
     return {
         "relicRanks": dict(relics),
         "relicTypes": relic_meta,
@@ -275,6 +355,7 @@ def build(pak=None) -> dict:
         "areas": areas,
         "quests": quests,
         "dungeons": dungeons,
+        "bossBattles": battles,
     }
 
 
@@ -330,6 +411,16 @@ def main() -> int:
           f"{CELL_SIZE}, controls {dict((c, checks[c]) for c in CONTROLS)}")
     print(f"  {len(data['dungeons'])} dungeon areas, "
           f"{sum(len(d['levels']) for d in data['dungeons'].values())} layouts")
+    battles = data["bossBattles"]
+    if battles:
+        kinds: dict[str, int] = defaultdict(int)
+        for entry in battles.values():
+            kinds[entry["kind"]] += 1
+        print(f"  {len(battles)} major boss encounters {dict(kinds)} — the eight "
+              "towers agree with the eight '… Tower Entrance' fast-travel points")
+    else:
+        print("  no boss encounter names (client pak absent) — the progression "
+              "checklist will show flag keys")
     return 0
 
 

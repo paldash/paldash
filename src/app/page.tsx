@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Archive, BookOpen, Building2, Egg, Eye, Lock, LogIn, LogOut, Map, Monitor, Package, PawPrint, RefreshCw, ScrollText, Server, Shield, ShieldCheck, Sliders, Unlock, UserCircle, UserCog, Users, Wrench } from 'lucide-react';
+import { Archive, BookOpen, Building2, Egg, Eye, Lock, LogIn, LogOut, Map, Monitor, Package, PawPrint, RefreshCw, ScrollText, Server, Shield, ShieldCheck, Sliders, Trophy, Unlock, UserCircle, UserCog, Users, Wrench } from 'lucide-react';
 import { useDashboardStore } from '@/lib/store';
 import {
   getServerInfo, getServerMetrics, getPlayers,
@@ -22,6 +22,7 @@ import SaveEditor from '@/components/save-editor';
 import ServerSettings from '@/components/server-settings';
 import BreedingPlanner from '@/components/breeding-planner';
 import Paldeck from '@/components/paldeck';
+import Progression from '@/components/progression';
 import MyPals from '@/components/my-pals';
 import ErrorBoundary from '@/components/error-boundary';
 import AccountSettings from '@/components/account-settings';
@@ -61,6 +62,11 @@ const TABS: {
   // rather than a readout of this server's Pals, so it needs no parsed world and
   // discloses nothing a wiki would not.
   { id: 'paldeck', label: 'Paldeck', icon: <BookOpen size={15} />, requires: CAPABILITIES.VIEW_BASIC },
+  // VIEW_SELF and an account: progression is read off a player's OWN save, so
+  // there is nothing here for a session with no character linked to it. The
+  // backend narrows to your own row below VIEW_DETAIL and applies
+  // discoveryVisibility on top.
+  { id: 'progress', label: 'Progression', icon: <Trophy size={15} />, requires: CAPABILITIES.VIEW_SELF, needsAccount: true },
   // VIEW_SELF: your own palbox is the one Pal view a plain Player must have.
   { id: 'mypals', label: 'My Pals', icon: <PawPrint size={15} />, requires: CAPABILITIES.VIEW_SELF, needsAccount: true },
   { id: 'settings', label: 'Settings', icon: <Sliders size={15} />, requires: CAPABILITIES.SETTINGS_WRITE },
@@ -453,6 +459,7 @@ export default function Home() {
           {activeTab === 'players' && <PlayerRoster />}
           {activeTab === 'breeding' && <BreedingPlanner />}
           {activeTab === 'paldeck' && <Paldeck />}
+          {activeTab === 'progress' && <Progression />}
           {activeTab === 'mypals' && <MyPals />}
           {activeTab === 'settings' && <ServerSettings />}
           {activeTab === 'access' && <AccessSettings />}

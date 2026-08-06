@@ -51,6 +51,7 @@ import palclone
 import palimport
 import palstats
 import policy as policy_module
+import progresscheck
 import privacy
 import reports
 import roles as roles_module
@@ -2479,6 +2480,88 @@ def get_progress(request: Request) -> dict[str, Any]:
             "files only record obtained entries."
         ),
     }
+
+
+@app.get("/api/progress/detail")
+def get_progress_detail(request: Request, uid: Optional[str] = None) -> dict[str, Any]:
+    """
+    Named checklists — *which* bosses, regions and fast-travel points are left.
+
+    `/api/progress` counts; this one lists. Split rather than folded in because
+    the lists are large (174 fast-travel points, 396 effigies) and the summary is
+    what most callers want.
+
+    **THIS IS DISCOVERY DATA AND THE FILTERING IS SERVER-SIDE.** It goes through
+    the same two gates as `/api/progress` — a viewer without `VIEW_DETAIL` sees
+    only their own row, and per-player privacy removes anyone hiding from them —
+    plus `discoveryVisibility`, which decides whether the *undiscovered* half is
+    shown at all. A UI that received everything and hid some of it would be
+    handing out the answers in the network tab, which is the mistake
+    `/api/world/discoveries` exists not to make.
+    """
+    authz.require(request, roles_module.VIEW_SELF)
+
+    user = authz.current_user(request)
+    caps = authz.effective_capabilities(user)
+    own = privacy.normalise_uid(authz.linked_uid(user))
+
+    players = [p for p in get_players() if p.get("progress")]
+
+    if roles_module.VIEW_DETAIL not in caps:
+        players = [p for p in players if privacy.normalise_uid(p.get("uid")) == own]
+    else:
+        hidden = privacy.hidden_uids(*_viewer(request))
+        players = privacy.filter_players(players, hidden["players"])
+
+    if uid:
+        wanted = privacy.normalise_uid(uid)
+        players = [p for p in players if privacy.normalise_uid(p.get("uid")) == wanted]
+
+    # Whether someone may see what they have NOT found is the operator's call,
+    # exactly as on the map — and your own progress is always your own.
+    #
+    # `effigies` rather than `fastTravel`: the two categories are separately
+    # configurable and a checklist showing every undiscovered location is the
+    # stricter disclosure of the two, so it takes the stricter setting. If they
+    # ever disagree, erring towards the tighter one is the safe direction.
+    show_missing = _may_see_undiscovered(request, "effigies")
+
+    entries = []
+    for player in players:
+        detail = progresscheck.describe(player.get("progress") or {})
+        if not show_missing and privacy.normalise_uid(player.get("uid")) != own:
+            detail = _drop_missing(detail)
+        entries.append({
+            "uid": player.get("uid"),
+            "name": player.get("name"),
+            "level": player.get("level"),
+            **detail,
+        })
+
+    return {
+        "players": entries,
+        "showsMissing": show_missing,
+        "available": progresscheck.available(),
+    }
+
+
+def _drop_missing(detail: dict[str, Any]) -> dict[str, Any]:
+    """
+    Strip the not-yet-found half, **server-side**.
+
+    Recursive because `fieldBosses` nests its two halves, and a filter that only
+    understood the top level would leave the Pal boss list untouched — which is
+    the larger of the two and the one worth hiding.
+    """
+    def strip(value: Any) -> Any:
+        if isinstance(value, dict):
+            if "missing" in value:
+                value = {k: v for k, v in value.items() if k != "missing"}
+                value["missingHidden"] = True
+            return {k: strip(v) for k, v in value.items()}
+        return value
+
+    return strip(detail)
 
 
 # A player's own item containers, in the order the game shows them.

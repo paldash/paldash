@@ -88,6 +88,21 @@ Legend: ✅ works · 🟡 works with a caveat · 🔴 not built · ⚪ out of sc
 | Which workbench crafts a recipe | 🔴 | **No source.** `WorkableAttribute` is present on all 1,414 recipe rows and is 0 on every one. Not inferred, and both panels say so |
 | Chest open rate | 🔴 | **No source.** `WeightInSlot` is relative within one field's slot; the share of that slot is shown, which is a different and defensible claim |
 
+## 4c. Progression
+
+| Feature | State | Notes |
+|---|---|---|
+| Progression tab | ✅ | `/api/progress` had counted these since Phase 4 and **nothing rendered it** — the relic statue lines from #61 shipped backend-only |
+| Every denominator says where it came from | ✅ | The game's own count, a published 1.0 figure, or the union of what players here have found — which is a floor that rises as people explore. Mixing those silently invents precision |
+| What your effigies bought | ✅ | All 13 statue lines including untouched ones. `CapturePower` shows a rank and never a percentage: it carries 0.0 on all 15 ranks, so its effect lives somewhere other than that column |
+| Named checklists | ✅ | *Which* towers, field bosses, regions and fast-travel points are left — the part that makes a count actionable |
+| Tower and major bosses | ✅ | The game's own names ("Rayne Syndicate Tower"). 8 towers, checked against the eight `… Tower Entrance` fast-travel points, which come from a different file |
+| Regions discovered | ✅ | 123, from `DT_WorldMapAreaData` — `areasFound` had **no denominator at all** before |
+| Field bosses (Pals) | ✅ | 89 placed spawners with species and level |
+| Field bosses (human) | ⚠️ | Named and counted, **no total.** The only enumeration available is the catalogue's 34 `BOSS_` NPCs and it contains a merchant and a quest NPC |
+| Dungeons cleared | 🔴 | `FixedDungeonClearCount` is empty on every save examined, so there is no key shape to join dungeon names against. Reported as unavailable *with the reason* |
+| Undiscovered half | ✅ | Dropped **server-side** per `discoveryVisibility`, recursively — `fieldBosses` nests its two halves and a top-level filter would leave the larger list intact |
+
 ## 4b. Paldeck
 
 | Feature | State | Notes |
