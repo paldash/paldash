@@ -21,6 +21,10 @@ shared bind mount.
   missing. Check this before concluding something is unbuilt.
 - `docs/ARCHITECTURE.md` — how the pieces fit: the request path, the module map,
   and the three invariants everything else falls out of.
+- `docs/SAVE-FIELDS.md` — every field in a save, its occupancy, and which ones
+  nothing here reads. Check it before concluding the save does not carry
+  something; that conclusion has been wrong four times.
+- `docs/GAMEDATA-SOURCES.md` — the same for the game's own files.
 - `refs/` — third-party reference archives (gitignored, ~66 MB). Contains the
   authoritative Palworld 1.0 game database; see "Reference data" below.
 - `refworld/` — a real world save used for integration tests (gitignored,
@@ -2515,6 +2519,47 @@ at a map object the new guild does not own.
 
 The emptied guild is removed **last**, after its bases have been re-homed, so a
 failure anywhere earlier leaves it still holding them.
+
+## Read `docs/SAVE-FIELDS.md` before deciding a field is not in the save
+
+`scripts/mine-savefields.py` walks a save with the **full** custom-property set
+and catalogues every field path with its type, occupancy and shape, then
+cross-references it against what `backend/*.py` actually mentions. The output is
+not "here is the save" but **"here is the part of the save nothing has ever
+looked at"** — 547 paths across three worlds, 260 of them unread.
+
+It is `mine-datatables.py` for the save, and it exists for the same reason: the
+pak got a systematic index and the save never did, so every field this project
+reads was found while chasing one feature. In a single week that cost
+`base_camp_level` (found only because a competing tool showed it),
+`guild_markers`, `guild_chest_allowed_roles` and `role_permissions` — three more
+on the same record, seen in the same glance.
+
+**The `base_camp_level` miss is the rule to take from this.** The check that
+"confirmed" it was absent sampled `GroupSaveDataMap[0]`, which is an
+`EPalGroupType::Organization` — 7 of the 12 groups, six keys, and it could never
+have carried it. The 5 `Guild` records have nineteen. **Sample by variant, never
+by index**, which is what the index's `byVariant` buckets are for.
+
+Three things it reports that a naive dump would not:
+
+- **Occupancy, not presence** — `seen`, `nonEmpty` and `nonZero` separately,
+  because a key on every Pal populated on 0.1% is a different fact from one
+  populated on all.
+- **Fixed-width blobs.** `byteLengthConstant` marks the shape that has twice
+  turned out to be readable: `WorkerDirector` is 118 bytes with a container id at
+  offset 98, `GuildItemStorage` 20 bytes with one at offset 0, and both were
+  documented as unavailable first. A constant width is a reason to *look* — the
+  decoded value must still resolve against a real entry or be dropped.
+- **What differs between worlds.** 26 top-level structures across three saves and
+  **no single save has all of them**; `BossSpawnerSaveData` is in the oldest
+  backup only. A one-world survey would have called it absent.
+
+**No values from a real world are in the committed index.** `refworld` holds real
+Steam IDs and player names, so anything name-shaped is counted and never printed.
+`test_savefields.py` pins that against the committed file rather than against the
+generator — a test of the extractor would pass beside an index built before the
+filter existed.
 
 ## Read `docs/GAMEDATA-SOURCES.md` BEFORE designing a feature, not after
 
