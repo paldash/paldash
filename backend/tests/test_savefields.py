@@ -175,3 +175,63 @@ def test_base_camp_level_lives_on_the_guild_not_the_base(index):
         f"a per-base level appeared: {base_camp_paths} — if this is real, it "
         "changes the rule above and the UI can stop saying 'guild'"
     )
+
+
+# ─── Guild ranks: named where the evidence reaches, not further ───
+
+
+def test_the_four_ranks_are_named_by_the_game():
+    import gamedata
+
+    gamedata._reset_cache()
+    roles = gamedata.guild_roles()["roles"]
+    assert [roles[str(i)]["name"] for i in (1, 2, 3, 4)] == [
+        "Guild Master", "Sub Master", "Member", "Guest"
+    ]
+    assert not any(r["nameIsInternal"] for r in roles.values())
+
+
+def test_the_rank_enum_is_one_based_because_the_save_uses_four():
+    """
+    The load-bearing half of the join. Four names and a maximum observed index of
+    4 rules out a 0-based enum outright; index 1 being the one absent from every
+    `role_permissions` list is what makes Master rather than Guest the omitted
+    entry. `extract-guild-roles.py` refuses the build if either stops holding.
+    """
+    import gamedata
+
+    gamedata._reset_cache()
+    roles = gamedata.guild_roles()["roles"]
+    assert sorted(roles) == ["1", "2", "3", "4"]
+    assert roles["1"]["id"] == "Master"
+    assert roles["4"]["id"] == "Guest"
+
+
+def test_permission_indices_are_NOT_mapped_to_names():
+    """
+    **The refusal, and the point of the whole task.** Eight permission names
+    against observed indices 0-7 agree on the count and say nothing about the
+    order — the L10N keys are alphabetical, which is a property of the text table
+    rather than of the enum, and the C++ enum is not in the pak.
+
+    So the bundle ships a LIST and no index-keyed map. A caller that indexed into
+    it would be asserting an order nothing supports, and the failure mode is a
+    screen telling an operator a rank can kick players when it cannot.
+    """
+    import gamedata
+
+    gamedata._reset_cache()
+    data = gamedata.guild_roles()
+    assert data["permissionOrderKnown"] is False
+    assert isinstance(data["permissions"], list)
+    assert len(data["permissions"]) == 8
+    # Not a dict keyed on an index anywhere in the payload.
+    for entry in data["permissions"]:
+        assert set(entry) == {"id", "name"}
+
+
+def test_an_unknown_rank_reads_as_a_rank_not_as_a_crash():
+    import gamedata
+
+    gamedata._reset_cache()
+    assert gamedata.guild_role_name(99) == "Rank 99"

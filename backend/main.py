@@ -816,6 +816,27 @@ def get_bases(request: Request) -> list[dict]:
     )
 
 
+def _name_guild_roles(guild: dict) -> dict:
+    """
+    Attach rank NAMES to a guild's chest-access list.
+
+    The save stores bare indices, and "role 2" tells an operator nothing. Only
+    the ranks are named: the permission numbers travel unnamed on purpose,
+    because the game's permission enum order is not established and a guessed
+    mapping would confidently tell someone a rank can kick players when it
+    cannot. See `scripts/extract-guild-roles.py`.
+    """
+    allowed = guild.get("chestAllowedRoles") or []
+    if not allowed:
+        return guild
+    return {
+        **guild,
+        "chestAllowedRoleNames": [gamedata.guild_role_name(r) for r in allowed],
+        # So the UI can say "2 of 4 ranks" rather than implying a total.
+        "roleCount": len((gamedata.guild_roles().get("roles") or {})) or None,
+    }
+
+
 @app.get("/api/guilds")
 def get_guilds(request: Request) -> list[dict]:
     """
@@ -837,17 +858,17 @@ def get_guilds(request: Request) -> list[dict]:
 
     hidden = privacy.hidden_uids(*_viewer(request))
     if not hidden["players"] and not hidden["guilds"]:
-        return guilds
+        return [_name_guild_roles(g) for g in guilds]
 
     out = []
     for guild in guilds:
         members = guild.get("members") or []
         if any(privacy.normalise_uid(m.get("uid")) in hidden["guilds"] for m in members):
             continue          # guild-wide privacy: the whole guild is concealed
-        out.append({
+        out.append(_name_guild_roles({
             **guild,
             "members": privacy.filter_players(members, hidden["players"]),
-        })
+        }))
     return out
 
 

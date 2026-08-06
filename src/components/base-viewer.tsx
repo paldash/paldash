@@ -347,6 +347,20 @@ export default function BaseViewer() {
                         arithmetic done to it — see GuildInfo for why. */}
                     {guild.baseCampLevel ? ` · base camp level ${guild.baseCampLevel}` : ''}
                   </span>
+                  {/* WHO CAN OPEN THE CHEST. The dashboard has reported what is
+                      in a guild chest since guild storage shipped and never who
+                      may reach it — "40,000 Ore in a box two of four ranks can
+                      open" is the operational half. Ranks are named; the
+                      permission numbers beside them are not shown at all,
+                      because the game's enum order is unestablished. */}
+                  {guild.chestAllowedRoleNames?.length ? (
+                    <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 3 }}>
+                      Guild chest: {guild.chestAllowedRoleNames.join(', ')}
+                      {guild.roleCount
+                        ? ` (${guild.chestAllowedRoleNames.length} of ${guild.roleCount} ranks)`
+                        : ''}
+                    </div>
+                  ) : null}
                 </div>
                 <ChevronRight size={14} style={{ color: 'var(--text-muted)' }} />
               </div>

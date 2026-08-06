@@ -275,6 +275,26 @@ def extract_guilds(gvas: Any) -> list[dict]:
                 "adminPlayerUid": str(raw.get("admin_player_uid") or ""),
                 "members": members,
                 "baseCampIds": [str(b) for b in (raw.get("base_ids") or [])],
+                # WHO MAY OPEN THE GUILD CHEST. The dashboard has reported what
+                # is IN it since guild storage shipped and never who can reach
+                # it. Raw indices — `gamedata.guild_roles()` names them, and the
+                # permission numbers below are deliberately left unnamed because
+                # the game's enum order is not established.
+                "chestAllowedRoles": [
+                    int(r) for r in (raw.get("guild_chest_allowed_roles") or [])
+                    if isinstance(r, int)
+                ],
+                "rolePermissions": [
+                    {
+                        "role": int(entry.get("role") or 0),
+                        "permissions": [
+                            int(p) for p in (entry.get("permissions") or [])
+                            if isinstance(p, int)
+                        ],
+                    }
+                    for entry in (raw.get("role_permissions") or [])
+                    if isinstance(entry, dict)
+                ],
             }
         )
 
