@@ -115,7 +115,7 @@ of day.
 | Table | Rows | What it gives you |
 |---|---:|---|
 | `DT_ItemDataTable` | 2,466 | The item catalogue — already bundled as `gamedata.json.gz` |
-| `DT_ItemRecipeDataTable` | 1,414 | **Full crafting recipes**: product, count, work amount, up to five materials, and `WorkableAttribute` (which work type crafts it) |
+| `DT_ItemRecipeDataTable` | 1,414 | **Full crafting recipes**: product, count, work amount, up to five materials. **`WorkableAttribute` is 0 on all 1,414 rows** — it reads like the link to the work type that crafts a recipe and carries nothing, so which bench crafts what still has no source anywhere. 1,414 rows over 1,399 products: fifteen products have a second way to make them, twelve of them Paldium Fragment |
 | `DT_TechnologyRecipeUnlock` | 588 | Tech tree: unlocks, cost, tier, level cap, prerequisites, boss requirements |
 | `DT_ItemLotteryDataTable` | 8,777 | Loot tables with real `WeightInSlot` drop rates, min/max, chest grade |
 | `DT_FieldLotteryNameDataTable` | 511 | Per-slot probabilities for field loot |
@@ -124,7 +124,7 @@ of day.
 | `DT_PalShopCreateData` | 8 | Pal merchants: roster, level range |
 | `DT_ItemShopSettingData` | 3 | Which item is currency |
 | `DT_StatusEffectFood` | 54 | Food buffs: effect type, value, duration |
-| `DT_PalStaticItemIDRedirectData` | 29 | Renamed items — needed to read old saves |
+| `DT_PalStaticItemIDRedirectData` | 29 | **NOT renamed items, and this row used to say it was.** All 29 map an accessory's `_2` and `_3` tiers onto its `_1`, and all 58 sources already resolve to *distinct* names ("Attack Pendant +1", "+2"). Wiring it into a lookup would replace 58 correct names with 29 wrong ones. Bundled, deliberately unused |
 
 ### 1.5 The world: spawning, dungeons, bosses, fishing
 
