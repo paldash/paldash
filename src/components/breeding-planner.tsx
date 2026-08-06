@@ -1,10 +1,13 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Egg, Search, RefreshCw, ArrowRight } from 'lucide-react';
-import { getBreedingPath, getOffspring, getPalbox, getReachable } from '@/lib/save-api';
+import { Egg, Search, RefreshCw, ArrowRight, Ban } from 'lucide-react';
+import {
+  getBreedingLimits, getBreedingPath, getOffspring, getPalbox, getReachable,
+} from '@/lib/save-api';
 import type {
-  BreedingPath, BreedingScope, OffspringOption, PalboxSummary, ReachableTargets,
+  BreedingLimitRow, BreedingLimits, BreedingPath, BreedingScope, OffspringOption,
+  PalboxSummary, ReachableTargets,
 } from '@/lib/types';
 import { useDashboardStore } from '@/lib/store';
 import GameIcon from '@/components/game-icon';
@@ -23,6 +26,11 @@ export default function BreedingPlanner() {
   const [palbox, setPalbox] = useState<PalboxSummary | null>(null);
   const [offspring, setOffspring] = useState<OffspringOption[]>([]);
   const [reachable, setReachable] = useState<ReachableTargets | null>(null);
+  // Reference data, so it is fetched once and never re-fetched when `owner`
+  // changes — what the game will not let you breed does not depend on whose
+  // palbox is being asked about.
+  const [limits, setLimits] = useState<BreedingLimits | null>(null);
+  const [limitsError, setLimitsError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -63,6 +71,26 @@ export default function BreedingPlanner() {
     load();
   }, [load]);
 
+  // Separate from `load` on purpose. This is a fact about Palworld rather than
+  // about a save, so it needs no owner, survives an unparsed world, and — most
+  // of all — a failure here must not take the planner down with it. It is the
+  // one panel that can be absent without anything else being wrong.
+  //
+  // **The reason is kept rather than swallowed.** Setting `null` on failure
+  // would render exactly like "this server has nothing to report", which is the
+  // `.catch(() => [])` mistake that hid a world's eleven bases for weeks. An
+  // empty limits panel and a limits panel that failed to load must not look the
+  // same.
+  useEffect(() => {
+    let live = true;
+    getBreedingLimits()
+      .then((data) => { if (live) { setLimits(data); setLimitsError(null); } })
+      .catch((e: unknown) => {
+        if (live) setLimitsError(e instanceof Error ? e.message : 'Could not load');
+      });
+    return () => { live = false; };
+  }, []);
+
   const findPath = async (internalName: string) => {
     setTarget(internalName);
     setPath(null);
@@ -72,6 +100,24 @@ export default function BreedingPlanner() {
       setError(e instanceof Error ? e.message : 'Path search failed');
     }
   };
+
+  /**
+   * `species -> why the game constrains it`, so a "not reachable" answer can
+   * say which kind of not-reachable it is.
+   *
+   * "Not reachable within 4 breeding steps from your current Pals" is true of
+   * Frostallion and will stay true however many Pals you catch, because the
+   * game marks it as taking no part in breeding. Reported as a search limit
+   * alone, that reads as a dashboard shortcoming — the same failure the
+   * Paldeck's empty work-suitability panel had.
+   */
+  const limitBySpecies = useMemo(() => {
+    const map = new Map<string, BreedingLimitRow>();
+    for (const group of [limits?.never, limits?.unverified, limits?.namedPairingOnly]) {
+      for (const row of group ?? []) map.set(row.species, row);
+    }
+    return map;
+  }, [limits]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -204,7 +250,14 @@ export default function BreedingPlanner() {
           {path.alreadyOwned ? (
             <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>You already own this Pal.</p>
           ) : !path.reachable ? (
-            <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>{path.reason}</p>
+            <>
+              <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>{path.reason}</p>
+              {/* And *why* it will stay unreachable, when the game says so.
+                  "Not reachable within 4 steps from your current Pals" is a true
+                  statement about Frostallion that no amount of catching will
+                  change, and on its own it reads as the planner giving up. */}
+              <WhyLimited row={path.target ? limitBySpecies.get(path.target) : undefined} />
+            </>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {path.steps.map((step, i) => (
@@ -342,6 +395,199 @@ export default function BreedingPlanner() {
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* What breeding will never reach. Reference data, so it stands apart
+          from everything above it — nothing here depends on whose Pals were
+          asked about, and it is still true on a server with no parsed world. */}
+      {limitsError ? (
+        <div className="notice notice-warn" style={{ fontSize: 12 }}>
+          <strong>Breeding limits unavailable.</strong> {limitsError} — the
+          planner above is unaffected, but this dashboard cannot currently say
+          which Pals the game refuses to breed.
+        </div>
+      ) : limits ? (
+        <BreedingLimitsPanel limits={limits} />
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * Which Pals breeding cannot produce, in the game's own terms.
+ *
+ * Three groups rather than one list, because they call for completely
+ * different actions: catch it, use this exact pair, or treat the answer as
+ * unconfirmed. Collapsing them into "unbreedable" would be wrong about two of
+ * the three — and this project shipped exactly that wrong version for a day,
+ * so the distinction is the feature.
+ */
+function BreedingLimitsPanel({ limits }: { limits: BreedingLimits }) {
+  const [open, setOpen] = useState<'never' | 'named' | 'unverified' | null>(null);
+  const alpha = limits.alphaChance;
+
+  return (
+    <div className="glass-card" style={{ padding: 16 }}>
+      <div className="section-title" style={{ marginBottom: 4 }}>
+        <Ban size={13} style={{ verticalAlign: -2, marginRight: 6 }} />
+        What breeding cannot reach
+      </div>
+      <p style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 12 }}>
+        Read from the game&apos;s own data, not from this server — {limits.paldeckEntries}{' '}
+        Paldeck entries checked. A Pal missing from the planner is usually here
+        rather than missing from the dashboard.
+        {alpha !== undefined && (
+          <> Separately, a bred Pal hatches as an alpha{' '}
+            <strong>{Math.round(alpha * 100)}%</strong> of the time.</>
+        )}
+      </p>
+
+      <LimitGroup
+        title={`Cannot be bred at all (${limits.never.length})`}
+        blurb="The game marks these as taking no part in breeding — the legendaries,
+               tower bosses and raid bosses. They are caught or summoned, never hatched."
+        rows={limits.never}
+        open={open === 'never'}
+        onToggle={() => setOpen(open === 'never' ? null : 'never')}
+      />
+
+      <LimitGroup
+        title={`Only from one exact pairing (${limits.namedPairingOnly.length})`}
+        blurb="Element variants. The game names the pairs that produce them and the
+               general rank rule never will, so these come from the pairs listed or
+               not at all."
+        rows={limits.namedPairingOnly}
+        open={open === 'named'}
+        onToggle={() => setOpen(open === 'named' ? null : 'named')}
+        showPairings
+      />
+
+      <LimitGroup
+        title={`Unconfirmed (${limits.unverified.length})`}
+        blurb="Element variants the game's own table names no pairing for, while the
+               breeding table this planner runs on offers one. Nothing in the game
+               files settles the disagreement, so treat any route to these as
+               unconfirmed."
+        rows={limits.unverified}
+        open={open === 'unverified'}
+        onToggle={() => setOpen(open === 'unverified' ? null : 'unverified')}
+        showMutation
+      />
+    </div>
+  );
+}
+
+function LimitGroup({
+  title, blurb, rows, open, onToggle, showPairings, showMutation,
+}: {
+  title: string;
+  blurb: string;
+  rows: BreedingLimitRow[];
+  open: boolean;
+  onToggle: () => void;
+  showPairings?: boolean;
+  showMutation?: boolean;
+}) {
+  if (!rows.length) return null;
+  // One mutated-egg note for the whole group, not one per row — it is the same
+  // three sentences about the same mechanic, and repeating it three times reads
+  // as three separate findings.
+  const egg = showMutation ? rows.find((r) => r.mutatedEgg)?.mutatedEgg : undefined;
+
+  return (
+    <div style={{ borderTop: '1px solid var(--border)', paddingTop: 10, marginTop: 10 }}>
+      <button
+        onClick={onToggle}
+        style={{
+          display: 'flex', alignItems: 'center', gap: 8, width: '100%',
+          background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+          color: 'var(--text-primary)', font: 'inherit', fontSize: 13, textAlign: 'left',
+        }}
+      >
+        <span>{title}</span>
+        <span style={{ marginLeft: 'auto', color: 'var(--text-muted)', fontSize: 11 }}>
+          {open ? 'hide' : 'show'}
+        </span>
+      </button>
+      <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '4px 0 0' }}>{blurb}</p>
+
+      {open && (
+        <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {rows.map((row) => (
+            <div key={row.species} style={{ fontSize: 12 }}>
+              <span style={{ color: 'var(--text-primary)' }}>{row.name}</span>
+              <span className="mono" style={{ color: 'var(--text-muted)', marginLeft: 8 }}>
+                #{row.paldeck}{row.suffix}
+              </span>
+              {showPairings && row.pairings && (
+                <div style={{ marginLeft: 14, marginTop: 2, color: 'var(--text-secondary)' }}>
+                  {row.pairings.map((p, i) => (
+                    <div key={i} style={{ fontSize: 11 }}>
+                      {p.aName} + {p.bName}
+                      {p.genderA && p.genderB && (
+                        <span style={{ color: 'var(--text-muted)' }}>
+                          {' '}({p.genderA.toLowerCase()} + {p.genderB.toLowerCase()})
+                        </span>
+                      )}
+                      {/* Labelled, because "breed two of the thing you are
+                          trying to get" is not an acquisition route. */}
+                      {p.breedsTrue && (
+                        <span className="badge" style={{ marginLeft: 6 }}>breeds true</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+
+          {egg && (
+            <div style={{
+              marginTop: 6, padding: 10, borderRadius: 4,
+              background: 'var(--surface-2)', fontSize: 11, color: 'var(--text-secondary)',
+            }}>
+              <div style={{ color: 'var(--text-muted)', marginBottom: 4 }}>
+                The game also ships mutated eggs, in its own words:
+              </div>
+              <div style={{ fontStyle: 'italic' }}>&ldquo;{egg.quote}&rdquo;</div>
+              <div style={{ fontStyle: 'italic', marginTop: 4 }}>&ldquo;{egg.cakeQuote}&rdquo;</div>
+              {/* The absence is the point, and it is stated rather than left
+                  for the reader to infer from two suggestive quotes. */}
+              <div style={{ color: 'var(--text-muted)', marginTop: 6 }}>{egg.note}</div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * The game's reason a target is out of reach, under the planner's own.
+ *
+ * Silent for an ordinary Pal: "not reachable from your Pals" is the whole
+ * answer there, and adding a second sentence saying nothing would bury the
+ * cases where there is something to say.
+ */
+function WhyLimited({ row }: { row?: BreedingLimitRow }) {
+  if (!row?.note) return null;
+  return (
+    <div style={{
+      marginTop: 8, padding: 10, borderRadius: 4,
+      background: 'var(--surface-2)', fontSize: 12, color: 'var(--text-secondary)',
+    }}>
+      <strong style={{ color: 'var(--text-primary)' }}>
+        {row.kind === 'never' ? 'And it never will be. ' : 'Why: '}
+      </strong>
+      {row.note}
+      {row.pairings && (
+        <div style={{ marginTop: 6 }}>
+          {row.pairings.filter((p) => !p.breedsTrue).map((p, i) => (
+            <div key={i} className="mono" style={{ fontSize: 11 }}>
+              {p.aName} + {p.bName}
+            </div>
+          ))}
         </div>
       )}
     </div>

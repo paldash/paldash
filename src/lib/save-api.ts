@@ -49,6 +49,7 @@ import type {
   GameBuildStatus,
   WorldPackReload,
   ReachableTargets,
+  BreedingLimits,
   CatalogueItem,
   GuildMovePlan,
   GuildMoveResult,
@@ -1233,6 +1234,18 @@ export async function getOffspring(owner?: string): Promise<OffspringOption[]> {
  */
 export async function getReachable(owner?: string): Promise<ReachableTargets> {
   return saveFetch(`/breeding/reachable${owner ? `?owner=${encodeURIComponent(owner)}` : ''}`);
+}
+
+/**
+ * What breeding cannot reach, and why — reference data, no world needed.
+ *
+ * Deliberately **not** merged into the scoped planner requests. "Not reachable
+ * from your Pals" changes with the palbox; "the game names no pairing for this"
+ * does not, and serving them together would make the second look conditional on
+ * the first.
+ */
+export async function getBreedingLimits(): Promise<BreedingLimits> {
+  return saveFetch('/breeding/limits');
 }
 
 /**

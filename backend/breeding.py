@@ -806,6 +806,13 @@ def _named_pairings() -> dict[str, list[dict[str, Any]]]:
             if value != "None":
                 entry[key] = value
         out.setdefault(child, []).append(entry)
+
+    # Real pairings before the breeds-true one, always. The table's own order
+    # puts it first for some species and second for others, so a player
+    # scanning the list met "Fuack Ignis + Fuack Ignis" as the headline answer
+    # to "how do I get a Fuack Ignis".
+    for pairings in out.values():
+        pairings.sort(key=lambda p: (bool(p.get("breedsTrue")), p["aName"], p["bName"]))
     return out
 
 

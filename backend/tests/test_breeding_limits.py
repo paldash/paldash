@@ -14,14 +14,21 @@ and no world.
 from __future__ import annotations
 
 import os
+import re
 import sys
 
 import pytest
+from fastapi.testclient import TestClient
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
+import accounts  # noqa: E402
 import breeding  # noqa: E402
 import gamedata  # noqa: E402
+import main  # noqa: E402
+import policy as policy_module  # noqa: E402
+
+PASSWORD = "correct-horse-battery-staple"
 
 
 @pytest.fixture(autouse=True)
@@ -87,6 +94,28 @@ def test_every_paldeck_variant_has_a_route_that_is_not_itself():
     assert listed
     for row in listed:
         assert any(not p.get("breedsTrue") for p in row["pairings"]), row["name"]
+        # And a real pairing comes first, so the headline answer to "how do I
+        # get one" is never "breed two of the thing you are trying to get".
+        assert not row["pairings"][0].get("breedsTrue"), row["name"]
+
+
+def test_the_one_gender_dependent_pair_survives_into_the_answer():
+    """
+    Katress x Wixen is the whole game's only gender-dependent pairing, and it
+    is the one thing palcalc's flat `pair -> child` table cannot express. The
+    game states it as two rows, so both children get their own entry with the
+    genders attached — which is the point of reading `DT_PalCombiUnique`
+    directly rather than through that table.
+    """
+    rows = {r["name"]: r for r in breeding.unbreedable()["namedPairingOnly"]}
+    noct = next(p for p in rows["Wixen Noct"]["pairings"] if not p.get("breedsTrue"))
+    ignis = next(p for p in rows["Katress Ignis"]["pairings"] if not p.get("breedsTrue"))
+    assert (noct["aName"], noct["genderA"], noct["bName"], noct["genderB"]) == (
+        "Katress", "Male", "Wixen", "Female",
+    )
+    assert (ignis["aName"], ignis["genderA"], ignis["bName"], ignis["genderB"]) == (
+        "Katress", "Female", "Wixen", "Male",
+    )
 
 
 def test_the_three_contested_variants_are_reported_as_contested():
@@ -200,6 +229,57 @@ def test_nothing_here_claims_a_mutation_mechanic():
     # The absence is stated rather than left for the reader to notice.
     egg = limits["unverified"][0]["mutatedEgg"]
     assert "no game file says" in egg["note"].lower()
+
+
+# ─── The route, and both of its gates ────────────────────
+
+
+@pytest.fixture
+def client(fresh_db, tmp_path, monkeypatch):
+    monkeypatch.setattr(policy_module, "POLICY_FILE", str(tmp_path / "policy.json"))
+    monkeypatch.setenv("SECURITY_LEVEL", "full")
+    policy_module._cache = None
+    return TestClient(main.app)
+
+
+def test_the_route_needs_an_account():
+    """
+    `authz.require` inside the route, not trust in the proxy. Eleven routes in
+    this file once had the allowlist entry and no `require` call, which made
+    them reachable by anyone who could reach the proxy.
+    """
+    res = TestClient(main.app).get("/api/breeding/limits")
+    assert res.status_code in (401, 403)
+
+
+def test_the_route_serves_reference_data_with_no_parsed_world(client):
+    accounts.create_user("player1", PASSWORD, role="player")
+    token = client.post(
+        "/api/auth/login", json={"username": "player1", "password": PASSWORD}
+    ).json()["token"]
+
+    res = client.get("/api/breeding/limits", headers={"X-Session-Token": token})
+    assert res.status_code == 200, res.text
+    body = res.json()
+    assert body["never"] and body["namedPairingOnly"] and body["unverified"]
+    assert body["alphaChance"] == 0.05
+
+
+def test_the_route_is_reachable_through_the_proxy_allowlist():
+    """
+    The second gate. `authz.require` and the Next.js allowlist are independent
+    and neither substitutes for the other — a route missing from
+    `src/lib/permissions.ts` is simply unreachable, however correct the backend
+    is. Asserted against the pattern in that file rather than trusting that
+    `breeding/limits` looks like its siblings.
+    """
+    source = os.path.join(
+        os.path.dirname(__file__), "..", "..", "src", "lib", "permissions.ts"
+    )
+    with open(source, encoding="utf-8") as f:
+        text = f.read()
+    assert "/^breeding\\/[a-z]+$/" in text.replace(" ", "")
+    assert re.match(r"^breeding/[a-z]+$", "breeding/limits")
 
 
 def test_the_quotes_are_the_games_own_words():
