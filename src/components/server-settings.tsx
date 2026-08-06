@@ -262,8 +262,79 @@ export default function ServerSettings() {
           Restart the server and come back — the dashboard will then be able to
           tell you whether your change survived, instead of warning you that it
           might not have.
+          {!!settings.iniWatch.pendingKeys?.length && (
+            <div style={{ marginTop: 4, color: 'var(--text-muted)' }}>
+              Queued to check:{' '}
+              {settings.iniWatch.pendingKeys.map((k) => (
+                <span key={k} className="mono" style={{ marginRight: 6 }}>{k}</span>
+              ))}
+            </div>
+          )}
         </div>
       )}
+
+      {/* The per-key result, which is the question the operator actually asked.
+          The whole-file verdict above is about the DEPLOYMENT; this is about the
+          setting they changed, and the two come apart in both directions — an
+          image can rewrite the file and leave your key alone, or leave 126 keys
+          alone and revert the one you cared about.
+
+          `warnings` and `notes` are rendered differently on purpose. A benign
+          observation shown in the same red box as a real revert is how an
+          operator learns to ignore the box. */}
+      {(() => {
+        const v = settings.iniWatch?.keyVerification;
+        if (!v || !v.checked) return null;
+        const failed = v.keys.filter(
+          (k) => k.verdict === 'reverted' || k.verdict === 'missing'
+        );
+        return (
+          <div
+            className={failed.length ? 'notice notice-warn' : 'notice'}
+            style={{ fontSize: 12 }}
+          >
+            <strong>
+              {failed.length
+                ? `${failed.length} of ${v.checked} setting(s) did not survive the restart.`
+                : `All ${v.checked} setting(s) you changed are still in effect.`}
+            </strong>
+            {v.keys.map((k) => (
+              <div key={k.key} style={{ marginTop: 4 }}>
+                <span className="mono">{k.key}</span>{' '}
+                <span
+                  style={{
+                    color:
+                      k.verdict === 'verified'
+                        ? 'var(--text-muted)'
+                        : k.verdict === 'unchecked'
+                          ? 'var(--text-muted)'
+                          : 'var(--warn, #d18b4b)',
+                  }}
+                >
+                  {k.verdict}
+                </span>
+                {/* Never for a secret — the backend sends empty strings for
+                    those and this must not invent a placeholder that looks
+                    like a value. */}
+                {!k.secret && k.verdict !== 'verified' && k.expected && (
+                  <span style={{ color: 'var(--text-muted)' }}>
+                    {' '}— wrote <span className="mono">{k.expected}</span>, found{' '}
+                    <span className="mono">{k.actual || '(the key is gone)'}</span>
+                  </span>
+                )}
+              </div>
+            ))}
+            {v.notes.map((n) => (
+              <div
+                key={n}
+                style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6 }}
+              >
+                {n}
+              </div>
+            ))}
+          </div>
+        );
+      })()}
 
       {/* The restart that applies a change is the same restart that can undo it.
           Naming the affected keys matters: a setting silently reverted after the

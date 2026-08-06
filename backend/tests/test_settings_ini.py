@@ -23,7 +23,18 @@ OptionSettings=(Difficulty=None,DayTimeSpeedRate=1.000000,ExpRate=1.000000,PalCa
 
 
 @pytest.fixture
-def ini(tmp_path, monkeypatch):
+def ini(fresh_db, tmp_path, monkeypatch):
+    """
+    A sample INI, and **a database of its own**.
+
+    `fresh_db` is not decoration. `write_ini` records what it wrote so the change
+    can be verified after the next restart (`iniwatch.record_our_write`), so the
+    ten tests below that write a setting would otherwise each leave rows in the
+    development database — including scrypt-sealed password material from the
+    secret-handling tests. Nothing leaked and nothing was committed, but a test
+    that mutates shared state outside its tmp_path is one refactor away from
+    doing so.
+    """
     path = tmp_path / "PalWorldSettings.ini"
     path.write_text(SAMPLE, encoding="utf-8")
     monkeypatch.setattr(settings_ini, "BACKUP_DIR", str(tmp_path / "backups"))
@@ -190,7 +201,7 @@ def test_write_preserves_the_section_header(ini):
     assert text.count("OptionSettings=(") == 1
 
 
-def test_write_preserves_crlf_line_endings(tmp_path, monkeypatch):
+def test_write_preserves_crlf_line_endings(fresh_db, tmp_path, monkeypatch):
     path = tmp_path / "crlf.ini"
     path.write_bytes(SAMPLE.replace("\n", "\r\n").encode())
     monkeypatch.setattr(settings_ini, "BACKUP_DIR", str(tmp_path / "b"))
@@ -247,7 +258,11 @@ import shutil
 
 
 @pytest.fixture
-def real_ini(reference_default_ini, tmp_path, monkeypatch):
+def real_ini(fresh_db, reference_default_ini, tmp_path, monkeypatch):
+    # `fresh_db` for the same reason the `ini` fixture takes it: the password
+    # tests below write through `write_ini`, which now records what it wrote so
+    # the next restart can verify it. Without this they leave sealed password
+    # material in the development database.
     path = tmp_path / "PalWorldSettings.ini"
     shutil.copy(reference_default_ini, path)
     # write_ini backs the file up first, and BACKUP_DIR defaults to /palworld.

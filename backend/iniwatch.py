@@ -37,6 +37,36 @@ So the verdict is reported as what was measured — "your INI changed across a
 restart and we did not do it" — with the count and the timestamps, rather than as
 an accusation about a specific image. `describe()` returns `unknown` until there
 is evidence either way, and never guesses from a container name.
+
+AND THE FILE HASH IS THE WRONG GRANULARITY FOR THE OPERATOR'S ACTUAL QUESTION
+-----------------------------------------------------------------------------
+Everything above is a statement about the *deployment*. The operator asked a
+narrower one: **did the setting I just changed survive?**
+
+Those come apart in both directions, which is why the hash alone was not enough:
+
+- An image can rewrite the file and still leave the key you changed alone —
+  reporting `regenerated` there is a true statement that reads as "your change
+  was lost" when it was not.
+- An image can leave 126 keys alone and revert the one you cared about, and a
+  whole-file verdict of `regenerated` gives the same undifferentiated warning it
+  gives for a cosmetic reformat.
+
+So `verify_written_keys` re-reads the INI once the server is back and compares
+**each key we wrote** against what is on disk. `warnings` are keys that did not
+survive — actionable. `notes` are true observations that are not failures, kept
+separate for exactly the reason above: a benign whole-file change must not render
+as VERIFY FAILED.
+
+**THE ONE TRAP, AND IT IS A SECURITY ONE.** Verifying "what we wrote is what is
+on disk" means keeping a copy of what we wrote, and `AdminPassword` and
+`ServerPassword` go through this path. `settings_ini` masks those on read and in
+the audit log precisely so they do not reach logs, screenshots or a network tab —
+a verification record holding the plaintext would undo that in a *new* place, and
+one that outlives the request. They are stored as **scrypt hashes** (the same
+function that hashes account passwords, rather than a second implementation), and
+neither the stored value nor the on-disk value is ever returned to a caller. The
+verdict for a secret is the comparison result and nothing else.
 """
 
 from __future__ import annotations
@@ -64,6 +94,30 @@ CREATE TABLE IF NOT EXISTS ini_watch (
     verdict       TEXT    NOT NULL DEFAULT '',
     observed_at   TEXT    NOT NULL DEFAULT '',
     detail        TEXT    NOT NULL DEFAULT ''
+);
+
+-- What the dashboard wrote and has not yet been able to check, one row per key.
+--
+-- Separate tables rather than columns on `ini_watch` so that adding this needed
+-- no migration on a database that already has that row: `CREATE TABLE IF NOT
+-- EXISTS` covers a new table and silently does nothing for a new column.
+CREATE TABLE IF NOT EXISTS ini_pending_keys (
+    key        TEXT PRIMARY KEY,
+    -- The raw INI text we wrote — or, for a secret, a scrypt hash of it.
+    expected   TEXT    NOT NULL,
+    secret     INTEGER NOT NULL DEFAULT 0,
+    written_at TEXT    NOT NULL DEFAULT ''
+);
+
+-- The last verdict per key, kept after the pending row is consumed.
+CREATE TABLE IF NOT EXISTS ini_key_verdicts (
+    key         TEXT PRIMARY KEY,
+    verdict     TEXT    NOT NULL,
+    -- Empty for secrets, always. See the module docstring.
+    expected    TEXT    NOT NULL DEFAULT '',
+    actual      TEXT    NOT NULL DEFAULT '',
+    secret      INTEGER NOT NULL DEFAULT 0,
+    observed_at TEXT    NOT NULL DEFAULT ''
 );
 """
 
@@ -104,25 +158,69 @@ def hash_file(path: Optional[str]) -> str:
         return ""
 
 
-def record_our_write(path: Optional[str]) -> None:
+def record_our_write(
+    path: Optional[str],
+    written: Optional[dict[str, str]] = None,
+    secret_keys: tuple[str, ...] = (),
+) -> None:
     """
     Remember what the file looked like immediately after the dashboard wrote it.
 
     Called from the settings write path. `written_by_us` is what stops our own
     edit being mistaken for the image's.
+
+    `written` is `{key: raw INI text}` — exactly the substitutions `write_ini`
+    made, so the comparison later is against what went into the file rather than
+    against what the caller asked for. Those differ: `_format` turns `True` into
+    `True` and `2` into `2.000000`, and comparing the request would report every
+    float write as reverted.
+
+    **A secret's raw value is hashed here and never stored.** See the module
+    docstring; this is the line that keeps `AdminPassword` out of the database.
     """
     digest = hash_file(path)
     if not digest:
         return
     init()
+    now = _now()
     with db.transaction() as conn:
         conn.execute(
             "INSERT INTO ini_watch (id, path, hash, written_by_us, written_at) "
             "VALUES (1, ?, ?, 1, ?) "
             "ON CONFLICT(id) DO UPDATE SET path = excluded.path, hash = excluded.hash, "
             "written_by_us = 1, written_at = excluded.written_at",
-            (path or "", digest, _now()),
+            (path or "", digest, now),
         )
+        for key, raw in (written or {}).items():
+            secret = key in secret_keys
+            conn.execute(
+                "INSERT INTO ini_pending_keys (key, expected, secret, written_at) "
+                "VALUES (?, ?, ?, ?) ON CONFLICT(key) DO UPDATE SET "
+                "expected = excluded.expected, secret = excluded.secret, "
+                "written_at = excluded.written_at",
+                (key, _seal(raw) if secret else raw, 1 if secret else 0, now),
+            )
+
+
+def _seal(raw: str) -> str:
+    """
+    A secret's value, in a form that can be compared but not read back.
+
+    `accounts.hash_password` rather than a second hashing implementation here:
+    a server password is a password, the parameters are already chosen and
+    reviewed, and two scrypt call sites is two places to get `maxmem` wrong.
+    """
+    import accounts
+
+    return accounts.hash_password(raw)
+
+
+def _matches(expected: str, actual: str, secret: bool) -> bool:
+    if secret:
+        import accounts
+
+        return accounts.verify_password(actual, expected)
+    return expected == actual
 
 
 def observe_after_restart(path: Optional[str]) -> dict[str, Any]:
@@ -157,14 +255,141 @@ def observe_after_restart(path: Optional[str]) -> dict[str, Any]:
             "in your compose instead, or use an image that leaves the file alone."
         )
 
+    # Per-key BEFORE the pending rows are cleared below, and before the row is
+    # marked observed: this is the only moment both halves of the comparison
+    # exist at once.
+    keys = verify_written_keys(path or row["path"])
+
     with db.transaction() as conn:
         conn.execute(
             "UPDATE ini_watch SET verdict = ?, observed_at = ?, detail = ?, "
             "written_by_us = 0, hash = ? WHERE id = 1",
             (verdict, _now(), detail, current),
         )
-    logger.info("INI watch verdict: %s", verdict)
+        conn.execute("DELETE FROM ini_pending_keys")
+    logger.info(
+        "INI watch verdict: %s (%d key(s) checked, %d did not survive)",
+        verdict, keys["checked"], len(keys["warnings"]),
+    )
     return describe()
+
+
+def verify_written_keys(path: Optional[str]) -> dict[str, Any]:
+    """
+    Did each key the dashboard wrote survive the restart?
+
+    **This is the question the operator actually asked**, and the whole-file hash
+    above cannot answer it — see the module docstring for the two ways they come
+    apart. Records a verdict per key and returns the summary.
+
+    Reads with `reveal=True` because a secret's on-disk value is needed to
+    compare against the stored hash. **The revealed value never leaves this
+    function**: it goes into `_matches` and nowhere else, and the row written for
+    a secret key carries empty `expected` and `actual`.
+
+    An unreadable INI is `unchecked`, not `reverted`. "We could not look" and
+    "your change was undone" are different answers and this project keeps them
+    apart everywhere else — a missing ban list, an unreachable game server, an
+    unparsed world.
+    """
+    init()
+    pending = [
+        dict(r) for r in db.connect()
+        .execute("SELECT * FROM ini_pending_keys ORDER BY key").fetchall()
+    ]
+    if not pending:
+        return _key_summary([])
+
+    try:
+        import settings_ini
+
+        options = settings_ini.read_ini(path, reveal=True)["options"]
+    except Exception as e:  # noqa: BLE001
+        logger.warning("Could not re-read the INI to verify keys: %s", e)
+        options = None
+
+    now = _now()
+    results: list[dict[str, Any]] = []
+    for row in pending:
+        key, secret = row["key"], bool(row["secret"])
+        if options is None:
+            verdict, actual = "unchecked", ""
+        elif key not in options:
+            # The key vanished from OptionSettings entirely. A regenerating image
+            # that does not know this key writes a file without it, and the game
+            # then falls back to its own default — so this is a revert, not a
+            # missing measurement.
+            verdict, actual = "missing", ""
+        else:
+            actual = str(options[key].get("raw") or "")
+            verdict = (
+                "verified" if _matches(row["expected"], actual, secret) else "reverted"
+            )
+        results.append({
+            "key": key,
+            "verdict": verdict,
+            "secret": secret,
+            # Never for a secret, in either direction, whatever the verdict.
+            "expected": "" if secret else row["expected"],
+            "actual": "" if secret else actual,
+        })
+
+    with db.transaction() as conn:
+        for r in results:
+            conn.execute(
+                "INSERT INTO ini_key_verdicts "
+                "(key, verdict, expected, actual, secret, observed_at) "
+                "VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(key) DO UPDATE SET "
+                "verdict = excluded.verdict, expected = excluded.expected, "
+                "actual = excluded.actual, secret = excluded.secret, "
+                "observed_at = excluded.observed_at",
+                (r["key"], r["verdict"], r["expected"], r["actual"],
+                 1 if r["secret"] else 0, now),
+            )
+    return _key_summary(results)
+
+
+#: Verdicts that mean the operator's change did not take. Everything else is
+#: either fine or an admission that we could not look.
+_FAILED = ("reverted", "missing")
+
+
+def _key_summary(results: list[dict[str, Any]]) -> dict[str, Any]:
+    """
+    A `VerifyResult`: warnings are actionable, notes are merely true.
+
+    Keeping them apart is the point. A settings change that applied cleanly on a
+    server whose image also rewrote an unrelated key must read as success with a
+    note — not as VERIFY FAILED, which is how a single flat list of "findings"
+    renders and how an operator learns to ignore the panel.
+    """
+    warnings = [
+        (
+            f"{r['key']} did not survive the restart"
+            + ("" if r["secret"] else f" — expected {r['expected']}, found "
+               + (r["actual"] or "the key to be absent"))
+        )
+        for r in results if r["verdict"] in _FAILED
+    ]
+    unchecked = [r for r in results if r["verdict"] == "unchecked"]
+    notes = []
+    if unchecked:
+        notes.append(
+            f"{len(unchecked)} setting(s) could not be checked — "
+            "PalWorldSettings.ini was unreadable when the server came back."
+        )
+    if any(r["secret"] for r in results):
+        notes.append(
+            "Password settings are checked but never displayed: the dashboard "
+            "stores a hash of what it wrote, not the value."
+        )
+    return {
+        "checked": len(results),
+        "verified": sum(1 for r in results if r["verdict"] == "verified"),
+        "keys": results,
+        "warnings": warnings,
+        "notes": notes,
+    }
 
 
 def describe() -> dict[str, Any]:
@@ -177,6 +402,16 @@ def describe() -> dict[str, Any]:
     """
     row = _row()
     verdict = row["verdict"] or "unknown"
+    init()
+    conn = db.connect()
+    last = [
+        dict(r) for r in
+        conn.execute("SELECT * FROM ini_key_verdicts ORDER BY key").fetchall()
+    ]
+    pending = [
+        r["key"] for r in
+        conn.execute("SELECT key FROM ini_pending_keys ORDER BY key").fetchall()
+    ]
     return {
         "verdict": verdict,
         "detail": row["detail"] or (
@@ -186,4 +421,15 @@ def describe() -> dict[str, Any]:
         "observedAt": row["observed_at"] or None,
         "awaitingRestart": bool(row["written_by_us"]),
         "lastWriteAt": row["written_at"] or None,
+        # The keys written and not yet checked, by name. Without this a queued
+        # verification is indistinguishable from none, and the UI cannot say
+        # "restart to confirm these three".
+        "pendingKeys": pending,
+        "keyVerification": _key_summary([
+            {
+                "key": r["key"], "verdict": r["verdict"], "secret": bool(r["secret"]),
+                "expected": r["expected"], "actual": r["actual"],
+            }
+            for r in last
+        ]),
     }

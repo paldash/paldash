@@ -365,7 +365,10 @@ def write_ini(changes: dict[str, Any], path: Optional[str] = None) -> dict[str, 
     try:
         import iniwatch
 
-        iniwatch.record_our_write(path)
+        # `replacements`, not `changes`: these are the strings that actually went
+        # into the file. `_format` renders 2 as `2.000000`, so verifying against
+        # the caller's request would report every float write as reverted.
+        iniwatch.record_our_write(path, replacements, SECRET_KEYS)
     except Exception as e:  # noqa: BLE001
         logger.warning("Could not record the INI baseline: %s", e)
 

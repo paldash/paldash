@@ -2535,6 +2535,67 @@ the old conditional warning is suppressed — a measurement of this deployment b
 a list of what images commonly do, and an operator told "your settings persist"
 should not be reading a warning that they might not.
 
+### The file hash answers a question the operator did not ask
+
+Everything above is about the **deployment**. The operator asked something
+narrower: *did the setting I just changed survive?* Those come apart in **both**
+directions, which is why `verify_written_keys` exists rather than a rewording:
+
+- An image can rewrite the file and leave your key alone. `regenerated` is then
+  true and reads as "your change was lost", which it was not.
+- An image can leave 126 keys alone and revert the one you cared about — the same
+  undifferentiated warning it gives for a cosmetic reformat.
+
+So `record_our_write` also stores **what** was written, per key, and the restart
+observation re-reads the INI and compares each one. Verdicts are `verified`,
+`reverted`, `missing` and `unchecked`.
+
+**`replacements`, not `changes`.** The comparison is against the string that went
+into the file, because `_format` renders `2.0` as `2.000000` — comparing the
+caller's request would report every float write as reverted, on every server,
+forever. A permanent false alarm is worse than no check, because it teaches the
+operator to ignore the panel.
+
+**`missing` is a revert, `unchecked` is not.** A regenerating image that has never
+heard of a key writes a file without it and the game falls back to its own
+default, so the change is just as gone. An unreadable INI is the other thing
+entirely — "we could not look", which this project keeps separate from a negative
+everywhere else (the missing ban list, the unreachable server, the unparsed
+world).
+
+**Warnings and notes are two lists on purpose**, borrowed from Paladin's
+`VerifyResult`. Warnings are actionable; notes are merely true. A change that
+applied cleanly on a server whose image also rewrote an unrelated key must render
+as success with a note, not as VERIFY FAILED — a single flat list of "findings"
+is how a panel gets ignored.
+
+**AND THE SECURITY TRAP IS THE WHOLE REASON THIS NEEDED CARE.** Verifying "what
+we wrote is what is on disk" means keeping a copy of what we wrote, and
+`AdminPassword` and `ServerPassword` go through this path. `settings_ini` masks
+those on read and in the audit log precisely so they never reach a log, a
+screenshot or a network tab; a verification record holding the plaintext would
+undo that in a *new* place and one that outlives the request.
+
+They are stored as **scrypt hashes** — `accounts.hash_password`, not a second
+hashing implementation, because a server password *is* a password and two scrypt
+call sites is two places to get `maxmem` wrong. The verdict for a secret is the
+comparison result and nothing else: `expected` and `actual` are empty strings in
+the payload whatever the outcome, and `verify_written_keys` is the only thing
+that ever sees the revealed value. `test_ini_verify.py` asserts the plaintext
+appears nowhere in a full `iterdump()` of the database.
+
+**A note on test hygiene this change forced.** `write_ini` now writes to SQLite,
+so the ten existing tests that call it started leaving rows — including sealed
+password material — in the *development* database, because `real_ini` and `ini`
+did not take `fresh_db`. Nothing leaked and nothing was committed, but a test that
+mutates shared state outside its `tmp_path` is one refactor away from doing so.
+Both fixtures take it now. The trap that produced it is worth naming: a first
+version of the new test set `DB_PATH` in the environment, which `db.py` does not
+read — the variable is `DASHBOARD_DB` — so all eight tests silently shared one
+database and each saw the previous one's rows. **Backend modules capture
+environment at import time; monkeypatch the module attribute**, which is what
+`fresh_db` does.
+
 ## Container capacity: `SlotNum`, not the slot array
 
 The save stores **only occupied slots**; `SlotNum` is the real capacity and the
