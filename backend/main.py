@@ -40,6 +40,7 @@ import gameversion
 import gamedata
 import guildedit
 import iniwatch
+import itemsource
 import lifecycle
 import metrics
 import mods
@@ -1179,6 +1180,111 @@ def get_one_base_storage(base_id: str, request: Request) -> dict:
     raise HTTPException(404, f"No base {base_id}, or the world has not been parsed yet")
 
 
+def _scoped_base_storage(request: Request) -> tuple[list[dict], dict, dict]:
+    """
+    The base summaries this caller may see, plus the container tables they index.
+
+    **One copy of the scoping, because there are now two endpoints reporting
+    container contents.** `/api/bases/supply` and `/api/bases/craftable` answer
+    different questions about the same items, and a filter applied to one of two
+    endpoints serving the same data is not a filter — the standing example is
+    `/api/world/fasttravel` returning all 174 points beside a sibling that
+    carefully dropped the undiscovered ones.
+    """
+    summaries = baseprivacy.filter_storage(
+        savecache.get_section("baseStorage"), _hidden_base_ids(request)
+    )
+    own = _own_guild_base_ids(request)
+    if own is not None:
+        summaries = [s for s in summaries if str(s.get("baseId") or "") in own]
+
+    # NOT `get_section`: it returns `[]` for anything that is not a list, and
+    # both of these are dicts. That is the trap `_export_sections` documents —
+    # the report would come back looking fine with every container empty.
+    data = savecache.get_data() or {}
+    containers = data.get("containers") if isinstance(data.get("containers"), dict) else {}
+    guild_storage = (
+        data.get("guildStorage") if isinstance(data.get("guildStorage"), dict) else {}
+    )
+    return summaries, containers, guild_storage
+
+
+@app.get("/api/bases/craftable")
+def get_craftable(
+    request: Request,
+    guild: Optional[str] = None,
+    limit: int = 200,
+) -> dict:
+    """
+    What the materials in this guild's bases and chest could make.
+
+    The census half of the item-source feature, and therefore privacy-scoped —
+    unlike `/api/world/items/{id}`, which describes the game rather than this
+    world and needs no parsed save.
+
+    **Each recipe is costed against the whole pile independently.** Crafting one
+    thing consumes what another needs, so these counts are not simultaneously
+    achievable; `simultaneous: false` travels in the payload rather than only in
+    a docstring, because a list of numbers that cannot all be true at once reads
+    as a plan unless something says otherwise.
+
+    Stock is base storage **plus** the guild chest, which is right here and wrong
+    in `/api/bases/supply`: a chest is one shared box, so adding it to each base
+    would invent stock, while adding it once to a guild's total is exactly what a
+    player can actually reach.
+    """
+    authz.require(request, roles_module.VIEW_SELF)
+
+    summaries, containers, guild_storage = _scoped_base_storage(request)
+    wanted = str(guild or "").strip()
+
+    stock: dict[str, int] = {}
+    bases_counted = 0
+    for summary in summaries:
+        if wanted and str(summary.get("guildId") or "") != wanted:
+            continue
+        bases_counted += 1
+        for row in summary.get("items") or []:
+            item_id = str(row.get("itemId") or "")
+            if item_id:
+                stock[item_id] = stock.get(item_id, 0) + int(row.get("count") or 0)
+
+    # Guild chests, for the guilds whose bases are already visible — the same
+    # rule `/api/bases/supply` uses, so the two halves are scoped once.
+    visible_guilds = {
+        str(s.get("guildId") or "") for s in summaries if s.get("guildId")
+    }
+    if wanted:
+        visible_guilds &= {wanted}
+    chests = 0
+    for guild_entry in savecache.get_section("guilds"):
+        guild_id = str(guild_entry.get("id") or "")
+        if guild_id not in visible_guilds or guild_id not in guild_storage:
+            continue
+        chests += 1
+        # `basesupply.container_totals`, not a second slot reader: the count
+        # lives in `stackCount` and a reimplementation that reached for `count`
+        # would total zero on every slot and report full chests as empty.
+        totals = basesupply.container_totals(
+            {"slots": containers.get(guild_storage[guild_id], [])}
+        )
+        for item_id, count in totals.items():
+            stock[item_id] = stock.get(item_id, 0) + count
+
+    recipes = itemsource.craftable_from(stock, limit=max(1, min(int(limit), 500)))
+    return {
+        "recipes": recipes,
+        "basesCounted": bases_counted,
+        "guildChestsCounted": chests,
+        "distinctMaterials": len(stock),
+        # See the docstring: these are alternatives, not a shopping list.
+        "simultaneous": False,
+        # Which bench crafts a recipe has no source in any game file, so nothing
+        # here says where to stand. `WorkableAttribute` is 0 on all 1,414 rows.
+        "workstationKnown": False,
+    }
+
+
 @app.get("/api/bases/supply")
 def get_base_supply(
     request: Request,
@@ -1211,21 +1317,7 @@ def get_base_supply(
     staples = basesupply.parse_materials(materials)
     floor = max(0, int(floor))
 
-    summaries = baseprivacy.filter_storage(
-        savecache.get_section("baseStorage"), _hidden_base_ids(request)
-    )
-    own = _own_guild_base_ids(request)
-    if own is not None:
-        summaries = [s for s in summaries if str(s.get("baseId") or "") in own]
-
-    # NOT `get_section`: it returns `[]` for anything that is not a list, and
-    # both of these are dicts. That is the trap `_export_sections` documents —
-    # the report would come back looking fine with every container empty.
-    data = savecache.get_data() or {}
-    containers = data.get("containers") if isinstance(data.get("containers"), dict) else {}
-    guild_storage = (
-        data.get("guildStorage") if isinstance(data.get("guildStorage"), dict) else {}
-    )
+    summaries, containers, guild_storage = _scoped_base_storage(request)
     bases = {str(b.get("id") or ""): b for b in savecache.get_section("bases")}
 
     # Hunger per base, counted off the same Pal records `/api/welfare` reads.
@@ -1854,6 +1946,28 @@ def get_item_catalogue(request: Request) -> dict[str, Any]:
     except gamedata.GameDataUnavailable as e:
         raise HTTPException(503, str(e))
     return {"items": items, "total": len(items)}
+
+
+@app.get("/api/world/items/{item_id}")
+def get_item_sources(item_id: str, request: Request) -> dict[str, Any]:
+    """
+    Where one item comes from: recipes, drops, chests, merchants, production.
+
+    A sibling of `/api/world/items` and the catalogue half of the same
+    distinction — reference data about what Palworld has, needing no parsed
+    world, so `VIEW_BASIC`. What *this* world holds is `/api/items`, one letter
+    apart and privacy-filtered per guild.
+
+    An unknown id returns `known: false` with a 200 rather than a 404: the
+    catalogue is complete at 2,466 items, so a miss means the caller asked about
+    something that is not an item, which is a different thing from a route that
+    is not there.
+    """
+    authz.require(request, roles_module.VIEW_BASIC)
+    try:
+        return itemsource.describe(item_id)
+    except gamedata.GameDataUnavailable as e:
+        raise HTTPException(503, str(e))
 
 
 @app.get("/api/world/reference")

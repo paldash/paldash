@@ -136,6 +136,9 @@ const ROUTES: RouteRule[] = [
   // The item *catalogue* — what the game has. Not /items, which reports what
   // this world holds and is privacy-filtered per guild.
   { pattern: /^world\/items$/, methods: ['GET'], capability: CAPABILITIES.VIEW_BASIC, feature: FEATURES.SERVER_STATUS },
+  // Where one item comes from — recipes, drops, chests, merchants. Same
+  // catalogue, same gate: it describes the game, not this world.
+  { pattern: /^world\/items\/[A-Za-z0-9_]+$/, methods: ['GET'], capability: CAPABILITIES.VIEW_BASIC, feature: FEATURES.SERVER_STATUS },
   // Discoveries are VIEW_BASIC because a Player must be able to see their OWN
   // progress. The backend decides what a given role may see of the undiscovered
   // half — the proxy cannot, since that depends on the discoveryVisibility
@@ -164,6 +167,9 @@ const ROUTES: RouteRule[] = [
   // Same capability and feature as the storage routes above, because it is the
   // same disclosure in a different shape — per-base container contents.
   { pattern: /^bases\/supply$/, methods: ['GET'], capability: CAPABILITIES.VIEW_SELF, feature: FEATURES.ITEMS },
+  // And so is "what could this guild craft" — it is derived from exactly those
+  // contents, so it discloses them in aggregate and takes the same two gates.
+  { pattern: /^bases\/craftable$/, methods: ['GET'], capability: CAPABILITIES.VIEW_SELF, feature: FEATURES.ITEMS },
   // Work assignment discloses two things at once — which structures stand at a
   // base, and which Pals the caller owns — so it takes the stricter of the two
   // gates each half already has: VIEW_SELF, and the backend scopes bases through
