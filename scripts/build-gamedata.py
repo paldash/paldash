@@ -473,8 +473,11 @@ def apply_species_fields(data: dict) -> dict[str, int]:
       player already reads on Paldeck entry #98B. It does **not** mean
       unbreedable: `DT_PalCombiUnique` names 81 of them as children. It means
       the pairing must be one the game lists outright, never the rank fallback.
-    - `IgnoreCombi` is the game saying a species takes no part in breeding at
-      all — 226 of 753, Yakushima bosses and such.
+    - `IgnoreCombi` — 226 of 753. It means the **rank fallback** never produces
+      this species; it does *not* mean unbreedable and does *not* mean it
+      cannot be a parent. A named pairing overrides it (Frostallion Noct is
+      Frostallion + Helzephyr), and all 28 Paldeck-listed ones are productive
+      parents of 70-100 species each. Same constraint the suffix expresses.
 
     Both are written **only when they say something** (suffix non-empty,
     `ignoreCombi` true), so a caller's `.get()` default is the common case and

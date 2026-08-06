@@ -106,10 +106,10 @@ export default function BreedingPlanner() {
    * say which kind of not-reachable it is.
    *
    * "Not reachable within 4 breeding steps from your current Pals" is true of
-   * Frostallion and will stay true however many Pals you catch, because the
-   * game marks it as taking no part in breeding. Reported as a search limit
-   * alone, that reads as a dashboard shortcoming — the same failure the
-   * Paldeck's empty work-suitability panel had.
+   * Frostallion and will stay true however many Pals you catch, because no
+   * pairing in the game produces one. Reported as a search limit alone, that
+   * reads as a dashboard shortcoming — the same failure the Paldeck's empty
+   * work-suitability panel had.
    */
   const limitBySpecies = useMemo(() => {
     const map = new Map<string, BreedingLimitRow>();

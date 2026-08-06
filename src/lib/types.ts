@@ -1420,7 +1420,11 @@ export interface NamedPairing {
  * planner's scoped ones.
  */
 export interface BreedingLimits {
-  /** `IgnoreCombi` — the game says this species takes no part in breeding. */
+  /**
+   * `IgnoreCombi`, and no pairing the game names. **Not "cannot be bred"** —
+   * every one is a productive parent and most breed true. What no pairing does
+   * is *produce* one you have not already got.
+   */
   never: BreedingLimitRow[];
   /**
    * An element variant the game names no pairing for, while the table this
