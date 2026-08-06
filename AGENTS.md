@@ -904,6 +904,70 @@ leaves unnamed indices alone, so a partial document is a first-class thing: an
 unrecognised item elsewhere in the chest cannot block an edit that never touched
 it, and a stale view of the rest cannot revert someone else's change.
 
+## The pairing rule is derived, and an element variant is NOT a breeding outcome
+
+`scripts/verify-breeding.py`. `backend/breeding.py` ships a precomputed 46,655
+pair table from the MIT-licensed tylercamp/palcalc. The game's own rule is now
+re-derived from the server pak and agrees with it on **99.72%**:
+
+1. `DT_PalCombiUnique` wins outright — 256 pairs keyed on *tribe*.
+2. Otherwise `target = floor((rankA + rankB + 1) / 2)` over `CombiRank`, and the
+   child is the eligible species whose rank is nearest.
+3. Ties break on **`CombiDuplicatePriority`, highest first** — a column beside
+   `CombiRank` named for that job. Ties are the *common* case: 181 species over
+   ~130 distinct ranks.
+
+**THE CHILD POOL IS THE WHOLE DIFFICULTY, AND IT SAT AT 67% FOR A DAY BECAUSE OF
+IT.** Four tie-breaks were tried and abandoned with a note not to search that
+space further. The note was right and the diagnosis was wrong — the tie-break
+was never the problem. Every pool criterion is a column the game ships:
+
+    IgnoreCombi == False        breeds at all (226 of 753 say no)
+    ZukanIndex > 0              Paldeck-listed; -2 gym, -1 unreleased
+    ZukanIndexSuffix != "B"     not a mutant-egg variant  <- the one that mattered
+    OverrideNameTextID == None  not an alias of another entry
+
+**Element variants hatch from MUTATED EGGS, not from a pairing.** Kelpie Ignis,
+Cryolinx Terra, the `_Ice`/`_Fire`/`_Gold` forms — the game ships six
+`PalEgg_MutationPal*` items whose own description reads *"extremely rarely
+obtained, having undergone a special mutation"*, and `BP_PalGameSetting` names
+`PalEggMapObjectId_Mutation`. A rule that can produce one hands a player a
+breeding target no pairing will ever reach. Excluding them alone is **70.6% ->
+92.5%**.
+
+The marker is the game's own: `ZukanIndexSuffix == "B"`, exactly 90 of 753 forms
+— the `B` a player already reads on Paldeck entry #98B. A hand-written
+`_(Ice|Fire|Water|…)` regex finds 80 of them and **misses `_Gold`**.
+
+`OverrideNameTextID` is worth its own line. `Quest_Farmer03_SheepBall` is
+byte-identical to `SheepBall` on every breeding column — same rank, same
+priority, same zukan, same tribe — and differs *only* in borrowing its name. It
+was stealing SheepBall's results 30 times. That filter is **92.5% -> 99.72%**.
+
+**The check is membership, not size.** This script already carries a retraction
+for claiming "the species set agrees — 299" from a count, so the assertion is
+that the derived pool is a strict **subset** of palcalc's list: 181 against 305,
+zero strays. And the earlier finding that "palcalc's own pal list as the pool
+still gives 64.6%, so the pool is not the variable" was itself the trap —
+palcalc's *list* is its parent set and legitimately holds variants and quest
+forms, while its *child* set is narrower. Substituting one for the other tested
+the wrong thing while looking like it had ruled the pool out.
+
+**126 pairs remain open and are not tuned away.** 124 are `WhiteDeer` (Cryolinx,
+rank 570), which this rule offers for any target in 565-575 while palcalc offers
+it for 2 pairs in the whole table. Nothing in `DT_PalMonsterParameter`
+distinguishes it. palcalc is **not** ground truth — `DT_PalCombiUnique` is, and
+both pass it 253 of 253 — so with no game column separating the answers,
+inventing a filter that happens to exclude one species would be fitting the
+method to the answer. It needs somebody to breed a 565-575 pair and look.
+
+`breeding.py` still ships palcalc's table. Nothing is replaced on the strength
+of this; the diff is the deliverable.
+
+Also in `BP_PalGameSetting` and unused: **`Combi_BossPalRate = 0.05`** (a bred
+Pal is an alpha 5% of the time), `Combi_PassiveInheritNum` and
+`Combi_TalentInheritNum`, which give the real inheritance counts.
+
 ## Breeding routes are gender-aware, but only on what you own
 
 `possible_offspring` always enforced gender; `breeding_paths` and
