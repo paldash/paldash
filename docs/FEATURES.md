@@ -112,6 +112,8 @@ Legend: ✅ works · 🟡 works with a caveat · 🔴 not built · ⚪ out of sc
 | Field bosses (human) | ⚠️ | Named and counted, **no total.** The only enumeration available is the catalogue's 34 `BOSS_` NPCs and it contains a merchant and a quest NPC |
 | Dungeons cleared | 🔴 | `FixedDungeonClearCount` is empty on every save examined, so there is no key shape to join dungeon names against. Reported as unavailable *with the reason* |
 | Undiscovered half | ✅ | Dropped **server-side** per `discoveryVisibility`, recursively — `fieldBosses` nests its two halves and a top-level filter would leave the larger list intact |
+| Raid bosses | ✅ | 11 summon rows, levels 35-80, with the item that summons each and what it drops. **Not a map layer** — altar-summoned, so no game file gives them a position, and the panel says so |
+| Raid egg rewards | 🔴 | `EggPalIDAndWeight` is a `MapProperty` the table reader does not decode. Reported as *unread* rather than as an empty list |
 
 ## 4b. Paldeck
 

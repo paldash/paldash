@@ -5,9 +5,13 @@ import {
   Trophy, RefreshCw, MapPin, Sparkles, Compass, Swords, EyeOff, Info,
 } from 'lucide-react';
 import {
-  getProgress, getProgressDetail, type PlayerProgress, type RelicLine,
+  getProgress, getProgressDetail, getRaidBosses,
+  type PlayerProgress, type RelicLine,
 } from '@/lib/save-api';
-import type { Checklist, ChecklistEntry, ProgressDetailReport } from '@/lib/types';
+import GameIcon from '@/components/game-icon';
+import type {
+  Checklist, ChecklistEntry, ProgressDetailReport, RaidBossReport,
+} from '@/lib/types';
 
 /**
  * How far through the game each player is, and *what is left* by name.
@@ -39,13 +43,16 @@ export default function Progression() {
   const [errors, setErrors] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [who, setWho] = useState<string>('');
+  const [raids, setRaids] = useState<RaidBossReport | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     // Settled independently: the counts and the checklists come from different
     // endpoints, and one failing must not blank the other. A Promise.all with a
     // catch returning [] is how the base markers vanished from the map.
-    const [a, b] = await Promise.allSettled([getProgress(), getProgressDetail()]);
+    const [a, b, c] = await Promise.allSettled([
+      getProgress(), getProgressDetail(), getRaidBosses(),
+    ]);
     const problems: string[] = [];
     if (a.status === 'fulfilled') {
       setSummary(a.value.players);
@@ -55,6 +62,10 @@ export default function Progression() {
     }
     if (b.status === 'fulfilled') setDetail(b.value);
     else problems.push(`Checklists: ${String(b.reason)}`);
+    // Reference data rather than progress, so a failure here is worth saying
+    // but must not blank the rest of the tab.
+    if (c.status === 'fulfilled') setRaids(c.value);
+    else problems.push(`Raid bosses: ${String(c.reason)}`);
     setErrors(problems);
     setLoading(false);
   }, []);
@@ -148,6 +159,8 @@ export default function Progression() {
           <Unavailable detail={lists.dungeonsCleared} />
         </div>
       )}
+
+      {raids && <RaidBosses report={raids} defeated={player} />}
     </div>
   );
 }
@@ -360,6 +373,135 @@ function Unavailable({ detail }: { detail: { available: boolean; reason: string 
       <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '6px 0 0' }}>
         No checklist available. {detail.reason}
       </p>
+    </div>
+  );
+}
+
+/**
+ * The altar-summoned bosses: what summons each, at what level, what it drops.
+ *
+ * **Not on the map, and the panel says why.** `DT_BossSpawnerLoactionData` holds
+ * zero `RAID_` ids, which is correct rather than a gap — a raid boss is summoned
+ * at an altar, so a table of locations has nothing to say about it. Giving one a
+ * marker would be inventing a position.
+ *
+ * It sits here rather than beside the field bosses because the save records
+ * `RaidBossDefeatCount`, so there is a real per-player number to show against
+ * the reference list — which is the only thing that makes it progression rather
+ * than a wiki page.
+ */
+function RaidBosses({
+  report,
+  defeated,
+}: {
+  report: RaidBossReport;
+  defeated?: PlayerProgress;
+}) {
+  const [open, setOpen] = useState(false);
+  const count = (defeated?.raidBossesDefeated as { total: number } | undefined)?.total;
+
+  return (
+    <div className="glass-card" style={{ padding: 12 }}>
+      <button
+        onClick={() => setOpen(!open)}
+        style={{
+          display: 'flex', alignItems: 'center', gap: 7, width: '100%',
+          background: 'none', border: 'none', color: 'var(--text-primary)',
+          padding: 0, fontSize: 13, fontWeight: 600, cursor: 'pointer', textAlign: 'left',
+        }}
+      >
+        <Swords size={14} /> Raid bosses
+        <span style={{ flex: 1 }} />
+        {/* A count, never "n of 11": the save counts DEFEATS, not which ones,
+            so a denominator would imply a checklist the data cannot back. */}
+        {count != null && (
+          <span className="mono" style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+            {count} defeated
+          </span>
+        )}
+        <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{open ? 'Hide' : 'Show'}</span>
+      </button>
+
+      <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '6px 0 0' }}>
+        {report.positionNote}
+      </p>
+
+      {open && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 10 }}>
+          {report.bosses.map((boss) => (
+            <div
+              key={boss.summonItemId}
+              style={{
+                border: '1px solid var(--border-primary)', borderRadius: 6,
+                padding: 8, fontSize: 12,
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                <GameIcon src={boss.summonItemIcon} title={boss.summonItemName} />
+                <strong style={{ color: 'var(--text-primary)' }}>
+                  {boss.forms.map((f) => f.name).join(' / ')}
+                </strong>
+                {boss.forms.map((f) => (
+                  <span key={f.speciesId} className="badge">Lv {f.level}</span>
+                ))}
+              </div>
+              <div style={{ color: 'var(--text-muted)', marginTop: 4 }}>
+                Summoned with <strong>{boss.summonItemName}</strong>
+              </div>
+              {boss.forms.some((f) => f.nameIsInternal) && (
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 3 }}>
+                  {/* The `_2` difficulty variants have no character-table entry, so
+                      their species name is humanised. The summon item IS named
+                      properly, which is why it leads above. */}
+                  The game names the harder variant only through its summon item.
+                </div>
+              )}
+              {boss.rewards.length > 0 && (
+                <div style={{ marginTop: 6 }}>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Always drops:</div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 3 }}>
+                    {boss.rewards.map((r) => (
+                      <span key={r.itemId} className="badge" title={`${r.rate}%`}>
+                        <GameIcon src={r.icon} size={14} />
+                        {r.name}{' '}
+                        <span className="mono" style={{ color: 'var(--text-muted)' }}>
+                          ×{r.min === r.max ? r.min : `${r.min}-${r.max}`}
+                        </span>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {boss.rewardsAnyOne.length > 0 && (
+                <div style={{ marginTop: 6 }}>
+                  {/* The game's own distinction — SuccessAnyOneItemList is ONE of
+                      these. Folding the two lists together would overstate what a
+                      clear gives you. */}
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                    Plus one of:
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 3 }}>
+                    {boss.rewardsAnyOne.map((r) => (
+                      <span key={r.itemId} className="badge">
+                        <GameIcon src={r.icon} size={14} />
+                        {r.name}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {!boss.eggWeightsRead && (
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6 }}>
+                  {/* Said rather than shown as an empty list: EggPalIDAndWeight is
+                      a MapProperty the table reader does not decode, so "no eggs"
+                      would be a claim about the game instead of about the reader. */}
+                  Egg rewards are not readable from the game files.
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

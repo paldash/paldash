@@ -1803,3 +1803,47 @@ export interface NpcPlacements {
   /** Always true — the role split is derived from ids, not shipped by the game. */
   roleFromName: boolean;
 }
+
+
+// ─── Raid bosses ────────────────────────────────────────
+
+export interface RaidReward {
+  itemId: string;
+  name: string;
+  icon: string | null;
+  /** A real per-item chance — these are independent rolls, not slot shares. */
+  rate: number;
+  min: number;
+  max: number;
+}
+
+export interface RaidBossForm {
+  speciesId: string;
+  name: string;
+  /** True for the `_2` difficulty variants, which no character table carries. */
+  nameIsInternal: boolean;
+  level: number;
+  canModeChange: boolean;
+}
+
+export interface RaidBoss {
+  /** The row key IS the summon item — `PalSummon_NightLady` is Bellanoir's Slab. */
+  summonItemId: string;
+  summonItemName: string;
+  summonItemIcon: string | null;
+  summonItemKnown: boolean;
+  forms: RaidBossForm[];
+  rewards: RaidReward[];
+  /** One of these, not all — the game's own `SuccessAnyOneItemList`. */
+  rewardsAnyOne: RaidReward[];
+  /** False: EggPalIDAndWeight is a MapProperty the table reader cannot decode. */
+  eggWeightsRead: boolean;
+}
+
+export interface RaidBossReport {
+  bosses: RaidBoss[];
+  total: number;
+  /** Always false — altar-summoned, so no game file gives them a position. */
+  hasPositions: boolean;
+  positionNote: string;
+}
