@@ -2,14 +2,14 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import {
-  Package, RefreshCw, AlertTriangle, Warehouse, Utensils, Egg, Info, Hammer,
+  Package, RefreshCw, AlertTriangle, Warehouse, Utensils, Egg, Info, Hammer, Swords,
 } from 'lucide-react';
 import {
-  getBaseSupply, getCraftable,
+  getBaseSupply, getCraftable, getInvaders,
   type SupplyReport, type BaseSupply, type SupplyContainer,
 } from '@/lib/save-api';
 import GameIcon from '@/components/game-icon';
-import type { CraftableReport } from '@/lib/types';
+import type { CraftableReport, InvaderReport } from '@/lib/types';
 
 /**
  * What each base is holding, and what is conspicuously missing.
@@ -320,6 +320,7 @@ export default function BaseSupplyPanel() {
       </div>
 
       <Craftable />
+      <BaseRaids />
 
       {error && (
         <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--accent-red)', borderRadius: 6, padding: 10, fontSize: 12, color: 'var(--status-warning)' }}>
@@ -373,6 +374,153 @@ export default function BaseSupplyPanel() {
             {report.bases.map((base) => <BaseCard key={base.baseId} base={base} />)}
           </div>
         )
+      )}
+    </div>
+  );
+}
+
+
+/**
+ * Which raid groups the game contains, and what they drop.
+ *
+ * **A REFERENCE TABLE, AND THE PANEL SAYS SO IN THE HEADING.** It sits on the
+ * Bases tab because raids are a base concern, which makes it the exact place
+ * someone would read it as "these will attack MY base" — and it cannot mean
+ * that. Two joins are missing and neither is a matter of effort:
+ *
+ * - a raid is bounded by a "grade", and nothing establishes what a grade is in
+ *   save terms. Base level is the obvious candidate and is not in the save at
+ *   all.
+ * - a base's biome is defined by trigger volumes placed in the world, not by
+ *   any table, so a base cannot be matched to the groups that can reach it.
+ *
+ * `perBaseForecast: false` travels in the payload for the same reason
+ * `hasMultiplier` does: the client is the thing about to draw a conclusion.
+ */
+function BaseRaids() {
+  const [open, setOpen] = useState(false);
+  const [data, setData] = useState<InvaderReport | null>(null);
+  const [error, setError] = useState('');
+  const [biome, setBiome] = useState('');
+
+  useEffect(() => {
+    if (!open || data) return;
+    let live = true;
+    getInvaders()
+      .then((d) => { if (live) setData(d); })
+      .catch((e: unknown) => {
+        if (live) setError(e instanceof Error ? e.message : String(e));
+      });
+    return () => { live = false; };
+  }, [open, data]);
+
+  const biomes = data
+    ? Array.from(new Set(data.groups.flatMap((g) => g.biomes))).sort()
+    : [];
+  const shown = data
+    ? data.groups.filter((g) => !biome || g.biomes.includes(biome))
+    : [];
+
+  return (
+    <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-primary)', borderRadius: 6 }}>
+      <button
+        onClick={() => setOpen(!open)}
+        style={{
+          display: 'flex', alignItems: 'center', gap: 7, width: '100%',
+          background: 'none', border: 'none', color: 'var(--text-primary)',
+          padding: 10, fontSize: 13, cursor: 'pointer', textAlign: 'left',
+        }}
+      >
+        <Swords size={14} />
+        Base raids &mdash; what exists in the game
+        <span style={{ flex: 1 }} />
+        <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{open ? 'Hide' : 'Show'}</span>
+      </button>
+
+      {open && (
+        <div style={{ padding: '0 10px 10px' }}>
+          {error && (
+            <div style={{ fontSize: 12, color: 'var(--status-warning)' }}>
+              Could not load the raid table: {error}
+            </div>
+          )}
+          {!data && !error && (
+            <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Loading…</div>
+          )}
+          {data && (
+            <>
+              {/* The disclaimer leads rather than trails. On this tab the
+                  default reading is "these will attack my base", and it cannot. */}
+              <div className="notice" style={{ fontSize: 11, marginBottom: 8 }}>
+                {data.note}
+              </div>
+
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
+                <select
+                  className="select"
+                  style={{ width: 190, fontSize: 12 }}
+                  value={biome}
+                  onChange={(e) => setBiome(e.target.value)}
+                >
+                  <option value="">All biomes</option>
+                  {biomes.map((b) => <option key={b} value={b}>{b}</option>)}
+                </select>
+                <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                  {shown.length} of {data.total} groups
+                </span>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {shown.map((g) => (
+                  <div
+                    key={g.group}
+                    style={{
+                      border: '1px solid var(--border-primary)', borderRadius: 5,
+                      padding: 7, fontSize: 12,
+                    }}
+                  >
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                      <strong style={{ color: 'var(--text-primary)' }}>{g.group}</strong>
+                      {g.biomes.map((b) => <span key={b} className="badge">{b}</span>)}
+                      {/* "Grade" is the game's own word and its meaning is not
+                          established, so it is shown as the game's number and
+                          never translated into a level. */}
+                      <span style={{ color: 'var(--text-muted)' }}>
+                        grade {g.gradeMin}&ndash;{g.gradeMax}
+                        {!data.gradeMeaningKnown && ' (meaning unknown)'}
+                      </span>
+                    </div>
+                    {g.conditions.length > 0 && (
+                      <div style={{ fontSize: 11, color: 'var(--status-warning)', marginTop: 3 }}>
+                        Triggered by building: {g.conditions.join(', ')}
+                      </div>
+                    )}
+                    {g.rewards.length > 0 && (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 5 }}>
+                        {g.rewards.map((r) => (
+                          <span key={r.itemId} className="badge" title={`${r.rate}%`}>
+                            <GameIcon src={r.icon} size={14} />
+                            {r.name}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {data.cancelCosts.length > 0 && (
+                <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 8 }}>
+                  {/* A flat list because that is all the game gives: nothing says
+                      which cost applies to which raid. */}
+                  Calling off a raid costs one of{' '}
+                  {data.cancelCosts.map((c) => c.toLocaleString()).join(', ')} gold —
+                  the game does not say which applies to which raid.
+                </p>
+              )}
+            </>
+          )}
+        </div>
       )}
     </div>
   );

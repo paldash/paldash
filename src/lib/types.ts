@@ -1847,3 +1847,29 @@ export interface RaidBossReport {
   hasPositions: boolean;
   positionNote: string;
 }
+
+
+// ─── Base raids ─────────────────────────────────────────
+
+export interface InvaderGroup {
+  group: string;
+  biomes: string[];
+  gradeMin: number;
+  gradeMax: number;
+  attackers: number;
+  /** Build-object ids that trigger this raid, where the game names one. */
+  conditions: string[];
+  rewards: (RaidReward & { name: string; icon: string | null })[];
+}
+
+export interface InvaderReport {
+  groups: InvaderGroup[];
+  total: number;
+  visitors: Record<string, unknown>;
+  cancelCosts: number[];
+  /** False — nothing establishes what a raid "grade" is in save terms. */
+  gradeMeaningKnown: boolean;
+  /** False — a base's biome is trigger geometry, not a lookup. */
+  perBaseForecast: boolean;
+  note: string;
+}
