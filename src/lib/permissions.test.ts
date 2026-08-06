@@ -102,10 +102,27 @@ describe('describeSavePath', () => {
       ['settings/ini', 'POST', CAPABILITIES.SETTINGS_WRITE],
       ['server/restart', 'POST', CAPABILITIES.SERVER_CONTROL],
       ['server/stop-container', 'POST', CAPABILITIES.SERVER_CONTROL],
+      // The item catalogue and one item's sources are the same disclosure —
+      // what the GAME has — so they share a gate. `bases/craftable` is derived
+      // from container contents and takes the storage gate instead.
+      ['world/items', 'GET', CAPABILITIES.VIEW_BASIC],
+      ['world/items/AIcore', 'GET', CAPABILITIES.VIEW_BASIC],
+      ['bases/craftable', 'GET', CAPABILITIES.VIEW_SELF],
     ])('%s %s needs %s', (path, method, capability) => {
       const verdict = describeSavePath(path, method);
       expect(verdict.allowed).toBe(true);
       expect(verdict.capability).toBe(capability);
+    });
+
+    it('the item-source pattern does not open a path under the catalogue', () => {
+      // `world/items/{id}` sits directly under `world/items`, so a lazy pattern
+      // here is how a second segment becomes reachable. Ids are the game's own
+      // and contain only letters, digits and underscores.
+      expect(describeSavePath('world/items/AIcore/extra', 'GET').allowed).toBe(false);
+      expect(describeSavePath('world/items/../players', 'GET').allowed).toBe(false);
+      expect(describeSavePath('world/items/a-b', 'GET').allowed).toBe(false);
+      // And it is a read. The catalogue is bundled data nothing can write to.
+      expect(describeSavePath('world/items/AIcore', 'POST').allowed).toBe(false);
     });
 
     it('no longer exposes the retired general edit route', () => {

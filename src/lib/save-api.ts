@@ -51,6 +51,8 @@ import type {
   ReachableTargets,
   BreedingLimits,
   CatalogueItem,
+  CraftableReport,
+  ItemSources,
   GuildMovePlan,
   GuildMoveResult,
   PalStats,
@@ -1156,6 +1158,29 @@ export async function getItemCatalogue(): Promise<{
   total: number;
 }> {
   return saveFetch('/world/items');
+}
+
+/**
+ * Where one item comes from — recipes, drops, chests, merchants, production.
+ *
+ * The catalogue again, so it needs no parsed world. `known: false` in the reply
+ * means there is no such item, which is a different answer from an item nothing
+ * produces (`hasSource: false`).
+ */
+export async function getItemSources(itemId: string): Promise<ItemSources> {
+  return saveFetch(`/world/items/${encodeURIComponent(itemId)}`);
+}
+
+/**
+ * What the materials in a guild's bases and chest could make.
+ *
+ * The census half, and therefore privacy-scoped. Each recipe is costed against
+ * the whole pile on its own, so the counts are alternatives rather than a plan —
+ * `simultaneous: false` says so in the payload.
+ */
+export async function getCraftable(guild?: string): Promise<CraftableReport> {
+  const query = guild ? `?guild=${encodeURIComponent(guild)}` : '';
+  return saveFetch(`/bases/craftable${query}`);
 }
 
 // ─── Server settings (PalWorldSettings.ini) ─────────────

@@ -83,6 +83,10 @@ Legend: ✅ works · 🟡 works with a caveat · 🔴 not built · ⚪ out of sc
 | Base-scoped sorting | ✅ | **Phase 5** |
 | Real stack limits | ✅ | **Phase 5**, `max(authoritative, observed)` |
 | Category rules / priorities / profiles | 🔴 | Deferred — these decide *where an item goes*, which is editor semantics |
+| **Where an item comes from** | ✅ | Click any row on the Items tab. Every recipe with its materials named, which Pals drop it at what rate, which loot tables hold it, which merchants stock it, which structure produces it, what it is a material *for*, and the technology chain to unlock the recipe. Catalogue data, so it needs no parsed world |
+| **What a guild could craft** | ✅ | On the Base supply panel. Joins the recipe table against the same privacy-scoped base and guild-chest totals. Counts are **alternatives, not a plan** — crafting one consumes what another needs |
+| Which workbench crafts a recipe | 🔴 | **No source.** `WorkableAttribute` is present on all 1,414 recipe rows and is 0 on every one. Not inferred, and both panels say so |
+| Chest open rate | 🔴 | **No source.** `WeightInSlot` is relative within one field's slot; the share of that slot is shown, which is a different and defensible claim |
 
 ## 4b. Paldeck
 

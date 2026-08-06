@@ -1573,3 +1573,131 @@ export interface GuildMoveResult {
   backupId: string;
   verified: boolean;
 }
+
+
+// ─── Where an item comes from ───────────────────────────
+
+/** An item id with the two things needed to render it. */
+export interface ItemRef {
+  itemId: string;
+  name: string;
+  icon: string | null;
+}
+
+/**
+ * A technology step. `cost` is in technology points — but a boss technology
+ * spends **Ancient** Technology Points, a different currency, so the two are
+ * never summed and no total is offered.
+ */
+export interface TechnologyStep {
+  technologyId: string;
+  name: string;
+  cost: number | null;
+  isBossTechnology: boolean;
+}
+
+export interface TechnologyUnlock extends TechnologyStep {
+  icon: string | null;
+  levelCap: number | null;
+  /** A tower boss that must be beaten first, where the game names one. */
+  requiresBoss: string;
+  /** Everything to research before it, in order. */
+  requires: TechnologyStep[];
+}
+
+export interface ItemRecipe {
+  recipeId: string;
+  count: number;
+  workAmount: number;
+  materials: (ItemRef & { count: number })[];
+  /** A looted schematic, which is not the same thing as a technology. */
+  unlockedBySchematic?: ItemRef;
+  technologies?: TechnologyUnlock[];
+}
+
+/**
+ * `levelFrom` is a **band**: the game's column holds only 0, 10, 20 … 80, so a
+ * row covers "level 30-39". It is never an exact level.
+ */
+export interface ItemDropSource {
+  speciesId: string;
+  name: string;
+  isBoss: boolean;
+  levelFrom: number;
+  rate: number;
+  min: number;
+  max: number;
+}
+
+/**
+ * `weight` is relative **within one field's slot** and nothing says how often a
+ * field is rolled, so it is not a drop rate. `slotShare` is that weight over its
+ * own slot's total, which IS the chance this item fills the slot when the field
+ * is rolled.
+ */
+export interface ItemLootSource {
+  field: string;
+  slot: number;
+  weight: number;
+  slotShare: number | null;
+  min: number;
+  max: number;
+  grade: string;
+}
+
+export interface ItemShopSource {
+  shop: string;
+  count: number;
+  stock: number;
+  type: string;
+  price: number | null;
+  /** False means the item's own catalogue price, not that it is free. */
+  priceIsOverride: boolean;
+}
+
+export interface ItemProductionSource {
+  structureId: string;
+  name: string;
+  requiredWork: number;
+  autoWorkPerSecond: number;
+}
+
+/** `known: false` means there is no such item — not that nothing produces it. */
+export interface ItemSources {
+  itemId: string;
+  known: boolean;
+  name?: string;
+  icon?: string | null;
+  description?: string | null;
+  crafting?: ItemRecipe[];
+  drops?: { total: number; shown: ItemDropSource[] };
+  loot?: ItemLootSource[];
+  shops?: ItemShopSource[];
+  production?: ItemProductionSource[];
+  usedIn?: (ItemRef & { needs: number })[];
+  food?: {
+    itemId: string;
+    durationSeconds: number;
+    effects: { type: string; value: number; interval: number }[];
+  };
+  /** False is a real answer: no bundled table produces this item. */
+  hasSource?: boolean;
+}
+
+export interface CraftableRecipe extends ItemRef {
+  recipeId: string;
+  batches: number;
+  count: number;
+  materials: (ItemRef & { count: number; held: number })[];
+}
+
+export interface CraftableReport {
+  recipes: CraftableRecipe[];
+  basesCounted: number;
+  guildChestsCounted: number;
+  distinctMaterials: number;
+  /** Always false — crafting one thing consumes what another needs. */
+  simultaneous: boolean;
+  /** Always false — WorkableAttribute is 0 on all 1,414 recipe rows. */
+  workstationKnown: boolean;
+}

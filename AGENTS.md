@@ -2023,6 +2023,81 @@ speaks `AIcore` and people speak "AI Core", and a catalogue carrying one of them
 forces every caller to rebuild the other index. Search boxes accept either
 throughout — `SheepBall` and `Lamball` find the same Pals.
 
+`/api/world/items/{id}` (`backend/itemsource.py`) is the catalogue's other half:
+where an item comes from, folding six bundled tables into one answer. Its census
+counterpart is `/api/bases/craftable` — what a guild's own materials could make —
+and the two sit on opposite sides of exactly the line above.
+
+### Keeping ONE recipe per product silently answered a twelfth of the question
+
+`economy.json.gz` used to key recipes by product, which collapsed 1,414 rows to
+1,399 and reported *that* as the recipe count. Fifteen rows were discarded, and
+they were not evenly spread: **twelve of them are Paldium Fragment**, which has
+thirteen recipes because dismantling each kind of Pal Sphere is its own row. The
+bundle kept one. Carbon Fibre from Coal *or* Charcoal was invisible the same way.
+
+That is fine for "how do I make X" and wrong for "where does X come from", and
+nothing about the shorter answer looked incomplete. Recipes are a list per
+product now, each carrying its row id — a product's recipes can be unlocked by
+*different* technologies, so the row is the thing a technology joins to, never
+the product.
+
+### `DT_PalStaticItemIDRedirectData` IS NOT A RENAME MAP
+
+29 rows of `SourceItemIds -> DestinationItemId` reads exactly like "these old ids
+now mean this one", and task #63 asked for it to be wired into `gamedata`'s
+lookups so a stale save's items resolved instead of falling back to `humanize()`.
+
+**Every one of the 29 is an accessory tier collapsing onto its own base tier** —
+`Accessory_AT_2` and `_AT_3` onto `Accessory_AT_1`, and so on for all seventeen
+pendants and twelve whistles. There is not one genuine rename in the table. And
+all 58 source ids **already resolve, to distinct names**: the game calls them
+"Attack Pendant +1" and "Attack Pendant +2". Applying this map to a lookup would
+replace 58 correct names with 29 wrong ones and undo the tier distinction the
+L10N join exists to get right.
+
+It is bundled as data with its meaning stated, and **no lookup consults it**.
+Same discipline as `elements.py`: carrying something you cannot use is fine;
+using it because its name reads right is not.
+
+### The technology join needs a case-fold, and the check is what found that
+
+Two of the 588 rows in `DT_TechnologyRecipeUnlock_Common` spell a recipe
+differently from the recipe table — `Bow_triple` against `Bow_Triple`,
+`Sakurasaurus` against `SakuraSaurus`. An `FName` compares case-insensitively so
+nothing is wrong in the game; a `dict` does not, so an exact join loses two
+technologies and reports 586 of 588 as though that were the data.
+
+The extractor refuses on a dangling recipe row or a missing prerequisite, and the
+join is on the **row**: reading `UnlockItemRecipes` as *product* ids would resolve
+for the handful whose row name matches their product and look like it worked.
+
+### Three things this feature will not say, each for a measured reason
+
+- **Which bench crafts a recipe.** `WorkableAttribute` is on all 1,414 rows and
+  is 0 on every one. `basesupply.py`'s rule — report facts, not mechanics — and
+  both panels say so out loud rather than leaving a gap that reads as an
+  oversight.
+- **How often a chest is opened.** `WeightInSlot` is relative within one field's
+  slot and nothing says how often a field is rolled. `slotShare` divides by that
+  slot's own total, which *is* the chance the item fills the slot given the roll,
+  and is a different claim.
+- **A rate between drop bands.** The `Level` column holds only 0, 10, 20 … 80.
+  The field is named `levelFrom` end to end so nothing downstream reads it as
+  exact.
+
+**And the answer is cached as ONE entry, not 2,466.** Keying the finished payload
+per item is the obvious move and is wrong twice over: `viewcache`'s file cache is
+a shared 128-entry LRU, so browsing the catalogue would evict the Paldeck listing
+and everything else in it, and the repeated work is the *scan* rather than the
+assembly. `itemsource._build_index` folds the bundle once — 3.5 ms per lookup
+becomes 0.2 ms, in one slot.
+
+**Pal-shop rosters shipped stringified dicts for months.** `CharacterIDArray`
+decodes as `{"Key": "SheepBall"}` and `str()` on that gives the literal
+`"{'Key': 'SheepBall'}"` — id-shaped, serialises perfectly, resolves to nothing.
+Nothing read the field, so nothing caught it. `_key()` is the one unwrapper.
+
 ## Sorting a chest by category needs `typeA` and `sortId`, and four buckets
 
 `saveedit.sort_containers(order=...)`. `id` is the alphabetical-on-internal-id

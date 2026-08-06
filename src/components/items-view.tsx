@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Package, Search, RefreshCw } from 'lucide-react';
 import { getItemTotals, getItemScopes } from '@/lib/save-api';
 import GameIcon from '@/components/game-icon';
+import ItemSourcePanel from '@/components/item-source';
 import type { ItemTotals } from '@/lib/types';
 
 /**
@@ -19,6 +20,10 @@ export default function ItemsView() {
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [scopes, setScopes] = useState<Awaited<ReturnType<typeof getItemScopes>> | null>(null);
+  // The row whose sources are open. This view says how much of a thing the
+  // server holds; the panel says where more of it comes from, which is the
+  // question the first answer prompts.
+  const [selected, setSelected] = useState<string | null>(null);
   // '' means the default the backend picks for you — your own guilds below the
   // threshold, server-wide above it.
   const [guild, setGuild] = useState('');
@@ -123,6 +128,12 @@ export default function ItemsView() {
         </button>
       </div>
 
+      {selected && (
+        // Keyed on the item so a different row remounts the panel rather than
+        // reusing one still holding the previous item's answer.
+        <ItemSourcePanel key={selected} itemId={selected} onClose={() => setSelected(null)} />
+      )}
+
       {data?.truncated && (
         <div className="notice" style={{ fontSize: 12 }}>
           Showing the top {data.items.length} item types by quantity.
@@ -133,14 +144,23 @@ export default function ItemsView() {
         <table className="table">
           <thead>
             <tr>
-              <th style={{ width: '55%' }}>Item</th>
+              <th style={{ width: '55%' }}>Item &mdash; click for sources</th>
               <th style={{ width: '25%' }}>Category</th>
               <th>Total</th>
             </tr>
           </thead>
           <tbody>
             {filtered.map((item) => (
-              <tr key={item.itemId} title={item.description || undefined}>
+              <tr
+                key={item.itemId}
+                title={item.description || undefined}
+                onClick={() => setSelected(item.itemId === selected ? null : item.itemId)}
+                style={{
+                  cursor: 'pointer',
+                  background:
+                    item.itemId === selected ? 'var(--bg-surface)' : undefined,
+                }}
+              >
                 <td style={{ color: 'var(--text-primary)' }}>
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
                     {/* The path comes straight from the bundled game data. */}

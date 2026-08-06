@@ -2,10 +2,14 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import {
-  Package, RefreshCw, AlertTriangle, Warehouse, Utensils, Egg, Info,
+  Package, RefreshCw, AlertTriangle, Warehouse, Utensils, Egg, Info, Hammer,
 } from 'lucide-react';
-import { getBaseSupply, type SupplyReport, type BaseSupply, type SupplyContainer } from '@/lib/save-api';
+import {
+  getBaseSupply, getCraftable,
+  type SupplyReport, type BaseSupply, type SupplyContainer,
+} from '@/lib/save-api';
 import GameIcon from '@/components/game-icon';
+import type { CraftableReport } from '@/lib/types';
 
 /**
  * What each base is holding, and what is conspicuously missing.
@@ -149,6 +153,106 @@ function BaseCard({ base }: { base: BaseSupply }) {
   );
 }
 
+/**
+ * What the materials in these bases and the guild chest could make.
+ *
+ * Deliberately collapsed by default and fetched separately from the supply
+ * report: it answers a different question, and one failing must not blank the
+ * other. `Promise.all` with a `.catch(() => [])` is how the base markers
+ * vanished from the map for a world with eleven bases.
+ *
+ * **The counts are alternatives, not a plan.** Each recipe is costed against the
+ * whole pile on its own, so crafting the first consumes what the second needs.
+ * The backend says so as `simultaneous: false` and this repeats it, because a
+ * column of numbers reads as a shopping list unless something says otherwise.
+ */
+function Craftable() {
+  const [open, setOpen] = useState(false);
+  const [data, setData] = useState<CraftableReport | null>(null);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (!open || data) return;
+    let live = true;
+    getCraftable()
+      .then((d) => { if (live) setData(d); })
+      .catch((e: unknown) => {
+        if (live) setError(e instanceof Error ? e.message : String(e));
+      });
+    return () => { live = false; };
+  }, [open, data]);
+
+  return (
+    <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-primary)', borderRadius: 6 }}>
+      <button
+        onClick={() => setOpen(!open)}
+        style={{
+          display: 'flex', alignItems: 'center', gap: 7, width: '100%',
+          background: 'none', border: 'none', color: 'var(--text-primary)',
+          padding: 10, fontSize: 13, cursor: 'pointer', textAlign: 'left',
+        }}
+      >
+        <Hammer size={14} />
+        What these materials could make
+        <span style={{ flex: 1 }} />
+        <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{open ? 'Hide' : 'Show'}</span>
+      </button>
+
+      {open && (
+        <div style={{ padding: '0 10px 10px' }}>
+          {error && (
+            <div style={{ fontSize: 12, color: 'var(--status-warning)' }}>
+              Could not work that out: {error}
+            </div>
+          )}
+          {!data && !error && (
+            <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Working it out…</div>
+          )}
+          {data && (
+            <>
+              <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '0 0 8px' }}>
+                From {data.distinctMaterials.toLocaleString()} kinds of material across{' '}
+                {data.basesCounted} base{data.basesCounted === 1 ? '' : 's'} and{' '}
+                {data.guildChestsCounted} guild chest
+                {data.guildChestsCounted === 1 ? '' : 's'}. Each row is costed against
+                everything you hold, so these are alternatives rather than a plan —
+                making one uses up what another needs.
+              </p>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {data.recipes.slice(0, 60).map((recipe) => (
+                  <span
+                    key={recipe.recipeId}
+                    className="badge"
+                    title={recipe.materials
+                      .map((m) => `${m.name} ×${m.count} (hold ${m.held.toLocaleString()})`)
+                      .join(', ')}
+                  >
+                    <GameIcon src={recipe.icon} size={14} />
+                    {recipe.name}{' '}
+                    <span className="mono" style={{ color: 'var(--text-muted)' }}>
+                      ×{recipe.count.toLocaleString()}
+                    </span>
+                  </span>
+                ))}
+              </div>
+              {data.recipes.length === 0 && (
+                <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                  Nothing in the catalogue can be made from what these bases hold.
+                </div>
+              )}
+              {!data.workstationKnown && data.recipes.length > 0 && (
+                <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '8px 0 0' }}>
+                  Which workbench each needs is not recorded in any game file.
+                </p>
+              )}
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function BaseSupplyPanel() {
   const [report, setReport] = useState<SupplyReport | null>(null);
   const [floor, setFloor] = useState(500);
@@ -214,6 +318,8 @@ export default function BaseSupplyPanel() {
           what any structure consumes, so it does not tell you what to move.
         </span>
       </div>
+
+      <Craftable />
 
       {error && (
         <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--accent-red)', borderRadius: 6, padding: 10, fontSize: 12, color: 'var(--status-warning)' }}>
