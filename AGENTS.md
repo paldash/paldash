@@ -1000,6 +1000,57 @@ need somebody to breed one and look at the egg.
 `breeding.py` still ships palcalc's table. Nothing is replaced on the strength
 of this; the diff is the deliverable.
 
+### And the planner now says which kind of "no" it is
+
+`breeding.obtainability` / `/api/breeding/limits`. Four answers, each read off a
+column rather than a hand-written list — `standard`, `named_pairing` (76),
+`unverified` (3), `never` (28). The `never` list comes out as the legendaries,
+tower bosses and raid bosses, which is the check that `IgnoreCombi` means what it
+looks like.
+
+It exists because **"not reachable within 4 breeding steps from your current
+Pals" is a true statement about Frostallion that will stay true however many Pals
+you catch**, and on its own it reads as the planner giving up. Same shape as the
+Paldeck's empty work-suitability panel.
+
+Two traps, both the read-the-wrong-row family:
+
+- **A row is a PALDECK ENTRY, not a species.** `GrassPanda_Electric_Tower` is
+  the tower-boss form of Mossanda Lux — same Paldeck number, same suffix, same
+  display name, `IgnoreCombi` true because *that form* is not a breeding
+  outcome. Ungrouped, the answer was "Mossanda Lux cannot be bred" about a Pal
+  that plainly can. Nine of the eleven Paldeck collisions are this shape
+  (`_Oilrig` and `_Tower` forms). Group on `(zukanIndex, zukanSuffix)` and keep
+  the **most permissive** answer.
+- **`pal_exact` is for stats, not eligibility.** The game sets
+  `ZukanIndexSuffix` on the base row only and gives encounter forms
+  `zukanIndex = -1`, so `BOSS_GrassPanda_Electric` carries no suffix at all and
+  an exact lookup called an alpha Mossanda Lux ordinary. `pal_exact` exists
+  because an alpha's *stats* differ; its breeding eligibility does not.
+
+**Reading `DT_PalCombiUnique` directly holds something palcalc's table cannot.**
+Katress x Wixen is the game's only gender-dependent pairing and the game states
+it as two rows — Wixen Noct from Katress(m) + Wixen(f), Katress Ignis from
+Katress(f) + Wixen(m). A flat `pair -> child` table holds one of those. Both now
+reach the UI with the genders attached.
+
+A breeds-true self-pairing (`Fuack Ignis + Fuack Ignis`) is labelled **and
+sorted last**. The game's own table puts it first for some species and second for
+others, so "how do I get a Fuack Ignis" was answered with "breed two Fuack Ignis"
+on three of the first four rows.
+
+**The mutated-egg material is quoted, never turned into a mechanic** —
+`basesupply.py`'s rule, pinned by a test that rejects any note containing "chance
+of", "guaranteed" and friends. Two verbatim strings travel: the egg item's own
+description, and `Cake04` (Extravagant Vegetable Cake) — *"Place it in the chest
+at a Breeding Farm… Mutations are more likely to occur"* — which is the game
+tying mutation to the Breeding Farm in Pocketpair's own words. **No file says
+what produces a mutated egg, at what rate, or what it hatches**; checked across
+all 471 server-pak DataTables, where `PalEgg_MutationPal` appears only as an
+icon, a model, a pickup blueprint and a particle effect. So the payload states
+that absence out loud rather than leaving two suggestive quotes to imply a
+method.
+
 Also in `BP_PalGameSetting` and unused: **`Combi_BossPalRate = 0.05`** (a bred
 Pal is an alpha 5% of the time), `Combi_PassiveInheritNum` and
 `Combi_TalentInheritNum`, which give the real inheritance counts.
