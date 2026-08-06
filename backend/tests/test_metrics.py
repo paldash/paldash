@@ -250,3 +250,67 @@ def test_the_first_cpu_reading_is_none_rather_than_invented(fresh):
     metrics._last_cpu = None
     assert metrics.cpu_percent() is None
     assert metrics.cpu_percent() is not None or True   # second may still be 0.0
+
+
+# ─── The game's memory is not the container's ────────────
+
+
+def test_game_memory_is_none_when_the_process_is_not_visible(monkeypatch):
+    """
+    **The ordinary answer in the normal deployment.** The dashboard runs in its
+    own container without a shared PID namespace, so the game's `/proc` entries
+    are not there to read — and `None` must reach the chart as "not available"
+    rather than as 0, which would read as a server using no memory at all.
+    """
+    import metrics
+
+    monkeypatch.setattr(metrics, "_game_pid", None)
+    monkeypatch.setattr(metrics, "_process_matches", lambda pid: False)
+    assert metrics.game_memory() is None
+
+
+def test_a_cached_pid_is_rechecked_not_trusted(monkeypatch):
+    """
+    Pids are reused. A chart that silently began reporting some other process's
+    memory would be worse than reporting none — it would look like the leak had
+    stopped.
+    """
+    import metrics
+
+    monkeypatch.setattr(metrics, "_game_pid", 4242)
+    seen = []
+
+    def _matches(pid):
+        seen.append(pid)
+        return False        # the cached pid is now somebody else
+
+    monkeypatch.setattr(metrics, "_process_matches", _matches)
+    monkeypatch.setattr(metrics.os, "listdir", lambda _p: [])
+    assert metrics._find_game_pid() is None
+    assert 4242 in seen, "the cached pid was returned without being re-checked"
+
+
+def test_game_memory_is_a_separate_column_from_container_memory():
+    """
+    They answer different questions and must not be conflated: `mem_used_mb` is
+    the cgroup's figure — this container, the dashboard — while `game_mem_mb` is
+    the process the leak actually happens in.
+    """
+    import metrics
+
+    assert "mem_used_mb" in metrics._COLUMNS
+    assert "game_mem_mb" in metrics._COLUMNS
+
+
+def test_every_new_host_column_is_nullable_in_a_sample():
+    """
+    A sample taken where nothing is readable must still be a row — a failed
+    reading is a gap, not an error, and the same rule keeps `players` from being
+    coerced to 0 when the server is down.
+    """
+    import metrics
+
+    row = metrics.sample()
+    for column in ("swap_used_mb", "cpu_steal", "net_rx_kbs", "cpu_temp_c",
+                   "game_mem_mb"):
+        assert column in row, column

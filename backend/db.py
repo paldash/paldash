@@ -132,7 +132,11 @@ CREATE TABLE IF NOT EXISTS metrics (
     cpu_steal     REAL,
     net_rx_kbs    REAL,
     net_tx_kbs    REAL,
-    cpu_temp_c    REAL
+    cpu_temp_c    REAL,
+    -- The GAME process's resident memory. NULL whenever the dashboard cannot
+    -- see it, which is the normal container deployment — and must never be 0,
+    -- which would read as a server using no memory at all.
+    game_mem_mb   REAL
 );
 CREATE INDEX IF NOT EXISTS idx_metrics_ts ON metrics(ts);
 """
@@ -187,6 +191,7 @@ _ADDED_COLUMNS: tuple[tuple[str, str, str], ...] = (
     ("metrics", "net_rx_kbs", "REAL"),
     ("metrics", "net_tx_kbs", "REAL"),
     ("metrics", "cpu_temp_c", "REAL"),
+    ("metrics", "game_mem_mb", "REAL"),
 )
 
 

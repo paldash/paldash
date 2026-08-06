@@ -62,6 +62,7 @@ _last_prune = 0.0
 _last_cpu: Optional[tuple[float, float]] = None   # (timestamp, cpu_seconds)
 _last_cpu_stat: Optional[tuple[float, float]] = None   # (total jiffies, steal)
 _last_net: Optional[tuple[float, int, int]] = None     # (timestamp, rx, tx)
+_game_pid: Optional[int] = None                        # re-checked, never trusted
 
 
 # ─── Host sampling ───────────────────────────────────────
@@ -281,6 +282,83 @@ def network() -> tuple[Optional[float], Optional[float]]:
     )
 
 
+def _process_matches(pid: int) -> bool:
+    """Whether this pid is the game server, by its own command line."""
+    try:
+        with open(f"/proc/{pid}/cmdline", "rb") as f:
+            cmdline = f.read().replace(b"\0", b" ").decode("utf-8", "replace").lower()
+    except OSError:
+        return False
+    return "palserver" in cmdline
+
+
+def _find_game_pid() -> Optional[int]:
+    """
+    The game server's pid, cached until it exits.
+
+    **A cached pid is re-checked rather than trusted**: pids are reused, and a
+    metrics chart that silently started reporting some other process's memory
+    would be worse than reporting none — it would look like the leak had
+    stopped.
+
+    Scans `/proc` directly rather than reusing `safety._probe_process`. Two
+    reasons, both deliberate: that function costs 26.5 ms walking every process
+    and is *skipped* whenever a cheaper signal already says "running", so it is
+    not a reliable source of a pid; and `metrics` is standard-library only by
+    design, while `safety` uses psutil.
+    """
+    global _game_pid
+
+    if _game_pid is not None and _process_matches(_game_pid):
+        return _game_pid
+
+    _game_pid = None
+    try:
+        entries = os.listdir("/proc")
+    except OSError:
+        return None
+
+    for entry in entries:
+        if not entry.isdigit():
+            continue
+        pid = int(entry)
+        if _process_matches(pid):
+            _game_pid = pid
+            return pid
+    return None
+
+
+def game_memory() -> Optional[float]:
+    """
+    The game server process's resident memory in MB, or `None`.
+
+    **This is the number the leak actually happens in.** `memory()` above reports
+    the cgroup's usage, which under Docker is *this container* — the dashboard —
+    and says nothing about the game beside it. An operator watching that chart to
+    predict a crash is watching the wrong process.
+
+    `None` is the ordinary answer in the normal deployment: the dashboard runs in
+    its own container without a shared PID namespace, so the game's `/proc`
+    entries are simply not visible. It must render as "not available" rather than
+    0, which would read as a server using no memory at all.
+
+    `VmRSS` rather than `VmSize`: resident is what the machine is actually
+    holding, and virtual size on a 64-bit game process is a large number that
+    means very little.
+    """
+    pid = _find_game_pid()
+    if pid is None:
+        return None
+    try:
+        with open(f"/proc/{pid}/status") as f:
+            for line in f:
+                if line.startswith("VmRSS:"):
+                    return round(float(line.split()[1]) / 1024, 1)
+    except (OSError, ValueError, IndexError):
+        return None
+    return None
+
+
 def cpu_temperature() -> Optional[float]:
     """
     The hottest CPU thermal zone in °C, or `None`.
@@ -376,6 +454,10 @@ def sample() -> dict[str, Any]:
     row["cpu_steal"] = cpu_steal()
     row["net_rx_kbs"], row["net_tx_kbs"] = network()
     row["cpu_temp_c"] = cpu_temperature()
+    # The GAME's memory, not this container's. See `game_memory` — the leak an
+    # operator is watching for happens in a process the cgroup figure above does
+    # not describe.
+    row["game_mem_mb"] = game_memory()
 
     row.update(_world_counts())
     return row
@@ -423,7 +505,7 @@ _COLUMNS = (
     # `cpu_temp_c`, where a 0 reads as a machine at freezing point rather than
     # as one that does not report a temperature.
     "swap_used_mb", "swap_total_mb", "cpu_steal", "net_rx_kbs", "net_tx_kbs",
-    "cpu_temp_c",
+    "cpu_temp_c", "game_mem_mb",
 )
 
 
@@ -509,7 +591,10 @@ def series(
                MAX(cpu_steal)      AS cpu_steal,
                AVG(net_rx_kbs)     AS net_rx_kbs,
                AVG(net_tx_kbs)     AS net_tx_kbs,
-               MAX(cpu_temp_c)     AS cpu_temp_c
+               MAX(cpu_temp_c)     AS cpu_temp_c,
+               -- MAX, because the question this series exists to answer is how
+               -- close the leak got, not what it averaged.
+               MAX(game_mem_mb)    AS game_mem_mb
           FROM metrics
          WHERE ts >= ?
       GROUP BY bucket
@@ -551,6 +636,7 @@ def series(
                 "netRxKbs": _round(r["net_rx_kbs"], 1),
                 "netTxKbs": _round(r["net_tx_kbs"], 1),
                 "cpuTempC": _round(r["cpu_temp_c"], 1),
+                "gameMemMb": _round(r["game_mem_mb"], 1),
             }
             for r in rows
         ],
