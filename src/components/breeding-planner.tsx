@@ -444,9 +444,13 @@ function BreedingLimitsPanel({ limits }: { limits: BreedingLimits }) {
       </p>
 
       <LimitGroup
-        title={`Cannot be bred at all (${limits.never.length})`}
-        blurb="The game marks these as taking no part in breeding — the legendaries,
-               tower bosses and raid bosses. They are caught or summoned, never hatched."
+        title={`No pairing produces these (${limits.never.length})`}
+        /* Not "cannot be bred": every one of them is a productive parent, and
+           most breed true. What the game rules out is *producing* one you have
+           not already got. */
+        blurb="The legendaries and tower bosses — caught or summoned, never hatched
+               from a pairing of other Pals. They can still be parents, and most of
+               them breed true, so two of one make another."
         rows={limits.never}
         open={open === 'never'}
         onToggle={() => setOpen(open === 'never' ? null : 'never')}
@@ -454,9 +458,13 @@ function BreedingLimitsPanel({ limits }: { limits: BreedingLimits }) {
 
       <LimitGroup
         title={`Only from one exact pairing (${limits.namedPairingOnly.length})`}
-        blurb="Element variants. The game names the pairs that produce them and the
-               general rank rule never will, so these come from the pairs listed or
-               not at all."
+        /* Mostly element variants, but not only — the Noct and Aqua forms of
+           the legendaries are here too (Frostallion Noct is Frostallion +
+           Helzephyr), and calling the group "variants" would have hidden them
+           behind a label a player would not think to open. */
+        blurb="The game names the exact pairs that produce these and the general rank
+               rule never will, so they come from the pairs listed or not at all.
+               Element variants, and the Noct/Aqua forms of the legendaries."
         rows={limits.namedPairingOnly}
         open={open === 'named'}
         onToggle={() => setOpen(open === 'named' ? null : 'named')}
@@ -578,7 +586,7 @@ function WhyLimited({ row }: { row?: BreedingLimitRow }) {
       background: 'var(--surface-2)', fontSize: 12, color: 'var(--text-secondary)',
     }}>
       <strong style={{ color: 'var(--text-primary)' }}>
-        {row.kind === 'never' ? 'And it never will be. ' : 'Why: '}
+        {row.kind === 'never' ? 'And no pairing ever will. ' : 'Why: '}
       </strong>
       {row.note}
       {row.pairings && (

@@ -21,7 +21,9 @@ const STAT_LABELS: Record<string, string> = {
   craft: 'Work Speed',
 };
 import HabitatMap from '@/components/habitat-map';
-import type { PaldeckEntry, PaldeckListing, PaldeckDetail } from '@/lib/types';
+import type {
+  PaldeckEntry, PaldeckListing, PaldeckDetail, SpeciesMove, SpeciesMoves,
+} from '@/lib/types';
 
 /**
  * The Paldeck: every Pal in the game, with where it spawns.
@@ -31,10 +33,15 @@ import type { PaldeckEntry, PaldeckListing, PaldeckDetail } from '@/lib/types';
  * rather than another layer on it: "where do I find Melpaca" is a question
  * about the game, while the map answers questions about your world.
  *
- * Habitat comes from `backend/data/habitats.json.gz`, derived from the game pak
- * by intersecting each spawner blueprint's name table with the known species
- * list. 183 of 204 entries have one; the rest are tower bosses, raid-only and
- * breeding-only Pals that genuinely have no spawner.
+ * Habitat comes from `backend/data/habitats.json.gz`, built from the server
+ * pak's own `DT_PalWildSpawner` and `DT_PalSpawnerPlacement` — species, level
+ * range, group size and relative weight per spawner. **This comment used to
+ * describe the name-table intersection that preceded it**, which could only
+ * ever claim "this blueprint references this species"; that script is deleted.
+ * See `backend/habitats.py`.
+ *
+ * A Pal with no habitat is not missing data: tower bosses, raid Pals and
+ * encounter-only forms genuinely have no world spawner.
  */
 export default function Paldeck() {
   const [listing, setListing] = useState<PaldeckListing | null>(null);
@@ -316,6 +323,43 @@ export default function Paldeck() {
                 );
               })()}
 
+              {/* What this species can learn. Two lists and not one, because
+                  they are obtained in completely different ways and the egg
+                  half is the only reason to breed for a species you could
+                  otherwise just catch. */}
+              {selected.moves && (
+                <MoveLists moves={selected.moves} />
+              )}
+
+              {/* Whether breeding can reach it. Silent for an ordinary Pal —
+                  "this can be bred normally" is not worth a line. */}
+              {selected.obtainability?.note && (
+                <div style={{ marginBottom: 10 }}>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>
+                    Breeding
+                  </div>
+                  <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+                    {selected.obtainability.note}
+                  </div>
+                  {selected.obtainability.pairings && (
+                    <div style={{ marginTop: 4 }}>
+                      {selected.obtainability.pairings
+                        .filter((p) => !p.breedsTrue)
+                        .map((p, i) => (
+                          <div key={i} style={{ fontSize: 12, color: 'var(--text-primary)' }}>
+                            {p.aName} + {p.bName}
+                            {p.genderA && p.genderB && (
+                              <span style={{ color: 'var(--text-muted)' }}>
+                                {' '}({p.genderA.toLowerCase()} + {p.genderB.toLowerCase()})
+                              </span>
+                            )}
+                          </div>
+                        ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {selected.stats && Object.keys(selected.stats).length > 0 && (
                 <div>
                   <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>
@@ -350,5 +394,72 @@ export default function Paldeck() {
         here&rdquo;, not a precise location.
       </p>
     </div>
+  );
+}
+
+/**
+ * What a species can learn, split by how it is obtained.
+ *
+ * **The split is the point.** A level-up move arrives on its own and needs
+ * nothing but time; an egg move can *only* be inherited by breeding and cannot
+ * be taught to a Pal that already exists. Merged into one list, the second fact
+ * disappears — and it is the fact that decides whether a breeding target is
+ * worth chasing at all.
+ *
+ * Silent when a species has neither, rather than rendering two empty headings.
+ */
+function MoveLists({ moves }: { moves: SpeciesMoves }) {
+  if (!moves.levelUp.length && !moves.egg.length) return null;
+
+  return (
+    <div style={{ marginBottom: 10 }}>
+      {moves.levelUp.length > 0 && (
+        <>
+          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>
+            Learns by level ({moves.levelUp.length})
+          </div>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
+            {moves.levelUp.map((m) => (
+              <MoveChip key={m.id} move={m} label={`Lv ${m.level}`} />
+            ))}
+          </div>
+        </>
+      )}
+
+      {moves.egg.length > 0 && (
+        <>
+          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>
+            Egg moves ({moves.egg.length})
+            {/* Said in the heading rather than in a footnote, because someone
+                scanning the list will otherwise read these as moves the Pal
+                picks up eventually. */}
+            <span
+              style={{ marginLeft: 6 }}
+              title="Inherited from a parent when the Pal hatches. A Pal that already exists cannot learn one, so these are only obtainable by breeding."
+            >
+              — breeding only
+            </span>
+          </div>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {moves.egg.map((m) => (
+              <MoveChip key={m.id} move={m} />
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function MoveChip({ move, label }: { move: SpeciesMove; label?: string }) {
+  return (
+    <span
+      className="badge"
+      title={`${move.element} · ${move.category} · power ${move.power} · ${move.cooldown}s cooldown`}
+      style={{ fontSize: 11 }}
+    >
+      {move.name}
+      {label && <span style={{ color: 'var(--text-muted)', marginLeft: 4 }}>{label}</span>}
+    </span>
   );
 }

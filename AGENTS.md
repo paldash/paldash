@@ -1003,17 +1003,47 @@ of this; the diff is the deliverable.
 ### And the planner now says which kind of "no" it is
 
 `breeding.obtainability` / `/api/breeding/limits`. Four answers, each read off a
-column rather than a hand-written list — `standard`, `named_pairing` (76),
-`unverified` (3), `never` (28). The `never` list comes out as the legendaries,
-tower bosses and raid bosses, which is the check that `IgnoreCombi` means what it
-looks like.
+column rather than a hand-written list — `standard`, `named_pairing` (81),
+`unverified` (3), `never` (24). The `never` list comes out as exactly the
+legendaries and tower bosses a player catches, which is the check that
+`IgnoreCombi` means what it looks like.
 
 It exists because **"not reachable within 4 breeding steps from your current
 Pals" is a true statement about Frostallion that will stay true however many Pals
 you catch**, and on its own it reads as the planner giving up. Same shape as the
 Paldeck's empty work-suitability panel.
 
-Two traps, both the read-the-wrong-row family:
+**A NAMED PAIRING BEATS `IgnoreCombi`, AND CHECKING THE FLAG FIRST GOT THE FOUR
+PALS A PLAYER MOST WANTS WRONG.** This is the variant retraction above happening
+a second time, one level down, on the same day — so the rule generalises and is
+worth stating as one:
+
+> `IgnoreCombi` and `ZukanIndexSuffix == "B"` both constrain **the rank
+> fallback**. Neither says anything about a pairing the game names outright, and
+> `DT_PalCombiUnique` is consulted first — in `predict`, and now here.
+
+Four species carry `IgnoreCombi` *and* are named in `DT_PalCombiUnique`, and
+filing them under "cannot be bred" was a claim about pairings players use daily:
+
+| Pal | The game's own pairing |
+|---|---|
+| Lyleen Noct | Lyleen + Menasting |
+| Faleris Aqua | Faleris + Jormuntide |
+| Bellanoir | Bellanoir + Bellanoir Libero |
+| Frostallion Noct | Frostallion + Helzephyr |
+
+**And a self-pairing is not a named pairing.** 26 of the 28 `IgnoreCombi`
+Paldeck entries breed true — Frostallion + Frostallion yields Frostallion —
+which is worth telling somebody who owns one and useless to somebody who does
+not. So it never promotes a species out of `never` and travels as `breedsTrue`.
+
+**`IgnoreCombi` does NOT mean "cannot be a parent", and the first note said it
+did.** Measured: all 28 are productive parents of **70-100 distinct species
+each**, and `IceHorse + IceNarwhal` is Frostallion parenting a Blazamut Ryu. The
+flag rules out being *produced*, nothing else. The group is labelled "no pairing
+produces these" rather than "cannot be bred" for exactly that reason.
+
+Two further traps, both the read-the-wrong-row family:
 
 - **A row is a PALDECK ENTRY, not a species.** `GrassPanda_Electric_Tower` is
   the tower-boss form of Mossanda Lux — same Paldeck number, same suffix, same

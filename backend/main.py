@@ -1998,6 +1998,22 @@ def get_paldeck_entry(species_id: str, request: Request) -> dict[str, Any]:
     except breeding.BreedingDataError:
         pass        # breeding data is optional; the entry is still useful
 
+    # What this species CAN learn, which is a different question from what a
+    # given Pal has equipped — and the egg half of it is the reason to breed at
+    # all, since an egg move cannot be taught to a Pal that already exists.
+    try:
+        extra["moves"] = gamedata.species_moves(species_id)
+    except gamedata.GameDataUnavailable:
+        pass        # the entry is still useful without them
+
+    # And whether breeding can reach it. The Paldeck is where somebody looks a
+    # Pal up before going after it, so "the game names one exact pairing for
+    # this" belongs here as much as on the planner.
+    try:
+        extra["obtainability"] = breeding.obtainability(species_id)
+    except (breeding.BreedingDataError, gamedata.GameDataUnavailable):
+        pass
+
     # Merge the location variants that share this Paldeck number, so the map
     # shows every place the Pal is found rather than one of them.
     ids = _paldeck_siblings().get(species_id, [species_id])
