@@ -118,8 +118,13 @@ Merging variants is what keeps their Paldeck entry mapped anyway.
 | Scoped to your own palbox | ✅ | A plain Player gets the planner over their own Pals (`VIEW_SELF`); `allPalsVisibility` (default `trusted`) decides who sees everyone's. "Only ones I don't have" is on by default |
 | Reachable-with-an-extra-step list | ✅ | Everything obtainable via an intermediate, shortest route each. Counts **breedings**, not BFS generations — a Pal can be two generations deep and need three pairings |
 | Unreachable, and *why* | ✅ | "Reachable by species but not with the genders you own" is reported separately from "not reachable at all" — they call for opposite actions |
+| What breeding cannot reach | ✅ | **2026-08-05.** Three groups from the game's own columns, not one "unbreedable" list: 28 that take no part in breeding at all (`IgnoreCombi` — the legendaries, tower and raid bosses), 76 element variants obtainable **only** from a pairing the game names outright (the pairings are listed), and 3 the game names no pairing for while the shipped table offers one. A Pal missing from the planner is usually here rather than missing from the dashboard |
+| Gender-dependent pairings | ✅ | Katress × Wixen, the game's only one, shown as both outcomes with the genders — read from `DT_PalCombiUnique` rather than the flat pair table, which can hold one of the two |
+| Alpha hatch rate | ✅ | `Combi_BossPalRate = 0.05`, the game's own constant |
+| Mutated eggs | ⚠️ quoted only | The game's two descriptions are shown verbatim and the payload states plainly that **no game file says what produces one, at what rate, or which species it hatches**. Report facts, not mechanics |
 | Inheritance odds | ✅ | |
 | Dataset currency | ✅ | **Merged 2026-07-28**: 305 Pals, +Astralym (#204), +1,803 pairs. See the merge note below |
+| Pairing rule verified against the game | ✅ | `scripts/verify-breeding.py` re-derives the rule from the server pak: **96.92%** over all 46,352 comparable pairs. The residual has two named causes and is deliberately not tuned away |
 
 ## 6. Backups
 

@@ -197,12 +197,18 @@ exactly, and both were previously held from sources that could not be checked.
 Constants already in use: `FriendshipPoint_AutoIncrementRequireSanity = 50` (the
 welfare threshold), `DamageElementMatchRate = 1.2`.
 
+In use from here as well: **`WorkSuitabilityMaxRank = 10`** (the ceiling this
+document's "confirmed absent" list once denied — see §8) and
+**`Combi_BossPalRate = 0.05`**, a bred Pal's chance of hatching as an alpha,
+shown on the breeding tab.
+
 Unused and available: `BaseCampAreaRange = 3500`,
 `BaseCampNeighborMinimumDistance = 1500`, `PalBoxTimePeriodRecoverySick = 3600`,
 `HungerParameterRate_Hunger = 10` / `_Starvation = 20`,
 `DamageRate_SleepHit = 3.0`, `DamageRate_WealPoint = 1.5`,
-`RarePal_AppearanceProbability = 0.1`, `Combi_BossPalRate = 0.05`,
-`PlayerHPRateFromRespawn = 0.5`.
+`RarePal_AppearanceProbability = 0.1`, `PlayerHPRateFromRespawn = 0.5`,
+`Combi_PassiveInheritNum` / `Combi_TalentInheritNum` (the real inheritance
+counts), `PalEggMapObjectId_Mutation = PalEgg_MutationPal`.
 
 **Untried, and the obvious next target:** the build objects' own CDOs
 (`BP_BuildObject_PalFoodBox` and friends). A container's accepted-item filter is
@@ -471,9 +477,33 @@ tables, not merely "not found".
   object CDOs are untried (#58).
 - **An awakened flag on a saved Pal.** No field in any save examined marks one, so
   the awakening term in the stat formula contributes nothing.
-- **A maximum work-suitability rank.** `DT_GainWorkSuitabilityRankItem` has no
-  rank column and no other table carries one. Asserting a ceiling would be
-  inventing a number.
+- **What produces a mutated egg, at what rate, or which species it hatches.**
+  The game ships six `PalEgg_MutationPal*` items whose descriptions say only
+  that they are *"extremely rarely obtained, having undergone a special
+  mutation"*, and `Cake04` says mutations are *"more likely to occur"* with the
+  Extravagant Vegetable Cake in a Breeding Farm chest — no number attached to
+  either. No DataTable links a mutated egg to a species: `PalEgg_MutationPal`
+  appears in the pak only as an icon, a visual model, a pickup blueprint and a
+  particle effect. `breeding.obtainability` therefore quotes both strings and
+  states the absence, and a test rejects any note that implies a method.
+  **The 90 element variants are marked by `ZukanIndexSuffix == "B"`, and 81 of
+  them are named as children in `DT_PalCombiUnique` — they are bred, not
+  mutated.** Whether the remaining three (Kelpsea Ignis, Shroomer Noct, Wumpo
+  Botan) have a pairing is genuinely open; see `scripts/verify-breeding.py`.
+
+### Corrected 2026-08-05: the max work-suitability rank IS in the files
+
+This list previously carried **"A maximum work-suitability rank —
+`DT_GainWorkSuitabilityRankItem` has no rank column and no other table carries
+one. Asserting a ceiling would be inventing a number."** Every word about
+DataTables was true and the conclusion was wrong: **`WorkSuitabilityMaxRank =
+10`** sits in `BP_PalGameSetting`'s class-default object and ships in
+`backend/data/game_settings.json.gz`.
+
+A DataTable sweep is not a search of the game. It is kept here rather than
+deleted because it is the exact hazard this section exists to create: **a
+documented negative gets trusted and stops the next person looking.** It was
+found by somebody asking "isn't the max 10?".
 
 ---
 
