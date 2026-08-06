@@ -142,8 +142,15 @@ def _row(item_id: str, count: int) -> dict[str, Any]:
     }
 
 
-def _container_totals(container: dict) -> dict[str, int]:
-    """`{item_id: count}` for one container summary's slots."""
+def container_totals(container: dict) -> dict[str, int]:
+    """
+    `{item_id: count}` for one container summary's slots.
+
+    Public because `/api/bases/craftable` needs the same fold and the field it
+    reads is **`stackCount`**, not `count` — a second reader that guessed would
+    total zero for every slot and report a guild with full chests as able to
+    craft nothing.
+    """
     totals: dict[str, int] = {}
     for slot in container.get("slots") or []:
         if slot.get("isEmpty"):
@@ -167,7 +174,7 @@ def _structures(summary: dict, kinds: tuple[str, ...], containers: dict) -> list
         if entry.get("kind") not in kinds:
             continue
         slots = containers.get(entry.get("containerId"), [])
-        totals = _container_totals({"slots": slots})
+        totals = container_totals({"slots": slots})
         out.append({
             "containerId": entry.get("containerId"),
             "kind": entry.get("kind"),
@@ -287,7 +294,7 @@ def guild_report(
     there. That is the same mistake `guildPalCount` exists to prevent.
     """
     slots = containers.get(container_id, [])
-    totals = _container_totals({"slots": slots})
+    totals = container_totals({"slots": slots})
     used = sum(1 for s in slots if not s.get("isEmpty"))
 
     return {
