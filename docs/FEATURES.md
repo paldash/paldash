@@ -114,6 +114,8 @@ Legend: ✅ works · 🟡 works with a caveat · 🔴 not built · ⚪ out of sc
 | Undiscovered half | ✅ | Dropped **server-side** per `discoveryVisibility`, recursively — `fieldBosses` nests its two halves and a top-level filter would leave the larger list intact |
 | Raid bosses | ✅ | 11 summon rows, levels 35-80, with the item that summons each and what it drops. **Not a map layer** — altar-summoned, so no game file gives them a position, and the panel says so |
 | Raid egg rewards | 🔴 | `EggPalIDAndWeight` is a `MapProperty` the table reader does not decode. Reported as *unread* rather than as an empty list |
+| Base raid reference | ✅ | 44 attacker groups by biome and grade band, their loot, the build-triggered one (`Factory_Money`) and the cancel costs. On the Bases tab beside the supply report |
+| Per-base raid forecast | 🔴 | **Two joins missing, neither a matter of effort.** A raid is bounded by a `InvadeGrade` whose meaning in save terms is unestablished — base level is the obvious candidate and is *not in the save at all* — and a base's biome is defined by trigger volumes in the world rather than by any table |
 
 ## 4b. Paldeck
 

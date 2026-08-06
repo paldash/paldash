@@ -140,6 +140,10 @@ const ROUTES: RouteRule[] = [
   // layer — they are altar-summoned and have no world position, so SERVER_STATUS
   // rather than MAP_OBJECTS.
   { pattern: /^world\/raidbosses$/, methods: ['GET'], capability: CAPABILITIES.VIEW_BASIC, feature: FEATURES.SERVER_STATUS },
+  // Base raid groups. Reference data too, and for a stronger reason than raid
+  // bosses: it makes no per-base claim at all, because neither the grade nor
+  // the biome can be joined to a save.
+  { pattern: /^world\/invaders$/, methods: ['GET'], capability: CAPABILITIES.VIEW_BASIC, feature: FEATURES.SERVER_STATUS },
   { pattern: /^world\/reference$/, methods: ['GET'], capability: CAPABILITIES.VIEW_BASIC, feature: FEATURES.SERVER_STATUS },
   // The item *catalogue* — what the game has. Not /items, which reports what
   // this world holds and is privacy-filtered per guild.

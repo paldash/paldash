@@ -100,3 +100,52 @@ def test_forms_are_counted_not_rows():
     assert len(forms) >= len(gamedata.raid_bosses())
     levels = [f["level"] for f in forms]
     assert min(levels) == 35 and max(levels) == 80
+
+
+# ─── Base raids ──────────────────────────────────────────
+
+
+def test_the_raid_table_makes_no_per_base_claim():
+    """
+    THE POINT OF THE WHOLE FEATURE'S SCOPE. Two joins would turn this into a
+    forecast and neither exists:
+
+    - a raid is bounded by an `InvadeGrade`, and nothing says what a grade is in
+      save terms. Base level is the obvious candidate and is **not in the save at
+      all** — `BaseCampSaveData` carries no level and neither does the palbox.
+    - a base's biome is defined by `BP_PalBiomeTriggerBox` volumes placed in the
+      world; `DT_WorldMapAreaData` carries only a `MsgID`.
+
+    So the bundle says `gradeMeaningKnown: false`, and nothing may quietly start
+    treating a grade as a level.
+    """
+    data = gamedata.invaders()
+    assert data["gradeMeaningKnown"] is False
+    for entries in data["groups"].values():
+        for entry in entries:
+            assert "baseLevel" not in entry
+            assert "playerLevel" not in entry
+
+
+def test_every_raid_reward_item_resolves():
+    unknown = {
+        r["itemId"]
+        for rows in (gamedata.invaders().get("rewards") or {}).values()
+        for r in rows
+        if not gamedata.item(r["itemId"])
+    }
+    assert unknown == set()
+
+
+def test_a_build_triggered_raid_is_carried_unresolved():
+    """
+    `ConditionBuildObjectId` names a structure whose presence triggers a raid —
+    `Factory_Money` is the one the game ships. Carried as the raw id: nothing
+    here has confirmed what the condition *means*, only that the column names it.
+    """
+    conditions = {
+        str(e.get("conditionBuildObjectId") or "")
+        for entries in gamedata.invaders()["groups"].values()
+        for e in entries
+    }
+    assert "Factory_Money" in conditions

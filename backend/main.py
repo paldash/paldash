@@ -1553,6 +1553,87 @@ def _raid_reward(entry: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+@app.get("/api/world/invaders")
+def get_invaders(request: Request) -> dict[str, Any]:
+    """
+    Base raids: which attacker groups exist, per biome, and what they drop.
+
+    **A REFERENCE TABLE, NOT A PER-BASE FORECAST, and the difference is not
+    caution — it is two joins that cannot be made.**
+
+    1. `InvadeGradeMin`/`Max` bound a raid to a "grade", and nothing establishes
+       what a grade is in save terms. Base level is the obvious candidate and is
+       **not in the save at all** — `BaseCampSaveData` carries id, name, state,
+       transform, area range, group and the owning palbox, and the palbox carries
+       no level either. Guild level and player level are equally plausible and
+       equally unevidenced.
+    2. `BiomeID` would let a base be matched to the groups that can reach it, and
+       biome is **placed geometry rather than a lookup**: `DT_WorldMapAreaData`
+       carries only a `MsgID`, and the assignment lives in `BP_PalBiomeTriggerBox`
+       volumes in the world cells. Matching a base to one means containment tests
+       against rotated boxes, which is a real piece of work with its own
+       verification story and has not been done.
+
+    So this endpoint says what the game contains and never "your base at
+    Windswept Island will be raided by X". `gradeMeaningKnown` and
+    `perBaseForecast` both travel false, because a client that assumed either
+    would render a confident claim nothing here supports.
+    """
+    authz.require(request, roles_module.VIEW_BASIC)
+
+    data = gamedata.invaders() or {}
+    rewards = data.get("rewards") or {}
+
+    groups = []
+    for name, entries in sorted((data.get("groups") or {}).items()):
+        biomes = sorted({str(e.get("biome") or "") for e in entries if e.get("biome")})
+        grades = [
+            (int(e.get("gradeMin") or 0), int(e.get("gradeMax") or 0)) for e in entries
+        ]
+        reward_rows = [
+            {
+                **gamedata.describe_item(str(r.get("itemId") or "")),
+                "itemId": r.get("itemId"),
+                "rate": r.get("rate"),
+                "min": r.get("min"),
+                "max": r.get("max"),
+            }
+            for r in (rewards.get(name) or [])
+        ]
+        groups.append({
+            "group": name,
+            "biomes": biomes,
+            "gradeMin": min((g[0] for g in grades), default=0),
+            "gradeMax": max((g[1] for g in grades), default=0),
+            "attackers": len(entries),
+            # A raid triggered by something you built, where the game names one.
+            # Carried unresolved: it is a build-object id and nothing here has
+            # confirmed what the condition means.
+            "conditions": sorted({
+                str(e.get("conditionBuildObjectId") or "") for e in entries
+                if str(e.get("conditionBuildObjectId") or "") not in ("", "None")
+            }),
+            "rewards": reward_rows,
+        })
+
+    return {
+        "groups": groups,
+        "total": len(groups),
+        "visitors": data.get("visitors") or {},
+        # What calling off a raid costs. A flat list — the game does not say
+        # which cost applies to which raid.
+        "cancelCosts": data.get("cancelCosts") or [],
+        "gradeMeaningKnown": bool(data.get("gradeMeaningKnown")),
+        "perBaseForecast": False,
+        "note": (
+            "These are the raid groups the game contains. Which of them can reach "
+            "a particular base is not derivable: the grade a raid is bounded by "
+            "has no established meaning in save terms, and a base's biome is "
+            "defined by trigger volumes in the world rather than by any table."
+        ),
+    }
+
+
 @app.get("/api/world/raidbosses")
 def get_raid_bosses(request: Request) -> dict[str, Any]:
     """

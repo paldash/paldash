@@ -54,6 +54,7 @@ import type {
   CraftableReport,
   NpcPlacements,
   ProgressDetailReport,
+  InvaderReport,
   RaidBossReport,
   ItemSources,
   GuildMovePlan,
@@ -1741,4 +1742,14 @@ export async function getNpcPlacements(role?: string): Promise<NpcPlacements> {
  */
 export async function getRaidBosses(): Promise<RaidBossReport> {
   return saveFetch('/world/raidbosses');
+}
+
+/**
+ * Base raid groups: who attacks, in which biome, and what they drop.
+ *
+ * **A reference table, never a per-base forecast.** Neither of the two joins
+ * that would make it one is available — see the backend route.
+ */
+export async function getInvaders(): Promise<InvaderReport> {
+  return saveFetch('/world/invaders');
 }
