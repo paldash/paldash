@@ -48,17 +48,43 @@ def _enum(value) -> str:
     return text.rsplit("::", 1)[-1] if "::" in text else text
 
 
+def _key(value) -> str:
+    """Unwrap an `FName` cell — `{"Key": "AncientParts2"}` -> `AncientParts2`."""
+    if isinstance(value, dict):
+        value = value.get("Key")
+    return str(value or "")
+
+
 def _items(row: dict, prefix: str) -> list:
-    """A `SuccessItemList`-shaped array, or []."""
+    """
+    A `SuccessItemList`-shaped array, or [].
+
+    **The column is `ItemName`, and it took a whole shipped bundle to notice.**
+    The first version read `ItemId` / `StaticItemId` — the spellings used by the
+    drop and lottery tables — found neither, and produced an empty list for every
+    raid boss in the game. Nothing errored, and "this boss drops nothing" is a
+    perfectly ordinary-looking answer, so it survived until someone asked what
+    Bellanoir actually gives you.
+
+    It is also an `FName`, so `str()` on it yields `"{'Key': 'AncientParts2'}"` —
+    the same trap the Pal-shop rosters fell into. `_key` is the one unwrapper.
+
+    `Rate` is carried because it is a real per-item drop chance, unlike a lottery
+    weight: these entries are independent rolls on one success, not shares of a
+    slot.
+    """
     out = []
     for entry in row.get(prefix) or []:
         if not isinstance(entry, dict):
             continue
-        item_id = str(entry.get("ItemId") or entry.get("StaticItemId") or "")
+        item_id = _key(
+            entry.get("ItemName") or entry.get("ItemId") or entry.get("StaticItemId")
+        )
         if item_id in UNSET:
             continue
         out.append({
             "itemId": item_id,
+            "rate": float(entry.get("Rate") or 0.0),
             "min": int(entry.get("Min") or entry.get("MinNum") or 0),
             "max": int(entry.get("Max") or entry.get("MaxNum") or 0),
         })
@@ -93,11 +119,17 @@ def build(pak=None) -> tuple[dict, dict]:
         bosses[str(key)] = {
             "id": str(key),
             "forms": forms,
-            "eggWeights": [
-                {"speciesId": str(e.get("PalID") or ""), "weight": float(e.get("Weight") or 0)}
-                for e in (row.get("EggPalIDAndWeight") or [])
-                if isinstance(e, dict) and str(e.get("PalID") or "") not in UNSET
-            ],
+            # **`EggPalIDAndWeight` IS A `MapProperty` THE READER LEAVES OPAQUE**,
+            # and the old code iterated it as a list — over the *characters* of
+            # the string `"<MapProperty 98B>"`, none of which is a dict, so every
+            # boss came out with an empty egg table. That reads as "this raid
+            # drops no eggs", which is a claim about the game rather than about
+            # this reader.
+            #
+            # `uassettable` decodes no MapProperty at all, so the honest thing is
+            # to say the field was not read rather than to ship [].
+            "eggWeights": [],
+            "eggWeightsRead": False,
             "rewards": _items(row, "SuccessItemList"),
             "rewardsAnyOne": _items(row, "SuccessAnyOneItemList"),
             "achievementType": _enum(row.get("AchievementType")),
@@ -125,6 +157,30 @@ def main() -> int:
     # is the suffix that has no entry.
     unknown = sorted(s for s in species if not gamedata.character(s))
 
+    # **THE CHECK THAT WOULD HAVE CAUGHT THE LAST BUG.** `_items` read the wrong
+    # column name for a whole shipped bundle and produced an empty reward list
+    # for every boss in the game — no error, and "drops nothing" looks like an
+    # ordinary answer. A raid the game does not reward is not a thing, so an
+    # empty result across the board is a reader fault by definition.
+    rewarded = [b for b in data["bosses"].values() if b["rewards"] or b["rewardsAnyOne"]]
+    if not rewarded:
+        print("REFUSING: not one raid boss carries a reward. Every raid rewards "
+              "something, so this is the column name being wrong rather than the "
+              "game shipping empty tables.", file=sys.stderr)
+        return 3
+
+    # And every item named must exist, the same hard half `extract-economy.py`
+    # applies: the catalogue is complete at 2,466, so a miss means drift.
+    items = {
+        r["itemId"] for b in data["bosses"].values()
+        for r in (*b["rewards"], *b["rewardsAnyOne"])
+    }
+    missing_items = sorted(i for i in items if not gamedata.item(i))
+    if missing_items:
+        print(f"REFUSING: {len(missing_items)} reward items resolve to nothing: "
+              f"{missing_items[:5]}", file=sys.stderr)
+        return 4
+
     if "--verify" in sys.argv:
         print(f"verified {stats['entries']} boss forms across {stats['rows']} rows; "
               "every species resolves")
@@ -137,6 +193,10 @@ def main() -> int:
           f"{min(f['level'] for b in data['bosses'].values() for f in b['forms'])}-"
           f"{max(f['level'] for b in data['bosses'].values() for f in b['forms'])}")
     print("  no positions: these are altar-summoned, not world-placed")
+    print(f"  {len(rewarded)} of {len(data['bosses'])} carry a reward table, "
+          f"{len(items)} distinct items, all resolving")
+    print("  egg weights NOT read: EggPalIDAndWeight is a MapProperty and the "
+          "reader decodes none — reported as unread rather than as empty")
     if unknown:
         print(f"  advisory: {len(unknown)} of {len(species)} forms are the `_2` "
               f"difficulty variants, which the bundled character tables do not "

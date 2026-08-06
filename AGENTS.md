@@ -714,16 +714,50 @@ Three things that bit while building it:
   the same property `saveedit`'s category sort keys on — while the record itself
   says `type: "egg"`. `_CATALOGUE_TO_RECORD` translates; neither side is "fixed".
 
-**Equipment falls back to any template of its type; an egg does not.** For a
-weapon every meaningful field is overwritten (durability, bullets, and passives
-are cleared so a new item does not inherit the copied one's), so the template
-supplies only shape. An egg's `character_id` decides what hatches and the
-catalogue does not know it — cloning a `PalEgg_Dark_01` record to serve a request
-for `PalEgg_Fire_01` yields a fire egg that hatches a dark Pal, which nobody
-notices until it hatches. So an egg needs a template of the *same item* or it is
-refused. An egg with a non-empty `object` is never a template either: 172 of 180
-are empty, and the 8 that are not embed a whole Pal, so copying one would
-duplicate a character wholesale.
+**"AN EGG NEEDS A TEMPLATE OF THE SAME ITEM" WAS WRONG, AND IT FAILED IN BOTH
+DIRECTIONS.** This paragraph used to say so, reasoning that `character_id`
+decides what hatches and the catalogue does not know it — so cloning a
+`PalEgg_Dark_01` record for a `PalEgg_Fire_01` request yields a fire egg that
+hatches a dark Pal, unnoticed until it hatches. Retracted 2026-08-06.
+
+The premise is exactly right. The conclusion was backwards, because **one egg
+item hatches many species**: `PalEgg_Dark_03` covers 18 on one world, 41 items
+over 253 distinct (item, species) pairs. So a same-item template handed back
+whichever of the eighteen that record happened to hold. **The rule refused the
+case it could get exactly right and permitted the case it got by luck.**
+
+And a template was never carrying anything an egg needs. Measured across three
+worlds — refworld (30,866 eggs), the live world (180), a 07-22 backup (531) — an
+egg record is six fields with nothing opaque in it:
+
+    type            "egg"
+    id              { static_id, local_id_in_created_world, created_world_id }
+    character_id    what hatches
+    object          usually empty; a whole embedded Pal when not
+    leading_bytes   ONE distinct value on all three: 4 zero bytes
+    trailing_bytes  ONE distinct value on all three: 28 zero bytes
+
+No `CustomVersionData`, no `unknown_bytes`. **The deep-copy rule is measured on
+weapons and armour**, where those fields are real and do vary, and it was carried
+across to eggs without being checked against one. That is the same shape as the
+`IgnoreCombi` and element-variant retractions: a constraint derived for one case,
+applied to a neighbouring case that does not share its premise.
+
+`character_id` and `id.static_id` are now **written**, not inherited, and the
+post-write verification re-reads the record from disk and refuses if the species
+that came back is not the one asked for — the direct check the old rule was a
+proxy for. `hatches` is the API parameter; omitting it keeps the old inheriting
+behaviour and sets `hatchesFromTemplate`, so an arbitrary species can never read
+as a decided one.
+
+Equipment is unchanged: for a weapon every meaningful field is overwritten
+(durability, bullets, and passives are cleared so a new item does not inherit the
+copied one's), so any template of the type supplies shape.
+
+**The `object` half of the old rule stands.** An egg with a non-empty `object` is
+never a template: 172 of 180 are empty, and the 8 that are not embed a whole Pal,
+so copying one would duplicate a character wholesale. A world with no
+empty-object egg at all is still a refusal.
 
 Audited as `audit.ITEM_CREATE`, not `save.edit` — "who spawned what" is the first
 question after a complaint about an unfair advantage, and it should be one filter

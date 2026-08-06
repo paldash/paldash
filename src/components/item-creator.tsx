@@ -38,6 +38,11 @@ export default function ItemCreator({
 }) {
   const [typed, setTyped] = useState('');
   const [durability, setDurability] = useState<number | undefined>(undefined);
+  // Which Pal an egg hatches. A REAL CHOICE, not a property of the item: one egg
+  // item covers many species (`PalEgg_Dark_03` hatches 18), so leaving this
+  // blank inherits whatever record the backend copied — which the plan then
+  // flags as `hatchesFromTemplate` rather than presenting as decided.
+  const [hatches, setHatches] = useState('');
   const [plan, setPlan] = useState<ItemCreatePlan | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -47,7 +52,7 @@ export default function ItemCreator({
   // hash and the backend refuses a stale one, but a preview left on screen
   // describing a different item is how someone confirms the wrong thing.
   const reset = useCallback(() => { setPlan(null); setDone(null); setError(null); }, []);
-  useEffect(reset, [typed, durability, reset]);
+  useEffect(reset, [typed, durability, hatches, reset]);
 
   // Accepts either spelling, because the API speaks `Rankup_1` and people say
   // "Starfruit ☆1". A name that resolves to nothing is still sent — the backend
@@ -65,7 +70,9 @@ export default function ItemCreator({
   const preview = async () => {
     setBusy(true); setError(null); setDone(null);
     try {
-      setPlan(await previewItemCreate(containerId, slotIndex, itemId, durability));
+      setPlan(await previewItemCreate(
+        containerId, slotIndex, itemId, durability, hatches.trim() || undefined
+      ));
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Preview failed');
       setPlan(null);
@@ -79,7 +86,10 @@ export default function ItemCreator({
     if (!confirm(
       `Create ${plan.itemName} in slot ${slotIndex}?\n\n` +
       (plan.type === 'egg'
-        ? `It will hatch a ${plan.hatchesInto || 'Pal chosen by the game'}.\n`
+        ? `It will hatch ${plan.hatchesName || plan.hatchesInto || 'a Pal'}` +
+          (plan.hatchesFromTemplate
+            ? ' — inherited from an existing egg, NOT chosen. Name a species to decide it.\n'
+            : '.\n')
         : `Durability ${plan.durability}${plan.maxDurability ? ` of ${plan.maxDurability}` : ''}.\n`) +
       '\nThis puts an item into the world that was never obtained in it, and is ' +
       'recorded in the audit log under your name.\n\n' +
@@ -90,7 +100,8 @@ export default function ItemCreator({
     setBusy(true); setError(null);
     try {
       const result = await applyItemCreate(
-        containerId, slotIndex, itemId, plan.planHash, durability
+        containerId, slotIndex, itemId, plan.planHash, durability,
+        hatches.trim() || undefined
       );
       setDone(
         `Created ${result.itemName} in slot ${result.slotIndex}. Verified. ` +
@@ -155,6 +166,19 @@ export default function ItemCreator({
           }
           disabled={busy}
         />
+        <input
+          className="input"
+          /* No datalist: the Pal list is not fetched here, and pointing at one
+             that does not exist gives a silently dead dropdown. Free text is
+             fine — the backend validates against the character tables and names
+             the problem, and it accepts an id or a display name. */
+          style={{ width: 170, fontSize: 12, padding: '4px 7px' }}
+          placeholder="hatches (eggs)"
+          title="Which Pal this egg hatches. One egg item covers many species, so leaving this blank inherits an arbitrary one from an existing egg rather than picking for you."
+          value={hatches}
+          onChange={(e) => setHatches(e.target.value)}
+          disabled={busy}
+        />
         <button
           className="btn btn-ghost"
           onClick={preview}
@@ -196,13 +220,23 @@ export default function ItemCreator({
           </div>
 
           {plan.type === 'egg' ? (
-            /* Not a choice, and saying so matters: the item id fixes the egg's
-               kind and the record decides the species. Someone expecting to pick
-               would otherwise assume the blank field meant "random". */
+            /* IT IS A CHOICE NOW, and the distinction between choosing and
+               inheriting is the thing to show. An egg item does not decide the
+               species — one covers up to 18 — so an inherited value is arbitrary
+               and must not read as decided. */
             <div style={{ color: 'var(--text-secondary)' }}>
-              Hatches <strong>{plan.hatchesInto || 'a Pal the game chooses'}</strong> —
-              copied from an egg of this same kind already in the world, not
-              selectable here.
+              Hatches <strong>{plan.hatchesName || plan.hatchesInto || '—'}</strong>
+              {plan.hatchesFromTemplate ? (
+                <span style={{ color: 'var(--status-warning)' }}>
+                  {' '}— inherited from an egg already in this world, not chosen.
+                  One egg item covers many species, so this is arbitrary. Name a
+                  species above to decide it.
+                </span>
+              ) : (
+                <span style={{ color: 'var(--text-muted)' }}>
+                  {' '}— written into the new record and verified after the write.
+                </span>
+              )}
             </div>
           ) : (
             <div style={{ color: 'var(--text-secondary)' }}>

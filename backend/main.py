@@ -1539,6 +1539,89 @@ def get_effigy_points(request: Request) -> dict[str, Any]:
     }
 
 
+def _raid_reward(entry: dict[str, Any]) -> dict[str, Any]:
+    described = gamedata.describe_item(str(entry.get("itemId") or ""))
+    return {
+        "itemId": entry.get("itemId"),
+        "name": described["name"],
+        "icon": described["icon"],
+        # A real per-item chance, unlike a lottery weight: these are independent
+        # rolls on one success rather than shares of a slot.
+        "rate": entry.get("rate"),
+        "min": entry.get("min"),
+        "max": entry.get("max"),
+    }
+
+
+@app.get("/api/world/raidbosses")
+def get_raid_bosses(request: Request) -> dict[str, Any]:
+    """
+    The altar-summoned bosses: what summons each, at what level, and what it drops.
+
+    **A separate category from field bosses, and deliberately NOT on the map.**
+    `DT_BossSpawnerLoactionData` carries zero `RAID_` ids, which is correct rather
+    than a gap — a raid boss is summoned at an altar, so a table of *locations*
+    has nothing to say about it. Giving one a map marker would be the
+    `BP_LevelObject_TowerLockBarrier` mistake: a plausible-looking answer to a
+    question the data does not address.
+
+    **The row key is the summon item.** `PalSummon_NightLady` is a real
+    catalogue id — "Bellanoir's Slab" — so "what do I need to start this raid"
+    is a lookup rather than an inference, and it is checked rather than assumed:
+    `summonItemKnown` is false if the id does not resolve.
+    """
+    authz.require(request, roles_module.VIEW_BASIC)
+
+    bosses = []
+    for summon_id, entry in (gamedata.raid_bosses() or {}).items():
+        item = gamedata.item(summon_id)
+        described = gamedata.describe_item(summon_id) if item else {}
+        forms = []
+        for form in entry.get("forms") or []:
+            species = str(form.get("speciesId") or "")
+            known = gamedata.character(species) is not None
+            forms.append({
+                "speciesId": species,
+                # The `_2` difficulty variants have no character-table entry, so
+                # the humanised id reads "Night Lady Dark 2". The summon item is
+                # named properly ("Bellanoir Libero (Ultra) Slab"), so the UI is
+                # told which name it can trust rather than being handed one bad
+                # one silently.
+                "name": gamedata.character_name(species),
+                "nameIsInternal": not known,
+                "level": form.get("level"),
+                "canModeChange": form.get("canModeChange"),
+            })
+        bosses.append({
+            "summonItemId": summon_id,
+            "summonItemName": described.get("name") or gamedata.humanize(summon_id),
+            "summonItemIcon": described.get("icon"),
+            "summonItemKnown": item is not None,
+            "forms": forms,
+            "rewards": [_raid_reward(r) for r in entry.get("rewards") or []],
+            # The game's own distinction: `SuccessAnyOneItemList` is one of
+            # these, not all of them. Folding the two lists together would
+            # overstate what a clear gives you.
+            "rewardsAnyOne": [_raid_reward(r) for r in entry.get("rewardsAnyOne") or []],
+            # `EggPalIDAndWeight` is a MapProperty the table reader does not
+            # decode. Said out loud so an empty egg list reads as "not read"
+            # rather than as "this raid drops no eggs".
+            "eggWeightsRead": bool(entry.get("eggWeightsRead")),
+        })
+
+    bosses.sort(key=lambda b: min((f["level"] or 0) for f in b["forms"]) if b["forms"] else 0)
+    return {
+        "bosses": bosses,
+        "total": len(bosses),
+        # Stated rather than left for the client to infer from an empty list.
+        "hasPositions": False,
+        "positionNote": (
+            "Raid bosses are summoned at an altar, so no game file gives them a "
+            "world position. They are not on the map for that reason."
+        ),
+    }
+
+
 @app.get("/api/world/npcs")
 def get_npc_placements(
     request: Request, role: Optional[str] = None
@@ -4338,6 +4421,11 @@ class ItemCreateRequest(BaseModel):
     slotIndex: int
     itemId: str
     durability: Optional[float] = None
+    # Eggs only: which species hatches. The egg ITEM does not decide it —
+    # `PalEgg_Dark_03` covers 18 species on one world — so leaving this out means
+    # inheriting whatever the copied record happened to hold, which the plan
+    # reports as `hatchesFromTemplate`.
+    hatches: Optional[str] = None
 
 
 def _load_world_for_edit():
@@ -4372,7 +4460,7 @@ def preview_item_create(
     authz.require(request, roles_module.SAVE_EDIT_FULL)
     return itemclone.plan_item_create(
         _load_world_for_edit(), container_id, req.slotIndex, req.itemId,
-        durability=req.durability,
+        durability=req.durability, hatches=req.hatches,
     )
 
 
@@ -4397,6 +4485,7 @@ def apply_item_create(
         result = itemclone.apply_item_create(
             container_id, req.slotIndex, req.itemId,
             durability=req.durability, expected_plan_hash=planHash,
+            hatches=req.hatches,
         )
     except ServerRunningError as e:
         raise failed(str(e), 423)
@@ -4415,6 +4504,9 @@ def apply_item_create(
             "type": result["type"],
             "slotIndex": result["slotIndex"],
             "durability": result["durability"],
+            # Already audited, and it matters more now that it is chosen rather
+            # than inherited: for an egg the species IS the "what" in "who
+            # spawned what".
             "hatchesInto": result["hatchesInto"],
             "backupId": result["backupId"],
         },

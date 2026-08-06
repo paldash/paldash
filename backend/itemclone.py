@@ -35,6 +35,13 @@ one world and there is no way to know which a given save wants; `leading_bytes`,
 built from scratch, and a type with no template in the world is a refusal naming
 the type rather than a guess.
 
+**That paragraph is measured on WEAPONS AND ARMOUR**, and applying it to eggs
+unexamined is what produced the retraction below. An egg record has no
+`CustomVersionData` and no `unknown_bytes`, and its two byte fields hold one
+distinct value each across three worlds. Copying is still how an egg is made —
+there is no reason to hand-build a struct when a template is free — but it
+supplies *shape only*, and every field that means anything is written.
+
 A NEW ITEM IS TWO THINGS THAT MUST AGREE
 -----------------------------------------
 Like a Pal, and for the same reason. The record in `DynamicItemSaveData` carries
@@ -46,17 +53,43 @@ resolve, or a record nothing references.
 is copied from the template rather than invented — but it is not a value this
 module chooses.
 
-EGGS ARE THE DELICATE ONE
---------------------------
-An egg record carries `character_id` (what hatches) and `object`, which is either
-empty or a **whole embedded Pal**. Measured: 172 of 180 eggs have an empty
-`object`; the 8 that do not are eggs whose contents are already decided.
+EGGS: "AN EGG NEEDS A TEMPLATE OF THE SAME ITEM" WAS WRONG
+-----------------------------------------------------------
+This module used to refuse unless it found a record for the *same egg item*,
+reasoning that `character_id` decides what hatches, the catalogue does not know
+it, and cloning a `PalEgg_Dark_01` for a `PalEgg_Fire_01` request would give a
+fire egg that hatches a dark Pal.
 
-This only ever clones a template with an **empty** `object`. Copying an embedded
-Pal would duplicate a character wholesale — its skills, its IVs, its identity —
-which is `palclone`'s job and not something to do by accident while adding an
-item to a chest. If no empty-object template of that species exists, the request
-is refused rather than served with a duplicated Pal.
+**The premise is right. The conclusion was backwards, in both directions.**
+
+An egg record is six fields, and none of them is opaque:
+
+    type            "egg"
+    id              { static_id, local_id_in_created_world, created_world_id }
+    character_id    what hatches
+    object          usually empty; a whole embedded Pal when not
+    leading_bytes   ONE distinct value across three worlds: 4 zero bytes
+    trailing_bytes  ONE distinct value across three worlds: 28 zero bytes
+
+Measured on refworld (30,866 eggs), the live world (180) and a 07-22 backup
+(531): one keyset, one leading value, one trailing value, all zeros. So a
+template supplies nothing an egg needs beyond the struct's shape.
+
+And the old rule did not deliver what it promised. **One egg item hatches many
+species** — `PalEgg_Dark_03` covers 18 on a single world, 41 items over 253
+distinct (item, species) pairs — so a same-item template handed back whichever
+of the eighteen that record happened to hold. It refused the case it could get
+exactly right and allowed the case it got by luck.
+
+`character_id` and `id.static_id` are now **written**, not inherited, and the
+post-write verification re-reads the record and refuses if the species that came
+back is not the species asked for. That is the direct check the old rule was a
+proxy for.
+
+**The `object` half of the rule stands unchanged.** An egg carrying an embedded
+Pal is never a template: copying one duplicates a character wholesale — skills,
+IVs, identity — which is `palclone`'s job and not something to do while adding an
+item to a chest. A world with no empty-object egg at all is still a refusal.
 """
 
 from __future__ import annotations
@@ -180,21 +213,41 @@ def _records_by_item(gvas: Any) -> dict[str, str]:
 
 def _find_template(gvas: Any, kind: str, static_id: str) -> Optional[dict]:
     """
-    A record to deep-copy: same record type, and for an egg the same item too.
+    A record to deep-copy: same record type, preferring the same item.
 
-    **Equipment falls back; an egg does not, and the asymmetry is the point.**
-    For a weapon or armour every meaningful field is overwritten — durability,
-    bullets, passives — so any record of the right type supplies the shape and
-    nothing of the original survives. An egg is different: the thing that decides
-    what hatches is `character_id`, which lives in the record and which the
-    catalogue does not know. Clone a `PalEgg_Dark_01` record to satisfy a request
-    for `PalEgg_Fire_01` and you get a fire egg that hatches a dark Pal — exactly
-    the kind of plausible-looking wrong result that gets noticed a week later.
+    **THE SAME-ITEM RULE FOR EGGS WAS RETRACTED, AND IT WAS STRICTER THAN THE
+    DATA.** This function used to demand a template of the *same egg item*, on
+    the grounds that `character_id` decides what hatches and the catalogue does
+    not know it — so cloning a `PalEgg_Dark_01` record for a `PalEgg_Fire_01`
+    request would give a fire egg that hatches a dark Pal.
 
-    So an egg needs a template of the *same item*, and gets a refusal otherwise.
+    The premise is right and the conclusion was backwards. Measured across three
+    worlds (refworld 30,866 eggs, the live world 180, a 07-22 backup 531), an egg
+    record is six fields and **nothing in it is opaque**:
 
-    An egg with a non-empty `object` is never a template. See the module
-    docstring: copying one would duplicate a whole Pal.
+        type            "egg"
+        id              { static_id, local_id_in_created_world, created_world_id }
+        character_id    what hatches
+        object          usually empty; a whole embedded Pal when not
+        leading_bytes   ONE distinct value on all three worlds: 4 zero bytes
+        trailing_bytes  ONE distinct value on all three worlds: 28 zero bytes
+
+    No `CustomVersionData`, no `unknown_bytes`. The module docstring's reason for
+    deep-copying — those fields carry values only this save knows — is measured
+    on **weapons and armour** and was carried across to eggs without being
+    re-checked against one.
+
+    And the old rule did not preserve the guarantee it claimed. One egg item
+    hatches many species: `PalEgg_Dark_03` covers **18** on one world, 41 items
+    over 253 distinct (item, species) pairs. So a same-item template supplied an
+    *arbitrary* one of the eighteen — the rule refused the case it could get
+    exactly right and permitted the case it got by luck. `character_id` is now
+    written explicitly (see `plan_item_create`'s `hatches`), which is what makes
+    any egg record an adequate source of shape.
+
+    **An egg with a non-empty `object` is still never a template**, and that half
+    stands: copying one duplicates a whole Pal — skills, IVs, identity — which is
+    `palclone`'s job and not something to do while adding an item to a chest.
     """
     import dynamicitem
 
@@ -202,18 +255,35 @@ def _find_template(gvas: Any, kind: str, static_id: str) -> Optional[dict]:
         r for r in _dynamic_records(gvas)
         if str(dynamicitem._raw(r).get("type") or "") == kind
     ]
+    if kind == "egg":
+        # Shape only, so any egg will do — but never one carrying a Pal.
+        same_type = [r for r in same_type if not (dynamicitem._raw(r).get("object") or {})]
     if not same_type:
         return None
 
+    # Still *prefer* the same item where one exists: it costs nothing and keeps
+    # the copied `id.static_id` right before it is overwritten anyway.
     by_local = _records_by_item(gvas)
     wanted = static_id.lower()
     exact = [r for r in same_type if by_local.get(dynamicitem._local_id(r)) == wanted]
 
-    if kind == "egg":
-        empty = [r for r in exact if not (dynamicitem._raw(r).get("object") or {})]
-        return empty[0] if empty else None
-
     return (exact or same_type)[0]
+
+
+def _canonical_character(species_id: str) -> str:
+    """
+    The catalogue's own spelling of a character id, prefixes intact.
+
+    `gamedata.character()` resolves case-insensitively but hands back the entry
+    rather than the key, and the key is what a save stores. Prefixes are kept:
+    `BOSS_AmaterasuWolf` is a real value in a real egg record.
+    """
+    wanted = str(species_id or "").lower()
+    for section in ("pals", "npcs"):
+        for key in gamedata.load().get(section, {}):
+            if key.lower() == wanted:
+                return key
+    return str(species_id or "")
 
 
 def plan_item_create(
@@ -223,6 +293,7 @@ def plan_item_create(
     static_id: str,
     count: int = 1,
     durability: Optional[float] = None,
+    hatches: Optional[str] = None,
 ) -> dict:
     """
     What creating one item would do. Pure — reads the tree, writes nothing.
@@ -231,6 +302,13 @@ def plan_item_create(
     carries no durability record (those go through `saveimport`, which is the
     safer path and should stay the default), a slot that is out of range or
     already occupied, or a type with no template to copy.
+
+    **`hatches` is the species an egg produces, and it is a real choice.** The
+    egg *item* does not determine it — `PalEgg_Dark_03` covers 18 species on one
+    world — so inheriting it from whichever template was picked means handing
+    back an arbitrary one. Omitting it keeps that old behaviour rather than
+    breaking callers, but the value is always reported in `hatchesInto` and
+    `hatchesFromTemplate` says which of the two happened.
     """
     import dynamicitem
 
@@ -282,10 +360,11 @@ def plan_item_create(
     if template is None:
         if kind == "egg":
             return _refuse(
-                f"This world holds no empty {entry.get('name') or static_id} to copy. "
-                f"An egg's record — not its item id — decides what hatches, and the "
-                f"catalogue does not say, so cloning a different egg would produce "
-                f"one that hatches the wrong species. Obtain one of these first."
+                "This world holds no egg record with an empty contents field to "
+                "copy the shape from. Any egg will do — the species is set "
+                "explicitly rather than inherited — but one that already has a "
+                "Pal inside it is never copied, because that would duplicate the "
+                "Pal. Obtain any ordinary egg first."
             )
         return _refuse(
             f"This world contains no {kind} record to copy the shape from. The right "
@@ -315,6 +394,34 @@ def plan_item_create(
         )
 
     template_raw = dynamicitem._raw(template)
+
+    # What this egg will hatch. Validated against the character tables, which is
+    # the only check available — the game ships no item->species mapping, and
+    # every one of the 103 species seen on a real world's eggs resolves there.
+    hatches_into = ""
+    from_template = False
+    if kind == "egg":
+        wanted_species = str(hatches or "").strip()
+        if wanted_species:
+            resolved = gamedata.character(wanted_species)
+            if resolved is None:
+                return _refuse(
+                    f"'{wanted_species}' is not a character in the game's data, so "
+                    f"an egg naming it would hatch nothing. Search by species id or "
+                    f"by display name."
+                )
+            # Canonical spelling, because the catalogue is inconsistently
+            # capitalised (`Sheepball` in a save, `SheepBall` in the tables).
+            #
+            # **NOT `normalise_species`**, which strips the `BOSS_` prefix — an
+            # alpha is a real thing for an egg to hatch, and `BOSS_AmaterasuWolf`
+            # appears verbatim in real egg records. Stripping it would quietly
+            # turn a request for an alpha into an ordinary Pal.
+            hatches_into = _canonical_character(wanted_species)
+        else:
+            hatches_into = str(template_raw.get("character_id") or "")
+            from_template = True
+
     plan = {
         "ok": True,
         "problems": [],
@@ -327,12 +434,13 @@ def plan_item_create(
         "count": count,
         "durability": float(durability),
         "maxDurability": max_durability,
-        # Named because an egg's contents are the template's, not a choice: the
-        # game decides at hatch for an empty one, and this only ever copies an
-        # empty one.
-        "hatchesInto": (
-            str(template_raw.get("character_id") or "") if kind == "egg" else ""
-        ),
+        # WHAT THIS EGG WILL HATCH, and now a choice rather than an accident.
+        # The item does not determine it, so a caller that does not say gets the
+        # template's value and is told so — `hatchesFromTemplate` is the flag
+        # that stops an arbitrary species reading as a decided one.
+        "hatchesInto": hatches_into,
+        "hatchesFromTemplate": from_template,
+        "hatchesName": gamedata.character_name(hatches_into) if hatches_into else "",
         "templateLocalId": dynamicitem._local_id(template),
         "recordsBefore": len(_dynamic_records(gvas)),
     }
@@ -368,6 +476,14 @@ def _new_record(template: dict, local_id: str, kind: str, plan: dict) -> dict:
 
     if kind in dynamicitem.EDITABLE_TYPES:
         raw["durability"] = float(plan["durability"])
+    if kind == "egg":
+        # **Written explicitly, not inherited.** The template supplies shape
+        # only — its two byte fields are constant zeros on every world measured —
+        # so the one field that decides what this egg becomes is set here.
+        # `id.static_id` too: the record carries which item it is, and a template
+        # of a different egg would otherwise leave the old id behind.
+        raw["character_id"] = plan["hatchesInto"]
+        ident["static_id"] = plan["staticId"]
     if kind == "weapon":
         raw["remaining_bullets"] = 0
         # A fresh weapon carries no passives. The template's would otherwise be
@@ -419,6 +535,7 @@ def apply_item_create(
     count: int = 1,
     durability: Optional[float] = None,
     expected_plan_hash: Optional[str] = None,
+    hatches: Optional[str] = None,
 ) -> dict:
     """
     Create the item. The only function here that writes.
@@ -459,7 +576,7 @@ def apply_item_create(
         gvas = GvasFile.read(raw_gvas, PALWORLD_TYPE_HINTS, props)
 
         plan = plan_item_create(
-            gvas, container_id, slot_index, static_id, count, durability
+            gvas, container_id, slot_index, static_id, count, durability, hatches
         )
         if not plan["ok"]:
             raise ItemCloneError("; ".join(plan["problems"][:3]))
@@ -578,6 +695,23 @@ def apply_item_create(
                     "The slot does not point at the new record — the item would be "
                     "half-registered"
                 )
+
+            # **THE EGG'S SPECIES, RE-READ FROM DISK.** This is the check the old
+            # same-item rule was standing in for, and it is the direct one: the
+            # record that came back must name the Pal that was asked for. A
+            # `character_id` written as the wrong type, or dropped by the encoder,
+            # produces an egg that hatches something else — and nobody finds out
+            # until it hatches, which is exactly the failure the retracted rule
+            # was worried about. Now it cannot leave this function.
+            if kind == "egg":
+                written_species = str(
+                    dynamicitem._raw(copies[0]).get("character_id") or ""
+                )
+                if written_species != plan["hatchesInto"]:
+                    raise ItemCloneError(
+                        f"The new egg record hatches '{written_species}', not "
+                        f"'{plan['hatchesInto']}' as planned"
+                    )
         except Exception:
             logger.exception("Verification failed after creating %s; rolling back", static_id)
             restore_backup(backup["id"], reason="item creation verification failed")

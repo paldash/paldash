@@ -214,11 +214,21 @@ def test_an_egg_needs_a_template_of_the_same_egg(refworld, palsav_available):
 
 
 @pytest.mark.integration
-def test_an_egg_this_world_does_not_hold_is_refused(refworld, palsav_available):
+def test_an_egg_this_world_does_not_hold_is_now_ALLOWED(refworld, palsav_available):
     """
-    The refusal itself, on a world that holds all 56 eggs — so the id is one the
-    catalogue knows and no slot references, which is exactly the state a server
-    missing an egg type is in.
+    **This test asserted the opposite until 2026-08-06, and it was pinning a rule
+    that was stricter than the data and did not deliver what it claimed.**
+
+    The old rule refused an egg item this world held no record of, reasoning that
+    `character_id` decides what hatches and a different egg's record would give
+    the wrong species. But one egg item hatches many species — `PalEgg_Dark_03`
+    covers 18 on this world — so a same-item template was handing back an
+    arbitrary one of the eighteen. It refused the case it could get right and
+    allowed the case it got by luck.
+
+    An egg record has no `CustomVersionData` and no `unknown_bytes`, and its two
+    byte fields hold one distinct value each across three worlds, so a template
+    carries nothing but shape. The species is written explicitly now.
     """
     gvas = _load(refworld)
     present = set(itemclone._records_by_item(gvas).values())
@@ -233,11 +243,87 @@ def test_an_egg_this_world_does_not_hold_is_refused(refworld, palsav_available):
     itemclone._records_by_item = lambda _g: hidden
     try:
         container_id, slot = _a_container_with_space(gvas)
-        plan = itemclone.plan_item_create(gvas, container_id, slot, egg)
-        assert plan["ok"] is False
-        assert "hatches" in plan["problems"][0]
+        plan = itemclone.plan_item_create(
+            gvas, container_id, slot, egg, hatches="SheepBall"
+        )
+        assert plan["ok"] is True, plan["problems"]
+        assert plan["hatchesInto"] == "SheepBall"
+        assert plan["hatchesFromTemplate"] is False
     finally:
         itemclone._records_by_item = original
+
+
+@pytest.mark.integration
+def test_the_species_is_written_rather_than_inherited(refworld, palsav_available):
+    """
+    The same egg item, two different requested species, two different plans —
+    which is the whole point of the retraction above.
+    """
+    gvas = _load(refworld)
+    egg = next(
+        e for e in ("PalEgg_Dark_01", "PalEgg_Fire_01")
+        if e.lower() in set(itemclone._records_by_item(gvas).values())
+    )
+    container_id, slot = _a_container_with_space(gvas)
+
+    a = itemclone.plan_item_create(gvas, container_id, slot, egg, hatches="SheepBall")
+    b = itemclone.plan_item_create(gvas, container_id, slot, egg, hatches="ChickenPal")
+    assert a["hatchesInto"] == "SheepBall"
+    assert b["hatchesInto"] == "ChickenPal"
+    assert a["planHash"] != b["planHash"], (
+        "the species must be in the plan hash, or a preview of one egg could be "
+        "applied as another"
+    )
+
+
+@pytest.mark.integration
+def test_an_unrequested_species_is_reported_as_the_templates(refworld, palsav_available):
+    """
+    Omitting `hatches` keeps the old behaviour rather than breaking callers — but
+    the value is arbitrary, so it must be flagged as inherited rather than
+    presented as a decision.
+    """
+    gvas = _load(refworld)
+    egg = next(
+        e for e in ("PalEgg_Dark_01", "PalEgg_Fire_01")
+        if e.lower() in set(itemclone._records_by_item(gvas).values())
+    )
+    container_id, slot = _a_container_with_space(gvas)
+    plan = itemclone.plan_item_create(gvas, container_id, slot, egg)
+    assert plan["ok"] is True
+    assert plan["hatchesFromTemplate"] is True
+    assert plan["hatchesInto"]
+
+
+@pytest.mark.integration
+def test_a_species_the_game_does_not_have_is_refused(refworld, palsav_available):
+    """
+    An egg naming a character that does not exist would hatch nothing, so the
+    species is validated against the character tables — the only check available,
+    since the game ships no item-to-species mapping.
+    """
+    gvas = _load(refworld)
+    egg = next(
+        e for e in ("PalEgg_Dark_01", "PalEgg_Fire_01")
+        if e.lower() in set(itemclone._records_by_item(gvas).values())
+    )
+    container_id, slot = _a_container_with_space(gvas)
+    plan = itemclone.plan_item_create(
+        gvas, container_id, slot, egg, hatches="__not_a_pal__"
+    )
+    assert plan["ok"] is False
+    assert "not a character" in plan["problems"][0]
+
+
+@pytest.mark.integration
+def test_an_alpha_keeps_its_prefix_when_requested(refworld, palsav_available):
+    """
+    `BOSS_AmaterasuWolf` appears verbatim in real egg records, so an alpha is a
+    real thing for an egg to hatch. `normalise_species` would strip the prefix
+    and quietly turn the request into an ordinary Pal — hence `_canonical_character`.
+    """
+    assert itemclone._canonical_character("boss_amaterasuwolf") == "BOSS_AmaterasuWolf"
+    assert itemclone._canonical_character("sheepball") == "SheepBall"
 
 
 @pytest.mark.integration
