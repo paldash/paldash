@@ -1328,6 +1328,84 @@ container's environment — so it is worded as a conditional warning, not a fact
 the user's setup. `docs/COMPATIBILITY.md` has the full matrix and the one-line
 `skopeo inspect` command that re-verifies it without pulling an image.
 
+## World ACTORS decode too, and that is how the NPCs got their names
+
+**This supersedes the section below for the server pak.** `upackage.py` says a
+placed actor's properties cannot be decoded, and that is true — of the *client*
+pak. `Pal-LinuxServer.pak`'s `MainGrid_*.umap` cells carry `IntProperty`,
+`StructProperty` and `NameProperty` in their name tables, so a spawner actor's
+tagged properties walk exactly like a DataTable row's. Nobody had pointed the
+tag walk at world cells; it is the same correction `uassettable.py` records for
+DataTables, one container over.
+
+    UniqueName    {"Key": "DarkTrader"}   -> DT_UniqueNPC -> "Black Marketeer"
+    HumanName     {"Key": "PalDealer"}    -> a character id -> "Pal Merchant"
+    Level         45
+    RespawnTime   30.0
+
+`scripts/extract-npcs.py` bundles **438 placed NPCs** with role, level and
+verified position — 404 with an identity, including 4 Black Marketeers and 4
+Medal Merchants. `worldobjects.json.gz`'s "NPCs & camps" layer could only ever
+say *someone* stood there: 141 of its 220 points are the generic class
+`BP_MonoNPCSpawner`.
+
+**THE ACCEPTANCE CRITERION IS WEAKER THAN `read_table`'s AND MUST SAY SO.** An
+actor export cannot prove alignment by ending exactly at the buffer end — 32-43
+bytes of component instancing data follow the property terminator, and their
+length is not something this reader knows. What replaces it is **resolution**:
+every identity must be a `DT_UniqueNPC` row or a known character, because a
+drifted tag walk does not produce 400 valid foreign keys. Miss rate above 5%
+refuses the build.
+
+**A third place an identity can live, and missing it left the Medal Merchants
+anonymous.** `BP_MonoNPCSpawner_MedalTrader` carries neither `UniqueName` nor
+`HumanName` — its blueprint already knows. The class-name suffix is used only
+when it is a real `DT_UniqueNPC` row, so this cannot invent an id out of a
+naming convention.
+
+### Four bad positions, and why they were dropped rather than refused
+
+`extract-spawns.py` refuses outright if any position falls off the cell grid.
+Here 4 of 442 did, and the right response was to drop them — because the
+coordinate comes from `read_position`'s byte scan for the first plausible triple
+of doubles, whose known failure mode is finding *some other* triple. A handful
+of misses is that heuristic behaving as documented, not evidence about the
+property walk.
+
+They were checked rather than waved through. All four are
+`BP_OilrigNPCSpawner_Mono`, and "the grid does not cover the sea" is **ruled
+out**: oil rigs pass the same test 185/185, and the four coordinates sit
+**60,000 units from the nearest oil rig**. A placement whose position cannot be
+trusted must not go on a map; blocking the other 438 over it would be worse. The
+extractor still refuses above a 5% drop rate.
+
+### The wandering merchants have no location, and the controls proved it
+
+`DT_RandomIncidentNPC_DarkTrader` (×4) and `_MarchantwithPAL` (×3) name the NPC
+and its level and carry `SpawnLocation` **(0,0)** — while **149 of the 195**
+incident rows across those tables carry real coordinates. So the merchants are
+specifically the ones the game does not place, which is consistent with them
+being roaming incidents.
+
+**A naive grid check passes all 195 at every cell size**, including both
+controls, because (0,0) is a real occupied cell. That is the check failing to
+discriminate rather than succeeding, and it is exactly why
+`extract-boss-spawners.py` refuses when a control matches as well.
+
+**The save cannot answer it either.** Merchant NPCs *are* in
+`CharacterSaveParameterMap` — `Male_DarkTrader01_04`, `BOSS_Male_Trader01` — and
+their `SaveParameter` has no position field at all. There is no "where is the
+Black Marketeer right now" to be had.
+
+### The role split is a name rule, and no game table carries one
+
+`DT_UniqueNPC` has appearance and talk-flow columns; `TalkBPClass` is a flavour
+label with **58 of its 216 rows set to `None`**. So `_role` sits exactly where
+`gamedata.fast_travel_kind` does — a name rule that **fails safe**, since an
+unrecognised id becomes a plain `npc`, which is what all 220 were before.
+`roleFromName: true` travels in the API payload for the same reason
+`hasMultiplier` does: the client is the thing about to draw a legend.
+
 ## Reading cooked UE5 packages: structure yes, properties no
 
 `scripts/upackage.py` parses `.umap`/`.uasset` **headers**. It is not a general

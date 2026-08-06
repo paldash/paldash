@@ -132,6 +132,10 @@ const ROUTES: RouteRule[] = [
   // never collected — there is no per-player record to filter against, and
   // inventing one would be worse than showing them all.
   { pattern: /^world\/bosses$/, methods: ['GET'], capability: CAPABILITIES.VIEW_BASIC, feature: FEATURES.MAP_OBJECTS },
+  // Placed NPCs by role. Same gate and the same non-filtering as bosses: a
+  // spawn point is not a collectable, so there is no per-player discovery
+  // state to hide and inventing one would be worse than showing them.
+  { pattern: /^world\/npcs$/, methods: ['GET'], capability: CAPABILITIES.VIEW_BASIC, feature: FEATURES.MAP_OBJECTS },
   { pattern: /^world\/reference$/, methods: ['GET'], capability: CAPABILITIES.VIEW_BASIC, feature: FEATURES.SERVER_STATUS },
   // The item *catalogue* — what the game has. Not /items, which reports what
   // this world holds and is privacy-filtered per guild.

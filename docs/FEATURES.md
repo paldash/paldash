@@ -88,6 +88,16 @@ Legend: ✅ works · 🟡 works with a caveat · 🔴 not built · ⚪ out of sc
 | Which workbench crafts a recipe | 🔴 | **No source.** `WorkableAttribute` is present on all 1,414 recipe rows and is 0 on every one. Not inferred, and both panels say so |
 | Chest open rate | 🔴 | **No source.** `WeightInSlot` is relative within one field's slot; the share of that slot is shown, which is a different and defensible claim |
 
+## 3b. NPCs on the map
+
+| Feature | State | Notes |
+|---|---|---|
+| Named NPC layers | ✅ | 438 placed NPCs across seven role layers, replacing the anonymous "NPCs & camps" toggle — 141 of those 220 points were the generic `BP_MonoNPCSpawner` |
+| Merchants located | ✅ | 4 Black Marketeers, 4 Medal Merchants, plus Pal Merchants and Wandering Merchants — named by the game, with the level each spawner uses |
+| How | ✅ | A world **actor's** tagged properties, which `upackage.py` documented as undecodable. True of the client pak; the server pak's cells are tagged |
+| Wandering merchant's live position | 🔴 | **Not in any file.** The incident tables give the NPC and its level with `SpawnLocation` (0,0) while 149 of 195 rows carry real coordinates, and merchants in the save have no position field at all |
+| Role of an NPC | ⚠️ | A **name rule**, not a game column — `TalkBPClass` is a flavour label with 58 of 216 rows empty. Fails safe: unrecognised is "Other NPCs" |
+
 ## 4c. Progression
 
 | Feature | State | Notes |

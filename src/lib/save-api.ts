@@ -52,6 +52,7 @@ import type {
   BreedingLimits,
   CatalogueItem,
   CraftableReport,
+  NpcPlacements,
   ProgressDetailReport,
   ItemSources,
   GuildMovePlan,
@@ -1708,4 +1709,17 @@ export async function getProgress(): Promise<{
 export async function getProgressDetail(uid?: string): Promise<ProgressDetailReport> {
   const query = uid ? `?uid=${encodeURIComponent(uid)}` : '';
   return saveFetch(`/progress/detail${query}`);
+}
+
+/**
+ * Placed NPCs by role — merchants, villagers, hunters, police, quest givers.
+ *
+ * The map drew these as one anonymous "NPCs & camps" layer until a spawner
+ * actor's tagged properties turned out to be readable in the *server* pak. Not
+ * discovery-filtered: a spawn point is not a collectable, so there is no
+ * per-player state to hide.
+ */
+export async function getNpcPlacements(role?: string): Promise<NpcPlacements> {
+  const query = role ? `?role=${encodeURIComponent(role)}` : '';
+  return saveFetch(`/world/npcs${query}`);
 }

@@ -9,7 +9,7 @@ export interface LayerDef {
   id: string;
   label: string;
   color: string;
-  group: 'live' | 'discovery' | 'world' | 'static' | 'base';
+  group: 'live' | 'discovery' | 'world' | 'static' | 'npc' | 'base';
 }
 
 export interface StaticCategory {
@@ -38,6 +38,10 @@ const GROUP_LABEL: Record<LayerDef['group'], string> = {
   discovery: 'Discoveries',
   world: 'From the save',
   static: 'From the game files',
+  // Their own group rather than a `static:` sibling, because the interesting
+  // thing about them is WHO stands there rather than that something does — and
+  // the role split gives seven toggles, which would swamp the static list.
+  npc: 'People',
   base: 'Base structures',
 };
 
@@ -111,7 +115,7 @@ export default function MapLayersPanel({
   }, [open]);
 
   const activeCount = layers.filter((l) => active[l.id]).length;
-  const groups: LayerDef['group'][] = ['live', 'discovery', 'world', 'static', 'base'];
+  const groups: LayerDef['group'][] = ['live', 'discovery', 'world', 'static', 'npc', 'base'];
 
   return (
     <div ref={boxRef} style={{ position: 'relative', display: 'inline-block' }}>

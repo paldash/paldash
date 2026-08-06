@@ -1769,3 +1769,37 @@ export interface ProgressDetailReport {
   showsMissing: boolean;
   available: boolean;
 }
+
+
+// ─── Placed NPCs ────────────────────────────────────────
+
+/**
+ * One placed NPC spawner, read from the server pak's world cells.
+ *
+ * `role` is a **name rule, not a game column** — no table anywhere carries a
+ * role — so it fails safe: anything unrecognised is `npc`.
+ */
+export interface NpcPlacement {
+  cls: string;
+  uniqueId: string;
+  characterId: string;
+  /** Resolved: DT_UniqueNPC, then the character tables, then humanised. */
+  name: string;
+  /** True when the game itself never gave this NPC a display name. */
+  nameIsInternal: boolean;
+  /** What this spawner spawns at, which can differ from the table's level. */
+  level: number;
+  respawnSeconds: number;
+  role: string;
+  x: number;
+  y: number;
+  z: number;
+}
+
+export interface NpcPlacements {
+  placements: NpcPlacement[];
+  total: number;
+  roles: Record<string, string>;
+  /** Always true — the role split is derived from ids, not shipped by the game. */
+  roleFromName: boolean;
+}

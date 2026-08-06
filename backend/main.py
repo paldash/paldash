@@ -1539,6 +1539,45 @@ def get_effigy_points(request: Request) -> dict[str, Any]:
     }
 
 
+@app.get("/api/world/npcs")
+def get_npc_placements(
+    request: Request, role: Optional[str] = None
+) -> dict[str, Any]:
+    """
+    Placed NPCs by role — merchants, villagers, hunters, police, quest givers.
+
+    The map has drawn these 220-odd spawn points as one anonymous "NPCs & camps"
+    layer since it shipped, because a placed actor's properties were believed
+    undecodable. They are, in the *client* pak; the server pak's world cells
+    carry tagged properties, so a spawner now says which NPC it is and at what
+    level. See `scripts/extract-npcs.py`.
+
+    **Not `discoveryVisibility`-filtered**, for the same reason as
+    `/api/world/bosses`: an NPC spawn is not a collectable, so the save holds no
+    per-player record to filter against and inventing a discovery state would be
+    worse than showing them.
+
+    `VIEW_BASIC` — this is what the game contains, not what anyone here has done.
+    """
+    authz.require(request, roles_module.VIEW_BASIC)
+    placements = viewcache.per_files(
+        f"npcs:{role or 'all'}",
+        [gamedata.NPCS_PATH, gamedata.DATA_PATH],
+        lambda: gamedata.npc_placements(role),
+    )
+    return {
+        "placements": placements,
+        "total": len(placements),
+        # The layer switches, so the UI does not hardcode a taxonomy that the
+        # extractor owns.
+        "roles": gamedata.npc_roles(),
+        # THE ROLE SPLIT IS A NAME RULE, not a column the game ships — there is
+        # no role column anywhere. Said in the payload for the same reason
+        # `hasMultiplier` is: the client is the thing about to draw a legend.
+        "roleFromName": True,
+    }
+
+
 @app.get("/api/world/bosses")
 def get_boss_spawners(request: Request) -> dict[str, Any]:
     """

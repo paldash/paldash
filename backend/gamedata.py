@@ -129,6 +129,11 @@ WORLDPRESETS_PATH = os.environ.get(
     os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "worldpresets.json.gz"),
 )
 
+NPCS_PATH = os.environ.get(
+    "NPCS_DATA_PATH",
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "npcs.json.gz"),
+)
+
 PASSIVE_EFFECT_PATH = os.environ.get(
     "PASSIVE_EFFECT_DATA_PATH",
     os.path.join(
@@ -150,6 +155,7 @@ _progression: Optional[dict[str, Any]] = None
 _raidbosses: Optional[dict[str, Any]] = None
 _invaders: Optional[dict[str, Any]] = None
 _worldpresets: Optional[dict[str, Any]] = None
+_npcs: Optional[dict[str, Any]] = None
 _indexes: dict[str, dict[str, Any]] = {}
 
 
@@ -222,6 +228,7 @@ def _reset_cache() -> None:
     """
     global _data, _effigies, _passive_effects, _game_settings
     global _boss_spawners, _work_assign, _basecamp, _economy, _spawns, _moves
+    global _npcs
     global _progression, _raidbosses, _invaders, _worldpresets
     _data = None
     _effigies = None
@@ -231,6 +238,7 @@ def _reset_cache() -> None:
     _work_assign = None
     _basecamp = None
     _economy = None
+    _npcs = None
     _spawns = None
     _moves = None
     _progression = None
@@ -1624,3 +1632,75 @@ def totals() -> dict[str, Any]:
     across 51 boss technologies.
     """
     return dict(load().get("totals", {}))
+
+
+def npcs() -> dict[str, Any]:
+    """
+    Every placed NPC in the world, named — merchants, villagers, hunters, police.
+
+    From `scripts/extract-npcs.py`, which reads a spawner actor's **tagged
+    properties** out of the server pak's world cells. That was documented as
+    impossible (`upackage.py`: "property values are not [serialised plainly]"),
+    and it is — in the *client* pak. The server pak's cells are tagged, so a
+    placement says which NPC it spawns and at what level.
+
+    Empty dict when the bundle is absent, like every accessor here.
+    """
+    global _npcs
+    if _npcs is None:
+        try:
+            with gzip.open(NPCS_PATH, "rt", encoding="utf-8") as f:
+                _npcs = json.load(f)
+        except (OSError, json.JSONDecodeError) as e:
+            logger.warning(
+                "NPC data unavailable (%s); the NPC map layers will be empty", e
+            )
+            _npcs = {}
+    return _npcs
+
+
+def npc_placements(role: Optional[str] = None) -> list[dict[str, Any]]:
+    """
+    Placed NPCs, optionally one role, each with a display name resolved.
+
+    **Three places a name can come from, in order**, because the game does not
+    put them all in one:
+
+    1. `DT_UniqueNPC` via the placement's `UniqueName` — the real thing, and the
+       only one that gives "Black Marketeer" rather than "DarkTrader".
+    2. the character tables via `characterId`, for the generic types
+       (`PalDealer`, `Hunter_Rifle`) that have no unique row.
+    3. `humanize()`, so a name is never blank and never raw markup.
+
+    Resolved here rather than at extraction time so a rebuilt `gamedata.json.gz`
+    improves these names without re-reading a 4.8 GB pak.
+    """
+    out = []
+    for entry in (npcs().get("placements") or []):
+        if role and entry.get("role") != role:
+            continue
+        name = entry.get("name") or ""
+        if not name:
+            character = str(entry.get("characterId") or "")
+            name = character_name(character) if character else ""
+        row = dict(entry)
+        if not name:
+            # Last resort: the spawner class, with its boilerplate stripped.
+            # Humanising it raw gives "BP Mono NPCSpawner Boss Base Male
+            # Trader02", which is worse than the id it came from.
+            fallback = str(
+                entry.get("uniqueId") or entry.get("characterId") or entry.get("cls") or ""
+            )
+            fallback = re.sub(
+                r"^BP_(Mono)?NPCSpawner(BossBase)?_?|^BP_NPCCampSpawner_?|^BP_OilrigNPCSpawner_?",
+                "", fallback,
+            )
+            name = humanize(fallback) if fallback else "Unnamed NPC"
+        row["name"] = name
+        out.append(row)
+    return out
+
+
+def npc_roles() -> dict[str, str]:
+    """`{role: label}` for the layer switches. Empty when the bundle is absent."""
+    return npcs().get("roleLabels") or {}
