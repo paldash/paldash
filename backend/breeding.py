@@ -824,21 +824,35 @@ def obtainability(species_id: str) -> dict[str, Any]:
     Four answers, and the middle two are the ones this exists for:
 
     - `standard`      — an ordinary outcome of the rank rule.
-    - `named_pairing` — an element variant. The game names the pairings that
-                        produce it and the general rule never will, so the
-                        pairings are listed. 81 species.
+    - `named_pairing` — the game names the pairings that produce it and the
+                        rank rule never will, so the pairings are listed.
     - `unverified`    — an element variant the game names **no** pairing for,
                         while the table this planner runs on offers one anyway.
                         Three species, and the disagreement is reported rather
                         than resolved. See `scripts/verify-breeding.py`.
-    - `never`         — `IgnoreCombi`, the game saying this species takes no
-                        part in breeding. 226 species.
+    - `never`         — `IgnoreCombi` and no named pairing: nothing you can put
+                        in a pen produces one you do not already have.
 
     **`named_pairing` is not "unbreedable", and an earlier version of this
     project said it was.** `DT_PalCombiUnique` names an element variant as the
     child in 159 of its 256 tribe pairs; what is true is only that the rank
     fallback never produces one. Telling a player "no pairing reaches this"
     when the game ships the pairing is worse than saying nothing.
+
+    **A NAMED PAIRING BEATS `IgnoreCombi`, and checking them the other way
+    round got four species wrong — the four a player most wants.** Lyleen Noct
+    (Lyleen + Menasting), Faleris Aqua (Faleris + Jormuntide), Bellanoir
+    (Bellanoir + Bellanoir Libero) and Frostallion Noct (Frostallion +
+    Helzephyr) all carry `IgnoreCombi` and are all named outright in
+    `DT_PalCombiUnique`. So the order here mirrors `predict`: a unique combo is
+    consulted **first** and the flag only decides what the fallback may reach.
+    `IgnoreCombi` turns out to mean the same thing the variant suffix does.
+
+    **A SELF-PAIRING IS NOT A NAMED PAIRING FOR THIS PURPOSE.** 26 of the 28
+    genuine `never` species breed true (Frostallion + Frostallion yields
+    Frostallion), which is worth telling somebody who owns one and useless to
+    somebody who does not — so it never promotes a species out of `never`, and
+    it travels separately as `breedsTrue`.
 
     Unknown species get `standard` with `known: False` rather than a refusal —
     a modded or unreleased id is not evidence of anything, and the caller is a
@@ -857,29 +871,47 @@ def obtainability(species_id: str) -> dict[str, Any]:
         return {"species": species, "kind": "standard", "known": False}
 
     result: dict[str, Any] = {"species": species, "known": True, "kind": "standard"}
+    variant = entry.get("zukanSuffix") == "B"
+    blocked = bool(entry.get("ignoreCombi"))
+    if variant:
+        result["variant"] = True
 
-    if entry.get("ignoreCombi"):
-        result["kind"] = "never"
-        result["note"] = (
-            "The game marks this species as taking no part in breeding "
-            "(IgnoreCombi). No pairing produces it and it cannot be a parent."
-        )
-        return result
-
-    if entry.get("zukanSuffix") != "B":
-        return result
-
-    # An element variant from here down.
+    # Uniques first, exactly as `predict` consults them before the pool — see
+    # the docstring. Self-pairings are separated here rather than filtered out,
+    # because they are worth reporting and must not promote a species.
     pairings = _named_pairings().get(species) or []
-    result["variant"] = True
-    if pairings:
+    real = [p for p in pairings if not p.get("breedsTrue")]
+    if any(p.get("breedsTrue") for p in pairings):
+        result["breedsTrue"] = True
+
+    if real:
         result["kind"] = "named_pairing"
         result["pairings"] = pairings
+        lead = "Element variant. " if variant else ""
         result["note"] = (
-            f"Element variant. The game names {len(pairings)} pairing"
-            f"{'' if len(pairings) == 1 else 's'} that produce it; the general "
+            f"{lead}The game names {len(real)} pairing"
+            f"{'' if len(real) == 1 else 's'} that produce it; the general "
             "rank rule never does, so it comes from these pairs or not at all."
         )
+        return result
+
+    if blocked:
+        result["kind"] = "never"
+        # **Not "it cannot be a parent".** Measured: all 28 are productive
+        # parents of 70-100 distinct species each, and 26 breed true. What the
+        # flag actually rules out is being *produced* by a pairing.
+        breeds_true = (
+            " It does breed true, so two of them make another one."
+            if result.get("breedsTrue") else ""
+        )
+        result["note"] = (
+            "No pairing in the game produces this Pal — it is caught or "
+            "summoned. It can still be a parent, and pairing it with something "
+            f"else yields whatever the ordinary rule gives.{breeds_true}"
+        )
+        return result
+
+    if not variant:
         return result
 
     result["kind"] = "unverified"

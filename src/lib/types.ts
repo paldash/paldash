@@ -1228,6 +1228,37 @@ export interface PaldeckDetail extends PaldeckEntry {
   work?: Record<string, number>;
   breedingPower?: number;
   genderOdds?: { MALE: number; FEMALE: number };
+  moves?: SpeciesMoves;
+  /** Whether breeding can reach this Pal, and by what. */
+  obtainability?: BreedingLimitRow;
+}
+
+export interface SpeciesMove {
+  id: string;
+  name: string;
+  element: string;
+  power: number;
+  cooldown: number;
+  category: string;
+  /** Present on level-up moves: the level the species learns it at. */
+  level?: number;
+  /** Present on egg moves. See `SpeciesMoves.egg`. */
+  eggOnly?: boolean;
+}
+
+/**
+ * What a species *can* have, which is a different question from what one Pal
+ * has equipped.
+ */
+export interface SpeciesMoves {
+  levelUp: SpeciesMove[];
+  /**
+   * **Inheritable by breeding only.** A Pal that already exists cannot be
+   * taught one, so this is the answer to "is this breeding target worth
+   * chasing" rather than a list of moves to go and buy.
+   */
+  egg: SpeciesMove[];
+  eggCount: number;
 }
 
 export interface PalSummary {
@@ -1411,6 +1442,11 @@ export interface BreedingLimitRow {
   /** `B` marks an element variant — the `B` on Paldeck entry #98B. */
   suffix: string;
   kind: 'never' | 'unverified' | 'named_pairing' | 'standard';
+  /**
+   * Two of this Pal make another. Reported on `never` rows too, where it is
+   * the only breeding fact that applies — 26 of the 28 legendaries breed true.
+   */
+  breedsTrue?: boolean;
   note?: string;
   pairings?: NamedPairing[];
   mutatedEgg?: {

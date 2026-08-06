@@ -134,9 +134,59 @@ def test_the_three_contested_variants_are_reported_as_contested():
 
 
 def test_ignore_combi_species_are_never():
-    assert breeding.obtainability("NightLady")["kind"] == "never"
     # Frostallion is the canonical "you catch this, you do not breed it".
     assert breeding.obtainability("IceHorse")["kind"] == "never"
+    assert breeding.obtainability("JetDragon")["kind"] == "never"
+
+
+def test_a_named_pairing_beats_ignore_combi():
+    """
+    **The four this got wrong, and they are the four a player most wants.**
+    Lyleen Noct, Faleris Aqua, Bellanoir and Frostallion Noct all carry
+    `IgnoreCombi` *and* are named outright in `DT_PalCombiUnique`. Checking the
+    flag first filed every one of them under "cannot be bred" — about pairings
+    the game ships and players use.
+
+    Same shape as the element-variant retraction one level down: `IgnoreCombi`
+    constrains the rank fallback, and a unique combo overrides it. So the order
+    here mirrors `predict`.
+    """
+    expected = {
+        "LilyQueen_Dark": ("Lyleen", "Menasting"),
+        "Horus_Water": ("Faleris", "Jormuntide"),
+        "NightLady": ("Bellanoir", "Bellanoir Libero"),
+        "IceHorse_Dark": ("Frostallion", "Helzephyr"),
+    }
+    for species, pair in expected.items():
+        info = breeding.obtainability(species)
+        assert info["kind"] == "named_pairing", species
+        real = [p for p in info["pairings"] if not p.get("breedsTrue")]
+        assert {(p["aName"], p["bName"]) for p in real} == {pair}, species
+
+
+def test_a_self_pairing_never_promotes_a_species_out_of_never():
+    """
+    26 of the 28 `IgnoreCombi` Paldeck entries breed true — Frostallion +
+    Frostallion yields Frostallion. That is worth telling somebody who owns one
+    and useless to somebody who does not, so it is reported as `breedsTrue` and
+    must never count as "the game names a pairing for this".
+    """
+    info = breeding.obtainability("IceHorse")
+    assert info["kind"] == "never"
+    assert info["breedsTrue"] is True
+    assert "breed true" in info["note"]
+
+
+def test_the_never_note_does_not_claim_it_cannot_be_a_parent():
+    """
+    An earlier note said `IgnoreCombi` meant "no pairing produces it and it
+    cannot be a parent". The second half is false: all 28 are productive
+    parents of 70-100 distinct species each. `IceHorse + IceNarwhal` is
+    Frostallion parenting a Blazamut Ryu.
+    """
+    note = breeding.obtainability("IceHorse")["note"]
+    assert "can still be a parent" in note
+    assert breeding.predict_child("IceHorse", "IceNarwhal")
 
 
 def test_an_ordinary_pal_is_standard_with_no_note():
@@ -194,9 +244,13 @@ def test_the_never_list_is_the_bosses_and_legendaries():
     ordinary Pals, a filter has inverted.
     """
     never = breeding.unbreedable()["never"]
-    assert len(never) == 28
+    assert len(never) == 24
     names = {r["name"] for r in never}
-    assert {"Frostallion", "Jetragon", "Bellanoir", "Grizzbolt"} <= names
+    assert {"Frostallion", "Jetragon", "Paladius", "Grizzbolt"} <= names
+    # The Noct/Aqua forms are NOT here — the game names a pairing for each.
+    assert not names & {
+        "Frostallion Noct", "Faleris Aqua", "Lyleen Noct", "Bellanoir",
+    }
     assert "Lamball" not in names
     # Every one is Paldeck-listed — an unreleased form would be misleading here,
     # since nobody can obtain it by any means.
