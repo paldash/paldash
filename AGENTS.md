@@ -901,6 +901,28 @@ enforced; *back-to-back* parses were not, because the 15-minute floor only
 applied to automatic parses and the Refresh button posts `force=true`. Forcing
 now needs an account and respects `PARSE_FORCE_MIN_INTERVAL` (120s).
 
+**AND THE HAND SWEEP MISSED SIX, WHICH IS WHY IT IS A TEST NOW.**
+`backend/tests/test_route_gates.py` enumerates the live FastAPI app and asserts
+both gates on every route, so one added tomorrow is covered without anyone
+remembering. On its first run it found `/api/bases`, `/api/guilds`,
+`/api/players`, `/api/mapobjects`, `/api/bases/storage` and
+`/api/bases/{id}/storage` with no `authz.require` — all six resolve an identity
+with `_viewer()`, which returns `"guest"` rather than refusing, so they were
+open-then-filtered rather than gated.
+
+Writing that test found three bugs **in the test** before it found any in the
+code, and each would have been worse than no test: a regex that stopped at the
+first escaped slash parsed 20 of 107 patterns and "found" ninety unreachable
+routes; a scan for `authz.require` in the endpoint body alone missed every route
+that delegates to a helper like `_moderator`, reporting all of moderation as
+ungated; and a single `sample_id` probe failed the patterns whose character class
+excludes underscores. **A false alarm on a security test is worse than no test,
+because the next real one gets waved through.**
+
+`authz.current_user` and `_viewer` are deliberately not counted as gates. They
+resolve an identity and return `None`/`"guest"`, which filters but does not
+refuse — that is the distinction the whole test rests on.
+
 Remaining gaps are catalogued in `docs/AUDIT.md` §5. Roles, capabilities and the
 visibility settings are documented for operators in `docs/ROLES.md`.
 

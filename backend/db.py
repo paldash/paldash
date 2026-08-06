@@ -123,7 +123,16 @@ CREATE TABLE IF NOT EXISTS metrics (
     base_count    INTEGER,
     -- Whether the game answered at all. Kept explicit so "0 players" and
     -- "we could not ask" are never confused.
-    reachable     INTEGER NOT NULL DEFAULT 0
+    reachable     INTEGER NOT NULL DEFAULT 0,
+    -- Added 2026-08-06. All nullable and all NULL when unreadable, never 0:
+    -- `cpu_temp_c` at 0 reads as a machine at freezing point, and `cpu_steal`
+    -- at 0 is a real and different answer from "we could not measure it".
+    swap_used_mb  REAL,
+    swap_total_mb REAL,
+    cpu_steal     REAL,
+    net_rx_kbs    REAL,
+    net_tx_kbs    REAL,
+    cpu_temp_c    REAL
 );
 CREATE INDEX IF NOT EXISTS idx_metrics_ts ON metrics(ts);
 """
@@ -169,6 +178,15 @@ def transaction() -> Iterator[sqlite3.Connection]:
 # the whole schema is one file and a handful of columns.
 _ADDED_COLUMNS: tuple[tuple[str, str, str], ...] = (
     ("users", "map_privacy", "TEXT NOT NULL DEFAULT 'guild'"),
+    # Host signals added 2026-08-06. No default: an existing row predates the
+    # measurement and NULL is the truthful value for it — backfilling 0 would
+    # draw a flat line through history that never happened.
+    ("metrics", "swap_used_mb", "REAL"),
+    ("metrics", "swap_total_mb", "REAL"),
+    ("metrics", "cpu_steal", "REAL"),
+    ("metrics", "net_rx_kbs", "REAL"),
+    ("metrics", "net_tx_kbs", "REAL"),
+    ("metrics", "cpu_temp_c", "REAL"),
 )
 
 

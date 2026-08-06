@@ -107,16 +107,34 @@ def test_the_index_records_which_worlds_it_came_from(index):
     assert "differsBetweenWorlds" in index
 
 
-def test_ambiguous_names_are_excluded_from_the_unread_list(index):
+def test_a_path_is_judged_on_its_identifying_segment(index):
     """
     `readBy` is a string-literal match. Names like `id`, `name` and `value`
-    collide with everything, so they are neither trusted as read nor reported as
-    unread — a false "nothing reads `name`" would poison the list this exists to
-    produce.
+    collide with everything, so a path is judged on the last segment that is NOT
+    one of them — `OldOwnerPlayerUIds.values[]` is identified by
+    `OldOwnerPlayerUIds`.
+
+    **This assertion used to check the leaf, and was pinning a bug.** Judging a
+    container by the name of its payload reported `OldOwnerPlayerUIds` as having
+    no reader at all, when `charedit` writes it.
     """
     ambiguous = set(index["ambiguousNames"])
+
+    def identifying(path: str) -> str:
+        for segment in reversed(path.split(".")):
+            leaf = segment.strip("[]")
+            if leaf and leaf not in ambiguous:
+                return leaf
+        return ""
+
     for path in index["unreadPaths"]:
-        assert path.rsplit(".", 1)[-1].strip("[]") not in ambiguous
+        assert identifying(path) not in ambiguous
+        assert identifying(path), path
+
+    # And the case that motivated the change: a container whose payload is
+    # ambiguous but whose own name is read must not be in the list.
+    assert index["readBy"].get("OldOwnerPlayerUIds")
+    assert not [p for p in index["unreadPaths"] if p.endswith("OldOwnerPlayerUIds.values")]
 
 
 def test_fixed_width_blobs_are_flagged(index):

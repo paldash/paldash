@@ -811,6 +811,12 @@ def get_bases(request: Request) -> list[dict]:
     bases with them (`privacy`), or a guild master hid this *specific* base
     (`baseprivacy`). Both resolve to base ids in `_hidden_base_ids`.
     """
+    # Gated here as well as in the proxy allowlist. `_viewer()` below resolves
+    # an identity and returns "guest" when there is none, which filters but does
+    # not refuse — see AGENTS.md: the proxy forwards a credential, it does not
+    # assert one, so a route that only filters is trusting exactly what the
+    # security model says not to trust.
+    authz.require(request, roles_module.VIEW_BASIC)
     return baseprivacy.filter_bases(
         savecache.get_section("bases"), _hidden_base_ids(request)
     )
@@ -856,6 +862,12 @@ def get_guilds(request: Request) -> list[dict]:
     they have is not hiding it, and it is the same mistake `_hidden_base_ids`
     exists to prevent one level down.
     """
+    # Gated here as well as in the proxy allowlist. `_viewer()` below resolves
+    # an identity and returns "guest" when there is none, which filters but does
+    # not refuse — see AGENTS.md: the proxy forwards a credential, it does not
+    # assert one, so a route that only filters is trusting exactly what the
+    # security model says not to trust.
+    authz.require(request, roles_module.VIEW_BASIC)
     guilds = savecache.get_section("guilds")
 
     foreign = _foreign_guild_ids(request)
@@ -1185,6 +1197,12 @@ def get_base_storage(request: Request) -> list[dict]:
     threshold `_hidden_base_ids` still applies on top, so anything hidden from
     the base list is hidden here too.
     """
+    # Gated here as well as in the proxy allowlist. `_viewer()` below resolves
+    # an identity and returns "guest" when there is none, which filters but does
+    # not refuse — see AGENTS.md: the proxy forwards a credential, it does not
+    # assert one, so a route that only filters is trusting exactly what the
+    # security model says not to trust.
+    authz.require(request, roles_module.VIEW_SELF)
     summaries = baseprivacy.filter_storage(
         savecache.get_section("baseStorage"), _hidden_base_ids(request)
     )
@@ -1196,6 +1214,12 @@ def get_base_storage(request: Request) -> list[dict]:
 
 @app.get("/api/bases/{base_id}/storage")
 def get_one_base_storage(base_id: str, request: Request) -> dict:
+    # Gated here as well as in the proxy allowlist. `_viewer()` below resolves
+    # an identity and returns "guest" when there is none, which filters but does
+    # not refuse — see AGENTS.md: the proxy forwards a credential, it does not
+    # assert one, so a route that only filters is trusting exactly what the
+    # security model says not to trust.
+    authz.require(request, roles_module.VIEW_SELF)
     own = _own_guild_base_ids(request)
     if base_id in _hidden_base_ids(request) or (own is not None and base_id not in own):
         # 404 rather than 403: "you may not see this base" confirms the base
@@ -1492,6 +1516,12 @@ def get_map_objects(request: Request, category: Optional[str] = None) -> list[di
     whose marker was dropped from `/api/bases` would hide the label and publish
     the location.
     """
+    # Gated here as well as in the proxy allowlist. `_viewer()` below resolves
+    # an identity and returns "guest" when there is none, which filters but does
+    # not refuse — see AGENTS.md: the proxy forwards a credential, it does not
+    # assert one, so a route that only filters is trusting exactly what the
+    # security model says not to trust.
+    authz.require(request, roles_module.VIEW_BASIC)
     objects = viewcache.derived("mapObjects:named", _named_map_objects)
     if category:
         objects = [o for o in objects if o.get("category") == category]
@@ -2462,6 +2492,12 @@ def list_players(request: Request) -> list[dict]:
     progress totals and discovery denominators must count everyone, and both are
     gated above the ranks privacy can conceal from anyway.
     """
+    # Gated here as well as in the proxy allowlist. `_viewer()` below resolves
+    # an identity and returns "guest" when there is none, which filters but does
+    # not refuse — see AGENTS.md: the proxy forwards a credential, it does not
+    # assert one, so a route that only filters is trusting exactly what the
+    # security model says not to trust.
+    authz.require(request, roles_module.VIEW_DETAIL)
     return privacy.filter_players(
         get_players(), privacy.hidden_uids(*_viewer(request))["players"]
     )

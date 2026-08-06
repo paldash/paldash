@@ -60,6 +60,8 @@ _stop = threading.Event()
 _lock = threading.Lock()
 _last_prune = 0.0
 _last_cpu: Optional[tuple[float, float]] = None   # (timestamp, cpu_seconds)
+_last_cpu_stat: Optional[tuple[float, float]] = None   # (total jiffies, steal)
+_last_net: Optional[tuple[float, int, int]] = None     # (timestamp, rx, tx)
 
 
 # ─── Host sampling ───────────────────────────────────────
@@ -154,6 +156,172 @@ def _host_memory_total() -> Optional[float]:
     return total
 
 
+def swap() -> tuple[Optional[float], Optional[float]]:
+    """
+    `(used_mb, total_mb)` of swap, or `(None, None)`.
+
+    **A box with no swap is a real answer and not the same as a box we could not
+    read.** Both come back `None` here; the difference is expressed by
+    `swap_total_mb` being 0 versus absent, and the UI shows the gauge only when
+    the total is non-zero — a permanently empty swap bar is noise on the majority
+    of servers that have none.
+    """
+    total_kb = free_kb = None
+    try:
+        with open("/proc/meminfo") as f:
+            for line in f:
+                if line.startswith("SwapTotal:"):
+                    total_kb = float(line.split()[1])
+                elif line.startswith("SwapFree:"):
+                    free_kb = float(line.split()[1])
+    except (OSError, ValueError, IndexError):
+        return None, None
+
+    if total_kb is None or free_kb is None:
+        return None, None
+    return round((total_kb - free_kb) / 1024, 1), round(total_kb / 1024, 1)
+
+
+def cpu_steal() -> Optional[float]:
+    """
+    Percentage of time the CPU was ready and the hypervisor ran someone else.
+
+    **The one host signal nothing else in this dashboard can substitute for.** On
+    a rented VPS a high steal figure says the stutter is the host being
+    oversubscribed rather than anything the operator did — and without it, a
+    server dropping frames looks like the operator's fault.
+
+    Field 8 of the aggregate line in `/proc/stat`, as a share of total jiffies
+    since the previous sample. Two readings are needed, so the first call returns
+    `None` rather than a fabricated zero — the same rule `cpu_percent` follows
+    and for the same reason: one sample is not a slow rate, it is no rate.
+
+    `None` on a bare-metal host too, where the field exists and is always 0 —
+    that is genuinely "no contention" rather than "unknown", so 0.0 is returned
+    and only an unreadable `/proc/stat` gives `None`.
+    """
+    global _last_cpu_stat
+
+    try:
+        with open("/proc/stat") as f:
+            fields = f.readline().split()
+    except OSError:
+        return None
+    if not fields or fields[0] != "cpu" or len(fields) < 9:
+        return None
+
+    try:
+        values = [float(v) for v in fields[1:9]]
+    except ValueError:
+        return None
+
+    total = sum(values)
+    steal = values[7]
+
+    previous = _last_cpu_stat
+    _last_cpu_stat = (total, steal)
+    if previous is None:
+        return None
+
+    elapsed = total - previous[0]
+    if elapsed <= 0:
+        return None
+    return round(max(0.0, (steal - previous[1]) / elapsed) * 100.0, 2)
+
+
+def network() -> tuple[Optional[float], Optional[float]]:
+    """
+    `(rx_kb_per_sec, tx_kb_per_sec)` across every real interface.
+
+    **Inside a container this is the CONTAINER's traffic, not the host's**, which
+    is the same caveat `memory()` carries about cgroup limits — and it is the
+    useful reading either way, since what an operator wants is whether the box is
+    saturated, and the dashboard is on the same box.
+
+    `lo` is excluded: loopback counts this process talking to itself, which on a
+    dashboard that proxies every request to its own backend is most of the
+    traffic and none of the interest.
+
+    Two samples again, so the first returns `None`.
+    """
+    global _last_net
+
+    rx = tx = 0
+    found = False
+    try:
+        with open("/proc/net/dev") as f:
+            for line in f.readlines()[2:]:
+                name, _, rest = line.partition(":")
+                name = name.strip()
+                if not name or name == "lo":
+                    continue
+                parts = rest.split()
+                if len(parts) < 9:
+                    continue
+                rx += int(parts[0])
+                tx += int(parts[8])
+                found = True
+    except (OSError, ValueError, IndexError):
+        return None, None
+    if not found:
+        return None, None
+
+    now = time.monotonic()
+    previous = _last_net
+    _last_net = (now, rx, tx)
+    if previous is None:
+        return None, None
+
+    elapsed = now - previous[0]
+    if elapsed <= 0:
+        return None, None
+    return (
+        round(max(0, rx - previous[1]) / elapsed / 1024, 1),
+        round(max(0, tx - previous[2]) / elapsed / 1024, 1),
+    )
+
+
+def cpu_temperature() -> Optional[float]:
+    """
+    The hottest CPU thermal zone in °C, or `None`.
+
+    **Absent under most virtualisation and in most containers**, so `None` is the
+    ordinary answer rather than an error — and it must never be rendered as 0°C,
+    which reads as a machine at freezing point rather than as a machine that does
+    not report.
+
+    Zones are filtered by type: `/sys/class/thermal` also exposes battery and
+    wireless sensors on a laptop, and the hottest of everything is not the CPU.
+    """
+    best: Optional[float] = None
+    try:
+        zones = sorted(os.listdir("/sys/class/thermal"))
+    except OSError:
+        return None
+
+    for zone in zones:
+        if not zone.startswith("thermal_zone"):
+            continue
+        base = os.path.join("/sys/class/thermal", zone)
+        try:
+            with open(os.path.join(base, "type")) as f:
+                kind = f.read().strip().lower()
+        except OSError:
+            continue
+        if not any(w in kind for w in ("cpu", "core", "pkg", "x86", "soc")):
+            continue
+        milli = _read_first_number(os.path.join(base, "temp"))
+        if milli is None:
+            continue
+        celsius = milli / 1000.0
+        # A plausibility bound: some drivers report in °C already and others
+        # expose a sentinel. A reading outside this is not a temperature.
+        if not -40.0 < celsius < 150.0:
+            continue
+        best = celsius if best is None else max(best, celsius)
+    return round(best, 1) if best is not None else None
+
+
 def disk(path: Optional[str] = None) -> tuple[Optional[float], Optional[float]]:
     """
     (used_mb, free_mb) for the filesystem holding the save directory.
@@ -204,6 +372,10 @@ def sample() -> dict[str, Any]:
     row["cpu_percent"] = cpu_percent()
     row["mem_used_mb"], row["mem_total_mb"] = memory()
     row["disk_used_mb"], row["disk_free_mb"] = disk()
+    row["swap_used_mb"], row["swap_total_mb"] = swap()
+    row["cpu_steal"] = cpu_steal()
+    row["net_rx_kbs"], row["net_tx_kbs"] = network()
+    row["cpu_temp_c"] = cpu_temperature()
 
     row.update(_world_counts())
     return row
@@ -246,6 +418,12 @@ _COLUMNS = (
     "ts", "server_fps", "frame_time", "players", "max_players", "uptime",
     "cpu_percent", "mem_used_mb", "mem_total_mb", "disk_used_mb", "disk_free_mb",
     "world_size_mb", "pal_count", "base_count", "reachable",
+    # Added 2026-08-06. NULL means "could not read", never 0 — the same rule
+    # `players` follows when the server is down, and it matters most for
+    # `cpu_temp_c`, where a 0 reads as a machine at freezing point rather than
+    # as one that does not report a temperature.
+    "swap_used_mb", "swap_total_mb", "cpu_steal", "net_rx_kbs", "net_tx_kbs",
+    "cpu_temp_c",
 )
 
 
@@ -322,7 +500,16 @@ def series(
                MAX(world_size_mb)  AS world_size_mb,
                MAX(pal_count)      AS pal_count,
                MAX(base_count)     AS base_count,
-               AVG(reachable)      AS reachable
+               AVG(reachable)      AS reachable,
+               -- MAX for swap and steal because a spike is the finding: an
+               -- average hides the minute the box was thrashing. Averages for
+               -- throughput, which is a rate and reads wrong as a peak.
+               MAX(swap_used_mb)   AS swap_used_mb,
+               MAX(swap_total_mb)  AS swap_total_mb,
+               MAX(cpu_steal)      AS cpu_steal,
+               AVG(net_rx_kbs)     AS net_rx_kbs,
+               AVG(net_tx_kbs)     AS net_tx_kbs,
+               MAX(cpu_temp_c)     AS cpu_temp_c
           FROM metrics
          WHERE ts >= ?
       GROUP BY bucket
@@ -354,6 +541,16 @@ def series(
                 "baseCount": r["base_count"],
                 # Fraction of the bucket the server answered, not a boolean.
                 "reachable": _round(r["reachable"], 3),
+                # All NULL-preserving: a bucket with no reading stays absent
+                # rather than becoming 0, which for a temperature would draw a
+                # machine at freezing point and for steal would claim a quiet
+                # host we never measured.
+                "swapUsedMb": _round(r["swap_used_mb"], 1),
+                "swapTotalMb": _round(r["swap_total_mb"], 1),
+                "cpuSteal": _round(r["cpu_steal"], 2),
+                "netRxKbs": _round(r["net_rx_kbs"], 1),
+                "netTxKbs": _round(r["net_tx_kbs"], 1),
+                "cpuTempC": _round(r["cpu_temp_c"], 1),
             }
             for r in rows
         ],
