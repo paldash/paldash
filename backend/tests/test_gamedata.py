@@ -321,10 +321,23 @@ def test_effigy_species_lookup_is_case_insensitive():
     assert gamedata.effigy_kind_name("BP_LevelObject_Relic_sheepball") == "Lamball Effigy"
 
 
-def test_the_unsuffixed_classes_are_plainly_effigies():
-    """155 of the 396 between them, and they are genuinely not species-tied."""
-    assert gamedata.effigy_kind_name("BP_LevelObject_Relic") == "Effigy"
-    assert gamedata.effigy_kind_name("BP_RelicObject") == "Effigy"
+def test_the_unsuffixed_classes_are_lifmunk_effigies():
+    """
+    **This test used to assert "Effigy" and that was the bug it was protecting.**
+    The reasoning was that the two unsuffixed classes are "genuinely not
+    species-tied", which is true of the *class name* and says nothing about the
+    thing. 155 of 396 markers were therefore labelled with their own category
+    word, which reads as a failed lookup rather than as an answer.
+
+    The catalogue has always had the name: `Relic` is "Lifmunk Effigy". See
+    `test_effigy_names.py`, where the suffix rule is checked against all thirteen
+    catalogue entries rather than against this file's memory of them.
+
+    The empty-kind case keeps the old answer, because there no id was supplied at
+    all — that is a caller with nothing to resolve, not a plain relic.
+    """
+    assert gamedata.effigy_kind_name("BP_LevelObject_Relic") == "Lifmunk Effigy"
+    assert gamedata.effigy_kind_name("BP_RelicObject") == "Lifmunk Effigy"
     assert gamedata.effigy_kind_name("") == "Effigy"
 
 

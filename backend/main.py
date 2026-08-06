@@ -2023,6 +2023,16 @@ def get_world_objects(
         if species:
             point["speciesName"] = gamedata.character_name(species)
             point["icon"] = (gamedata.describe_pal(species) or {}).get("icon")
+            # And the level, where the boss table has a row standing in the same
+            # place. Joined here rather than baked into the bundle for the same
+            # reason the name is: the two bundles are regenerated independently,
+            # and a join frozen into one of them goes stale when the other moves.
+            level = gamedata.boss_level_at(
+                species, float(point.get("x") or 0.0), float(point.get("y") or 0.0)
+            )
+            if level:
+                point["level"] = level["level"]
+                point["levelSpawner"] = level["spawnerId"]
     return result
 
 

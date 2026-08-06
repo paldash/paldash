@@ -231,6 +231,60 @@ these are two different extractions of overlapping things, and the 99 `FBOSS`
 placements found by name-table intersection are not the same 90 rows. Do not
 assume one supersedes the other without checking which species each covers.
 
+### They do overlap, and the overlap is exact — but only on POSITION
+
+The warning above says do not *assume*; it never said do not *check*, and for a
+while the map's boss popup read **"Level is on the Field bosses layer"** — true,
+useless, and wrong-feeling to anybody looking at a Pal whose level the game's own
+map prints. `gamedata.boss_level_at` is the check.
+
+Join the 99 placements to the 90 rows on species and keep the nearest:
+
+| | |
+|---|---:|
+| placements whose species appears in the boss table | 93 of 99 |
+| **matched at a distance of ~0.0** — the same actor read twice | **60** |
+| matched within one cell (25,600 units) | 64 |
+| **control: species labels shuffled, best of 200 trials** | **7** |
+
+Sixty coincident points is not a threshold that was tuned until it looked good.
+Two readers — one walking a world cell's actor bytes, one walking a DataTable's
+`Vector` struct — landing on identical coordinates is the same class of evidence
+as the 157/157 fast-travel fit, and the shuffled control is what makes it
+evidence rather than density.
+
+**Species alone is not enough, and the data itself says why.**
+`BOSS_GrassGolem` is placed twice, at **level 55 and level 75** — which is also
+why `remainsIsland_1_GrassGolem_FBOSS` appears twice in the table. A
+species-keyed lookup hands one of those placements the other's level and looks
+completely fine doing it. The join keys on position for that reason, and the
+35 placements with no row standing beside them get **no level at all** rather
+than borrowing their species' level from somewhere else on the map.
+
+The threshold is `25600` — the cell size already pinned everywhere else here,
+*not* fitted to this join's own gap. Fitting it would have been fitting the
+method to the answer; as it happens the measured gap (17,628 then 30,722) sits
+either side of it anyway.
+
+### And 155 of the 396 effigies were labelled "Effigy"
+
+Which is 39% of the layer wearing its own category name — the failure shape this
+file records for the empty work-suitability panel and the empty base list: it
+reads as a lookup that failed, not as the answer.
+
+The two unsuffixed classes (`BP_LevelObject_Relic`, `BP_RelicObject`) are the
+plain relic, and the catalogue has always named it: `Relic` -> **"Lifmunk
+Effigy"**. Resolved through `item_name` rather than hardcoded, so it degrades to
+"Effigy" if the bundle is missing instead of to a stale English string.
+
+**The suffix rule is now verified rather than trusted.** Turning
+`…_IceCrocodile` into "Munchill Effigy" is a two-hop derivation off a class name,
+exactly the sort that reads right and is wrong — so `test_effigy_names.py`
+asserts all ten placed classes land on a name the item table actually ships
+(`Relic`, `Relic_01`..`Relic_12`). **10 of 10.** Three catalogue entries —
+Lunaris, Relaxaurus, Mimog — have no placed class at all, which is the world
+not referencing them rather than a gap in the rule.
+
 ## Spawn habitats come from the spawner DataTables — the name-table trick is retired
 
 **This section used to be titled "Spawn habitats come from name tables, not from
