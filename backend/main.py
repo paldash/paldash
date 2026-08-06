@@ -1577,6 +1577,15 @@ def reload_world_packs(request: Request) -> dict[str, Any]:
         "worldObjects": worldobjects.reload(),
         **gamedata.reload(),
     }
+    # `breeding` caches *derivations* of these bundles, not copies of them, so
+    # dropping gamedata's caches alone leaves it folding the old `moves.json.gz`
+    # into a child-keyed map while `gamedata.unique_combos()` returns the new
+    # one. `viewcache` would then rebuild the limits view from stale input —
+    # worse than not rebuilding, because the rebuild makes it look current.
+    #
+    # Called from here rather than inside `gamedata.reload()` because `breeding`
+    # imports `gamedata`; the dependency only runs one way.
+    breeding.reset_caches()
     audit.record(
         audit.DATA_RELOAD, username=user["username"], role=user["role"],
         target="world_packs",

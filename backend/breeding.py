@@ -57,6 +57,30 @@ def _db() -> dict[str, Any]:
         return json.load(f)
 
 
+def reset_caches() -> None:
+    """
+    Drop every cached derivation in this module.
+
+    **`gamedata.reload()` cannot do this and must not try** — `breeding`
+    imports `gamedata`, so the dependency only runs one way. The reload route
+    calls both.
+
+    It matters because the caches here are *derived from* the bundles rather
+    than copies of them: `_named_pairings` folds `moves.json.gz` into a
+    child-keyed map, so after a reload `gamedata.unique_combos()` would return
+    the new file while this returned the old shape of it. `viewcache` would
+    dutifully rebuild `unbreedable()` — from stale input, which is the worst of
+    both, since the rebuild makes it look current.
+    """
+    _breeding.cache_clear()
+    _db.cache_clear()
+    _named_pairings.cache_clear()
+    global _gendered, _pal_index, _passive_index
+    _gendered = None
+    _pal_index = None
+    _passive_index = None
+
+
 def data_available() -> bool:
     try:
         _breeding()
