@@ -1232,6 +1232,34 @@ export interface IniSettings {
     /** A dashboard write is on record and a restart has not been seen yet. */
     awaitingRestart: boolean;
     lastWriteAt: string | null;
+    /** Written and not yet checkable, by name. Empty is not the same as none. */
+    pendingKeys?: string[];
+    /**
+     * Did each key we wrote survive? A narrower question than `verdict`, which
+     * is about the deployment — an image can rewrite the file and leave your key
+     * alone, or leave the rest alone and revert only yours.
+     */
+    keyVerification?: {
+      checked: number;
+      verified: number;
+      keys: {
+        key: string;
+        verdict: 'verified' | 'reverted' | 'missing' | 'unchecked';
+        /**
+         * **Always empty for a secret**, in both directions. `AdminPassword` and
+         * `ServerPassword` are compared against a stored hash and their values
+         * never leave the backend — do not render a placeholder here that could
+         * be mistaken for one.
+         */
+        secret: boolean;
+        expected: string;
+        actual: string;
+      }[];
+      /** Actionable: a setting you changed is not in effect. */
+      warnings: string[];
+      /** True but not a failure. Rendered quietly, for the reason above. */
+      notes: string[];
+    };
   };
 }
 
