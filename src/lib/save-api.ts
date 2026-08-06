@@ -54,6 +54,7 @@ import type {
   CraftableReport,
   NpcPlacements,
   ProgressDetailReport,
+  RaidBossReport,
   ItemSources,
   GuildMovePlan,
   GuildMoveResult,
@@ -1730,4 +1731,14 @@ export async function getProgressDetail(uid?: string): Promise<ProgressDetailRep
 export async function getNpcPlacements(role?: string): Promise<NpcPlacements> {
   const query = role ? `?role=${encodeURIComponent(role)}` : '';
   return saveFetch(`/world/npcs${query}`);
+}
+
+/**
+ * Raid bosses: what summons each, at what level, and what it drops.
+ *
+ * A separate category from field bosses and deliberately not a map layer — they
+ * are altar-summoned, so no game file gives them a world position.
+ */
+export async function getRaidBosses(): Promise<RaidBossReport> {
+  return saveFetch('/world/raidbosses');
 }
