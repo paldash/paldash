@@ -67,6 +67,33 @@ export interface MetricsPoint {
    * crashing server looks like and would be invisible as a flag.
    */
   reachable: number | null;
+  /**
+   * The GAME process's resident memory.
+   *
+   * **Not `memUsedMb`**, which is the cgroup's figure — this container, the
+   * dashboard. Palworld's server leaks, and the leak happens in a process that
+   * number does not describe.
+   *
+   * `null` whenever the dashboard cannot see the process, which is the ordinary
+   * container deployment: no shared PID namespace, so the game's `/proc` entries
+   * are simply not there. It must render as absent rather than 0.
+   */
+  gameMemMb: number | null;
+  /** Swap in use. `swapTotalMb` of 0 means the box has none. */
+  swapUsedMb: number | null;
+  swapTotalMb: number | null;
+  /**
+   * Percentage of CPU time the hypervisor gave to someone else.
+   *
+   * The signal nothing else here substitutes for: on a rented VPS a high figure
+   * says the stutter is the host being oversubscribed rather than the operator's
+   * doing. 0 on bare metal is a real answer; `null` means unmeasured.
+   */
+  cpuSteal: number | null;
+  netRxKbs: number | null;
+  netTxKbs: number | null;
+  /** Hottest CPU thermal zone. `null` under most virtualisation — never 0. */
+  cpuTempC: number | null;
 }
 
 export interface MetricsHistory {

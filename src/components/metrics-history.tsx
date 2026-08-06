@@ -128,6 +128,15 @@ export default function MetricsHistoryPanel() {
             ]}
             hours={hours}
           />
+          {/* THE GAME'S OWN MEMORY, and a separate chart on purpose. Putting it
+              beside the dashboard's would invite reading one line as the other,
+              and they answer different questions — this is the process that
+              leaks. Absent entirely when the dashboard cannot see the process,
+              rather than drawn as a flat zero. */}
+          <GameMemoryChart points={points} hours={hours} />
+          {/* Steal is the only host signal that can say the problem is not the
+              operator's. Shown only when something reported it. */}
+          <HostContentionChart points={points} hours={hours} />
           <Chart
             title="World size & Pals"
             points={points}
@@ -281,6 +290,83 @@ function outageBands(points: MetricsPoint[]): { from: number; to: number }[] {
   }
   if (start !== null) bands.push({ from: start, to: points[points.length - 1].ts });
   return bands;
+}
+
+/**
+ * The game server process's memory over time.
+ *
+ * **Rendered only when something reported it.** In the ordinary container
+ * deployment the dashboard has no shared PID namespace and cannot see the game's
+ * `/proc` entries at all, so the honest output is no chart plus a line saying
+ * why — not an empty axis, and certainly not a flat zero, which would read as a
+ * server using no memory.
+ *
+ * Separate from the dashboard's own CPU/memory chart on purpose: two memory
+ * lines on one axis invite reading either as the other, and only this one is the
+ * process that leaks.
+ */
+function GameMemoryChart({ points, hours }: { points: MetricsPoint[]; hours: number }) {
+  const seen = points.some((p) => p.gameMemMb !== null);
+  if (!seen) {
+    return (
+      <div className="notice" style={{ marginTop: 12, fontSize: 12 }}>
+        <Activity size={12} style={{ display: 'inline', verticalAlign: '-2px', marginRight: 5 }} />
+        The game server&rsquo;s own memory is not visible from this container. It
+        needs to share a PID namespace with the server to be measured — the
+        chart above is the dashboard&rsquo;s memory, not the game&rsquo;s.
+      </div>
+    );
+  }
+  const peak = Math.max(...points.map((p) => p.gameMemMb ?? 0));
+  return (
+    <>
+      <Chart
+        title="Game server memory"
+        points={points}
+        lines={[{ key: 'gameMemMb', colour: '#f97316', label: 'Game MB' }]}
+        hours={hours}
+      />
+      <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '4px 0 0' }}>
+        Peak {(peak / 1024).toFixed(1)} GB. Palworld&rsquo;s server leaks over
+        time; a line climbing steadily is what that looks like.
+      </p>
+    </>
+  );
+}
+
+/**
+ * Steal time and swap — the two signals that say the trouble is below the game.
+ *
+ * Steal is the reason this chart exists. On a rented VPS a non-zero figure means
+ * the host is oversubscribed and the stutter is not the operator's doing, which
+ * nothing else in the dashboard can tell them. 0 on bare metal is a real answer,
+ * so the chart appears whenever the value was *measured* rather than whenever it
+ * is interesting.
+ */
+function HostContentionChart({ points, hours }: { points: MetricsPoint[]; hours: number }) {
+  const steal = points.some((p) => p.cpuSteal !== null);
+  const swap = points.some((p) => (p.swapTotalMb ?? 0) > 0);
+  if (!steal && !swap) return null;
+
+  const lines = [];
+  if (steal) lines.push({ key: 'cpuSteal' as const, colour: '#ef4444', label: 'CPU steal %' });
+  // Swap is charted only where the box HAS swap. A permanently flat zero line on
+  // the majority of servers that have none is noise pretending to be data.
+  if (swap) lines.push({ key: 'swapUsedMb' as const, colour: '#8b5cf6', label: 'Swap MB' });
+
+  const worstSteal = Math.max(...points.map((p) => p.cpuSteal ?? 0));
+  return (
+    <>
+      <Chart title="Host contention" points={points} lines={lines} hours={hours} />
+      {steal && worstSteal > 5 && (
+        <p style={{ fontSize: 11, color: 'var(--status-warning)', margin: '4px 0 0' }}>
+          CPU steal peaked at {worstSteal.toFixed(1)}% — the host gave this
+          machine&rsquo;s time to another tenant. Frame drops in that window are
+          not something a setting here can fix.
+        </p>
+      )}
+    </>
+  );
 }
 
 function DiskNote({ points }: { points: MetricsPoint[] }) {
