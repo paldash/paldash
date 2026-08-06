@@ -2183,6 +2183,24 @@ Level progress, by contrast, is **exact**: `palExpTable` is bundled from the
 game's own table. Read `PalNextEXP`/`PalTotalEXP`, not the `NextEXP`/`TotalEXP`
 beside them — those are the *player* curve and they differ from level 2 (25 vs 50).
 
+### `OwnedTime` is a TIMESTAMP, and its name says duration
+
+`parser._dotnet_ticks`. The field reads like "how long this Pal has been owned"
+and is an absolute **.NET DateTime tick count** — 100-nanosecond intervals since
+0001-01-01. As a duration the reference world's values are about two thousand
+years; as timestamps they are **2024-04-13 to 2026-07-28**, which is that save's
+real lifespan. Checked by converting rather than by trusting the name.
+
+So the conversion is exact and needs nothing from the server: this is wall-clock
+time, not game time, so `DayTimeSpeedRate` never enters it. **No timezone is
+asserted** — .NET keeps a `DateTimeKind` beside the ticks and this format drops
+it, so appending `Z` would be a claim the data does not support.
+
+Present on 1,740 of 1,905. It is the only field that answers "which of these did
+I catch first", and the My Pals column sorts on the **raw ticks** rather than the
+formatted string, which sorts lexicographically by accident and correctly only by
+luck.
+
 ### Save fields nobody was reading
 
 `parser.extract_characters` now also carries `soulRanks`, `friendshipPoint` and

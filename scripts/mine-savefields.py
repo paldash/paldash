@@ -326,13 +326,21 @@ def read_by(paths: list[str]) -> dict[str, list[str]]:
 
     out: dict[str, list[str]] = {}
     for path in paths:
-        leaf = path.rsplit(".", 1)[-1].strip("[]")
-        if not leaf:
-            continue
-        needle = f'"{leaf}"'
-        alt = f"'{leaf}'"
-        hits = [name for name, text in sources.items() if needle in text or alt in text]
-        out[leaf] = hits
+        # **EVERY SEGMENT, NOT JUST THE LEAF.** A list field's path ends in
+        # `.values` or `.values[]`, so keying on the leaf looked up the word
+        # "values" — which is in `ambiguousNames` — and reported
+        # `OldOwnerPlayerUIds` as having no entry at all, when `charedit`
+        # writes it. The container's own name is the one that identifies it.
+        for segment in path.split("."):
+            leaf = segment.strip("[]")
+            if not leaf or leaf in out:
+                continue
+            needle = f'"{leaf}"'
+            alt = f"'{leaf}'"
+            out[leaf] = [
+                name for name, text in sources.items()
+                if needle in text or alt in text
+            ]
     return out
 
 
@@ -444,10 +452,23 @@ def main() -> int:
             merged.setdefault(path, {})[label] = row
 
     names = read_by(list(merged))
+    def _identifying(path: str) -> str:
+        """
+        The last segment that actually names the field.
+
+        `OldOwnerPlayerUIds.values[]` is identified by `OldOwnerPlayerUIds`, not
+        by `values` — walking back past the ambiguous tail is what stops a
+        container from being judged on the name of its payload.
+        """
+        for segment in reversed(path.split(".")):
+            leaf = segment.strip("[]")
+            if leaf and leaf not in AMBIGUOUS:
+                return leaf
+        return ""
+
     unread = sorted(
         path for path in merged
-        if not names.get(path.rsplit(".", 1)[-1].strip("[]"))
-        and path.rsplit(".", 1)[-1].strip("[]") not in AMBIGUOUS
+        if (leaf := _identifying(path)) and not names.get(leaf)
     )
 
     data = {

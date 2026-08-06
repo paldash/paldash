@@ -30,7 +30,7 @@ import { getWorkTypes, orderedWork, type WorkType } from '@/lib/work-types';
  */
 
 type SortKey =
-  | 'level' | 'name' | 'rank' | 'work' | 'ivs'
+  | 'level' | 'name' | 'rank' | 'work' | 'ivs' | 'obtained'
   | 'ivHp' | 'ivAttack' | 'ivDefense'
   | 'statHp' | 'statAttack' | 'statDefense' | 'statWork';
 
@@ -213,6 +213,11 @@ export default function MyPals() {
         // the Pal is *for*, and inventing a weighting would bury that choice in
         // a sort nobody can see the workings of.
         case 'ivs': return iv(p, 'hp') + iv(p, 'attack') + iv(p, 'defense');
+        // Sorted on the raw ticks, never the formatted string: a date rendered
+        // for reading sorts lexicographically by accident and correctly only by
+        // luck. 0 for a Pal with no timestamp puts it last ascending, which is
+        // where "we do not know when you got this" belongs.
+        case 'obtained': return p.obtainedAtTicks ?? 0;
         default: return p.level;
       }
     };
@@ -374,6 +379,11 @@ export default function MyPals() {
               <SortHead label="ivDef" k="ivDefense" sort={sort} desc={descending} set={setSort} flip={setDescending} />
               <SortHead label="ΣIV" k="ivs" sort={sort} desc={descending} set={setSort} flip={setDescending} />
               <th title="Work suitabilities, in the game's own order">Work</th>
+              {/* WHEN YOU GOT IT. `OwnedTime` has been in every save all along
+                  and nothing read it; it is also the only field that answers
+                  "which of these did I catch first". Date only — the seconds are
+                  real but nobody is choosing a Pal by them. */}
+              <SortHead label="Obtained" k="obtained" sort={sort} desc={descending} set={setSort} flip={setDescending} />
               <th>Where</th>
               <th>Passives</th>
               {work && <SortHead label={workLabel(work)} k="work" sort={sort} desc={descending} set={setSort} flip={setDescending} />}
@@ -434,6 +444,17 @@ export default function MyPals() {
                       <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>—</span>
                     )}
                   </span>
+                </td>
+                <td
+                  className="mono"
+                  style={{ fontSize: 11, color: 'var(--text-muted)' }}
+                  title={p.obtainedAt ? `${p.obtainedAt} — the server's own clock, timezone not recorded` : undefined}
+                >
+                  {/* Date only. The full timestamp is in the tooltip, and it
+                      carries no timezone because the save does not store one —
+                      .NET keeps a kind flag beside the ticks and this format
+                      drops it, so appending a Z would be a claim. */}
+                  {p.obtainedAt ? p.obtainedAt.slice(0, 10) : '—'}
                 </td>
                 <td style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
                   {WHERE_LABELS[p.location ?? 'other'] ?? '—'}

@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import json
 import logging
+from datetime import datetime, timedelta
 import os
 import re
 from functools import lru_cache
@@ -333,6 +334,35 @@ _SOUL_RANKS = (
 )
 
 
+#: 0001-01-01, the .NET DateTime epoch. Ticks are 100-nanosecond intervals from
+#: there, which is what `OwnedTime` counts — see `obtainedAt`.
+_DOTNET_EPOCH = datetime(1, 1, 1)
+
+
+def _dotnet_ticks(ticks: int) -> Optional[str]:
+    """
+    A .NET tick count as an ISO timestamp, or `None`.
+
+    **No timezone is asserted.** .NET carries a `DateTimeKind` alongside the
+    ticks and this save format drops it, so labelling the result `Z` would be a
+    claim the data does not support. A bare ISO string says "this instant, as the
+    server recorded it", which is what is actually known.
+
+    Guarded because a garbage tick count would otherwise raise out of a parse
+    that has 1,905 other Pals to finish: anything outside a plausible range comes
+    back `None` rather than a date in the year 3000.
+    """
+    if not ticks or ticks <= 0:
+        return None
+    try:
+        moment = _DOTNET_EPOCH + timedelta(microseconds=ticks // 10)
+    except (OverflowError, ValueError):
+        return None
+    if not 2020 <= moment.year <= 2100:
+        return None
+    return moment.isoformat(sep=" ", timespec="seconds")
+
+
 def extract_characters(gvas: Any) -> tuple[list[dict], list[dict]]:
     """
     Split CharacterSaveParameterMap into (player characters, Pals).
@@ -476,6 +506,35 @@ def _pal_record(
             "previousOwners": [
                 str(u) for u in (_v(obj, "OldOwnerPlayerUIds", "value", "values") or [])
             ],
+            # Who last renamed it. `previousOwners` says a Pal changed hands and
+            # this says who touched its name, which is the other half of "where
+            # did this come from" — 2,967 of 2,968 carry it.
+            "lastRenamedBy": str(_prop(obj, "LastNickNameModifierPlayerUid", "") or "")
+            or None,
+            # WHEN THIS PAL WAS OBTAINED — and the field name misleads, so this
+            # was checked rather than assumed. `OwnedTime` reads like a duration
+            # ("how long owned") and is an absolute **.NET DateTime tick count**:
+            # 100-nanosecond intervals since 0001-01-01. The reference world's
+            # values decode to 2024-04-13 through 2026-07-28, which is the real
+            # lifespan of that save; as a duration they would be 2,000 years.
+            #
+            # So the conversion is exact and needs nothing from the server: it is
+            # wall-clock time, not game time, so `DayTimeSpeedRate` and friends
+            # do not enter. **No timezone is claimed** — .NET stores a kind flag
+            # this format drops, so the ISO string carries no offset rather than
+            # asserting UTC.
+            "obtainedAt": _dotnet_ticks(_num(obj, "OwnedTime", 0)),
+            "obtainedAtTicks": _num(obj, "OwnedTime", 0) or None,
+            # Seconds of trust accrued at a base, on 1,347. Distinct from
+            # `friendshipPoint`, which is the heart meter itself: this is the
+            # accrual clock behind it, and `FriendshipPoint_AutoIncrementRequire`
+            # `Sanity` = 50 is the threshold that gates it.
+            "basecampTrustSeconds": _num(obj, "FriendshipBasecampSec", 0) or None,
+            # A named story encounter rather than an ordinary spawn — 5 on the
+            # reference world. `gamedata.guild_roles`-style naming is not
+            # attempted: the id is the game's and resolving it needs
+            # `DT_UniqueNPC`, which `extract-npcs.py` already bundles.
+            "uniqueNpcId": str(_prop(obj, "UniqueNPCID", "") or "") or None,
             # The learned-move pool, as bare ids like `activeSkills`. Absent on
             # 75% of Pals, which is why it is readable everywhere and writable
             # only where it already exists.
