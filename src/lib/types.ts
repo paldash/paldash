@@ -1367,6 +1367,61 @@ export interface OffspringOption extends PalSummary {
   fromPairs: { a: string; b: string; aId: string; bId: string }[];
 }
 
+/** One pairing the game names outright, from `DT_PalCombiUnique`. */
+export interface NamedPairing {
+  a: string;
+  b: string;
+  aName: string;
+  bName: string;
+  /**
+   * The variant paired with itself. Real, and **not an answer to "how do I get
+   * my first one"** — so it is labelled rather than listed indistinguishably
+   * beside the pairing that is.
+   */
+  breedsTrue?: boolean;
+  genderA?: string;
+  genderB?: string;
+}
+
+/**
+ * What breeding cannot reach, and why. Reference data — a fact about Palworld,
+ * not about anyone's palbox, which is why it is a separate request from the
+ * planner's scoped ones.
+ */
+export interface BreedingLimits {
+  /** `IgnoreCombi` — the game says this species takes no part in breeding. */
+  never: BreedingLimitRow[];
+  /**
+   * An element variant the game names no pairing for, while the table this
+   * planner runs on offers one. Three species. The disagreement is reported,
+   * not resolved.
+   */
+  unverified: BreedingLimitRow[];
+  /** An element variant: only the pairings the game names produce it. */
+  namedPairingOnly: BreedingLimitRow[];
+  paldeckEntries: number;
+  /** `Combi_BossPalRate` — a bred Pal is an alpha this often. */
+  alphaChance?: number;
+}
+
+export interface BreedingLimitRow {
+  species: string;
+  name: string;
+  paldeck: number;
+  /** `B` marks an element variant — the `B` on Paldeck entry #98B. */
+  suffix: string;
+  kind: 'never' | 'unverified' | 'named_pairing' | 'standard';
+  note?: string;
+  pairings?: NamedPairing[];
+  mutatedEgg?: {
+    quote: string;
+    cakeQuote: string;
+    cakeItem: string;
+    /** That no game file says what produces one. The absence is the point. */
+    note: string;
+  };
+}
+
 export interface MapMarker {
   id: string;
   type: 'player' | 'base' | 'fastTravel' | 'boss' | 'dungeon' | 'custom';
