@@ -257,6 +257,11 @@ const ROUTES: RouteRule[] = [
   // progression. The denominators are still computed across everyone —
   // narrowing those would leak how much the players you cannot see have found.
   { pattern: /^progress$/, methods: ['GET'], capability: CAPABILITIES.VIEW_SELF, feature: null },
+  // Named progression checklists — WHICH bosses and regions are left, not just
+  // how many. Same gate as the summary it details, feature gate included: a
+  // stricter one here would make the detail unreachable wherever the summary
+  // works, which reads as a broken tab rather than as a policy.
+  { pattern: /^progress\/detail$/, methods: ['GET'], capability: CAPABILITIES.VIEW_SELF, feature: null },
   // Same scoping as base storage above: a Player reaches containers belonging
   // to their own guild's bases and nothing else. The backend enforces it — this
   // allowlist cannot tell whose container an id names.

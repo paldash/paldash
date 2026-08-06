@@ -52,6 +52,7 @@ import type {
   BreedingLimits,
   CatalogueItem,
   CraftableReport,
+  ProgressDetailReport,
   ItemSources,
   GuildMovePlan,
   GuildMoveResult,
@@ -1664,4 +1665,47 @@ export interface RelicLine {
   nextCost?: number;
   /** Gold to reset this line and get the relics back. */
   resetCost?: number;
+}
+
+/** One player's counted progress, from `/api/progress`. */
+export interface PlayerProgress {
+  uid: string;
+  name: string;
+  level: number;
+  technologyPoints: number;
+  ancientTechnologyPoints: number;
+  technologiesUnlocked: number;
+  relicLines: RelicLine[];
+  remaining: Record<string, number>;
+  [category: string]:
+    | string
+    | number
+    | RelicLine[]
+    | Record<string, number>
+    | { obtained: number; of: number; source: string }
+    | { total: number; distinct: number }
+    | undefined;
+}
+
+export async function getProgress(): Promise<{
+  players: PlayerProgress[];
+  knownTotals: Record<string, { total: number; source: string }>;
+  note: string;
+}> {
+  return saveFetch('/progress');
+}
+
+/**
+ * Named checklists — *which* bosses and regions are left, not how many.
+ *
+ * A sibling of `getProgress` rather than part of it: the lists are large (174
+ * fast-travel points, 396 effigies) and the counts are what most callers want.
+ *
+ * `showsMissing: false` means the operator's `discoveryVisibility` hides the
+ * unfound half from this viewer, and the backend has already dropped it — the
+ * lists are not merely unrendered.
+ */
+export async function getProgressDetail(uid?: string): Promise<ProgressDetailReport> {
+  const query = uid ? `?uid=${encodeURIComponent(uid)}` : '';
+  return saveFetch(`/progress/detail${query}`);
 }

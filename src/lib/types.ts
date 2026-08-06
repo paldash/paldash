@@ -703,6 +703,7 @@ export type DashboardTab =
   | 'items'
   | 'breeding'
   | 'paldeck'
+  | 'progress'
   | 'mypals'
   | 'settings'
   | 'access'
@@ -1700,4 +1701,71 @@ export interface CraftableReport {
   simultaneous: boolean;
   /** Always false — WorkableAttribute is 0 on all 1,414 recipe rows. */
   workstationKnown: boolean;
+}
+
+
+// ─── Progression checklists ─────────────────────────────
+
+/** One entry in a checklist — always named, never a bare id. */
+export interface ChecklistEntry {
+  id: string;
+  name: string;
+  /** True when the bundle could not name it and the id was humanised. */
+  nameIsInternal?: boolean;
+  /** The game withholds two endgame names as `？？？`. Not a decode failure. */
+  nameHidden?: boolean;
+  kind?: string;
+  speciesId?: string;
+  level?: number | null;
+  levelMax?: number | null;
+  x?: number;
+  y?: number;
+}
+
+export interface Checklist {
+  obtained: number;
+  of: number;
+  have: ChecklistEntry[];
+  /** Absent when the operator's discoveryVisibility hides the unfound half. */
+  missing?: ChecklistEntry[];
+  missingHidden?: boolean;
+  truncated: boolean;
+  /** Ids the bundle does not list. Counted as obtained, never absorbed. */
+  unlisted: string[];
+}
+
+/**
+ * Field bosses are two things in one save flag: spawner ids that resolve to a
+ * Pal and a level, and `BOSS_`-prefixed NPC ids for the human bosses. Only the
+ * first has a trustworthy total, so `humans.of` is deliberately null.
+ */
+export interface FieldBossProgress {
+  pals: Checklist;
+  humans: {
+    have: { id: string; name: string }[];
+    obtained: number;
+    of: null;
+    totalSource: string;
+    missingHidden?: boolean;
+  };
+}
+
+export interface PlayerProgressDetail {
+  uid: string;
+  name: string;
+  level: number;
+  towerBosses: Checklist;
+  fieldBosses: FieldBossProgress;
+  areasFound: Checklist;
+  fastTravel: Checklist;
+  effigies: Checklist;
+  /** `available: false` with a reason — no save has ever written the flag. */
+  dungeonsCleared: { available: boolean; reason: string };
+}
+
+export interface ProgressDetailReport {
+  players: PlayerProgressDetail[];
+  /** False when the operator hides undiscovered content from this viewer. */
+  showsMissing: boolean;
+  available: boolean;
 }

@@ -1376,6 +1376,71 @@ holds unique strings and many exports share one, so counting distinct
 authority. The previously shipped figure of 313 came from a community tracker
 and was never verified.
 
+## Progression: a count needs a source, and two of them were unknowable
+
+`backend/progresscheck.py`, `/api/progress/detail`. `/api/progress` has counted
+these categories since Phase 4 and **nothing ever rendered it** — the relic
+statue lines from #61 shipped backend-only. The Progression tab is that, plus
+the part that makes a count actionable: *which* ones are left, by name.
+
+A save's flag maps are keyed on ids that resolved to nothing until now:
+
+    towerBosses   BOSS_BATTLE_NAME_GrassBoss     a localisation key
+    fieldBosses   81_1_grass_FBOSS_FlameBuffalo  a spawner id
+                  BOSS_Hunter_Rifle              …or an NPC id, in the SAME map
+    areasFound    Grass_001                      a world-map area row
+
+**`TowerBossDefeatFlag` holds more than towers, and one of its rows is a room.**
+The client pak's `BOSS_BATTLE_NAME_*` gives fourteen entries: 8 towers, 3 World
+Tree mid-bosses, 2 endgame encounters — and `KingWhaleRoom`, "Eternal Sea",
+which is the arena rather than the encounter. A denominator over the whole table
+counts a room.
+
+The eight towers are checked against the eight `… Tower Entrance` fast-travel
+points, and **that check is worth more than its result** because the two sources
+are unrelated: one is the client pak's localisation, the other is extracted from
+the world cells. The extractor refuses if they stop agreeing.
+
+**`？？？` is the game's own value.** Two endgame encounters carry full-width
+question marks as their name — Pocketpair withholding a spoiler, not a decode
+failure. It travels as `hidden` so the UI says "not named yet" rather than
+printing it or, worse, humanising the key into a name the game refused to give.
+
+**`FieldBossDefeatFlag` holds two kinds of key and only one is enumerable.**
+Measured across the reference world's five players: 82 distinct keys, 59 spawner
+ids resolving through `boss_spawners.json.gz` to a species and a level, 23
+`BOSS_`-prefixed NPC ids for the human bosses. So the Pal half gets a real total
+and the human half gets **none** — the only enumeration available is the
+catalogue's 34 `BOSS_` NPCs, and that list contains `BOSS_DarkTrader`, a
+merchant, and a quest NPC. `of: null` with `totalSource: "discovered"` is the
+honest answer; "124 field bosses" would be the `TowerLockBarrier` mistake again.
+
+**And 89 spawners, not 90 rows.** `remainsIsland_1_GrassGolem_FBOSS` is listed
+twice, same species at level 55 and 75. The flag keys on the *spawner*, so that
+is one checkbox — taking the row count would leave every player permanently one
+short of completion.
+
+**`areasFound` finally has a denominator, through a two-hop join, and it needs a
+case-fold.** The save names an area row (`Grass_001`), `progression.areas` maps
+it to a localisation key (`REGION_Grass_1`), and `gamedata.regions` maps that to
+"Windswept Island". 123 of 123 make the second hop and every observed key makes
+the first — but the save writes `BOSS_KingWhale` where the table says
+`Boss_KingWhale`. One row in 104, and an exact join drops it silently while
+everything else looks right.
+
+**`dungeonsCleared` reports `available: false` with a reason.** No save examined
+has ever written a `FixedDungeonClearCount` entry — five players, none with one —
+so there is no observed key shape to join dungeon names against, and a checklist
+built on a guessed one would be unverifiable. An empty checklist would read as
+"you have cleared none of 23".
+
+**The privacy strip is recursive, and it has to be.** `discoveryVisibility`
+decides whether the not-yet-found half travels at all, and `main._drop_missing`
+walks nested structures because `fieldBosses` holds its two halves one level
+down — a filter that only understood the top level would leave the larger list
+untouched. Server-side, as always: a UI that received everything and hid some of
+it would be handing out the answers in the network tab.
+
 ## Undiscovered content is the operator's call
 
 `policy.DISCOVERY_LEVELS` — `everyone`, `detail` (the default: Trusted and

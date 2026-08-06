@@ -108,6 +108,11 @@ describe('describeSavePath', () => {
       ['world/items', 'GET', CAPABILITIES.VIEW_BASIC],
       ['world/items/AIcore', 'GET', CAPABILITIES.VIEW_BASIC],
       ['bases/craftable', 'GET', CAPABILITIES.VIEW_SELF],
+      // The checklist detail must take the SAME gate as the summary it details.
+      // A stricter one makes the tab unreachable wherever the counts work,
+      // which reads as broken rather than as policy.
+      ['progress', 'GET', CAPABILITIES.VIEW_SELF],
+      ['progress/detail', 'GET', CAPABILITIES.VIEW_SELF],
     ])('%s %s needs %s', (path, method, capability) => {
       const verdict = describeSavePath(path, method);
       expect(verdict.allowed).toBe(true);
