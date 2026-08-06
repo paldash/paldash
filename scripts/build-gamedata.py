@@ -444,9 +444,10 @@ def apply_species_fields(data: dict) -> dict[str, int]:
     """
     Species fields the reference archive does not carry, read from the game.
 
-    Currently one: **`bestWorkSuitability`**, from `DT_PalMonsterParameter`'s
-    `BestWorkSuitability` column. One work type per species — `Umihebi_Fire`
-    (Jormuntide Ignis) is `EmitFlame`.
+    Three, all from `DT_PalMonsterParameter`.
+
+    **`bestWorkSuitability`**, from the `BestWorkSuitability` column. One work
+    type per species — `Umihebi_Fire` (Jormuntide Ignis) is `EmitFlame`.
 
     **This is the per-species half of the condenser mechanic.** Raising a Pal's
     condenser rank raises its work suitability for *this* work type only, which
@@ -463,6 +464,21 @@ def apply_species_fields(data: dict) -> dict[str, int]:
     The enum prefix is stripped (`EPalWorkSuitability::EmitFlame` -> `EmitFlame`)
     so it matches the ids `workSuitabilities` already uses — a caller must be
     able to look one up with the other.
+
+    **`zukanSuffix`** and **`ignoreCombi`** are the two breeding-eligibility
+    columns, carried so `breeding.obtainability` can answer "why can I not breed
+    this" out of the game's own data rather than a hand-written list.
+
+    - `ZukanIndexSuffix == "B"` marks an element variant — 90 of 753, the `B` a
+      player already reads on Paldeck entry #98B. It does **not** mean
+      unbreedable: `DT_PalCombiUnique` names 81 of them as children. It means
+      the pairing must be one the game lists outright, never the rank fallback.
+    - `IgnoreCombi` is the game saying a species takes no part in breeding at
+      all — 226 of 753, Yakushima bosses and such.
+
+    Both are written **only when they say something** (suffix non-empty,
+    `ignoreCombi` true), so a caller's `.get()` default is the common case and
+    the blob does not grow by 753 falses.
     """
     import palpak
     import uassettable
@@ -477,7 +493,8 @@ def apply_species_fields(data: dict) -> dict[str, int]:
     rows = uassettable.read_table(pak, path)
     lowered = {str(k).lower(): v for k, v in rows.items()}
 
-    counts = {"total": len(data.get("pals") or {}), "resolved": 0, "unmatched": 0}
+    counts = {"total": len(data.get("pals") or {}), "resolved": 0, "unmatched": 0,
+              "variants": 0, "noBreeding": 0}
     for ident, entry in (data.get("pals") or {}).items():
         row = lowered.get(ident.lower())
         if row is None:
@@ -491,6 +508,14 @@ def apply_species_fields(data: dict) -> dict[str, int]:
         if best and best != "None":
             entry["bestWorkSuitability"] = best
             counts["resolved"] += 1
+
+        suffix = str(row.get("ZukanIndexSuffix") or "")
+        if suffix:
+            entry["zukanSuffix"] = suffix
+            counts["variants"] += 1
+        if row.get("IgnoreCombi"):
+            entry["ignoreCombi"] = True
+            counts["noBreeding"] += 1
     return counts
 
 
@@ -514,6 +539,10 @@ def main() -> int:
     print(
         f"  bestWorkSuitability: {species['resolved']:,}/{species['total']:,} species"
         f"  ({species['unmatched']} not in DT_PalMonsterParameter)"
+    )
+    print(
+        f"  breeding columns:    {species['variants']} element variants"
+        f" (ZukanIndexSuffix), {species['noBreeding']} with IgnoreCombi"
     )
     print("  names (from the game's own L10N tables):")
     for section, counts in names.items():
