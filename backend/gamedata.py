@@ -227,7 +227,7 @@ def _reset_cache() -> None:
     its own global and none were added here, which is the failure mode a partial
     reset always has: it works until it silently does not.
     """
-    global _data, _effigies, _passive_effects, _game_settings
+    global _data, _effigies, _passive_effects, _game_settings, _effigy_icon_index
     global _boss_spawners, _work_assign, _basecamp, _economy, _spawns, _moves
     global _npcs, _guild
     global _progression, _raidbosses, _invaders, _worldpresets
@@ -238,6 +238,7 @@ def _reset_cache() -> None:
     _data = None
     _effigies = None
     _passive_effects = None
+    _effigy_icon_index = None
     _game_settings = None
     _boss_spawners = None
     _work_assign = None
@@ -1749,6 +1750,43 @@ def effigy_kind_name(kind: str) -> str:
         # "Relic" is not a name to show anybody.
         return plain if plain and plain != "Relic" else "Effigy"
     return f"{humanize(kind)} Effigy"
+
+
+_effigy_icon_index: Optional[dict[str, str]] = None
+
+
+def effigy_kind_icon(kind: str) -> str:
+    """
+    The game's own artwork for one effigy class, or `""`.
+
+    The map drew all 396 effigies as one generic shape while the thirteen relic
+    icons — `T_itemicon_Relic_01`..`_12` plus the plain one — were already
+    installed by `install-icons.py` and going unused.
+
+    **Joined on the NAME, which is the join the test suite already validates.**
+    A class carries a species suffix and an item carries a number, and nothing
+    connects `…_IceCrocodile` to `Relic_03` directly — but both resolve to
+    "Munchill Effigy", and `test_effigy_names.py` asserts all ten placed classes
+    land on a name the item table actually ships. So this reuses a correspondence
+    that is already pinned rather than inventing a second mapping that could
+    disagree with the first.
+
+    Returns `""` rather than a placeholder when the name does not match an item,
+    so the caller keeps its existing shape. That is the whole degradation path:
+    an effigy with no icon is drawn exactly as all 396 were before.
+    """
+    global _effigy_icon_index
+    if _effigy_icon_index is None:
+        index: dict[str, str] = {}
+        for item_id in ["Relic"] + [f"Relic_{n:02d}" for n in range(1, 13)]:
+            entry = _lookup("items", item_id) or {}
+            name = entry.get("name")
+            icon = entry.get("icon")
+            if name and icon:
+                index[str(name).casefold()] = str(icon)
+        _effigy_icon_index = index
+
+    return _effigy_icon_index.get(effigy_kind_name(kind).casefold(), "")
 
 
 def fast_travel_kind(name: str) -> str:
