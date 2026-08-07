@@ -1050,6 +1050,18 @@ def get_welfare(request: Request, owner: Optional[str] = None) -> dict:
     illnesses = [row for row in (gamedata.illness(sick) for sick in sorted(present)) if row]
 
     return {
+        # **THE SCOPE SPREADS FIRST, AND THAT ORDER IS THE BUG FIX.**
+        # `_breeding_scope` returns its own `"pals"` — the COUNT of Pals the
+        # answer was built from — and spreading it last silently replaced this
+        # route's `pals` ARRAY with an integer. Nothing errored server-side; the
+        # client got a number where it expected a list, and
+        # `report.pals.length.toLocaleString()` threw "Cannot read properties of
+        # undefined", killing the My Pals tab for every user.
+        #
+        # A generic key name in a helper that is spread into other people's
+        # payloads is the hazard. Spreading first means an explicit key always
+        # wins, which is the direction that cannot surprise anyone.
+        **_breeding_scope(request, effective),
         "counts": counts,
         "pals": affected,
         "scanned": len(scoped),
@@ -1066,7 +1078,6 @@ def get_welfare(request: Request, owner: Optional[str] = None) -> dict:
         # is answering a different question from the one it appears to answer.
         # See `gamedata.worker_sanity_thresholds`.
         "sanityThresholds": gamedata.worker_sanity_thresholds(),
-        **_breeding_scope(request, effective),
     }
 
 
