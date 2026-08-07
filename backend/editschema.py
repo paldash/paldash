@@ -281,14 +281,31 @@ def _work_ranks_problem(value: Any) -> Optional[str]:
     """
     Work ranks bought with Pal Souls, as `{workType: rank}`.
 
-    NO MAXIMUM IS ENFORCED, and that is measured rather than lazy. Across
-    refworld, the live world and a 07-29 snapshot, 39 Pals carry the property and
-    the ranks run 1, 2, 3 and 6 — so 6 is the highest anyone has actually reached,
-    not a cap. The game ships no cap either: `DT_GainWorkSuitabilityRankItem`
-    decodes cleanly from the server pak and holds one ticket item per work type
-    with no rank column, and no other DataTable carries one. Asserting a ceiling
-    here would be inventing the one kind of number this module refuses to invent.
-    See `fullStomach`, which is bounded the same way and for the same reason.
+    **THE CAP IS 10 AND THIS DOCSTRING USED TO SAY THE GAME SHIPPED NONE.**
+
+    The old text was not careless — it was checked, and checked in the wrong
+    place. `DT_GainWorkSuitabilityRankItem` really does hold one ticket item per
+    work type with no rank column, and no other DataTable carries one. But a
+    DataTable sweep is not a search of the game: `BP_PalGameSetting`'s
+    class-default object carries **`WorkSuitabilityMaxRank = 10`**, and nobody
+    had looked in the settings CDO for this. A documented negative gets trusted
+    and stops the next person looking, which is the failure AGENTS.md warns about
+    in its own voice.
+
+    Two independent figures agree: the highest `requiredRank` across all 271
+    structures in `DT_MapObjectAssignData` is 10 with nothing above it, and the
+    highest *natural* suitability across 753 species is 8. So the buyable amount
+    is `10 - base`.
+
+    **Read from `gamedata`, never a literal here.** It is the game's number, and
+    a second copy is how the file and the code drift apart. If the bundle cannot
+    be read the bound is dropped rather than guessed — refusing an edit on a
+    ceiling we cannot cite would be worse than the old behaviour, which allowed
+    everything.
+
+    Observed spend stays modest and is not the cap: across three real worlds 39
+    Pals carry the property and the ranks run 1, 2, 3 and 6. Six being the
+    highest anyone reached is a fact about those players.
 
     The minimum is 1, which IS observed: rank 0 appears on none of the 39, so a
     zero is `parser._num`'s default rather than a value the game stores.
@@ -306,7 +323,25 @@ def _work_ranks_problem(value: Any) -> Optional[str]:
                 f"{work_type}: rank must be at least 1 — a Pal with no bought rank "
                 "carries no entry at all, so drop it from the map instead"
             )
+        cap = max_work_rank()
+        if cap is not None and rank > cap:
+            return (
+                f"{work_type}: rank {rank} is above the game's maximum of {cap} "
+                "(WorkSuitabilityMaxRank)"
+            )
     return None
+
+
+def max_work_rank() -> Optional[int]:
+    """
+    `WorkSuitabilityMaxRank`, or None when the bundle cannot be read.
+
+    None means "no bound", not "no limit" — refusing an edit against a ceiling we
+    cannot cite would be worse than the old unbounded behaviour, and it is the
+    same posture `gamedata.server_limit()` takes for an unreadable INI.
+    """
+    value = gamedata.game_setting("WorkSuitabilityMaxRank")
+    return int(value) if isinstance(value, (int, float)) and value > 0 else None
 
 
 # A Palworld player uid is a Steam ID32 followed by zeros — `11a11a01-0000-0000-

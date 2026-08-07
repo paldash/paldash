@@ -145,7 +145,14 @@ def test_bought_ranks_are_visible_in_the_row(client, alice):
     # base 1, not the 2 the fixture asks for: `/api/pals` enrichment fills
     # `workSuitabilities` from the bundled species table, which is authoritative
     # and overwrites whatever a caller supplied. Foxparks really is Kindling 1.
-    assert row["work"] == {"base": 1, "bought": 1, "level": 2}
+    # Subset, not equality — the row also carries the rank->speed curve now, and
+    # a test that breaks on an addition rather than a regression teaches people
+    # to edit the expectation instead of reading it.
+    assert row["work"]["base"] == 1
+    assert row["work"]["bought"] == 1
+    assert row["work"]["level"] == 2
+    # And the curve came with it: rank 2 is 70 against rank 3's 100.
+    assert row["work"]["speed"] == 70
 
 
 def test_an_unknown_work_type_is_a_404_not_an_empty_list(client, alice):

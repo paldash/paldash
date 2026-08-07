@@ -66,7 +66,12 @@ def test_species_level_and_bought_rank_are_kept_apart():
     are different facts, and a single number hides which.
     """
     p = pal(workSuitabilities={"Mining": 2}, workRanks={"Mining": 3})
-    assert optimise.work_level(p, "Mining") == {"base": 2, "bought": 3, "level": 5}
+    level = optimise.work_level(p, "Mining")
+    # A subset assertion, not equality. The first version compared the whole dict
+    # and broke the moment the rank->speed curve was attached — a test that fails
+    # on an addition rather than on a regression, which trains people to edit the
+    # expectation instead of reading it.
+    assert level["base"] == 2 and level["bought"] == 3 and level["level"] == 5
 
 
 def test_absent_work_ranks_read_as_zero_not_as_an_error():
