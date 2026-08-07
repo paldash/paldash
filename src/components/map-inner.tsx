@@ -105,6 +105,18 @@ const px = (size: number) => Math.round(size * MARKER_SCALE);
  * 396) and `BP_RelicObject` (66) name no species, so they keep the triangle.
  * A wrong Pal on a marker is worse than a shape.
  */
+/**
+ * Fallback only — the payload now carries `icon` per effigy.
+ *
+ * **This table covered nine of the eleven placed kinds**, and the two it missed
+ * are the unsuffixed ones: `BP_LevelObject_Relic` (89) and `BP_RelicObject`
+ * (66), **155 of the 396**, which drew as a bare shape because they name no
+ * species. `gamedata.effigy_kind_icon` resolves all eleven — the nine named
+ * ones plus the plain Lifmunk relic those two are — so the server sends the
+ * artwork and this stops being a second source of truth that can disagree.
+ *
+ * Kept so a backend on an older build still shows the nine it knew.
+ */
 const RELIC_ART: Record<string, string> = {
   BP_LevelObject_Relic_Penguin: '/icons/pals/T_Penguin_icon_normal.webp',
   BP_LevelObject_Relic_Monkey: '/icons/pals/T_Monkey_icon_normal.webp',
@@ -1032,7 +1044,7 @@ export default function MapInner({
       // its own icon — a named join, not the positional one that mapping
       // `T_itemicon_Relic_0N` would have required.
       const color = found === true ? '#4d9e75' : '#8d84c7';
-      const art = RELIC_ART[kind];
+      const art = point.icon || RELIC_ART[kind];
       // **Triangle, because that is what the panel shows.** `SHAPES.effigies`
       // has said `triangle` all along while this drew a `circleMarker`, so the
       // filter's swatch and the marker beside it were different shapes for the

@@ -100,3 +100,40 @@ def test_a_missing_catalogue_degrades_to_the_category_word(monkeypatch):
     """
     monkeypatch.setattr(gamedata, "item_name", lambda item_id: item_id)
     assert gamedata.effigy_kind_name("BP_LevelObject_Relic") == "Effigy"
+
+
+def test_every_placed_effigy_carries_the_game_s_own_artwork():
+    """
+    **155 of the 396 drew as a bare shape**, and the reason was a hardcoded
+    nine-entry table in `map-inner.tsx`. It covered the kinds whose class names
+    a species — `…_IceCrocodile` and friends — and had nothing for the two
+    unsuffixed ones, `BP_LevelObject_Relic` (89) and `BP_RelicObject` (66),
+    because they name no Pal to borrow a portrait from.
+
+    They are the plain Lifmunk relic, and the game ships artwork for it. The
+    join is on the NAME, which `test_effigy_names` above already pins: nothing
+    connects `…_IceCrocodile` to `Relic_03` directly, but both resolve to
+    "Munchill Effigy".
+    """
+    import gamedata
+
+    points = gamedata.effigies()
+    assert len(points) == 396
+    without = [p for p in points if not p.get("icon")]
+    assert without == [], (
+        f"{len(without)} effigies have no artwork; the first is "
+        f"{without[0]['kind'] if without else ''}"
+    )
+
+    # The two generic kinds get the plain relic, not a Pal portrait.
+    generic = [p for p in points if p["kind"] in ("BP_LevelObject_Relic", "BP_RelicObject")]
+    assert len(generic) == 155
+    assert {p["icon"] for p in generic} == {"/icons/items/T_itemicon_Relic.webp"}
+
+
+def test_an_unknown_effigy_class_gets_no_icon_rather_than_a_wrong_one():
+    """Degrades to the shape every effigy had before, not to a stand-in."""
+    import gamedata
+
+    assert gamedata.effigy_kind_icon("BP_LevelObject_Relic_NoSuchPal") == ""
+    assert gamedata.effigy_kind_icon("") == ""
