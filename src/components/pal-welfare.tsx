@@ -11,6 +11,7 @@ import {
 import type { BulkEditPlan } from '@/lib/types';
 import GameIcon from '@/components/game-icon';
 import { asArray } from '@/lib/arrays';
+import { num, fixed, count } from '@/lib/format';
 
 /**
  * Pals that need attention — sick, starving, injured, or losing their minds.
@@ -217,7 +218,7 @@ export default function PalWelfare({ canEdit }: { canEdit: boolean }) {
 
       {report && active.length === 0 && !loading && (
         <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-          Nothing needs attention — all {report.scanned.toLocaleString()} Pals are
+          Nothing needs attention — all {num(report.scanned)} Pals are
           fed, well and above {report.lowSanityBelow} sanity.
         </p>
       )}
@@ -243,8 +244,8 @@ export default function PalWelfare({ canEdit }: { canEdit: boolean }) {
               than this, because a Pal with three things wrong with it is three
               answers to "how many are sick / hungry / injured" and one row. */}
           <p style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 10 }}>
-            {report.pals.length.toLocaleString()} Pal
-            {report.pals.length === 1 ? '' : 's'} of {report.scanned.toLocaleString()} need
+            {count(report.pals)} Pal
+            {report.pals.length === 1 ? '' : 's'} of {num(report.scanned)} need
             attention. A Pal with more than one problem is counted once per problem above.
           </p>
 
@@ -360,7 +361,7 @@ export default function PalWelfare({ canEdit }: { canEdit: boolean }) {
           </div>
           {report.pals.length > 200 && (
             <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6 }}>
-              Showing the worst 200 of {report.pals.length.toLocaleString()}. The buttons
+              Showing the worst 200 of {count(report.pals)}. The buttons
               above act on all of them.
             </p>
           )}

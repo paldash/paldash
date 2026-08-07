@@ -10,6 +10,7 @@ import PalOptimiser from '@/components/pal-optimiser';
 import PalWelfare from '@/components/pal-welfare';
 import { getWorkTypes, orderedWork, type WorkType } from '@/lib/work-types';
 import { asArray } from '@/lib/arrays';
+import { num, fixed, count } from '@/lib/format';
 
 /**
  * A player's own Pals, as a table you can actually work with.
@@ -361,7 +362,7 @@ export default function MyPals() {
       </div>
 
       <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-        {filtered.length.toLocaleString()} of {pals.length.toLocaleString()} Pals
+        {count(filtered)} of {count(pals)} Pals
       </div>
 
       <div className="glass-card" style={{ padding: 0, overflowX: 'auto' }}>
@@ -578,20 +579,20 @@ function StatCell({
     );
   }
   const lines = [
-    `Base ${bd.base.toLocaleString()}`,
+    `Base ${num(bd.base)}`,
     bd.condenserMultiplier > 1
-      ? `Condenser x${bd.condenserMultiplier.toFixed(2)} -> ${bd.baseWithCondenser.toLocaleString()}`
+      ? `Condenser x${fixed(bd.condenserMultiplier)} -> ${num(bd.baseWithCondenser)}`
       : '',
-    bd.trust ? `Trust +${bd.trust.toLocaleString()}` : '',
-    bd.awakening ? `Awakening +${bd.awakening.toLocaleString()}` : '',
-    bd.soulMultiplier > 1 ? `Pal Souls x${bd.soulMultiplier.toFixed(2)}` : '',
-    `= ${bd.final.toLocaleString()}`,
+    bd.trust ? `Trust +${num(bd.trust)}` : '',
+    bd.awakening ? `Awakening +${num(bd.awakening)}` : '',
+    bd.soulMultiplier > 1 ? `Pal Souls x${fixed(bd.soulMultiplier)}` : '',
+    `= ${num(bd.final)}`,
     '',
     'Calculated from the game\u2019s formula — the save stores only the inputs.',
   ].filter(Boolean);
   return (
     <td className="mono" title={lines.join('\n')}>
-      {bd.final.toLocaleString()}
+      {num(bd.final)}
     </td>
   );
 }
