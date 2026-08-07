@@ -903,6 +903,78 @@ and Phase 7 is over half of it.
 
 ---
 
+## 6b. The remaining 19, phased (2026-08-07)
+
+Grouped by **what gates them**, not by theme — because the useful question when
+picking up work is "can I start this right now", and four of these cannot be.
+
+Phases 9-11 are strictly ordered against each other only where a dependency is
+named. Within a phase, order is by value.
+
+### Phase 9 — Surfacing: the data is already bundled
+
+Nothing to extract, nothing to verify. These are UI against artifacts that ship
+today, which makes them the cheapest value left and the right thing to do first.
+
+| | Task | State |
+|---|---|---|
+| #72 | Passive effects panel | **backend done**, `passiveeffects` + 2 routes shipped; UI only |
+| #70 | Effigy relic icons on the map | **half done**, `gamedata.effigy_kind_icon` resolves 11/11; map layer only |
+| #97 | What each Pal drops | `economy.json.gz` `drops`, 890 species, untouched |
+| #93 | Pal Lab research tree | bundle shipped this session; needs parser + route + UI |
+| #98 | Recursive crafting tree | 1,399 recipes bundled; **27% of products cycle**, so the algorithm is the work |
+
+**#93 has a second half worth doing**: the save records progress at
+`GuildExtraSaveDataMap[].Lab.RawData.research_info` — 840 entries across 5
+guilds on the live world — so "what has this guild researched" is answerable,
+not just "what exists".
+
+### Phase 10 — Features needing one new extraction
+
+Each is one bundle away, and the bundle is small.
+
+| | Task | What it needs first |
+|---|---|---|
+| #92 | Pal build planner | movement/stamina columns from `DT_PalMonsterParameter` — present, unbundled. **Fastest RIDE is answerable; fastest FLYER is not** (see AGENTS.md) |
+| #71 | Boss encounter planner | joins bundles that all exist (`boss_spawners`, `raidbosses`, progression) |
+| #67 | Completion tracker | joins habitats + breeding + Paldeck; no new source |
+| #47 | Progression checklists | `progression.json.gz` ships; `dungeonsCleared` stays `available: false` |
+
+### Phase 11 — Mining, payoff unknown
+
+Genuine investigations. **Do not schedule these as though they were features** —
+each may end as a recorded negative, which is a real outcome and is why
+`docs/GAMEDATA-SOURCES.md` exists.
+
+| | Task | Prior |
+|---|---|---|
+| #95 | 129 unread passive effect types | `ElementBoost_*` is the prize: a stated number where the element chart has none |
+| #46 | Re-check what the client-pak wall ruled out | the server pak plus MapProperty changed the premises |
+| #58 | CDO on `BP_BuildObject_PalFoodBox` | would settle "what does a Feed Box accept", which `basesupply.py` refuses to assert |
+| #87 | `WorkSaveData` | the game's own record of who works where; **already partly indexed** in `docs/savefields.json` |
+| #86 | `MapObjectSpawnerInStageSaveData` | 31,824 entries nothing reads |
+| #88 | `BaseCampSaveData` ModuleMap RawData | 46 constant bytes; a fixed width is a reason to look, not a promise |
+| #89 | Achievement progress | the game's own, not Steam's |
+
+### Phase 12 — Blocked or cheap-but-unverifiable
+
+| | Task | Blocker |
+|---|---|---|
+| #96 | Condensation suitability rule | **needs two in-game readings** — a 1-star Anubis and a 4-star Verdash, both already owned. Nothing else unblocks it |
+| #33 | Non-Steam player handling | needs an Xbox/PS5/Mac account on a real server to verify against |
+| #79 | In-game clock and day count | **not in the save** — zero world-time fields across three worlds. May be in the game's REST `metrics`, which cannot be checked without a live server |
+
+### And one piece of tooling that is not finished
+
+`scripts/mine-assets.py` **does not complete**. It projected 6 seconds from a
+30-asset sample and was killed at **185 CPU-minutes** on the full ~8,000. The
+per-asset decode is genuinely instant, so the cost is in `pak.read` — every
+asset pays an Oodle decompression of whatever chunk it lands in, and the sample
+happened to hit a warm one. Fix by batching reads per pak chunk, or by sampling
+per directory rather than sweeping everything, before trusting any figure from
+it. The premise stands: 935 of the pak's 66,969 assets are DataTables, and both
+of this week's biggest findings came from the other 66,034.
+
 ## 7. Architecture & optimization recommendations
 
 | # | Recommendation | Why | Effort | When |
