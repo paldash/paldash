@@ -94,7 +94,14 @@ export default function Home() {
   // Zustand's hook returns a new object each render; using it directly as an
   // effect dependency would restart polling on every tick.
   const storeRef = useRef(store);
-  storeRef.current = store;
+  // Written in an effect, not during render. The "latest ref" pattern is
+  // right — this value is read inside a fetch callback that must not be a
+  // dependency — but assigning during render is a real hazard under
+  // concurrent rendering, where a render can be thrown away and the ref
+  // would keep a value that was never committed.
+  useEffect(() => {
+    storeRef.current = store;
+  });
 
   // ─── Restore an existing session on load ──────────────
   useEffect(() => {

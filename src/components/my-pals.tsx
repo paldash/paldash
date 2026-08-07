@@ -227,7 +227,11 @@ export default function MyPals() {
       const cmp = typeof ka === 'string' ? ka.localeCompare(kb as string) : (ka as number) - (kb as number);
       return descending ? -cmp : cmp;
     });
-  }, [pals, query, minLevel, gender, element, minRank, minIv, passive, work, minWork, alphaOnly, sort, descending]);
+    // `where` is the location dropdown and it was MISSING from this list, so
+    // selecting Palbox/Party/Base recomputed nothing and the table did not
+    // change — a filter that renders, accepts a click and does nothing. Found
+    // by exhaustive-deps, which is the argument for not blanket-silencing it.
+  }, [pals, query, minLevel, gender, element, minRank, minIv, passive, work, minWork, alphaOnly, where, sort, descending]);
 
   if (error) {
     return (

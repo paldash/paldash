@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { AlertTriangle, Check, Info, RefreshCw, Save, Power, Sliders } from 'lucide-react';
+import { Check, Info, RefreshCw, Save, Power, Sliders } from 'lucide-react';
 import {
   applySettingsPreset, getBackendHealth, getIniSettings,
   noteShutdown, restartServer, writeIniSettings,

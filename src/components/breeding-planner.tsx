@@ -21,7 +21,7 @@ import GameIcon from '@/components/game-icon';
  * reachability question.
  */
 export default function BreedingPlanner() {
-  const { guilds, user } = useDashboardStore();
+  const { guilds } = useDashboardStore();
   const [owner, setOwner] = useState<string>('');
   const [palbox, setPalbox] = useState<PalboxSummary | null>(null);
   const [offspring, setOffspring] = useState<OffspringOption[]>([]);

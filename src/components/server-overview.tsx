@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import {
-  LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, Area, AreaChart
+  XAxis, YAxis, ResponsiveContainer, Tooltip, Area, AreaChart
 } from 'recharts';
 
 function formatUptime(seconds: number): string {
@@ -26,7 +26,7 @@ function formatUptime(seconds: number): string {
 }
 
 export default function ServerOverview() {
-  const { serverMetrics, serverInfo, fpsHistory, serverStatus, onlinePlayers, capabilities } =
+  const { serverMetrics, serverInfo, fpsHistory, onlinePlayers, capabilities } =
     useDashboardStore();
   // How many online players this viewer is not allowed to see.
   //

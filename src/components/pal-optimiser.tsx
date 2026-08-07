@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { Hammer, Swords, RefreshCw, AlertTriangle, Info } from 'lucide-react';
+import { Hammer, Swords, AlertTriangle, Info } from 'lucide-react';
 import {
   getWorkRanking, getCombatRanking,
   type WorkRankingReport, type CombatRankingReport,
