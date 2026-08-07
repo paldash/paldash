@@ -1481,6 +1481,41 @@ are verified — the media query is in the built bundle — but nobody has held 
 phone. Touch-target sizes beyond the 40px hamburger, and how Leaflet's own
 gesture handling feels on a real screen, are unmeasured.
 
+### And Pocketpair publishes a PvP recipe our own preset contradicts
+
+`docs.palworldgame.com/settings-and-operation/pvp` is not per-key help — it names
+six keys only inside prose recipes, which is why `extract-settings-help.py`
+deliberately takes nothing from it. But it **is** a set of key/value pairs from
+Pocketpair, which is what `settings_ini.PRESETS` holds.
+
+Two presets, split exactly where the page splits: `pvp_official` is the **three**
+parameters it says enable PvP (`bIsPvP`, `bEnablePlayerToPlayerDamage`,
+`bEnableDefenseOtherGuildPlayer`, all True), and `pvp_official_recommended` adds
+the recommendation block. Collapsing them would apply a dozen opinions under a
+button labelled "enable PvP".
+
+**THE HAND-MADE `pvp_players_only` SETS ONE OF THOSE THREE TO FALSE.** Its intent
+is reasonable — "players fight, bases stay safe" — but whether a partial enable
+produces that is a claim about game behaviour no file supports. So the official
+pair was *added* rather than the hand-made pair edited, both keep their `source`
+tag (`official` vs `dashboard`), and the UI badges them. Same discipline as
+`elements.py`: carrying something unverified is fine, presenting it as the game's
+word is not. `test_pvp_presets.py` pins the disagreement so it cannot be quietly
+resolved in either direction without evidence.
+
+**Two of Pocketpair's own recommendations are deliberately omitted.**
+`bEnableAimAssistPad` because the page contradicts itself — heading "Disable
+Gamepad Aim Assist", prose "when set to False, aim assist is disabled", code
+block `=True`; picking one is a guess wearing an official label.
+`DenyTechnologyList` because it disables thirteen technologies including the
+Guild Chest, which is a much larger act than the button says, and the page frames
+it as something you *can* restrict rather than part of the recipe.
+
+That second omission is a judgement call rather than a limitation, and there is a
+test to prove it: the value round-trips through `write_ini` intact —
+parentheses, quoted ids and all — without disturbing the setting after it, which
+is what a bad `_split_top_level` would break first.
+
 ## Settings help comes from Pocketpair, and 19 keys get none
 
 `scripts/extract-settings-help.py` -> `backend/data/settings_help.json.gz`,

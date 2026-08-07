@@ -416,6 +416,16 @@ export default function ServerSettings() {
                   {preset.source === 'game' && (
                     <span className="badge" style={{ marginLeft: 7 }}>from the game</span>
                   )}
+                  {/* And which are Pocketpair's PUBLISHED recommendations rather
+                      than this dashboard's judgement. The distinction is not
+                      decorative here: `pvp_players_only` deliberately sets one
+                      of the three parameters the official PvP page says are
+                      required, so two presets on this screen disagree about what
+                      enabling PvP means. An operator has to be able to see
+                      which is which. */}
+                  {preset.source === 'official' && (
+                    <span className="badge" style={{ marginLeft: 7 }}>official docs</span>
+                  )}
                 </div>
                 <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
                   {preset.description}
