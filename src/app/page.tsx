@@ -103,6 +103,18 @@ export default function Home() {
     storeRef.current = store;
   });
 
+  // Escape closes the drawer. Cheap, expected of anything modal, and the one
+  // exit that does not require finding a small target with a thumb — worth
+  // having when the scrim is the only other way out.
+  useEffect(() => {
+    if (!navOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setNavOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [navOpen]);
+
   // ─── Restore an existing session on load ──────────────
   useEffect(() => {
     let cancelled = false;
