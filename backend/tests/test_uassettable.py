@@ -203,3 +203,81 @@ def test_the_pak_has_the_tables_worth_mining(pak, tables):
         "DT_PalShopCreateData",
     ):
         assert expected in paths
+
+
+# ─── MapProperty: the last opaque container ──────────────────────
+
+
+@pytest.mark.integration
+@pytest.mark.slow
+def test_a_map_property_decodes_and_the_work_curves_are_NOT_shared(pak):
+    """
+    **This test exists because the answer it records overturned a shipped
+    assumption.** `workrank` applied one curve to all thirteen work types,
+    labelled `stated: false`, on the evidence that the three the game states
+    separately are identical. The map they were hiding in says otherwise for
+    eight of them.
+
+    The decode's verification is threefold and none of it is a threshold:
+
+    1. The map walk must consume **exactly** its tag's declared size, or the
+       decoder refuses and labels the property opaque.
+    2. The enclosing CDO walk still terminates at 41,416 of 41,420 bytes — a
+       1,361-byte map decoded wrongly in the middle of a 41 KB property list
+       does not leave the remainder parsing.
+    3. The keys are enum names that **complete a known set**: eleven of them,
+       minus the pseudo-entry `Anyone`, plus the three standalone types, are
+       exactly the 13 work suitabilities the species table ships.
+    """
+    import upackage
+    import uassettable
+
+    path = next(p for p in pak.files if p.endswith("BP_PalGameSetting.uasset"))
+    package = upackage.read(pak.read(path))
+    uexp = pak.read(path.replace(".uasset", ".uexp"))
+    cdo = next(e for e in package.exports if e.name.startswith("Default__"))
+
+    reader = uassettable._Reader(cdo.data(uexp), package.names)
+    props = uassettable._properties(reader)
+
+    curves = props.get("WorkSuitabilityDefineDataMap")
+    assert isinstance(curves, dict), f"map did not decode: {curves!r}"
+    assert len(curves) == 11
+
+    standard = [0, 50, 70, 100, 140, 190, 260, 370, 510, 720, 1000]
+    speeds = {
+        str(k).rsplit("::", 1)[-1]: (v or {}).get("CraftSpeeds")
+        for k, v in curves.items()
+    }
+
+    # The correction itself, stated as values rather than as a count.
+    assert speeds["Watering"] == standard, "Watering does share the stated curve"
+    assert speeds["Handcraft"] == [0, 50, 80, 140, 240, 400, 680, 1100, 1900, 3200, 5400]
+    assert speeds["Transport"] == [0, 2, 5, 10, 20, 40, 70, 120, 200, 320, 500]
+    assert speeds["MonsterFarm"][0] == 10, "the Ranch produces at rank 0"
+    assert speeds["Anyone"] == [100] * 11, "the one entry that is not a work type"
+
+    differ = sum(1 for name, c in speeds.items() if c != standard)
+    assert differ == 8, f"expected 8 of 11 to differ from the stated curve, got {differ}"
+
+    # Every curve is 11 entries — one per rank 0-10, matching WorkSuitabilityMaxRank.
+    assert all(len(c) == 11 for c in speeds.values())
+
+
+@pytest.mark.integration
+@pytest.mark.slow
+def test_a_map_that_cannot_be_walked_is_LABELLED_not_truncated(pak):
+    """
+    The refusal, and the reason a map needs its own element reader rather than
+    reusing `_value`. A map element carries no tag, so there is no size to snap
+    past and no way to skip a type we do not understand — a decoder that stopped
+    at the first unfamiliar entry would return a dict that looks complete.
+
+    So `_map_half` raises on an unhandled type and the caller labels the whole
+    property. A partial map is never returned.
+    """
+    import uassettable
+
+    reader = uassettable._Reader(b"\x00" * 32, ["None"])
+    with pytest.raises(uassettable.TableError):
+        uassettable._map_half(reader, "DelegateProperty")
