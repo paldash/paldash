@@ -141,23 +141,55 @@ def test_an_empty_map_clears_every_bought_rank():
 # ─── Refusals ────────────────────────────────────────────────────
 
 
-def test_an_absent_property_is_refused_because_there_is_nothing_to_copy():
+def test_an_absent_property_with_NO_DONOR_ANYWHERE_is_refused():
     """
-    Two things are missing, not one: the `array_type` to preserve AND a struct
-    to copy. Creating either means guessing.
+    The refusal narrowed and the reason did not. Creating the shape is still off
+    the table; what changed is that the shape may be borrowed from any Pal in the
+    same save, so this is now the genuine "nothing to copy" case — no such node
+    exists on the whole server.
+
+    The message has to be actionable, because the operator's move is to spend one
+    handbook on any Pal rather than to give up.
     """
-    with pytest.raises(charedit.EditError, match=f"no '{PROP}'"):
+    with pytest.raises(charedit.EditError, match="No Pal on this server") as excinfo:
         charedit._apply_pal_change(
             _obj(), {"field": "workRanks", "after": {"Handcraft": 1}}
         )
+    assert "handbook" in str(excinfo.value)
 
 
-def test_a_present_but_empty_list_is_also_refused():
-    """Present is not the same as usable — an empty array has no template."""
-    with pytest.raises(charedit.EditError, match="no entry to copy"):
+def test_a_present_but_empty_list_is_refused_ONLY_WITHOUT_A_DONOR():
+    """
+    Present is not the same as usable — an empty array has an `array_type` and no
+    template. But an *absent* property carries strictly less information than an
+    empty one, so refusing this while accepting that would be backwards.
+    """
+    with pytest.raises(charedit.EditError, match="no Pal on this server"):
         charedit._apply_pal_change(
             _obj([]), {"field": "workRanks", "after": {"Handcraft": 1}}
         )
+
+
+def test_an_empty_list_takes_the_struct_from_a_donor_and_keeps_its_own_metadata():
+    """
+    The array metadata here is already this Pal's own and correct; only the
+    struct is missing. Replacing the whole node would throw away a right answer
+    to import a duplicate of it.
+    """
+    obj = _obj([])
+    obj[PROP]["array_type"] = "StructProperty"
+    obj[PROP]["id"] = "11111111-1111-1111-1111-111111111111"
+
+    donor = _obj([_entry("Mining", 2)])[PROP]
+    donor["id"] = "22222222-2222-2222-2222-222222222222"
+
+    charedit._write_work_ranks(obj, PROP, {"Handcraft": 4}, donor)
+
+    assert _ranks(obj) == {"Handcraft": 4}
+    assert obj[PROP]["id"] == "11111111-1111-1111-1111-111111111111"
+    # And the donor is untouched — a shallow copy here would edit a Pal the
+    # operator never named.
+    assert donor["value"]["values"][0]["Rank"]["value"] == 2
 
 
 def test_an_unknown_work_type_is_rejected():
