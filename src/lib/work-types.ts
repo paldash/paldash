@@ -1,3 +1,4 @@
+import { asArray } from './arrays';
 /**
  * The game's own work-suitability list: id, display name, icon, and **order**.
  *
@@ -64,9 +65,13 @@ export async function getWorkTypes(): Promise<WorkType[]> {
   inFlight = fetch('/api/save/world/reference')
     .then((res) => (res.ok ? res.json() : Promise.reject(new Error(String(res.status)))))
     .then((body) => {
-      const raw = (body?.workSuitability ?? []) as {
+      // **`?? []` WAS THE BUG.** It substitutes only for null/undefined, so a
+      // `workSuitability` that arrived as an object went straight through and
+      // threw `.map is not a function` — which killed the whole My Pals tab,
+      // because this module is imported by it and the throw escaped the render.
+      const raw = asArray<{
         id: string; display_name?: string; icon?: string; index?: number;
-      }[];
+      }>(body?.workSuitability as never, 'workSuitability');
       const mapped = raw
         .map((w, i) => ({
           id: w.id,

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Building2, Compass, Egg, Eye, Lock, Package, Pickaxe, RefreshCw, ShieldCheck } from 'lucide-react';
 import { getAccessPolicy, setAccessPolicy, type AccessPolicyInfo } from '@/lib/save-api';
+import { asArray } from '@/lib/arrays';
 
 /**
  * Access control: how much may be changed, and what guests may see.
@@ -202,7 +203,7 @@ export default function AccessSettings() {
           them, so there is no single dial that gets everyone right.
         </p>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          {(policy.visibilityPresets ?? []).map((preset) => (
+          {asArray(policy.visibilityPresets, 'visibility presets').map((preset) => (
             <button
               key={preset.id}
               className="btn"
@@ -258,9 +259,9 @@ export default function AccessSettings() {
             infrastructure and costs almost nothing to reveal; a complete map of
             all 396 effigies removes the hunt outright. An operator who wants
             convenient travel and an intact collectathon had to choose. */}
-        {(policy.discoveryCategories ?? []).length > 0 && (
+        {asArray(policy.discoveryCategories, 'discovery categories').length > 0 && (
           <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {(policy.discoveryCategories ?? []).map((category) => (
+            {asArray(policy.discoveryCategories, 'discovery categories').map((category) => (
               <div key={category.id}>
                 <div style={{
                   display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4,

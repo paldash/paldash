@@ -8,6 +8,7 @@ import {
   type WorkRankedPal, type CombatRankedPal,
 } from '@/lib/save-api';
 import GameIcon from '@/components/game-icon';
+import { asArray } from '@/lib/arrays';
 
 /**
  * Who should be doing what.
@@ -108,7 +109,7 @@ function WorkPanel() {
             padding: '3px 6px', fontSize: 12,
           }}
         >
-          {(report?.workTypes ?? []).map((t) => (
+          {asArray(report?.workTypes, 'optimiser work types').map((t) => (
             <option key={t.id} value={t.id}>{t.display_name}</option>
           ))}
         </select>
@@ -194,7 +195,7 @@ function CombatPanel() {
             }}
           >
             <option value="">Anything</option>
-            {(report?.elements ?? []).map((el) => (
+            {asArray(report?.elements, 'optimiser elements').map((el) => (
               <option key={el} value={el}>{el}</option>
             ))}
           </select>

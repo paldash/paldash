@@ -12,6 +12,7 @@ import type {
   BaseStorage, BaseContainer, CatalogueItem, InventorySlot, SlotPatch, SlotEditPlan,
   PlayerSaveData,
 } from '@/lib/types';
+import { asArray } from '@/lib/arrays';
 
 /**
  * Inventory slot editor.
@@ -119,7 +120,7 @@ export default function SlotEditor({ canEdit }: { canEdit: boolean }) {
   const containers = useMemo(() => {
     const base = bases.find((b) => b.baseId === baseId);
     if (!base) return [] as { container: BaseContainer; base: BaseStorage }[];
-    return (base.containers ?? []).map((container) => ({ container, base }));
+    return asArray(base.containers, 'base containers').map((container) => ({ container, base }));
   }, [bases, baseId]);
 
   /**

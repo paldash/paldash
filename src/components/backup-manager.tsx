@@ -14,6 +14,7 @@ import { useDashboardStore } from '@/lib/store';
 import type {
   BackupListing, BackupVerification, RestorePreview, BackupSchedule,
 } from '@/lib/types';
+import { asArray } from '@/lib/arrays';
 
 function bytes(n: number): string {
   if (!n) return '0 B';
@@ -350,7 +351,7 @@ export default function BackupManager() {
             </tr>
           </thead>
           <tbody>
-            {(data?.backups ?? []).map((b) => {
+            {asArray(data?.backups, 'backups').map((b) => {
               const verdict = verifications[b.id];
               return (
                 <tr key={b.id}>

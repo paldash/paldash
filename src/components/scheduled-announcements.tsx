@@ -7,6 +7,7 @@ import {
   deleteAnnouncement, sendAnnouncementNow,
 } from '@/lib/save-api';
 import type { AnnouncementList, ScheduledAnnouncement } from '@/lib/types';
+import { asArray } from '@/lib/arrays';
 
 /**
  * Recurring announcements — rules reminders, restart notices, a Discord link.
@@ -157,7 +158,7 @@ export default function ScheduledAnnouncements() {
           disabled={full}
           onChange={(e) => setIntervalKey(e.target.value)}
         >
-          {(data?.intervals ?? []).map((i) => (
+          {asArray(data?.intervals, 'announcement intervals').map((i) => (
             <option key={i.id} value={i.id}>{i.label}</option>
           ))}
         </select>

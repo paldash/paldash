@@ -18,6 +18,7 @@ import type {
   MapObject, FastTravelPoint, Discoveries, DiscoveryPoint,
   StaticWorldObject, StaticWorldSummary, NpcPlacement,
 } from '@/lib/types';
+import { asArray } from '@/lib/arrays';
 
 const MapComponent = dynamic(() => import('./map-inner'), { ssr: false });
 
@@ -139,7 +140,7 @@ export default function InteractiveMap() {
   // Categories this viewer is allowed to see at all. The summary omits the rest
   // entirely rather than flagging them, so an absent id is a withheld category.
   const visibleStaticIds = useMemo(
-    () => new Set((staticSummary?.categories ?? []).map((c) => c.id)),
+    () => new Set(asArray(staticSummary?.categories, 'map categories').map((c) => c.id)),
     [staticSummary]
   );
 
@@ -517,7 +518,7 @@ export default function InteractiveMap() {
         active={mapLayers}
         counts={counts}
         onToggle={toggleMapLayer}
-        staticCategories={[...(staticSummary?.categories ?? []), ...saveCategories]}
+        staticCategories={[...asArray(staticSummary?.categories, 'map categories'), ...saveCategories]}
         staticKindsOff={staticKindsOff}
         onToggleKind={toggleStaticKind}
         onSetKinds={setStaticKindsOff}
