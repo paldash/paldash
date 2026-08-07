@@ -139,5 +139,11 @@
   "gameBuild": "24370498",
   "regenerateWith": "python3 scripts/extract-settings-help.py",
   "note": "THE ONLY BUNDLE WITH A NON-PAK SOURCE, and the fetch is a build step -- the container never reaches the network. 93 of the INI's 119 keys carry an official description, 50 carry the game's own label, and 19 carry nothing at all rather than a guess; the extractor prints that list and refuses below 60 documented keys, which is what a changed page layout looks like. The UI_ALIASES map (game UI row -> INI key) is hand-written and each entry is confirmed by the pak string and the doc row describing the same thing; run with --show-aliases to re-check. Six of the 19 are PvP keys the pvp page names only inside prose recipes, which is not a per-key description. A handful of `note` fields are this dashboard's own measurements and are tagged noteSource=dashboard so they are never mistaken for Pocketpair's."
+ },
+ "lab_research.json.gz": {
+  "source": "Pal-LinuxServer.pak (DT_LabResearchDataTable)",
+  "gameBuild": "24370498",
+  "regenerateWith": "python3 scripts/extract-lab-research.py",
+  "note": "The Pal Lab research tree: 168 nodes, 9 roots, across the 9 work types that have research. Each carries its prerequisite, up to four material costs, a RequiredWorkAmount in work UNITS (never a duration — how long depends on assigned Pals, which no file states), and a typed effect using the same EPalPassiveSkillEffectType vocabulary as passive_effects.json.gz. The build refuses if any RequiredResearchId resolves to no row, because a broken edge renders as a node nobody can reach and reads as a game rule rather than a bug; all material ids are checked against the item catalogue and all resolve. Ten rows carry EPalPassiveSkillEffectType::no — the game's own 'grants no rate' — and are normalised to null so a client never renders 'no +0%'. Research is guild-wide and permanent, and the save records progress in GuildExtraSaveDataMap[].Lab.RawData.research_info."
  }
 }

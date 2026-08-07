@@ -55,6 +55,49 @@ def _key(value) -> str:
     return str(value or "")
 
 
+def _eggs(value) -> dict:
+    """
+    `EggPalIDAndWeight` -> `{"eggWeights": [...], "eggWeightsRead": bool}`.
+
+    Measured across all 11 raids: two entries each, the `BOSS_` (alpha) form at
+    **0.1** and the ordinary form at **0.9**. Weights are the game's own floats
+    and are reported as such — they sum to 1.0 here, but nothing in the table
+    says they must, so they are not renormalised into percentages that would be
+    this project's arithmetic rather than Pocketpair's.
+
+    **A non-dict is reported as unread, never as empty.** If a future reader
+    leaves the map opaque again, the string falls through to `eggWeightsRead:
+    False` — which is the distinction the previous note was protecting and is
+    worth keeping now that the happy path works.
+    """
+    # **AN EMPTY MAP IS AN ANSWER; A NON-MAP IS NOT.** `YakushimaBoss002` and
+    # its `_2` ship `{}` — the game states those two raids have no egg table —
+    # while a string here means the reader left the property opaque. Collapsing
+    # both into `eggWeightsRead: False` was the first version's mistake and it
+    # is the same "nothing" versus "we could not ask" distinction the missing
+    # ban list and the unparsed world already turn on.
+    if not isinstance(value, dict):
+        return {"eggWeights": [], "eggWeightsRead": False}
+    if not value:
+        return {"eggWeights": [], "eggWeightsRead": True}
+    eggs = []
+    for raw_key, weight in value.items():
+        species = _key(raw_key)
+        if not species:
+            continue
+        eggs.append({
+            "speciesId": species,
+            "weight": float(weight or 0.0),
+            # The alpha form, which is the whole reason a raid egg is interesting.
+            "isBoss": species.startswith("BOSS_"),
+        })
+    if not eggs:
+        # Entries present but none resolved — that IS a reader problem.
+        return {"eggWeights": [], "eggWeightsRead": False}
+    return {"eggWeights": sorted(eggs, key=lambda e: -e["weight"]),
+            "eggWeightsRead": True}
+
+
 def _items(row: dict, prefix: str) -> list:
     """
     A `SuccessItemList`-shaped array, or [].
@@ -119,17 +162,23 @@ def build(pak=None) -> tuple[dict, dict]:
         bosses[str(key)] = {
             "id": str(key),
             "forms": forms,
-            # **`EggPalIDAndWeight` IS A `MapProperty` THE READER LEAVES OPAQUE**,
-            # and the old code iterated it as a list — over the *characters* of
-            # the string `"<MapProperty 98B>"`, none of which is a dict, so every
-            # boss came out with an empty egg table. That reads as "this raid
-            # drops no eggs", which is a claim about the game rather than about
-            # this reader.
+            # **THIS FIELD WAS UNREADABLE UNTIL 2026-08-07 AND IS NOT ANY MORE.**
+            # The note it replaces said `EggPalIDAndWeight` is a MapProperty that
+            # `uassettable` decodes none of, so the honest thing was to report the
+            # field unread rather than ship `[]` — because an empty egg table
+            # reads as "this raid drops no eggs", a claim about the game rather
+            # than about the reader. That was right, and the premise expired the
+            # moment the map decoder landed.
             #
-            # `uassettable` decodes no MapProperty at all, so the honest thing is
-            # to say the field was not read rather than to ship [].
-            "eggWeights": [],
-            "eggWeightsRead": False,
+            # Before that it was worse: the original code iterated the map as a
+            # list, which walked the *characters* of the string
+            # `"<MapProperty 98B>"`, matched no dict, and produced an empty table
+            # for every boss with no error at all.
+            #
+            # Keys are `FName` cells, so `{'Key': 'BOSS_NightLady'}` — `_key` is
+            # the one unwrapper, and skipping it yields ids that serialise
+            # perfectly and resolve to nothing.
+            **_eggs(row.get("EggPalIDAndWeight")),
             "rewards": _items(row, "SuccessItemList"),
             "rewardsAnyOne": _items(row, "SuccessAnyOneItemList"),
             "achievementType": _enum(row.get("AchievementType")),
@@ -195,8 +244,12 @@ def main() -> int:
     print("  no positions: these are altar-summoned, not world-placed")
     print(f"  {len(rewarded)} of {len(data['bosses'])} carry a reward table, "
           f"{len(items)} distinct items, all resolving")
-    print("  egg weights NOT read: EggPalIDAndWeight is a MapProperty and the "
-          "reader decodes none — reported as unread rather than as empty")
+    read = [b for b in data["bosses"].values() if b["eggWeightsRead"]]
+    print(f"  egg weights read for {len(read)} of {len(data['bosses'])} raids "
+          f"(MapProperty decoding landed 2026-08-07)")
+    if read:
+        alpha = {round(e["weight"], 3) for b in read for e in b["eggWeights"] if e["isBoss"]}
+        print(f"    alpha-form weights observed: {sorted(alpha)}")
     if unknown:
         print(f"  advisory: {len(unknown)} of {len(species)} forms are the `_2` "
               f"difficulty variants, which the bundled character tables do not "
