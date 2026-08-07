@@ -1135,6 +1135,52 @@ export async function getEffigyPoints(): Promise<DiscoveryPoint[]> {
   return data.points ?? [];
 }
 
+/** One pin a guild has dropped on its shared map. */
+export interface GuildMarker {
+  id: string;
+  x: number;
+  y: number;
+  /**
+   * **An integer, and deliberately unnamed.** The game's custom-pin sprites live
+   * in a widget blueprint cooked with unversioned properties, so there is no
+   * vocabulary to resolve it against — see `parser._guild_markers`. Do not
+   * invent labels for these; draw one shape.
+   */
+  iconType: number;
+  ownerUid: string;
+  guildId: string;
+  guildName?: string;
+}
+
+/**
+ * Guild markers the caller is allowed to see.
+ *
+ * **Scoped server-side to the caller's own guilds** (staff excepted), because
+ * the game itself calls these "Shared with Guild Members". `scope` says which
+ * answer this is: an empty list because nobody has placed one, and an empty list
+ * because you are in no guild, are different things and the second must not read
+ * as a broken layer.
+ */
+export async function getGuildMarkers(): Promise<{
+  points: GuildMarker[];
+  scope: 'all' | 'guild' | 'none';
+  guildsVisible: number;
+  linkedToPlayer: boolean;
+}> {
+  const data = await saveFetch<{
+    points: GuildMarker[];
+    scope: 'all' | 'guild' | 'none';
+    guildsVisible: number;
+    linkedToPlayer: boolean;
+  }>('/world/guildmarkers');
+  return {
+    points: data.points ?? [],
+    scope: data.scope ?? 'none',
+    guildsVisible: data.guildsVisible ?? 0,
+    linkedToPlayer: Boolean(data.linkedToPlayer),
+  };
+}
+
 /** One placed field boss: species, level and a verified world position. */
 export interface BossSpawner {
   id: string;

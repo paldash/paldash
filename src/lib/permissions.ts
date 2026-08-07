@@ -126,6 +126,10 @@ const ROUTES: RouteRule[] = [
   // fallback when /world/discoveries is unavailable — which it is for every
   // guest, since that route requires a real account.
   { pattern: /^world\/effigies$/, methods: ['GET'], capability: CAPABILITIES.VIEW_BASIC, feature: FEATURES.MAP_OBJECTS },
+  // Guild-scoped server-side: the endpoint returns only the caller's own guilds'
+  // markers (staff excepted), so VIEW_BASIC here is the gate on reaching it at
+  // all, not on what comes back.
+  { pattern: /^world\/guildmarkers$/, methods: ['GET'], capability: CAPABILITIES.VIEW_BASIC, feature: FEATURES.MAP_OBJECTS },
   // Field bosses. VIEW_BASIC, and deliberately NOT discovery-filtered: effigies
   // and fast travel are collectables the save tracks per player, so hiding the
   // undiscovered ones is a meaningful setting. A field boss respawns and is

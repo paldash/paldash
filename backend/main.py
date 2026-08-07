@@ -1564,6 +1564,70 @@ def get_fast_travel_points(request: Request) -> dict[str, Any]:
     }
 
 
+@app.get("/api/world/guildmarkers")
+def get_guild_markers(request: Request) -> dict[str, Any]:
+    """
+    The pins a guild has dropped on its own map.
+
+    **THE GAME SCOPES THESE AND SO DOES THIS.** `MAP_MARKER_GUILD_INFO` is
+    literally "Shared with Guild Members", so returning every guild's pins to
+    everybody would publish something the game deliberately keeps inside a guild
+    — and on a PvP server "where has that guild pinned things" is exactly the
+    kind of thing worth not publishing.
+
+    So the rule is the narrow one, and it is the *opposite default* from bases:
+    a base is visible until its owner hides it, a marker is hidden unless you
+    share the guild. Staff see everything, as everywhere else, so moderation
+    still works without an exemption list.
+
+    An account with no linked character sees **nothing rather than everything**.
+    That is the fail-safe direction: `steam_uid` is unset on a fresh account, and
+    the alternative reading — "no uid, so no guild, so no filter" — is how a
+    filter turns into a leak.
+    """
+    authz.require(request, roles_module.VIEW_BASIC)
+    role, username = _viewer(request)
+
+    guilds = savecache.get_section("guilds") or []
+    # "Staff" is not a new list — it is the rank rule `privacy` already applies
+    # everywhere: somebody a hiding Player cannot conceal themselves from. Using
+    # `conceals` rather than naming roles here means a new role added to
+    # `roles.py` lands on the right side of this automatically.
+    staff = not privacy.conceals(role, "player", "player")
+
+    own: set[str] = set()
+    if username:
+        user = accounts.get_user(username)
+        uid = privacy.normalise_uid((user or {}).get("steamUid"))
+        if uid:
+            for guild in guilds:
+                members = {
+                    privacy.normalise_uid(m.get("uid"))
+                    for m in (guild.get("members") or [])
+                }
+                if uid in members:
+                    own.add(str(guild.get("id") or ""))
+
+    points: list[dict[str, Any]] = []
+    for guild in guilds:
+        gid = str(guild.get("id") or "")
+        if not staff and gid not in own:
+            continue
+        for marker in guild.get("markers") or []:
+            points.append({**marker, "guildId": gid, "guildName": guild.get("name")})
+
+    return {
+        "points": points,
+        # Why the list is the length it is. Zero markers and "you are in no
+        # guild" are different answers, and a layer that is empty for the second
+        # reason reads as broken — the same distinction the effigy fallback and
+        # the ban list both had to make.
+        "scope": "all" if staff else ("guild" if own else "none"),
+        "guildsVisible": len(own) if not staff else len(guilds),
+        "linkedToPlayer": bool(own) or staff,
+    }
+
+
 @app.get("/api/world/effigies")
 def get_effigy_points(request: Request) -> dict[str, Any]:
     """
