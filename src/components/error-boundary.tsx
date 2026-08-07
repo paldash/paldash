@@ -25,19 +25,33 @@ import { AlertTriangle, RefreshCw } from 'lucide-react';
  */
 export default class ErrorBoundary extends Component<
   { children: ReactNode; label?: string },
-  { error: Error | null }
+  { error: Error | null; where: string }
 > {
-  state: { error: Error | null } = { error: null };
+  state: { error: Error | null; where: string } = { error: null, where: '' };
 
   static getDerivedStateFromError(error: Error) {
     return { error };
+  }
+
+  /**
+   * **Keep the component stack, because the message alone is not actionable.**
+   * A minified build reports things like "((intermediate value) ?? []).map is
+   * not a function", which names no file and no component — and a tab's render
+   * tree is several components deep, so that cost two wrong fixes and three
+   * round trips before anyone knew which file to open. React hands us the stack
+   * here; throwing it away was the mistake.
+   */
+  componentDidCatch(error: Error, info: { componentStack?: string | null }) {
+    const stack = (info?.componentStack || '').trim();
+    this.setState({ where: stack.split('\n').slice(0, 6).join('\n') });
+    console.error('[dashboard] tab error', error, stack);
   }
 
   componentDidUpdate(prev: { children: ReactNode }) {
     // Switching tabs swaps the children, which is the user's way of saying
     // "try something else" — so clear the error rather than pinning them to it.
     if (prev.children !== this.props.children && this.state.error) {
-      this.setState({ error: null });
+      this.setState({ error: null, where: '' });
     }
   }
 
@@ -65,11 +79,12 @@ export default class ErrorBoundary extends Component<
               }}
             >
               {error.message || String(error)}
+              {this.state.where ? `\n\nin:${this.state.where}` : ''}
             </pre>
             <button
               className="btn btn-ghost"
               style={{ marginTop: 8, padding: '3px 10px', fontSize: 11 }}
-              onClick={() => this.setState({ error: null })}
+              onClick={() => this.setState({ error: null, where: '' })}
             >
               <RefreshCw size={11} /> Try again
             </button>

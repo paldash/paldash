@@ -123,7 +123,7 @@ function WorkPanel() {
         </div>
       )}
 
-      {ranking?.pals.map((pal: WorkRankedPal) => (
+      {asArray(ranking?.pals, 'work ranking pals').map((pal: WorkRankedPal) => (
         <Row key={pal.instanceId}>
           <PalCell pal={pal} />
           <span
@@ -212,7 +212,7 @@ function CombatPanel() {
         </div>
       )}
 
-      {report?.ranking.map((pal: CombatRankedPal) => (
+      {asArray(report?.ranking, 'combat ranking').map((pal: CombatRankedPal) => (
         <Row key={pal.instanceId}>
           <PalCell pal={pal} />
           {pal.matchup && (
