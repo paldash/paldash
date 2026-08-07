@@ -135,6 +135,17 @@ _EXACT_RULES: dict[str, str] = {
     "AirDash": "movement", "LowGravity": "movement",
     "JumpCount_Increase": "movement", "JumpPower_Increase": "movement",
     "RideJumpCount_Increase": "movement",
+    # Research-only effects. These appear on NO passive — they come from
+    # `DT_LabResearchDataTable`, and rules live here so the research tree reuses
+    # this classifier rather than growing a second one that can disagree with it.
+    # `unclassified()` scans the passive bundle only, so these never appear there.
+    "LabResearchSpeed": "work", "OilExtractionSpeedRate": "work",
+    "ProductExtraItemProbability": "work",
+    "ProductItemConsumeMaterialNumRate": "work",
+    "ConsumeEnergyRate": "work", "EnergyStorageRate": "work",
+    "ExpeditionRewardRate": "work", "ExpeditionTimeCostRate": "work",
+    "AttackRateBaseCampWorker": "combat",
+    "DefenseRateBaseCampWorker": "combat",
     # Capture & breeding
     "CaptureLevel": "capture", "CaptureLevel_SneakBonus": "capture",
     "SphereRecovery": "capture", "SyncroPassiveWhenCapture": "capture",
