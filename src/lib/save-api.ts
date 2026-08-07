@@ -253,6 +253,19 @@ export interface PalRecord {
   ivs: Record<string, number>;
   passiveSkills: string[];
   passiveSkillNames?: string[];
+  /**
+   * An equipped Pal skin, labelled. `label` is DERIVED — the game ships no
+   * display name for a skin, only the id and a `TargetPalName` — so it is
+   * this project's phrasing, which is what `derived` says.
+   */
+  skin?: {
+    skinId: string;
+    speciesId: string;
+    palName: string;
+    variant: number;
+    label: string;
+    derived: boolean;
+  } | null;
   /** Equipped moves, prefix stripped. Null when the Pal stores no EquipWaza. */
   activeSkills?: string[] | null;
   activeSkillNames?: string[];
