@@ -200,6 +200,13 @@ def _text(r: _Reader, size: int) -> Any:
     return {"namespace": namespace, "key": key, "source": source, "flags": flags}
 
 
+#: Upper bound on a map's entry count and on `NumKeysToRemove`. Not a guess
+#: about the data — the largest map in either pak is a few dozen entries — but a
+#: tripwire: a value above this means the read offset is wrong, and refusing is
+#: the whole contract of this reader.
+_MAX_MAP_ENTRIES = 100_000
+
+
 def _map_half(r: _Reader, typ: str) -> Any:
     """
     One key or one value inside a MapProperty, serialised **without a tag**.
@@ -313,11 +320,24 @@ def _value(r: _Reader, typ: str, size: int, extra: dict) -> Any:
         # snap to `start + size` and label it. The map's own tag carries its
         # length, so one undecodable map costs that property and never the row.
         try:
+            # BOTH counts are bounds-checked, and the first one is the trap.
+            # `NumKeysToRemove` is 0 on every map measured here, so it looked
+            # like a formality — but on a misaligned read it is four arbitrary
+            # bytes, and an unchecked `range()` over ~2 billion spins for hours
+            # instead of raising. Found by pointing `mine-assets.py` at 7,643
+            # blueprints, where the first asset whose layout this reader does not
+            # expect hung the whole sweep with no error.
+            #
+            # A cap is not a guess about the data: nothing in this pak has a map
+            # anywhere near it, so exceeding it means the offset is wrong, which
+            # is exactly what the refusal is for.
             to_remove = r.i32()
+            if not (0 <= to_remove <= _MAX_MAP_ENTRIES):
+                raise TableError(f"implausible NumKeysToRemove {to_remove}")
             for _ in range(to_remove):
                 _map_half(r, extra.get("key") or "")
             count = r.i32()
-            if count < 0 or count > 100_000:
+            if not (0 <= count <= _MAX_MAP_ENTRIES):
                 raise TableError(f"implausible map entry count {count}")
             pairs = []
             for _ in range(count):
