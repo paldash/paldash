@@ -16,7 +16,7 @@ import {
 import type {
   Discoveries, DiscoveryPoint, Player, BaseCamp, MapObject, FastTravelPoint,
   StaticWorldObject, NpcPlacement } from '@/lib/types';
-import type { BossSpawner } from '@/lib/save-api';
+import type { BossSpawner, GuildMarker } from '@/lib/save-api';
 
 interface Props {
   players: Player[];
@@ -51,6 +51,7 @@ interface Props {
   staticObjects: StaticWorldObject[];
   /** Named NPC spawn points, one layer per role. Bundled, not viewport-fetched. */
   npcs: NpcPlacement[];
+  guildMarkers: GuildMarker[];
   layers: Record<string, boolean>;
   /**
    * Per-category kind exclusions, for the save-derived POI layer.
@@ -409,6 +410,7 @@ export default function MapInner({
   hideCollected,
   staticObjects,
   npcs,
+  guildMarkers,
   layers,
   kindsOff,
   region,
@@ -427,6 +429,7 @@ export default function MapInner({
   const effigyLayer = useRef<L.LayerGroup>(L.layerGroup());
   const bossLayer = useRef<L.LayerGroup>(L.layerGroup());
   const npcLayer = useRef<L.LayerGroup>(L.layerGroup());
+  const guildMarkerLayer = useRef<L.LayerGroup>(L.layerGroup());
   const baseLayer = useRef<L.LayerGroup>(L.layerGroup());
   const playerLayer = useRef<L.LayerGroup>(L.layerGroup());
 
@@ -491,6 +494,7 @@ export default function MapInner({
     // anything player-owned, and a base marker buried under ore is useless.
     staticLayer.current.addTo(map);
     npcLayer.current.addTo(map);
+    guildMarkerLayer.current.addTo(map);
     poiLayer.current.addTo(map);
     travelLayer.current.addTo(map);
     effigyLayer.current.addTo(map);
@@ -844,6 +848,52 @@ export default function MapInner({
         .addTo(group);
     }
   }, [npcs, layers, region]);
+
+  // ─── Guild markers ───────────────────────────────────────
+  //
+  // Pins a guild dropped on its own map. The backend has already scoped these to
+  // the caller's guilds, so anything that arrives here is something this viewer
+  // is entitled to see — there is no client-side filter and there must not be
+  // one, because a filter in the browser is a list in the network tab.
+  //
+  // ONE SHAPE FOR EVERY `iconType`. The integer is real (0 and 6 observed) and
+  // its vocabulary is not: the custom-pin sprites live in a widget blueprint
+  // cooked with unversioned properties. Drawing a different icon per value would
+  // be inventing a legend, so the number is shown in the popup as a number.
+  useEffect(() => {
+    const group = guildMarkerLayer.current;
+    group.clearLayers();
+    if (!layers.guildMarkers) return;
+
+    const transform = getRegion(region);
+    for (const marker of guildMarkers) {
+      if (!transform.contains(marker.x, marker.y)) continue;
+      L.marker(worldToMap(marker.x, marker.y, region), {
+        icon: L.divIcon({
+          className: 'shape-marker',
+          // `square`, not a new `pin` shape: widening the MarkerShape union for
+          // one caller costs a change in kind-colors and its tests, and at 13px
+          // in this blue it is already distinct from the diamond (NPCs), the
+          // triangle (effigies) and the circles (everything dense).
+          html: shapeSvg('square', 13, '#4ea8d4'),
+          iconSize: [13, 13],
+          iconAnchor: [6.5, 6.5],
+        }),
+        zIndexOffset: 650,
+      })
+        .bindPopup(() => {
+          const c = worldToGameMap(marker.x, marker.y);
+          return `<div style="min-width:170px">
+             <div style="font-weight:600;margin-bottom:3px">Guild marker</div>
+             <div style="font-size:12px;color:#4ea8d4">${escapeHtml(marker.guildName || 'Your guild')}</div>
+             <div style="font-size:11px;color:#6d747e;margin-top:2px">Icon ${marker.iconType} \u00b7 the game does not name these</div>
+             <div style="font-size:11px;color:#6d747e;margin-top:4px">${c.x}, ${c.y}</div>
+           </div>`;
+        })
+        .bindTooltip(marker.guildName || 'Guild marker', { direction: 'top', offset: [0, -6] })
+        .addTo(group);
+    }
+  }, [guildMarkers, layers, region]);
 
   // ─── Fast travel (bundled game data, not from the save) ──
   //

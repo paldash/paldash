@@ -8,6 +8,8 @@ import {
   getMapObjects, getFastTravelPoints, getDiscoveries, getEffigyPoints,
   getStaticWorldObjects, getStaticWorldSummary, getBossSpawners, getNpcPlacements,
   type BossSpawner,
+  getGuildMarkers,
+  type GuildMarker,
 } from '@/lib/save-api';
 import { Crosshair, RefreshCw, Search, Info } from 'lucide-react';
 import dynamic from 'next/dynamic';
@@ -43,6 +45,11 @@ const LAYERS: { id: string; label: string; color: string; group: 'live' | 'disco
   { id: 'effigies', label: 'Effigies', color: '#8d84c7', group: 'discovery' },
   { id: 'bosses', label: 'Field bosses', color: '#d4574e', group: 'discovery' },
 
+
+  // "From the save", which is exactly what these are — not something the
+  // world contains and you discover, but something a player wrote into it.
+  // The server only ever sends you your own guild's.
+  { id: 'guildMarkers', label: 'Guild markers', color: '#4ea8d4', group: 'world' },
   { id: 'chest', label: 'Chests', color: '#c9973f', group: 'world' },
   { id: 'oreNode', label: 'Ore nodes', color: '#8a8378', group: 'world' },
   { id: 'oilrigChest', label: 'Oil rig', color: '#d97757', group: 'world' },
@@ -114,6 +121,11 @@ export default function InteractiveMap() {
   const [effigies, setEffigies] = useState<DiscoveryPoint[]>([]);
   const [bosses, setBosses] = useState<BossSpawner[]>([]);
   const [npcs, setNpcs] = useState<NpcPlacement[]>([]);
+  const [guildMarkers, setGuildMarkers] = useState<GuildMarker[]>([]);
+  // Not the same as `guildMarkers.length === 0`: an empty list because your
+  // guild has placed none, and an empty list because you are in no guild, are
+  // different answers and only the second needs saying.
+  const [markerScope, setMarkerScope] = useState<'all' | 'guild' | 'none'>('none');
   const [discoveryError, setDiscoveryError] = useState<string | null>(null);
   const [region, setRegion] = useState<MapRegion>('palpagos');
   const [query, setQuery] = useState('');
@@ -208,7 +220,7 @@ export default function InteractiveMap() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [objects, points, found, relics, fieldBosses, people] = await Promise.allSettled([
+    const [objects, points, found, relics, fieldBosses, people, pins] = await Promise.allSettled([
       getMapObjects(),
       getFastTravelPoints(),
       // Discoveries may legitimately fail — a guest has no character, and the
@@ -227,6 +239,10 @@ export default function InteractiveMap() {
       // a legitimate answer, so a `.catch(() => [])` would hide a failed fetch
       // behind one.
       getNpcPlacements(),
+      // Guild-scoped server-side. Settled, not caught: an empty list is a
+      // legitimate answer here more often than anywhere else on this map, so a
+      // swallowed failure would be invisible.
+      getGuildMarkers(),
     ]);
     setMapObjects(objects.status === 'fulfilled' ? objects.value : []);
     setFastTravel(points.status === 'fulfilled' ? points.value : []);
@@ -234,6 +250,8 @@ export default function InteractiveMap() {
     setEffigies(relics.status === 'fulfilled' ? relics.value : []);
     setBosses(fieldBosses.status === 'fulfilled' ? fieldBosses.value : []);
     setNpcs(people.status === 'fulfilled' ? people.value.placements : []);
+    setGuildMarkers(pins.status === 'fulfilled' ? pins.value.points : []);
+    setMarkerScope(pins.status === 'fulfilled' ? pins.value.scope : 'none');
     // A layer that is switched on and empty is indistinguishable from a layer
     // that failed to load, which is how "effigies not showing" went undiagnosed.
     // Only reported when the fallback failed too — one endpoint being down while
@@ -533,6 +551,21 @@ export default function InteractiveMap() {
         </div>
       )}
 
+      {/* An empty guild-marker layer has two completely different causes, and
+          the toggle looks identical for both: your guild has placed no pins, or
+          your account is not linked to a character so the server has no guild to
+          scope to. Only the second needs saying, and saying it is the difference
+          between "nothing to show" and "the dashboard is broken" — the same
+          distinction the effigy fallback and the ban list both had to make. */}
+      {mapLayers.guildMarkers && markerScope === 'none' && (
+        <div className="notice" style={{ fontSize: 12 }}>
+          <Info size={13} style={{ display: 'inline', verticalAlign: '-2px', marginRight: 5 }} />
+          Guild markers are shared with guild members only, and this account is
+          not linked to a character in any guild — so there are none to show
+          rather than none placed.
+        </div>
+      )}
+
       {/* COMPLETION MODE.
           Sits beside the layers button rather than inside the panel because it
           is not a layer — it changes what the collectable layers *mean*, from
@@ -619,6 +652,7 @@ export default function InteractiveMap() {
           effigies={effigies}
           bosses={bosses}
           npcs={npcs}
+          guildMarkers={guildMarkers}
           hideCollected={hideCollected}
           staticObjects={staticObjects}
           layers={mapLayers}

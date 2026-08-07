@@ -2821,6 +2821,52 @@ at a map object the new guild does not own.
 The emptied guild is removed **last**, after its bases have been re-homed, so a
 failure anywhere earlier leaves it still holding them.
 
+## Guild markers are the one map layer that is private by default
+
+`guild_markers` on the guild record. `mine-savefields.py` had listed it as unread
+and nothing had looked, because **the reference world has none** — it took a
+second save, from a server where somebody had actually dropped pins, and even
+there it is 3 markers on one guild and 0 on the other four. A field that is empty
+on every world you have is indistinguishable from one that does not exist.
+
+    marker_id         GUID
+    icon_location     {x, y, z}   z is always 0.0
+    icon_type         int
+    owner_player_uid  GUID
+
+**Positions are verified, not assumed.** The three land 1 on Palpagos and 2 on
+World Tree against the landmass extents the cell grid gives — real world
+coordinates in the same space as everything else on the map. A map-space or
+normalised coordinate would have been small, and would have been drawn in the sea.
+
+**THE GAME'S OWN STRINGS SET THE VISIBILITY RULE, WHICH IS NOT A JUDGEMENT
+CALL.** `DT_UI_Common_Text` carries `MAP_MARKER_HEAD_GUILD` = "Guild Marker" and
+`MAP_MARKER_GUILD_INFO` = **"Shared with Guild Members"**. That is both the
+confirmation the field means what its name says and the reason
+`/api/world/guildmarkers` scopes to the caller's own guilds.
+
+So this is the **opposite default from base privacy**: a base is visible until
+its owner hides it; a marker is hidden unless you share the guild. Staff see all,
+through the same `privacy.conceals` rank rule rather than a role list, so a role
+added to `roles.py` lands on the right side automatically. An account with no
+linked character sees **nothing rather than everything** — "no uid, so no guild,
+so no filter" is how a filter becomes a leak.
+
+**`icon_type` IS NOT NAMED, AND THIS IS WHERE THE SEARCH STOPPED** so nobody
+repeats it. Values 0 and 6 observed. No marker DataTable in either pak. The
+client ships five `MI_UI_MapMarker_*` materials (`00`, `Camp`, `FTTower`,
+`Oilrig`, `Tower`) which are the *map's own* markers and cannot be this set,
+since the index already exceeds them. The custom-pin sprites live in
+`WBP_MapMarker_Button`, a widget blueprint cooked with unversioned properties —
+the same wall `elements.py` documents. The integer travels as an integer, the map
+draws one shape, and the popup says the game does not name them. Inventing a
+legend from a guessed ordering is the `TowerLockBarrier` mistake.
+
+**And the first version put a pin at the world origin.** `location.get("x") or
+0.0` turned a marker with no position into a confident (0, 0) — found by the test
+that asserts a malformed record is *dropped*, not defaulted. Both coordinates
+must actually be numbers.
+
 ## Read `docs/SAVE-FIELDS.md` before deciding a field is not in the save
 
 `scripts/mine-savefields.py` walks a save with the **full** custom-property set

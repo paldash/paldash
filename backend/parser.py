@@ -240,6 +240,59 @@ def extract_base_camps(gvas: Any, guild_names: Optional[dict] = None) -> list[di
 # ─── Guilds ──────────────────────────────────────────────────────
 
 
+def _guild_markers(raw: dict) -> list[dict]:
+    """
+    The pins a guild has dropped on its map. `guild_markers` on the guild record.
+
+    **The game's own words for this are "Guild Marker" and "Shared with Guild
+    Members"** (`MAP_MARKER_HEAD_GUILD`, `MAP_MARKER_GUILD_INFO` in
+    `DT_UI_Common_Text`), which is both the confirmation that the field means
+    what its name says and the reason `/api/world/guildmarkers` scopes them to
+    the guild rather than showing every guild's pins to everybody.
+
+    **Positions are verified, not assumed.** On the world that first carried any,
+    the three markers land 1 on Palpagos and 2 on World Tree against the
+    landmass extents the cell grid gives — real world coordinates in the same
+    space as everything else on the map, not map-space or normalised ones. `z`
+    is always 0.0, which is consistent with a pin dropped on a flat map rather
+    than at a point in the world.
+
+    **`iconType` IS NOT RESOLVED, AND THIS IS WHERE THE SEARCH STOPPED.** The
+    values seen are 0 and 6. There is no marker DataTable in either pak; the
+    client ships five `MI_UI_MapMarker_*` materials (`00`, `Camp`, `FTTower`,
+    `Oilrig`, `Tower`) which are the *map's own* markers and cannot be this set,
+    since the index already exceeds them. The custom-pin sprites live in
+    `WBP_MapMarker_Button`, a widget blueprint, whose properties are cooked
+    unversioned — the same wall `elements.py` documents. So the integer travels
+    as an integer and the UI draws one shape for all of them. Naming them from a
+    guessed ordering is exactly the `TowerLockBarrier` mistake.
+    """
+    out = []
+    for marker in raw.get("guild_markers") or []:
+        if not isinstance(marker, dict):
+            continue
+        location = marker.get("icon_location")
+        # **A marker with no position is dropped, not defaulted.** The first
+        # version read `location.get("x") or 0.0`, so a record missing its
+        # location became a pin at the world origin — a confident wrong point on
+        # a map, which is the one outcome every reader here refuses. Both `x` and
+        # `y` must actually be numbers.
+        if not isinstance(location, dict):
+            continue
+        x, y = location.get("x"), location.get("y")
+        if not isinstance(x, (int, float)) or not isinstance(y, (int, float)):
+            continue
+        out.append({
+            "id": str(marker.get("marker_id") or ""),
+            "x": float(x),
+            "y": float(y),
+            # Unnamed on purpose — see the docstring.
+            "iconType": int(marker.get("icon_type") or 0),
+            "ownerUid": str(marker.get("owner_player_uid") or ""),
+        })
+    return out
+
+
 def extract_guilds(gvas: Any) -> list[dict]:
     """Guilds from GroupSaveDataMap (only Guild-type groups carry members)."""
     guilds: list[dict] = []
@@ -296,6 +349,7 @@ def extract_guilds(gvas: Any) -> list[dict]:
                     for entry in (raw.get("role_permissions") or [])
                     if isinstance(entry, dict)
                 ],
+                "markers": _guild_markers(raw),
             }
         )
 
