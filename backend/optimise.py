@@ -109,10 +109,13 @@ def work_level(pal: dict[str, Any], work_id: str) -> dict[str, Any]:
     out = {"base": base, "bought": bought, "level": base + bought}
 
     # **What the level actually buys.** The game's own `CraftSpeeds` curve is not
-    # linear — rank 3 is 100 and rank 10 is 1000 — so a bare integer hid a
-    # tenfold difference in every row of this table. `stated` travels with it
-    # because the game gives only three work types their own copy of the curve
-    # and the rest are assumed to share it; the client must be able to tell.
+    # linear — for Mining rank 3 is 100 and rank 10 is 1000 — so a bare integer
+    # hid a tenfold difference in every row of this table.
+    #
+    # **And the curve is PER WORK TYPE.** Handcraft reaches 5,400 where Mining
+    # reaches 1,000, so `speed` is comparable down a column and meaningless
+    # across two work types. This module ranks within one work type at a time,
+    # which is why that is safe here and would not be in a combined table.
     #
     # NOT folded into the sort. Level still orders this table, for the reason
     # below: speed cannot substitute for a level a Pal does not have, and the

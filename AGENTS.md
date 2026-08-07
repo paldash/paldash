@@ -359,6 +359,70 @@ The cell grid remains exactly right for the **extent**, which is what
 script by changing metrics until the control passes; that is fitting the method
 to the answer. Orientation still needs a real point on that landmass.
 
+## A MapProperty is not opaque, and it was hiding two answers
+
+`scripts/uassettable.py`. The reader's `_tag()` had always pulled a map's **key
+and value type names** out of the tag; `_value()` then returned
+`<MapProperty NNNB>` and moved on. That one gap stood in front of the
+work-suitability curves above and of the breeding item effects below.
+
+The body is `int32 NumKeysToRemove` (0 on everything here), `int32 NumEntries`,
+then each key and value written **raw** — no tags, because the tag already named
+both types.
+
+**A map element needs its own reader, and the reason is the interesting part.**
+`_value` can skip a type it does not understand by snapping to `start + size`,
+because a tagged property carries its own length. **A map element carries
+nothing.** There is no size to snap past, so a decoder that met an unfamiliar
+type could only stop — returning a dict that looks complete and is short. So
+`_map_half` **raises** on an unhandled type and the caller labels the whole
+property opaque. Partial is never returned.
+
+The acceptance criterion is the one this module already uses everywhere: the
+entry walk must consume **exactly** the tag's declared size, or it is a refusal.
+That plus the enclosing walk still ending at 41,416 of 41,420 bytes is what says
+a 1,361-byte map in the middle of a 41 KB property list decoded correctly —
+a wrong one does not leave the remainder parsing.
+
+### And the cakes are a table, not a rumour
+
+`DA_BreedingItemEffectData` is a **DataAsset**, not a DataTable, and its tagged
+walk terminates at 1,053 of 1,057 bytes — the same four-byte tail
+`BP_PalGameSetting` leaves. Its `ItemEffectMap` decodes to four entries:
+
+| Cake | Effect |
+|---|---|
+| `Cake02` | `TalentBonusMin 1`, `TalentBonusMax 5` — the child's IVs get +1 to +5 |
+| `Cake03` | `BreedCount 2` — two eggs from one breeding |
+| `Cake04` | the IV bonus **and** `MutationRateBonusPercent 2.0` |
+| `Cake05` | `bInheritAllActiveSkills true`, `PassiveInheritCountOverride 4` |
+
+**This narrows a refusal recorded under the breeding section**, which says no
+file states what produces a mutated egg or at what rate, checked across all 471
+server-pak DataTables. That sweep was of *DataTables* and this is a DataAsset —
+the same shape as the `WorkSuitabilityMaxRank` correction, where a DataTable
+sweep was mistaken for a search of the game. `Cake04` — Extravagant Vegetable
+Cake, whose own description already tied it to the Breeding Farm in Pocketpair's
+words — carries a **2.0** mutation-rate bonus.
+
+**What is still not stated is the BASE rate.** `MutationRateBonusPercent` is a
+bonus, and no file found so far gives the number it is added to, nor what a
+mutated egg hatches. So the quote-don't-mechanise rule in `basesupply.py` stands
+for everything except this one figure, which is the game's own.
+
+Inheritance itself is **random with a distribution the game ships**, in
+`BP_PalGameSetting`:
+
+    Combi_PassiveInheritNum    [4, 3, 2, 1]   -> 40% / 30% / 20% / 10%
+    Combi_PassiveRandomAddNum  [4, 3, 2, 1]   -> how many NEW passives roll on
+    Combi_TalentInheritNum     [3, 2, 1]      -> 50% / 33% / 17%
+
+These are relative weights, so the percentages are normalised — and **what index
+0 counts is an inference from the field name**, not something the file states.
+Report them as weights, or as probabilities with that caveat attached; do not
+present "40% chance of inheriting one passive" as the game's own claim until
+somebody has bred enough eggs to say which end the array starts at.
+
 ## Friendly names
 
 `backend/gamedata.py` resolves internal IDs (`Sheepball`, `AIcore`) to what
@@ -1356,14 +1420,39 @@ integer hides all of it.
 row, so the ranking tables show what a level buys rather than the level alone.
 Two things travel with it and both matter:
 
-- **THE GAME STATES THE CURVE FOR THREE WORK TYPES, NOT ALL OF THEM.**
-  Collection, Deforest and Mining each carry their own copy and all three are
-  *identical*; every other work type's data is inside
-  `WorkSuitabilityDefineDataMap`, which decodes as an opaque
-  `<MapProperty 1361B>`. Three identical copies is good evidence the curve is
-  shared and it is not the game saying so, so `stated: false` travels on the
-  rest. A test asserts the three still agree — if they ever diverge, reading the
-  first one becomes wrong and that is what catches it.
+- **"THE GAME STATES THE CURVE FOR THREE WORK TYPES" WAS TRUE, AND THE
+  INFERENCE DRAWN FROM IT WAS WRONG FOR EIGHT OF THIRTEEN.** This bullet used to
+  end here, noting that Collection, Deforest and Mining each carry their own
+  identical copy while every other work type sat inside
+  `WorkSuitabilityDefineDataMap` — an opaque `<MapProperty 1361B>` — so the
+  shared curve travelled as `stated: false`. Three identical copies really is
+  good evidence, and labelling the guess really is the right thing to do with
+  one. **Neither made the number right.** `uassettable` learned to decode
+  MapProperty on 2026-08-07 and the map says:
+
+  | Curve | Work types | Rank 10 |
+  |---|---|---:|
+  | `0 50 70 100 140 190 260 370 510 720 1000` | Collection, Deforest, Mining, Watering, Seeding, OilExtraction | 1,000 |
+  | `0 50 80 140 240 400 680 1100 1900 3200 5400` | EmitFlame, Handcraft, Cool, ProductMedicine | **5,400** |
+  | `0 250 325 400 500 750 1000 1500 2000 3000 4000` | GenerateElectricity | 4,000 |
+  | `0 2 5 10 20 40 70 120 200 320 500` | Transport | 500 |
+  | `10 12 14 16 18 20 22 24 26 28 30` | MonsterFarm (Ranch) | 30 |
+
+  Handcraft was understated **5.4x**, and the Ranch **starts at 10** — a rank-0
+  Ranch Pal still produces, which the shared curve erased. A speed figure is now
+  only comparable *within* one work type; `optimise.py` ranks one at a time, so
+  it is safe there and would not be in a combined table.
+
+  **The decode's verification is that the keys complete a known set.** Eleven
+  entries, minus the pseudo-entry `EPalWorkSuitability::Anyone` (a flat 100 at
+  every rank), plus the three that ship standalone, are *exactly* the 13 work
+  suitabilities the species table uses. A drifted tagged walk does not produce
+  eleven valid enum names that fill in the gaps of an independently-known list.
+  `stated` survives in the payload and is now true throughout — it means "read
+  from the game", and there is no longer anything here that is not.
+
+  The transferable half is the one this file keeps writing down about itself: a
+  documented assumption, honestly labelled, still stops the next person looking.
 - **The material gate is eligibility, not speed, and is kept out of the sort.** A
   rank-2 miner cannot touch Iron at any speed. Level still orders the ranking
   tables for exactly that reason: speed cannot substitute for a level a Pal does

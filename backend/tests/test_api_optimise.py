@@ -151,8 +151,19 @@ def test_bought_ranks_are_visible_in_the_row(client, alice):
     assert row["work"]["base"] == 1
     assert row["work"]["bought"] == 1
     assert row["work"]["level"] == 2
-    # And the curve came with it: rank 2 is 70 against rank 3's 100.
-    assert row["work"]["speed"] == 70
+    # And the curve came with it — **EmitFlame's own**, which is the correction
+    # of 2026-08-07. This line asserted 70, the rank-2 value of the
+    # Collection/Deforest/Mining curve that was being applied to all thirteen
+    # work types. Kindling is on the crafting curve, where rank 2 is 80 and rank
+    # 10 is 5,400 against the other's 1,000. The old number was not a rounding
+    # difference; it was another work type's answer.
+    assert row["work"]["speed"] == 80
+    # Against **this** work type's rank 3, which is 140 for the crafting curve
+    # rather than the 100 the standard one uses. Comparable down a column and
+    # meaningless across two work types, which is safe here only because this
+    # endpoint ranks one at a time. The full curve is deliberately not repeated
+    # on every row — `/api/optimise/curves` carries it once.
+    assert row["work"]["relativeToRank3"] == round(80 / 140, 2)
 
 
 def test_an_unknown_work_type_is_a_404_not_an_empty_list(client, alice):
