@@ -3140,9 +3140,19 @@ keep in step.
 **Pal skins are the exception, and they are not an item container at all.**
 `SaveData.SkinInventoryInfo.InGameData` is a plain array of
 `{SkinName, Num}` — no container id, no slots, nothing in
-`ItemContainerSaveData`. See the task notes: all five reference players hold the
-identical 22 skins, which is also the total the pak ships, so there is nothing to
-grant.
+`ItemContainerSaveData`. All five reference players hold the identical 22 skins,
+which is also the total the pak ships, **so granting one is meaningless** and
+that half of the question is closed.
+
+**The half worth doing was display, and the game has no name for a skin.**
+`SaveParameter.SkinName` records which skin a Pal wears — 20 of the live world's
+2,963 — and `DT_SkinDataTable`'s 29 rows carry a `SkinName` column that just
+repeats the id, so `item_name` humanised `JetDragon_Skin001` into "Jet Dragon
+Skin001" beside a Pal correctly named Jetragon. What the table *does* give is
+`TargetPalName`, and the id encodes the same species plus a variant number, so
+`gamedata.skin_label` derives "Jetragon — Skin 1" and travels `derived: true`.
+It **returns None when the species does not resolve** rather than emitting the
+same unreadable string dressed as an answer.
 
 ## Work suitability is empty for exactly two released Pals
 
@@ -3206,6 +3216,23 @@ at a map object the new guild does not own.
 
 The emptied guild is removed **last**, after its bases have been re-homed, so a
 failure anywhere earlier leaves it still holding them.
+
+## A player arrow needs facing, and no source has it
+
+Recorded so the idea is not re-opened. A directional marker is only better than a
+dot if it points somewhere true, and nothing available says which way a player
+faces:
+
+- The game's REST `players` payload is Pocketpair's documented shape — `name`,
+  ids, `ip`, `ping`, `location_x`, `location_y`, `level`. No rotation.
+- The save has **zero** rotation fields on any character.
+  `docs/savefields.json` has 24 rotation paths across three worlds and every one
+  belongs to a base camp, a worker director's spawn transform or a map object.
+
+Live position comes from the REST API only, so the save could not supply it even
+if it had it — by the time a parse runs, the player has moved. The current icon
+stays. If a future game build adds a heading to that payload it will show up as
+an unread field in the proxy, which is the thing to watch.
 
 ## Guild markers are the one map layer that is private by default
 

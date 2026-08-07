@@ -935,6 +935,11 @@ def _enriched_pals() -> list[dict]:
                 # scaling numbers anywhere. Guessing would produce confident
                 # stats for a merchant.
                 "stats": palstats.describe(pal),
+                # An equipped skin, labelled. The save stores the raw id and the
+                # game ships no display name for it, so this is derived — see
+                # `gamedata.skin_label`. None when absent, which is 2,943 of the
+                # live world's 2,963 Pals.
+                "skin": gamedata.skin_label(pal.get("skinName")),
             }
         )
     return enriched

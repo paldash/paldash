@@ -479,6 +479,17 @@ export default function MyPals() {
                 </td>
                 <td style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
                   {asArray(p.passiveSkillNames, 'pal passives').join(', ') || '—'}
+                  {p.skin?.label && (
+                    /* Derived, not the game's words — see gamedata.skin_label.
+                       Shown because an equipped skin changes what the Pal looks
+                       like in game and is otherwise invisible here. */
+                    <div
+                      title={`Skin: ${p.skin.skinId}`}
+                      style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}
+                    >
+                      ✦ {p.skin.label}
+                    </div>
+                  )}
                 </td>
                 {work && <td className="mono">{workLevel(p, work) || '—'}</td>}
                 <td>

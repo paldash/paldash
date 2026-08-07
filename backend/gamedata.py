@@ -464,6 +464,47 @@ def pal_name(species_id: str) -> str:
     return humanize(species)
 
 
+_SKIN_SPLIT = re.compile(r"^(?P<species>.+?)_Skin0*(?P<variant>\d+)$")
+
+
+def skin_label(skin_id: str) -> Optional[dict[str, Any]]:
+    """
+    A readable label for an equipped Pal skin, or None.
+
+    **The game ships no display name for these.** `DT_SkinDataTable`'s 29 rows
+    have a `SkinName` column that repeats the id, and `item_name` falls through
+    to `humanize()` — so "JetDragon_Skin001" was rendering as "Jet Dragon
+    Skin001" beside a Pal the dashboard correctly calls Jetragon.
+
+    What the table *does* carry is `TargetPalName`, and the id encodes the same
+    species plus a variant number. So the label is **derived**: the species
+    resolved through `pal_name`, and the number as the game writes it.
+    `derived: true` travels with it, because "Jetragon — Skin 1" is this
+    project's phrasing and not Pocketpair's.
+
+    Fails safe. An id that does not match the pattern returns None and the
+    caller shows the raw id, which is what it did before.
+    """
+    match = _SKIN_SPLIT.match(str(skin_id or ""))
+    if not match:
+        return None
+    species = match.group("species")
+    name = pal_name(species)
+    # `pal_name` humanises an unknown species, which for a skin id would produce
+    # the same unreadable string this exists to replace. Only claim a label when
+    # the species genuinely resolved.
+    if not (pal(species) or _lookup("pals", species)):
+        return None
+    return {
+        "skinId": str(skin_id),
+        "speciesId": species,
+        "palName": name,
+        "variant": int(match.group("variant")),
+        "label": f"{name} \u2014 Skin {int(match.group('variant'))}",
+        "derived": True,
+    }
+
+
 def describe_pal(species_id: str) -> dict[str, Any]:
     species, prefixes = normalise_species(species_id)
     entry = pal(species_id) or {}

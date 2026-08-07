@@ -448,3 +448,36 @@ def test_pools_are_shared_between_species_and_that_is_the_game_not_a_bug():
     distinct = {tuple(sorted(v)) for v in pools.values()}
     assert len(pools) == 283
     assert 1 < len(distinct) < len(pools)
+
+
+def test_a_pal_skin_gets_a_readable_label():
+    """
+    **The game ships no display name for a skin.** `DT_SkinDataTable`'s
+    `SkinName` column repeats the id and `item_name` humanises it, so an
+    equipped skin rendered as "Jet Dragon Skin001" beside a Pal the dashboard
+    correctly calls Jetragon. The species half of the id resolves, so the label
+    is derived from that — and says it is.
+    """
+    import gamedata
+
+    skin = gamedata.skin_label("JetDragon_Skin001")
+    assert skin["label"] == "Jetragon — Skin 1"
+    assert skin["palName"] == "Jetragon"
+    assert skin["variant"] == 1
+    assert skin["derived"] is True
+    # Variant forms resolve through the same lookup as everything else.
+    assert gamedata.skin_label("LilyQueen_Dark_Skin002")["label"] == "Lyleen Noct — Skin 2"
+
+
+def test_an_unresolvable_skin_id_returns_None_rather_than_a_guess():
+    """
+    Fails safe to the raw id, which is what the UI showed before. A label built
+    on a species that did not resolve would just be the unreadable string this
+    exists to replace, dressed up as an answer.
+    """
+    import gamedata
+
+    assert gamedata.skin_label("Nonsense_Thing") is None
+    assert gamedata.skin_label("NoSuchSpecies_Skin001") is None
+    assert gamedata.skin_label("") is None
+    assert gamedata.skin_label(None) is None
