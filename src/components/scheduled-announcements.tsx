@@ -94,8 +94,11 @@ export default function ScheduledAnnouncements() {
         </p>
       )}
 
+      {/* Scrolls inside itself. Without the wrapper the widest row sets the
+          page width and the whole dashboard pans sideways on a phone. */}
       {data && data.announcements.length > 0 && (
-        <table className="table" style={{ marginBottom: 14 }}>
+        <div style={{ overflowX: 'auto', marginBottom: 14 }}>
+          <table className="table">
           <thead>
             <tr>
               <th>Message</th>
@@ -133,7 +136,8 @@ export default function ScheduledAnnouncements() {
               />
             ))}
           </tbody>
-        </table>
+          </table>
+        </div>
       )}
 
       {/* ─── Add ─── */}

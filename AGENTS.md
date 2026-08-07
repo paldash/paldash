@@ -1433,6 +1433,54 @@ Character-container slots only decode with the item custom-property set. Without
 it `RawData` is an opaque 38-byte blob and `_new_slot` refuses rather than
 hand-writing binary.
 
+## The phone problem was not the tab bar — there is no tab bar
+
+The task assumed sixteen tabs overflowing a phone's width, and said to **check
+before building**. Checking is what found that the nav is not a tab bar at all:
+`page.tsx` rendered a fixed **210px `<aside>` with `flexShrink: 0`** inside a
+flex row, so a 390px phone had **180px** for the map, the tables and every form.
+That is not a layout defect, it is an unusable app, and no amount of fixing the
+thing that was assumed to be wrong would have touched it.
+
+Findings at 390px, in the order they matter:
+
+| | |
+|---|---|
+| 210px sidebar, `flexShrink: 0` | **blocking** — 180px of content |
+| `scheduled-announcements` table, no `overflow-x` wrapper | real |
+| `backup-manager`'s inner table had `overflowY` and no `overflowX` | real |
+| ~30 inline `width: 150…380` form controls that cannot shrink | real |
+| the tab bar | **does not exist** |
+
+The sidebar is off-canvas below **900px**, not 640: a 768px tablet in portrait
+has the same problem in a milder form, and 210 of 768 is still a quarter of the
+screen spent on navigation.
+
+**THE BREAKPOINT IS CSS, NEVER `window.innerWidth`.** This page is
+server-rendered and the server does not know the viewport, so a JS width check
+renders the desktop tree and rearranges it after hydration — a mismatch on the
+first paint, on the device least able to absorb one. The scrim and the hamburger
+are rendered on every viewport and hidden by a media query, for the same reason
+plus one more: a scrim that *mounts* cannot animate in, and flashes.
+
+Two leverage points did more than the edits they replaced:
+
+- **`max-width: 100%` on `.input, .select`.** Thirty call sites set an inline
+  pixel width, and an inline style beats a stylesheet rule — but `max-width`
+  does not compete with `width`, so it caps them all. A fixed-width control
+  added tomorrow is covered without anyone remembering. `box-sizing:
+  border-box` is what makes the cap honest: under the default `content-box`,
+  `max-width: 100%` still overflows its parent by the padding and border.
+- **`minWidth: 0` on `<main>`.** A flex child's default `min-width: auto`
+  refuses to shrink below its content, so a single wide table pushed the whole
+  page sideways instead of scrolling within its own wrapper. The wrappers were
+  mostly already there; this is what let them work.
+
+**This was audited statically, not opened on a handset.** The CSS and the markup
+are verified — the media query is in the built bundle — but nobody has held a
+phone. Touch-target sizes beyond the 40px hamburger, and how Leaflet's own
+gesture handling feels on a real screen, are unmeasured.
+
 ## Settings help comes from Pocketpair, and 19 keys get none
 
 `scripts/extract-settings-help.py` -> `backend/data/settings_help.json.gz`,

@@ -131,7 +131,8 @@ export default function MapLayersPanel({
           className="glass-card"
           style={{
             position: 'absolute', top: 'calc(100% + 6px)', left: 0, zIndex: 1000,
-            width: 320, maxHeight: '70vh', overflowY: 'auto', padding: 10,
+            width: 320, maxWidth: 'calc(100vw - 32px)',
+            maxHeight: '70vh', overflowY: 'auto', padding: 10,
             boxShadow: '0 8px 28px rgba(0,0,0,.45)',
           }}
         >
