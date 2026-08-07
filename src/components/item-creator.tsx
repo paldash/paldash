@@ -6,6 +6,7 @@ import { previewItemCreate, applyItemCreate } from '@/lib/save-api';
 import type { ItemCreatePlan } from '@/lib/save-api';
 import type { CatalogueItem } from '@/lib/types';
 import GameIcon from './game-icon';
+import { asArray } from '@/lib/arrays';
 
 /**
  * Create one piece of equipment or one egg into an empty slot.
@@ -204,7 +205,7 @@ export default function ItemCreator({
 
       {plan && !plan.ok && (
         <div className="notice notice-warn" style={{ marginTop: 10, fontSize: 12 }}>
-          {(plan.problems ?? []).map((p, i) => <div key={i}>{p}</div>)}
+          {asArray(plan.problems, 'item plan problems').map((p, i) => <div key={i}>{p}</div>)}
         </div>
       )}
 

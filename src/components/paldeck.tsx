@@ -24,6 +24,7 @@ import HabitatMap from '@/components/habitat-map';
 import type {
   PaldeckEntry, PaldeckListing, PaldeckDetail, SpeciesMove, SpeciesMoves,
 } from '@/lib/types';
+import { asArray } from '@/lib/arrays';
 
 /**
  * The Paldeck: every Pal in the game, with where it spawns.
@@ -226,9 +227,9 @@ export default function Paldeck() {
                 </div>
               </div>
 
-              {(selected.elements ?? []).length > 0 && (
+              {asArray(selected.elements, 'paldeck elements').length > 0 && (
                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                  {(selected.elements ?? []).map((el) => (
+                  {asArray(selected.elements, 'paldeck elements').map((el) => (
                     <span key={el} className="badge">{el}</span>
                   ))}
                 </div>

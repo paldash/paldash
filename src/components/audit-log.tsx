@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { RefreshCw, ScrollText, ChevronLeft, ChevronRight } from 'lucide-react';
 import { getAuditLog } from '@/lib/save-api';
 import type { AuditPage } from '@/lib/types';
+import { asArray } from '@/lib/arrays';
 
 const PAGE_SIZE = 100;
 
@@ -60,7 +61,7 @@ export default function AuditLog() {
           onChange={(e) => { setOffset(0); setAction(e.target.value); }}
         >
           <option value="">All actions</option>
-          {(page?.actions ?? []).map((a) => (
+          {asArray(page?.actions, 'audit actions').map((a) => (
             <option key={a} value={a}>{a}</option>
           ))}
         </select>
@@ -106,7 +107,7 @@ export default function AuditLog() {
             </tr>
           </thead>
           <tbody>
-            {(page?.entries ?? []).map((entry) => (
+            {asArray(page?.entries, 'audit entries').map((entry) => (
               <tr key={entry.id}>
                 <td className="mono" style={{ fontSize: 11, color: 'var(--text-muted)' }}>
                   {new Date(entry.ts).toLocaleString()}
