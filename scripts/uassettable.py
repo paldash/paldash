@@ -200,6 +200,45 @@ def _text(r: _Reader, size: int) -> Any:
     return {"namespace": namespace, "key": key, "source": source, "flags": flags}
 
 
+def _map_half(r: _Reader, typ: str) -> Any:
+    """
+    One key or one value inside a MapProperty, serialised **without a tag**.
+
+    This is why a map needs its own reader rather than reusing `_value`: there
+    is no tag, so there is no `size` to snap to and no way to skip a type we do
+    not understand. An unknown type therefore RAISES, which the caller turns
+    into an opaque label for the whole map — the honest outcome, because a map
+    decoded up to the first unfamiliar entry is a dict that looks complete.
+
+    A struct here is a tagged property list terminated by `None`, which is the
+    ordinary case and the one that carries the interesting data.
+    """
+    if typ == "StructProperty":
+        return _properties(r)
+    if typ in ("NameProperty", "ByteProperty", "EnumProperty"):
+        return r.name()
+    if typ == "IntProperty":
+        return r.i32()
+    if typ == "BoolProperty":
+        return bool(r.u8())
+    if typ == "FloatProperty":
+        value = struct.unpack_from("<f", r.b, r.o)[0]
+        r.o += 4
+        return round(value, 6)
+    if typ == "DoubleProperty":
+        value = struct.unpack_from("<d", r.b, r.o)[0]
+        r.o += 8
+        return value
+    if typ == "StrProperty":
+        length = r.i32()
+        if length < 0 or length > 1 << 20:
+            raise TableError(f"implausible string length {length} in map")
+        text = r.b[r.o:r.o + max(length - 1, 0)].decode("utf-8", "replace")
+        r.o += length
+        return text
+    raise TableError(f"unhandled map element type {typ!r}")
+
+
 def _value(r: _Reader, typ: str, size: int, extra: dict) -> Any:
     """
     One property value.
@@ -260,6 +299,44 @@ def _value(r: _Reader, typ: str, size: int, extra: dict) -> Any:
                 return f"<array of {inner}, {count} items, undecoded>"
         r.o = start + size
         return out
+
+    if typ == "MapProperty":
+        # THE ONE CONTAINER THAT WAS STILL OPAQUE, and it was standing in front
+        # of the work-suitability curves for ten of the thirteen work types, the
+        # breeding item effects and the egg hatching temperature table.
+        #
+        # Layout: `NumKeysToRemove` (0 on everything measured here), then
+        # `NumEntries`, then each entry's key and value written RAW — no tags,
+        # because the tag already named both types.
+        #
+        # Same recovery posture as the struct case below: on anything unexpected
+        # snap to `start + size` and label it. The map's own tag carries its
+        # length, so one undecodable map costs that property and never the row.
+        try:
+            to_remove = r.i32()
+            for _ in range(to_remove):
+                _map_half(r, extra.get("key") or "")
+            count = r.i32()
+            if count < 0 or count > 100_000:
+                raise TableError(f"implausible map entry count {count}")
+            pairs = []
+            for _ in range(count):
+                key = _map_half(r, extra.get("key") or "")
+                val = _map_half(r, extra.get("value") or "")
+                pairs.append((key, val))
+            # THE ACCEPTANCE CRITERION, and it is the one this reader already
+            # uses everywhere else: the walk must land exactly on the end of the
+            # value block. A decoder that stopped early or overran produced a
+            # plausible dict, and a plausible dict is the failure mode this
+            # module exists to refuse.
+            if r.o != start + size:
+                raise TableError(
+                    f"map walk ended at {r.o - start} of {size} bytes"
+                )
+            return {str(k): v for k, v in pairs}
+        except (TableError, struct.error, IndexError, UnicodeDecodeError) as e:
+            r.o = start + size
+            return f"<MapProperty {size}B, undecoded: {e}>"
 
     if typ == "StructProperty":
         # A NATIVELY-SERIALISED STRUCT HAS NO TAGS AT ALL. UE writes Vector,
