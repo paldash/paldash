@@ -50,6 +50,7 @@ import palcheck
 import palclone
 import palimport
 import palstats
+import passiveeffects
 import policy as policy_module
 import progresscheck
 import privacy
@@ -2286,6 +2287,41 @@ def get_item_catalogue(request: Request) -> dict[str, Any]:
     except gamedata.GameDataUnavailable as e:
         raise HTTPException(503, str(e))
     return {"items": items, "total": len(items)}
+
+
+@app.get("/api/world/passives")
+def get_passive_catalogue(request: Request) -> dict[str, Any]:
+    """
+    The passive-effect category vocabulary, so a UI builds filters from the data.
+
+    Reference data like `/api/world/items` — it describes what Palworld has, so
+    `VIEW_BASIC` and no parsed save. `unclassified` travels in it deliberately:
+    it is normally empty, and a non-empty list is the signal that a game update
+    added an effect type nothing here knows how to file.
+    """
+    authz.require(request, roles_module.VIEW_BASIC)
+    return passiveeffects.catalogue()
+
+
+@app.get("/api/world/passives/effects")
+def get_passive_effects(request: Request, ids: str = "") -> dict[str, Any]:
+    """
+    Everything a set of passive skills does — all 208 effect types, not the four
+    that feed the stat formula.
+
+    Takes the ids rather than a Pal, and that is the cheap part: it is catalogue
+    data, so it needs no world and no privacy filter, and a client can ask about
+    a hypothetical set of passives as easily as about a Pal it owns.
+
+    **Not folded into `/api/pals`.** That endpoint enriches 1,905 Pals on every
+    parse; expanding each one's passives there would pay for a panel almost
+    nobody opens, on every Pal, forever.
+    """
+    authz.require(request, roles_module.VIEW_BASIC)
+    wanted = [part for part in (ids or "").split(",") if part.strip()]
+    if len(wanted) > 64:
+        raise HTTPException(400, "at most 64 passive ids per request")
+    return passiveeffects.describe_passives([w.strip() for w in wanted])
 
 
 @app.get("/api/world/items/{item_id}")
