@@ -1401,8 +1401,56 @@ snapshot, **39 Pals carry the property** and the ranks run
 `{1: 30, 2: 4, 3: 4, 6: 1}`. Six being the highest anyone reached is a fact about
 those players, not the ceiling.
 
-**Condenser stars do not add work suitability.** `CharacterMaxRank` is 5 and
-nothing links it to work rank; a suitability-10 Pal is base plus handbooks.
+**Condenser stars do not add work suitability, and this was re-asked after the
+MapProperty decode rather than trusted.** That matters because the previous
+answer rested on a DataTable sweep, which is exactly the kind of negative this
+file records getting overturned. With every map in `BP_PalGameSetting` now
+readable, the settings mentioning rank are: `CharacterMaxRank` (5),
+`CharacterRankUpRequiredNumMap` — **`{1: 4, 2: 8, 3: 12, 4: 24}`, the duplicate
+Pals each condenser star costs, 48 for all four** — the Arena rank ladder, and
+`WorkSuitabilityMaxRank` (10) with its curves. **Nothing joins the two.** A
+suitability-10 Pal is its species base plus work handbooks, and the only thing
+that moves work rank is `GotWorkSuitabilityAddRankList`.
+
+### The mount MODE is not in the server pak, and the saddle was the best guess
+
+Proposed 2026-08-07 — reasonably, since a flying mount needs a flying saddle,
+and Jetragon's gear is called "Jetragon's Missile Launcher" rather than a saddle,
+which looks like the item table drawing exactly this distinction.
+
+`DT_ItemDataTable` does carry a gear discriminator, and it is **weapon kind, not
+movement mode**. Of the 143 `Essential_PalGear` items, `IconName` splits them
+into `SkillUnlock_Saddle` (108), `_Gloves` (10), `_Harness` (5), `_Choker` (4)
+and nine weapon kinds. Checked against Pals whose mode is known:
+
+| | Pal | IconName |
+|---|---|---|
+| flies | Vanwyrm, Shadowbeak, Nitewing | `SkillUnlock_Saddle` |
+| ground | Melpaca, Rushoar, Eikthyrdeer, Direhowl | `SkillUnlock_Saddle` |
+| swims | Jormuntide Ignis (Orca) | `SkillUnlock_Saddle` |
+| flies | **Jetragon** | `SkillUnlock_MultiMissile` |
+| swims | **Penguin** | `SkillUnlock_Launcher` |
+
+So the column separates *what the partner skill shoots*, and Jetragon and
+Penguin — one flyer, one swimmer — land in different buckets from each other
+while every ordinary flyer and ground mount share one. A rule built on it would
+have looked convincing on Jetragon and been wrong on Nitewing.
+
+Also checked and empty: no ride/mount/fly column in `DT_PalMonsterParameter`'s
+90; `DT_PartnerSkillParameter` gives `RestrictionItems` (which **does** answer
+*rideable at all*) and no mode; `DT_PartnerSkill`'s 50 rows are ability kinds;
+**no `BP_Pal_*` asset and no `DA_*Ride/Mount/Move/Fly` exists in the server pak
+at all**, so the CDO technique has nothing to point at. The Pal blueprints are
+client-side, which is the unversioned wall.
+
+`RideSprintSpeed` is populated for **all 753 species**, including Pals that
+cannot be ridden, so sorting on it unfiltered produces a leaderboard of mounts
+that do not exist. Filter on `RestrictionItems` first.
+
+Conclusion: fastest **ride** is answerable and fastest **flyer** is not, from
+files. A hand-maintained mode list is allowed on `elements.py`'s terms — the data
+does not exist, so the obligation is provenance and a visible "unknown", never a
+guess derived from a name.
 
 `fullStomach` is still unbounded — that one genuinely has no constant, and the
 lesson above is a reason to go and look again rather than to assume it does.
