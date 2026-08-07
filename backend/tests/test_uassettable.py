@@ -18,6 +18,7 @@ on all of them.
 from __future__ import annotations
 
 import os
+import struct
 import sys
 
 import pytest
@@ -281,3 +282,28 @@ def test_a_map_that_cannot_be_walked_is_LABELLED_not_truncated(pak):
     reader = uassettable._Reader(b"\x00" * 32, ["None"])
     with pytest.raises(uassettable.TableError):
         uassettable._map_half(reader, "DelegateProperty")
+
+
+def test_a_garbage_map_header_refuses_instead_of_spinning():
+    """
+    **`NumKeysToRemove` is 0 on every map in this pak, which is exactly why it
+    was left unchecked — and that was the bug.** On a misaligned read it is four
+    arbitrary bytes, and `for _ in range(that)` spins over ~2 billion iterations
+    instead of raising. Found by pointing `mine-assets.py` at 7,643 blueprints:
+    the first asset whose layout this reader does not expect took the whole
+    sweep down with no error and no output.
+
+    The bound is a tripwire, not a claim about the data. Nothing here has a map
+    remotely near it, so exceeding it means the offset is wrong — which is the
+    one thing this reader is built to refuse rather than paper over.
+    """
+    import uassettable
+
+    # A plausible tag followed by a huge NumKeysToRemove.
+    body = struct.pack("<ii", 0x7FFFFFFF, 0) + b"\x00" * 64
+    reader = uassettable._Reader(body, ["None", "IntProperty"])
+    out = uassettable._value(
+        reader, "MapProperty", len(body), {"key": "NameProperty", "value": "IntProperty"}
+    )
+    assert isinstance(out, str) and out.startswith("<MapProperty")
+    assert "NumKeysToRemove" in out or "undecoded" in out
