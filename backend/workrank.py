@@ -11,14 +11,37 @@ Rank 3 is 100 and rank 10 is 1000. `BP_PalGameSetting` carries this as
 `WorkSuitabilityDefineData_<work>.CommonDefineData.CraftSpeeds`, already bundled
 in `game_settings.json.gz` — nothing needed extracting, only reading.
 
-**THE GAME STATES THE CURVE FOR THREE WORK TYPES, NOT ALL OF THEM.** Collection,
-Deforest and Mining each carry their own copy and **all three are identical**.
-Every other work type's data lives in `WorkSuitabilityDefineDataMap`, which
-decodes as an opaque `<MapProperty 1361B>` — the same wall the element chart
-hits. Three identical copies is good evidence the curve is shared and it is not
-the game saying so, which is why `describe()` returns `stated: false` for the
-rest and the UI is expected to show it as an estimate. A number presented with
-the same confidence as a read one is the failure this project keeps recording.
+**"THE CURVE IS SHARED" WAS A REASONABLE INFERENCE AND IT WAS WRONG FOR EIGHT OF
+THE THIRTEEN.** This module used to apply the curve above to every work type,
+flagged `stated: false`, because Collection, Deforest and Mining each ship their
+own identical copy and every other work type's data sat inside
+`WorkSuitabilityDefineDataMap` — an opaque `<MapProperty 1361B>`. Three identical
+copies really is good evidence, and the flag really did say "assumed". Both were
+beside the point once the map decoded (2026-08-07):
+
+    Collection / Deforest / Mining      0  50  70 100 140 190 260 370 510  720 1000
+    Watering / Seeding / OilExtraction  0  50  70 100 140 190 260 370 510  720 1000
+    EmitFlame / Handcraft / Cool /
+      ProductMedicine                   0  50  80 140 240 400 680 1100 1900 3200 5400
+    GenerateElectricity                 0 250 325 400 500 750 1000 1500 2000 3000 4000
+    Transport                           0   2   5  10  20  40  70 120 200  320  500
+    MonsterFarm (Ranch)                10  12  14  16  18  20  22  24  26   28   30
+
+Handcraft rank 10 is **5,400**, not 1,000 — the old answer was low by 5.4x on the
+work type players buy handbooks for most. Transport is a different scale
+entirely, and the Ranch **starts at 10 rather than 0**, so a rank-0 Ranch Pal
+still produces.
+
+The lesson is the one this repo keeps recording in its own voice: a documented
+assumption, honestly labelled, still stops the next person looking. `stated` is
+kept and is now `true` for all thirteen — it means "read from the game" and there
+is no longer anything here that isn't.
+
+`EPalWorkSuitability::Anyone` is in the map at a flat 100 across all eleven ranks.
+It is not one of the game's 13 work suitabilities and is excluded — the map's
+keys minus `Anyone`, plus the three that ship standalone, are **exactly** the 13
+the species table uses, which is the check that the decode landed on real enum
+values rather than plausible ones.
 
 Two things the curve is NOT:
 
@@ -44,9 +67,16 @@ import gamedata
 
 logger = logging.getLogger(__name__)
 
-#: Work types whose curve the game states outright, each carrying its own copy.
-#: The rest are inside an opaque MapProperty — see the module docstring.
+#: Work types shipping their curve as their own top-level settings property.
+#: The other ten are in `WorkSuitabilityDefineDataMap`, which now decodes — so
+#: this is where a curve is READ FROM, no longer which ones are trustworthy.
 STATED = ("Collection", "Deforest", "Mining")
+
+#: The map's own key prefix, and the one entry in it that is not a work type.
+#: `Anyone` is a flat 100 at every rank; the game's 13 suitabilities are the map's
+#: keys minus this, plus the three above.
+_ENUM_PREFIX = "EPalWorkSuitability::"
+_NOT_A_WORK_TYPE = "Anyone"
 
 #: Extra per-rank data beyond speed, keyed by the settings field that holds it.
 _DETAIL_FIELD = {
@@ -70,14 +100,49 @@ def max_rank() -> Optional[int]:
     return int(value) if isinstance(value, (int, float)) and value > 0 else None
 
 
-def _curve() -> list[int]:
-    """The shared `CraftSpeeds` array, or `[]`."""
-    for work in STATED:
+def _curve(work_type: str = "") -> list[int]:
+    """
+    This work type's own `CraftSpeeds`, or `[]`.
+
+    **Per work type, not shared.** Passing nothing returns the
+    Collection/Deforest/Mining curve, which is a real curve for those three and
+    is *not* a default for anything else — a caller with a work type must pass
+    it. See the module docstring for what the old shared answer cost.
+    """
+    name = str(work_type or "")
+    if name and name not in STATED:
+        entry = (gamedata.game_setting("WorkSuitabilityDefineDataMap") or {}).get(
+            f"{_ENUM_PREFIX}{name}"
+        )
+        speeds = (entry or {}).get("CraftSpeeds")
+        if isinstance(speeds, list) and speeds:
+            return [int(v) for v in speeds]
+        # No entry: fall through rather than substituting another work type's
+        # numbers. An unknown work type gets `[]`, which `describe()` turns into
+        # no detail at all — the same outcome as an unreadable bundle.
+        return []
+
+    for work in ((name,) if name else STATED):
         entry = gamedata.game_setting(f"WorkSuitabilityDefineData_{work}")
         speeds = ((entry or {}).get("CommonDefineData") or {}).get("CraftSpeeds")
         if isinstance(speeds, list) and speeds:
             return [int(v) for v in speeds]
     return []
+
+
+def work_types() -> list[str]:
+    """
+    Every work type with a curve: the three standalone plus the map's, less
+    `Anyone`. Should be the same 13 the species table uses, and
+    `test_workrank.py` asserts exactly that.
+    """
+    keys = gamedata.game_setting("WorkSuitabilityDefineDataMap") or {}
+    from_map = [
+        str(k)[len(_ENUM_PREFIX):] for k in keys
+        if str(k).startswith(_ENUM_PREFIX)
+        and str(k)[len(_ENUM_PREFIX):] != _NOT_A_WORK_TYPE
+    ]
+    return sorted(set(STATED) | set(from_map))
 
 
 def transport_range() -> list[float]:
@@ -93,11 +158,13 @@ def describe(work_type: str, rank: int) -> dict[str, Any]:
     Returns `{}` when the bundle is unreadable — missing detail should cost the
     tooltip, never the page.
 
-    `stated` is the load-bearing field: true when the game gives this work type
-    its own curve, false when we are applying the one the three that do share.
-    Callers must not present the two identically.
+    `stated` used to mean "this work type's curve is read rather than assumed"
+    and was false for ten of thirteen. Every curve is read now, so it is true
+    throughout; it stays in the payload because a client rendering an estimate
+    differently from a fact should not have to be re-taught how when the next
+    assumed number appears.
     """
-    curve = _curve()
+    curve = _curve(work_type)
     if not curve:
         return {}
 
@@ -107,12 +174,17 @@ def describe(work_type: str, rank: int) -> dict[str, Any]:
         "rank": rank,
         "maxRank": cap,
         "speed": curve[rank],
-        # Against rank 3, which the game sets to exactly 100 — so this reads as a
-        # percentage of "ordinary" rather than of an arbitrary base. Rank 0 is 0
-        # and that is a real answer: no suitability is not slow work, it is none.
+        # Against THIS work type's rank 3, not a shared one. It is 100 on the six
+        # standard types and is 140, 400, 10 or 16 elsewhere, so the ratio only
+        # ever compares a work type to itself — which is the comparison a player
+        # wants ("what does one more rank buy me here") and the only one the data
+        # supports. Rank 0 is 0 for every type but the Ranch, and that is a real
+        # answer: no suitability is not slow work, it is none.
         "relativeToRank3": round(curve[rank] / curve[3], 2) if curve[3] else None,
         "curve": curve,
-        "stated": work_type in STATED,
+        # True throughout since the map decoded. Kept because the distinction it
+        # draws is worth keeping wired up. See the module docstring.
+        "stated": True,
     }
 
     detail = _detail(work_type, rank)
@@ -160,18 +232,23 @@ def curve_table() -> dict[str, Any]:
     already-parsed bundle — so it is not cached; the thing worth caching here
     would be the bundle, and `gamedata` already does that.
     """
-    curve = _curve()
+    curves = {work: _curve(work) for work in work_types()}
+    curves = {work: c for work, c in curves.items() if c}
     return {
-        "curve": curve,
+        # `curve` was one array and is now one per work type. It stays for the
+        # Collection/Deforest/Mining shape a caller may still be reading, but a
+        # client showing a table must use `curves` — there is no single curve.
+        "curve": _curve(),
+        "curves": curves,
         "maxRank": max_rank(),
         "transportRange": transport_range(),
-        "statedFor": list(STATED),
+        "statedFor": sorted(curves),
         # Said out loud rather than left to a docstring, for the same reason
         # `hasMultiplier` travels in the optimiser's payload: the client is the
         # thing about to draw a number.
         "note": (
-            "The game states this curve for Collection, Deforest and Mining, "
-            "and all three are identical. Other work types are assumed to share "
-            "it — their own data is in a blueprint map this cannot read."
-        ) if curve else "",
+            "Each work type has its own curve, read from the game. They differ "
+            "by a lot — Handcraft reaches 5,400 at rank 10 where Mining reaches "
+            "1,000 — so a speed figure is only comparable within one work type."
+        ) if curves else "",
     }

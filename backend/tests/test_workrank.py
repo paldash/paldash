@@ -77,7 +77,7 @@ def test_rank_zero_is_still_refused():
 
 
 def test_the_curve_is_the_game_s_and_rank_three_is_the_anchor():
-    curve = workrank._curve()
+    curve = workrank._curve("Mining")
     assert curve == [0, 50, 70, 100, 140, 190, 260, 370, 510, 720, 1000]
     assert len(curve) == (workrank.max_rank() or 0) + 1, (
         "the curve must have an entry per rank including 0"
@@ -86,30 +86,72 @@ def test_the_curve_is_the_game_s_and_rank_three_is_the_anchor():
     assert workrank.describe("Mining", 10)["relativeToRank3"] == 10.0
 
 
-def test_all_three_stated_work_types_agree():
+def test_all_three_standalone_work_types_agree():
     """
-    **This is the evidence for applying it to the rest, and it is only
-    evidence.** Three independent copies in the settings object, identical. If
-    they ever diverge, `_curve()` returning the first one becomes wrong and this
-    is what catches it.
+    Still true, still worth pinning — and note what it does NOT license. Three
+    identical copies was the evidence for applying this curve to the other ten,
+    and that inference was wrong for eight of them. See the test below.
     """
     curves = []
     for work in workrank.STATED:
         entry = gamedata.game_setting(f"WorkSuitabilityDefineData_{work}")
         curves.append(tuple(entry["CommonDefineData"]["CraftSpeeds"]))
-    assert len(set(curves)) == 1, f"the stated curves diverged: {curves}"
+    assert len(set(curves)) == 1, f"the standalone curves diverged: {curves}"
 
 
-def test_stated_is_true_only_for_the_three_the_game_names():
+#: What the map actually holds, transcribed once so the assertions below read as
+#: comparisons rather than as magic numbers.
+_STANDARD = [0, 50, 70, 100, 140, 190, 260, 370, 510, 720, 1000]
+_CRAFTING = [0, 50, 80, 140, 240, 400, 680, 1100, 1900, 3200, 5400]
+
+
+def test_THE_CURVE_IS_NOT_SHARED_and_this_is_the_correction():
     """
-    The load-bearing flag. Every other work type's data is in an opaque
-    MapProperty, so its curve is an assumption — a well-supported one, and not
-    the game saying so. A caller must be able to tell them apart.
+    **This module applied `_STANDARD` to every work type and was wrong for eight
+    of the thirteen.** Handcraft reaches 5,400 at rank 10 against Mining's 1,000
+    — low by 5.4x on the work type players buy the most handbooks for.
+
+    The old behaviour was labelled `stated: false`, which is the honest thing to
+    do with an assumption and did not make the number any less wrong. A
+    documented assumption still stops the next person looking.
     """
-    for work in workrank.STATED:
+    assert workrank._curve("Mining") == _STANDARD
+    assert workrank._curve("Handcraft") == _CRAFTING
+    assert workrank._curve("Handcraft") != workrank._curve("Mining")
+    assert workrank._curve("Transport") == [0, 2, 5, 10, 20, 40, 70, 120, 200, 320, 500]
+    assert workrank._curve("GenerateElectricity")[10] == 4000
+
+    # The Ranch starts at 10, not 0 — a rank-0 Ranch Pal still produces, which
+    # no other work type does and which a shared curve erased.
+    assert workrank._curve("MonsterFarm")[0] == 10
+
+
+def test_every_work_type_the_species_table_uses_has_its_own_curve():
+    """
+    The decode's own verification, and the reason it is trusted without a second
+    source: the map's keys minus `Anyone`, plus the three standalone ones, are
+    **exactly** the 13 work suitabilities the species table ships. A drifted
+    tagged walk does not produce eleven valid enum names that complete a known
+    set.
+    """
+    assert set(workrank.work_types()) == set(editschema.work_suitabilities())
+    for work in workrank.work_types():
+        assert workrank._curve(work), f"{work} has no curve"
+
+
+def test_an_unknown_work_type_borrows_NOBODY_S_curve():
+    """
+    The failure this correction is about. Falling back to another work type's
+    numbers is what produced a confident wrong answer for ten types; an unknown
+    one must cost the detail instead.
+    """
+    assert workrank._curve("NoSuchWorkType") == []
+    assert workrank.describe("NoSuchWorkType", 5) == {}
+
+
+def test_stated_is_true_throughout_now_that_every_curve_is_read():
+    for work in ("Mining", "Transport", "Handcraft", "Watering", "MonsterFarm"):
         assert workrank.describe(work, 5)["stated"] is True
-    for work in ("Transport", "Handcraft", "Watering", "Generate_Electricity"):
-        assert workrank.describe(work, 5)["stated"] is False
 
 
 def test_mining_gates_on_material_which_is_eligibility_not_speed():
@@ -148,14 +190,17 @@ def test_an_unreadable_bundle_costs_the_detail_and_nothing_else(monkeypatch):
     monkeypatch.setattr(gamedata, "game_setting", lambda name, default=None: None)
     assert workrank.describe("Mining", 5) == {}
     assert workrank.curve_table()["curve"] == []
+    assert workrank.curve_table()["curves"] == {}
     assert workrank.curve_table()["note"] == ""
 
 
-def test_the_curve_table_says_what_it_is_assuming():
+def test_the_curve_table_carries_ALL_of_them_and_says_they_differ():
     table = workrank.curve_table()
     assert table["maxRank"] == 10
-    assert table["statedFor"] == list(workrank.STATED)
-    assert "assumed" in table["note"].lower()
+    assert len(table["curves"]) == 13
+    assert table["statedFor"] == sorted(editschema.work_suitabilities())
+    # The note must warn that a speed is only comparable within one work type.
+    assert "own curve" in table["note"].lower()
 
 
 def test_a_rank_beyond_the_curve_is_clamped_not_an_index_error():
@@ -163,6 +208,8 @@ def test_a_rank_beyond_the_curve_is_clamped_not_an_index_error():
     described = workrank.describe("Mining", 99)
     assert described["rank"] == 10
     assert described["speed"] == 1000
+    # And the clamp uses this work type's own curve, not a shared one.
+    assert workrank.describe("Handcraft", 99)["speed"] == 5400
 
 
 # ─── Creation: the refusal was stricter than its own reason ───
