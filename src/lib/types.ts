@@ -1306,11 +1306,17 @@ export interface SettingsPreset {
   description: string;
   changes: Record<string, string | number | boolean>;
   /**
-   * `game` for Palworld's own difficulty presets, `dashboard` for the
-   * hand-made ones. Shown because an operator choosing between "Hardcore" and
-   * "Punishing" deserves to know which one Pocketpair wrote.
+   * `game` for Palworld's own difficulty presets, `official` for a
+   * configuration Pocketpair published in their documentation, `dashboard` for
+   * the hand-made ones.
+   *
+   * Shown because an operator choosing between "Hardcore" and "Punishing"
+   * deserves to know which one Pocketpair wrote — and because two of the PvP
+   * presets **disagree**: `pvp_players_only` sets one of the three parameters
+   * the official PvP page says are required to False. The badge is how a reader
+   * can tell whose claim they are applying.
    */
-  source?: string;
+  source?: 'game' | 'official' | 'dashboard' | string;
 }
 
 // ─── Breeding ───────────────────────────────────────────

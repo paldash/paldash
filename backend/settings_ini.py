@@ -384,8 +384,87 @@ def write_ini(changes: dict[str, Any], path: Optional[str] = None) -> dict[str, 
 # ─── Presets ─────────────────────────────────────────────────────
 
 PRESETS: list[dict[str, Any]] = [
+    # ─── Pocketpair's own PvP recipe ─────────────────────────────
+    #
+    # From `docs.palworldgame.com/settings-and-operation/pvp`, split into two
+    # exactly as that page splits it: "Enable PvP by Modifying the Server
+    # Settings" and "Recommended Server Settings When Enabling PvP". The split is
+    # theirs, not a judgement — the first is what makes PvP happen, the second is
+    # a list of choices, and folding them together would apply a dozen opinions
+    # under a button labelled "enable PvP".
+    #
+    # **THESE CONTRADICT THE TWO HAND-MADE PRESETS BELOW AND THAT IS THE POINT.**
+    # `pvp_players_only` sets `bEnableDefenseOtherGuildPlayer` to *False* while
+    # calling itself PvP; Pocketpair says PvP is enabled by setting that
+    # parameter, and two others, to True. Whether a partial enable produces
+    # "players fight, bases are safe" is a claim about game behaviour that no
+    # file supports — so the hand-made pair keeps its `source: dashboard` tag and
+    # these carry `official`, and the UI can say which is which.
+    {
+        "id": "pvp_official",
+        "source": "official",
+        "label": "PvP — Pocketpair's three required settings",
+        "description": (
+            "Exactly the three parameters the official documentation says enable "
+            "PvP, and nothing else. Players can harm each other, base Pals engage "
+            "trespassers, and rival guilds can open your chests."
+        ),
+        "changes": {
+            "bIsPvP": True,
+            "bEnablePlayerToPlayerDamage": True,
+            "bEnableDefenseOtherGuildPlayer": True,
+        },
+    },
+    {
+        "id": "pvp_official_recommended",
+        "source": "official",
+        "label": "PvP — Pocketpair's recommended configuration",
+        "description": (
+            "The three required settings plus every recommendation on the "
+            "official PvP page: no HP/Attack stat points, fast travel restricted "
+            "to bases, no logging out to escape a fight, full death drops that "
+            "rivals may loot, guilds capped at 4 players and 2 bases, 1,000 "
+            "structures per player, a 60-minute guild rejoin cooldown, and an "
+            "escalating respawn delay."
+        ),
+        "changes": {
+            "bIsPvP": True,
+            "bEnablePlayerToPlayerDamage": True,
+            "bEnableDefenseOtherGuildPlayer": True,
+            "bAllowEnhanceStat_Health": False,
+            "bAllowEnhanceStat_Attack": False,
+            "bEnableFastTravel": True,
+            "bEnableFastTravelOnlyBaseCamp": True,
+            "bExistPlayerAfterLogout": True,
+            "bIsStartLocationSelectByMap": True,
+            "DeathPenalty": "All",
+            "bCanPickupOtherGuildDeathPenaltyDrop": True,
+            "bInvisibleOtherGuildBaseCampAreaFX": False,
+            "bBuildAreaLimit": True,
+            "GuildPlayerMaxNum": 4,
+            "BaseCampMaxNumInGuild": 2,
+            "MaxBuildingLimitNum": 1000,
+            "GuildRejoinCooldownMinutes": 60,
+            "BlockRespawnTime": 5.0,
+            "RespawnPenaltyDurationThreshold": 1800.0,
+            "RespawnPenaltyTimeScale": 2.0,
+            # TWO OF POCKETPAIR'S RECOMMENDATIONS ARE DELIBERATELY ABSENT.
+            #
+            # `bEnableAimAssistPad`: the page's heading says "Disable Gamepad Aim
+            # Assist", its prose says "when set to False, aim assist is
+            # disabled", and its code block says `=True`. The source contradicts
+            # itself, so picking one is a guess wearing an official label.
+            #
+            # `DenyTechnologyList`: presented as something you *can* restrict
+            # rather than part of the recipe, and it disables thirteen
+            # technologies including the Guild Chest. That is a much larger act
+            # than the button says, and the value writes correctly through the
+            # editor for anyone who wants it — the page lists the ids.
+        },
+    },
     {
         "id": "pvp_players_only",
+        "source": "dashboard",
         "label": "PvP — players only, bases protected",
         "description": (
             "Players can damage each other anywhere, but rival guilds cannot raid "
@@ -401,6 +480,7 @@ PRESETS: list[dict[str, Any]] = [
     },
     {
         "id": "pvp_full_raid",
+        "source": "dashboard",
         "label": "PvP — full raiding",
         "description": "Player damage plus base raiding and looting of rival death drops.",
         "changes": {
