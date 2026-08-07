@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { AlertTriangle, Check, RefreshCw, Save, Power, Sliders } from 'lucide-react';
+import { AlertTriangle, Check, Info, RefreshCw, Save, Power, Sliders } from 'lucide-react';
 import {
   applySettingsPreset, getBackendHealth, getIniSettings,
   noteShutdown, restartServer, writeIniSettings,
@@ -28,6 +28,8 @@ export default function ServerSettings() {
   const [busy, setBusy] = useState(false);
   const [restartSeconds, setRestartSeconds] = useState(60);
   const [lifecycle, setLifecycle] = useState<LifecycleStatus | null>(null);
+  const [showAll, setShowAll] = useState(false);
+  const [filter, setFilter] = useState('');
 
   // Poll lifecycle so the "did it come back?" banner stays current.
   useEffect(() => {
@@ -449,9 +451,105 @@ export default function ServerSettings() {
         );
       })}
 
+      {/* EVERYTHING THE GROUPS DO NOT COVER — 92 of the 119 on a stock 1.0
+          server, which until now could not be changed here at all.
+
+          It was a defensible omission while the page could only show a key's
+          name: a list of ninety identifiers like `PalStomachDecreaceRate` is
+          not a settings screen, it is a hex dump. With Pocketpair's own
+          description under each one it becomes usable, which is why this ships
+          with the help rather than before it.
+
+          Collapsed by default and filtered, because the curated groups are
+          still the right first thing to see. */}
+      {(() => {
+        const grouped = new Set(settings.groups.flatMap((g) => g.keys));
+        const rest = Object.keys(settings.options).filter((k) => !grouped.has(k));
+        if (!rest.length) return null;
+        const needle = filter.trim().toLowerCase();
+        const shown = needle
+          ? rest.filter(
+              (k) =>
+                k.toLowerCase().includes(needle) ||
+                (settings.options[k].help?.description || '')
+                  .toLowerCase()
+                  .includes(needle)
+            )
+          : rest;
+        return (
+          <div className="glass-card" style={{ padding: 16 }}>
+            <div
+              style={{
+                display: 'flex', alignItems: 'center', gap: 10, marginBottom: showAll ? 12 : 0,
+              }}
+            >
+              <button
+                className="btn btn-ghost"
+                style={{ fontSize: 12 }}
+                onClick={() => setShowAll((v) => !v)}
+              >
+                {showAll ? 'Hide' : 'Show'} the other {rest.length} settings
+              </button>
+              {showAll && (
+                <input
+                  className="input"
+                  style={{ flex: 1, maxWidth: 260, fontSize: 12 }}
+                  placeholder="Filter by name or description…"
+                  value={filter}
+                  onChange={(e) => setFilter(e.target.value)}
+                />
+              )}
+            </div>
+            {showAll && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {shown.map((key) => (
+                  <SettingRow
+                    key={key}
+                    name={key}
+                    option={settings.options[key]}
+                    pending={pending[key]}
+                    onChange={(v) => stage(key, v)}
+                  />
+                ))}
+                {/* An empty result set and a broken filter look identical
+                    otherwise — the same distinction the map layers had to make. */}
+                {!shown.length && (
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                    No setting matches &ldquo;{filter}&rdquo;.
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      })()}
+
       <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>
         {settings.count} settings in <span className="mono">{settings.path}</span>.
-        Only the most-used ones are shown; the rest are preserved untouched.
+        The groups above are the most-used ones; every other key is under
+        &ldquo;Show the other&hellip;&rdquo;, and anything you do not touch is
+        preserved byte for byte.
+        {/* Named rather than left blank. A setting with no explanation looks
+            identical to one whose explanation failed to load, and an operator
+            hunting the difference should be told it is Pocketpair who does not
+            document that key — not left to conclude the dashboard is broken. */}
+        {!!settings.helpCoverage?.undocumented?.length && (
+          <>
+            {' '}Descriptions come from{' '}
+            <a
+              href="https://docs.palworldgame.com/settings-and-operation/configuration/"
+              target="_blank"
+              rel="noreferrer"
+              style={{ color: 'var(--text-secondary)' }}
+            >
+              Palworld&rsquo;s official documentation
+            </a>
+            , which covers {settings.helpCoverage.documented} of{' '}
+            {settings.helpCoverage.iniKeys};{' '}
+            {settings.helpCoverage.undocumented.length} keys are undocumented and
+            show no explanation rather than a guess.
+          </>
+        )}
       </p>
 
       {/* Actions */}
@@ -517,6 +615,17 @@ function SettingRow({
   const current = pending ?? option.value;
   const changed = pending !== undefined && String(pending) !== String(option.value);
 
+  // The game's own names for this key's values, offered as a dropdown — but only
+  // when the value on disk is one of them. A select cannot represent a value it
+  // has no option for, so on an unrecognised one it would silently rewrite the
+  // setting to whichever option happens to be first, which is a worse failure
+  // than the free-text box it replaces.
+  const values = option.help?.values;
+  const enumChoices =
+    values && Object.prototype.hasOwnProperty.call(values, String(current))
+      ? Object.entries(values)
+      : null;
+
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
       <div style={{ flex: 1, minWidth: 0 }}>
@@ -537,6 +646,29 @@ function SettingRow({
             {option.isSet ? 'Set. Leave blank to keep it.' : 'Not set.'}
           </div>
         )}
+        {/* What this key does, in Pocketpair's words. Absent on 19 of the 119 —
+            they document those nowhere and the game's settings screen does not
+            name them, so nothing renders rather than an empty line. A generated
+            sentence would look exactly like the 93 real ones. */}
+        {option.help?.description && (
+          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+            {option.help.description}
+          </div>
+        )}
+        {/* Tagged separately because it is a different kind of claim: something
+            this project measured, not something Pocketpair published. Presenting
+            them identically would launder the second into the first. */}
+        {option.help?.note && (
+          <div
+            style={{
+              fontSize: 11, color: 'var(--accent-amber)', marginTop: 3,
+              display: 'flex', gap: 5, alignItems: 'flex-start',
+            }}
+          >
+            <Info size={11} style={{ flexShrink: 0, marginTop: 2 }} />
+            <span>{option.help.note}</span>
+          </div>
+        )}
       </div>
 
       {option.type === 'bool' ? (
@@ -548,6 +680,26 @@ function SettingRow({
         >
           <option value="true">True</option>
           <option value="false">False</option>
+        </select>
+      ) : enumChoices ? (
+        // An enum whose values the game itself names. `DeathPenalty` was a free
+        // text field, so setting it meant knowing that the string
+        // `EquipmentAndItemAndRandomPal` exists and is spelled that way — and a
+        // typo is accepted by the file and ignored by the game.
+        //
+        // **Only when the current value is one of them.** A server holding a
+        // value we do not recognise — a newer game, a hand edit — must not have
+        // it silently rewritten to the first option by a select that cannot
+        // represent it. That falls through to the text input below.
+        <select
+          className="select"
+          style={{ width: 260 }}
+          value={String(current)}
+          onChange={(e) => onChange(e.target.value)}
+        >
+          {enumChoices.map(([value, label]) => (
+            <option key={value} value={value}>{label}</option>
+          ))}
         </select>
       ) : (
         <input

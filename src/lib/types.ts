@@ -1206,6 +1206,30 @@ export interface IniOption {
    * the next restart, so the `.env` file is the real place to change it.
    */
   envManaged?: string;
+  /**
+   * What this key does. **Absent for 19 of the 119** — Pocketpair does not
+   * document them and the game's own settings screen does not name them, so
+   * there is nothing to show. Render nothing rather than a heading with no body.
+   *
+   * Every string travels with its source because the three carry different
+   * authority: `official` is Pocketpair's documentation, `game` is a string out
+   * of the game's own UI, and `dashboard` is something this project measured.
+   * Do not present them identically.
+   */
+  help?: {
+    description?: string;
+    descriptionSource?: 'official' | 'game' | 'dashboard';
+    label?: string;
+    labelSource?: 'official' | 'game' | 'dashboard';
+    note?: string;
+    noteSource?: 'official' | 'game' | 'dashboard';
+    /**
+     * The game's own names for this key's values, e.g. `DeathPenalty.All` ->
+     * "Drop all items and all Pals on team". Worth more than the key's own
+     * description: nothing about `EquipmentAndItemAndRandomPal` is self-evident.
+     */
+    values?: Record<string, string>;
+  };
 }
 
 export interface IniSettings {
@@ -1215,6 +1239,19 @@ export interface IniSettings {
   count: number;
   presets: SettingsPreset[];
   groups: { label: string; keys: string[] }[];
+  /**
+   * How much of the file is explained, and by whom. Shown rather than hidden:
+   * "Pocketpair does not document these 19" is a fact about their docs, and an
+   * operator hunting a missing tooltip should learn that instead of assuming
+   * the dashboard is broken.
+   */
+  helpCoverage?: {
+    iniKeys: number | null;
+    documented: number | null;
+    labelled: number | null;
+    undocumented: string[];
+    sources: Record<string, { name?: string; url?: string }>;
+  };
   serverRunning: boolean;
   restartRequiredForAll: boolean;
   /**
