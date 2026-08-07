@@ -1352,6 +1352,31 @@ eligibility rule, not a speed bonus, and
 `TransportItemAbsorbRangeByWorkSuitabilityRank` is **0 below rank 4**. A bare
 integer hides all of it.
 
+`backend/workrank.py` reads it and `optimise.work_level` attaches it to every
+row, so the ranking tables show what a level buys rather than the level alone.
+Two things travel with it and both matter:
+
+- **THE GAME STATES THE CURVE FOR THREE WORK TYPES, NOT ALL OF THEM.**
+  Collection, Deforest and Mining each carry their own copy and all three are
+  *identical*; every other work type's data is inside
+  `WorkSuitabilityDefineDataMap`, which decodes as an opaque
+  `<MapProperty 1361B>`. Three identical copies is good evidence the curve is
+  shared and it is not the game saying so, so `stated: false` travels on the
+  rest. A test asserts the three still agree — if they ever diverge, reading the
+  first one becomes wrong and that is what catches it.
+- **The material gate is eligibility, not speed, and is kept out of the sort.** A
+  rank-2 miner cannot touch Iron at any speed. Level still orders the ranking
+  tables for exactly that reason: speed cannot substitute for a level a Pal does
+  not have.
+
+**And `editschema`'s docstring kept the retracted claim after AGENTS.md dropped
+it.** This section was corrected when the constant was found; the validator went
+on saying "NO MAXIMUM IS ENFORCED, and that is measured rather than lazy" and
+citing the DataTable sweep. A correction that lands in the prose and not in the
+code is half a correction — the bound is now read from
+`gamedata.game_setting("WorkSuitabilityMaxRank")`, never a literal, and an
+unreadable bundle drops the bound rather than guessing one.
+
 The *minimum* is real: rank 0 appears on none of the 39, so a zero is
 `parser._num`'s default rather than a value the game stores.
 

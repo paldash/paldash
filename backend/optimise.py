@@ -54,6 +54,7 @@ from typing import Any, Optional
 import elements
 import gamedata
 import palstats
+import workrank
 
 # How many rows a ranking returns unless asked otherwise. A palbox holds 960 and
 # nobody reads past the top of a list they asked to be sorted.
@@ -105,7 +106,27 @@ def work_level(pal: dict[str, Any], work_id: str) -> dict[str, Any]:
     # common case — most Pals have never had a rank bought. None and {} mean the
     # same thing here, so both read as zero.
     bought = int((pal.get("workRanks") or {}).get(work_id) or 0)
-    return {"base": base, "bought": bought, "level": base + bought}
+    out = {"base": base, "bought": bought, "level": base + bought}
+
+    # **What the level actually buys.** The game's own `CraftSpeeds` curve is not
+    # linear — rank 3 is 100 and rank 10 is 1000 — so a bare integer hid a
+    # tenfold difference in every row of this table. `stated` travels with it
+    # because the game gives only three work types their own copy of the curve
+    # and the rest are assumed to share it; the client must be able to tell.
+    #
+    # NOT folded into the sort. Level still orders this table, for the reason
+    # below: speed cannot substitute for a level a Pal does not have, and the
+    # material gate makes that literal — a rank-2 miner cannot touch Iron at any
+    # speed. `test_matchup_never_enters_the_ordering`'s sibling logic.
+    detail = workrank.describe(work_id, out["level"])
+    if detail:
+        out["speed"] = detail["speed"]
+        out["relativeToRank3"] = detail["relativeToRank3"]
+        out["curveStated"] = detail["stated"]
+        for key in ("material", "materialGated", "dropRate", "pickupDisabled"):
+            if key in detail:
+                out[key] = detail[key]
+    return out
 
 
 def rank_for_work(
