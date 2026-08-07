@@ -1619,6 +1619,18 @@ def passive_effects(passive_id: str) -> Optional[dict[str, Any]]:
     return _passive_effects.get(str(passive_id or "").lower())
 
 
+def passive_effects_all() -> dict[str, Any]:
+    """
+    The whole bundle, for callers that sweep it rather than look one up.
+
+    Only `passiveeffects.unclassified()` needs this — it asks "is there an effect
+    type no rule covers", which cannot be answered one id at a time. Returned by
+    reference like every other cached value here; callers must not mutate it.
+    """
+    passive_effects("")  # Load through the one path that handles a missing file.
+    return _passive_effects or {}
+
+
 def effigy_kind_name(kind: str) -> str:
     """
     A blueprint class like `BP_LevelObject_Relic_SheepBall` -> "Lamball Effigy".
