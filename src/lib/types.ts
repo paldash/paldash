@@ -423,6 +423,12 @@ export interface DiscoveryPoint {
   guid?: string;
   kind?: string;
   /**
+   * Effigies only — the game's own relic artwork for this kind, served by
+   * `gamedata.effigy_kind_icon`. Empty string when it does not resolve, which
+   * the map treats as "draw the shape", exactly as all 396 were drawn before.
+   */
+  icon?: string;
+  /**
    * The kind in words — "Lamball Effigy", not `BP_LevelObject_Relic_SheepBall`.
    *
    * Resolved by the backend rather than prettified here, because the suffix is

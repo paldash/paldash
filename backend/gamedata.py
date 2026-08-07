@@ -693,7 +693,13 @@ def effigies() -> list[dict[str, Any]]:
         _effigies = []
 
     for effigy in _effigies:
-        effigy["kindName"] = effigy_kind_name(str(effigy.get("kind") or ""))
+        kind = str(effigy.get("kind") or "")
+        effigy["kindName"] = effigy_kind_name(kind)
+        # The game's own relic artwork. Served rather than mapped in the client,
+        # which kept a hardcoded nine-entry table that covered nine of eleven
+        # kinds — leaving the two unsuffixed ones, **155 of the 396**, drawn as
+        # a bare shape. See `effigy_kind_icon`.
+        effigy["icon"] = effigy_kind_icon(kind)
     return _effigies
 
 
