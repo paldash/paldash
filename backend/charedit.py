@@ -341,7 +341,47 @@ def _struct_entry_work_type(entry: dict) -> str:
     return str(_v(entry, "WorkSuitability", "value", "value") or "").split("::")[-1]
 
 
-def _write_work_ranks(obj: dict, prop: str, ranks: dict) -> None:
+def find_work_rank_donor(gvas: Any, prop: str) -> Optional[dict]:
+    """
+    Any Pal in this save that carries `GotWorkSuitabilityAddRankList`, or None.
+
+    **The old rule demanded the template come from the SAME Pal, and that was
+    stricter than the reason for it.** The reason — never construct a shape — is
+    right and unchanged. But dumped from a real world, nothing in this node is
+    Pal-specific:
+
+        array_type: "StructProperty"
+        type_name:  "PalWorkSuitabilityInfo"
+        id:         "00000000-0000-0000-0000-000000000000"   <- all zeros
+        values:     [{WorkSuitability: EnumProperty, Rank: IntProperty}]
+
+    No `CustomVersionData`, no instance guid, no `permission_tribe_id` — none of
+    what makes `palclone` demand a same-species template. Two Pals' entries
+    differ only in the enum value and the integer, both of which are overwritten.
+    So the donor may be any Pal in the same save, which is the difference between
+    "you can only edit a Pal that already has one" and "you can edit any Pal, as
+    long as somebody on this server has ever spent a handbook".
+
+    Returns the whole property node, deep-copied by the caller. Scans in save
+    order and stops at the first hit — on the live world 738 of 2,963 Pals carry
+    it, so this is a short walk in practice and it runs once per apply.
+    """
+    for entry in _character_entries(gvas):
+        obj = _save_parameter(entry)
+        if not isinstance(obj, dict) or prop not in obj:
+            continue
+        container = _v(obj, prop, "value")
+        if not isinstance(container, dict):
+            continue
+        values = [e for e in (container.get("values") or []) if isinstance(e, dict)]
+        if values:
+            return obj[prop]
+    return None
+
+
+def _write_work_ranks(
+    obj: dict, prop: str, ranks: dict, donor: Optional[dict] = None
+) -> None:
     """
     Rewrite `GotWorkSuitabilityAddRankList` — the work ranks bought with Pal Souls.
 
@@ -350,18 +390,29 @@ def _write_work_ranks(obj: dict, prop: str, ranks: dict) -> None:
     `str()` on every value. A struct stringified still serialises and is silently
     wrong.
 
-    THREE THINGS THIS DOES NOT DO, each measured rather than assumed. Across
+    TWO THINGS THIS DOES NOT DO, each measured rather than assumed. Across
     refworld, the live world and a 07-29 snapshot, 39 Pals carry the property:
 
-    - **It does not create it.** No property means no `array_type` to preserve
-      *and* no struct to copy — the only two things a new entry would need.
     - **It does not construct an entry.** A new work type deep-copies an existing
-      entry from this same Pal and overwrites its two fields, which is
-      `palclone`'s rule: the right `CustomVersionData` and struct metadata are
-      whatever this save already uses.
+      one and overwrites its two fields, which is `palclone`'s rule: the right
+      `CustomVersionData` and struct metadata are whatever this save already uses.
     - **It does not invent the enum prefix.** That is taken from the template's
       own value string, so a game update that renames `EPalWorkSuitability::`
       carries through instead of producing entries the game ignores.
+
+    **THE THIRD USED TO BE "IT DOES NOT CREATE IT", AND THAT WAS STRICTER THAN
+    ITS OWN REASON.** The reason is *never construct a shape*, and it is intact —
+    what changed is where the shape may come from. A work-rank node carries no
+    `CustomVersionData`, no instance guid and an all-zero `id`; two Pals' entries
+    differ only in the enum and the integer, and both of those get overwritten.
+    So any Pal in the same save is as good a template as this one, and the rule
+    the old refusal actually enforced was "you may only edit a Pal that already
+    has a rank" — which is not a safety property, just a smaller feature. See
+    `find_work_rank_donor`.
+
+    That correction settles the empty-array case the same way, and it has to:
+    an *absent* property carries strictly less information than a present but
+    empty one, so refusing the second while accepting the first is backwards.
 
     Every one of those 39 Pals carries **exactly one entry**, so a multi-entry
     list is plausible but unobserved. Adding a second type is allowed — the array
@@ -369,11 +420,14 @@ def _write_work_ranks(obj: dict, prop: str, ranks: dict) -> None:
     it is worth knowing that it is untested against the game.
     """
     if prop not in obj:
-        raise EditError(
-            f"This Pal has no {prop!r} stored, so there is no entry to copy and no "
-            "array type to preserve. It appears once a Pal Soul has been spent on "
-            "this Pal — creating it would mean guessing both."
-        )
+        if donor is None:
+            raise EditError(
+                f"No Pal on this server carries {prop!r}, so there is no array "
+                "type or struct shape to copy. It appears the first time anyone "
+                "spends a work handbook — do that on any Pal and this becomes "
+                "editable for all of them."
+            )
+        obj[prop] = copy.deepcopy(donor)
 
     node = obj[prop]
     container = node.get("value") if isinstance(node, dict) else None
@@ -381,10 +435,18 @@ def _write_work_ranks(obj: dict, prop: str, ranks: dict) -> None:
         raise EditError(f"{prop!r} is not in the expected array-property shape")
 
     entries = [e for e in (container.get("values") or []) if isinstance(e, dict)]
+    if not entries and donor is not None:
+        # Present but empty: the `array_type` here is already right, and the
+        # donor supplies the one thing missing. Take only its entries so this
+        # Pal's own array metadata is preserved rather than replaced.
+        donated = ((donor.get("value") or {}).get("values") or []) \
+            if isinstance(donor, dict) else []
+        entries = [copy.deepcopy(e) for e in donated if isinstance(e, dict)]
     if not entries:
         raise EditError(
-            f"{prop!r} is present but empty, so there is no entry to copy the "
-            "struct shape from."
+            f"{prop!r} is present but empty and no Pal on this server has an "
+            "entry to copy the struct shape from. It appears the first time "
+            "anyone spends a work handbook."
         )
 
     # The prefix as this save spells it, not as this file remembers it.
@@ -424,7 +486,7 @@ def _clear_property(obj: dict, prop: str) -> None:
     obj.pop(prop, None)
 
 
-def _apply_pal_change(obj: dict, change: dict) -> None:
+def _apply_pal_change(obj: dict, change: dict, donor: Optional[dict] = None) -> None:
     """
     Write one planned Pal change into the save tree.
 
@@ -440,7 +502,9 @@ def _apply_pal_change(obj: dict, change: dict) -> None:
     elif field in PAL_UID_LIST_PROPERTY:
         _write_uid_list(obj, PAL_UID_LIST_PROPERTY[field], change["after"] or [])
     elif field in PAL_STRUCT_MAP_PROPERTY:
-        _write_work_ranks(obj, PAL_STRUCT_MAP_PROPERTY[field], change["after"] or {})
+        _write_work_ranks(
+            obj, PAL_STRUCT_MAP_PROPERTY[field], change["after"] or {}, donor
+        )
     else:
         _write_property(obj, PAL_PROPERTY_MAP[field], change["after"])
 
@@ -689,10 +753,16 @@ def apply_pal_batch(
         if not plan["pals"]:
             raise EditError("Nothing to change — every selected Pal already has those values")
 
+        # Scanned once for the whole batch rather than per Pal: the shape is
+        # save-wide, and a 200-Pal bulk edit would otherwise walk 2,963
+        # characters 200 times. Looked up unconditionally — cheap, and making it
+        # conditional on "does any change touch work ranks" is a second place to
+        # get the field list wrong.
+        donor = find_work_rank_donor(gvas, PAL_STRUCT_MAP_PROPERTY["workRanks"])
         for entry in plan["pals"]:
             obj = found[entry["instanceId"]]
             for change in entry["changes"]:
-                _apply_pal_change(obj, change)
+                _apply_pal_change(obj, change, donor)
 
         encoded = compress_gvas_to_sav(gvas.write(PALWORLD_CUSTOM_PROPERTIES), save_type)
         atomic_write(level_path, encoded)
@@ -907,8 +977,9 @@ def apply_pal_edit(
                 "matches what you approved. Preview it again."
             )
 
+        donor = find_work_rank_donor(gvas, PAL_STRUCT_MAP_PROPERTY["workRanks"])
         for change in plan["changes"]:
-            _apply_pal_change(obj, change)
+            _apply_pal_change(obj, change, donor)
 
         encoded = compress_gvas_to_sav(gvas.write(PALWORLD_CUSTOM_PROPERTIES), save_type)
         atomic_write(level_path, encoded)

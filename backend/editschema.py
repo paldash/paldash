@@ -489,10 +489,12 @@ PAL_FIELDS: dict[str, Field] = {
         "workRanks", "map", label="Bought work ranks",
         validator=_work_ranks_problem,
         note="Work suitability bought with Pal Souls, on top of what the species "
-             "has naturally. Editable only on a Pal that already has some — 39 of "
-             "three real worlds' Pals do — because a new entry is deep-copied from "
-             "an existing one rather than constructed. Removing a work type from "
-             "the map deletes its bought rank.",
+             "has naturally, capped at the game's own WorkSuitabilityMaxRank of "
+             "10. A new entry is deep-copied from an existing one rather than "
+             "constructed — but the template may come from ANY Pal on this "
+             "server, so this is editable as soon as anyone has ever spent a "
+             "handbook, not only on Pals that already have a rank. Removing a "
+             "work type from the map deletes its bought rank.",
     ),
     "masteredSkills": Field(
         "masteredSkills", "list", label="Learned moves",

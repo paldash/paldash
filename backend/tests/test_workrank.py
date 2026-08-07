@@ -163,3 +163,137 @@ def test_a_rank_beyond_the_curve_is_clamped_not_an_index_error():
     described = workrank.describe("Mining", 99)
     assert described["rank"] == 10
     assert described["speed"] == 1000
+
+
+# ─── Creation: the refusal was stricter than its own reason ───
+
+
+def _work_node(work: str = "Mining", rank: int = 2) -> dict:
+    """
+    The shape as a real save carries it.
+
+    Note the all-zero `id`: that is the observed value, and it is the evidence
+    that nothing here identifies a particular Pal.
+    """
+    return {
+        "array_type": "StructProperty",
+        "id": "00000000-0000-0000-0000-000000000000",
+        "value": {"values": [
+            {"WorkSuitability": {"value": {"value": f"EPalWorkSuitability::{work}"}},
+             "Rank": {"value": rank}},
+        ]},
+    }
+
+
+def _values(obj: dict) -> list[dict]:
+    return obj["GotWorkSuitabilityAddRankList"]["value"]["values"]
+
+
+def test_a_pal_that_already_has_the_property_is_unaffected():
+    import charedit
+
+    pal = {"GotWorkSuitabilityAddRankList": _work_node()}
+    charedit._write_work_ranks(pal, "GotWorkSuitabilityAddRankList", {"Mining": 5})
+    assert _values(pal)[0]["Rank"]["value"] == 5
+
+
+def test_the_template_may_come_from_ANOTHER_PAL_IN_THE_SAME_SAVE():
+    """
+    **The old rule demanded the same Pal, which is stricter than its reason.**
+    The reason — never construct a shape — is unchanged. But the node carries no
+    `CustomVersionData`, no instance guid and an all-zero `id`: two Pals' entries
+    differ only in the enum and the integer, both of which get overwritten.
+
+    So the practical difference is "you can only edit a Pal that already has a
+    rank" versus "you can edit any Pal, once anyone on the server has spent a
+    handbook" — and handbooks are per work category, so the second is what an
+    operator actually has.
+    """
+    import charedit
+
+    pal: dict = {}
+    charedit._write_work_ranks(
+        pal, "GotWorkSuitabilityAddRankList", {"Watering": 3}, _work_node()
+    )
+    entry = _values(pal)[0]
+    assert entry["WorkSuitability"]["value"]["value"] == "EPalWorkSuitability::Watering"
+    assert entry["Rank"]["value"] == 3
+    # The array metadata came from the donor rather than being invented, which
+    # is the whole point — an ArrayProperty with a guessed `array_type`
+    # serialises and is silently wrong.
+    assert pal["GotWorkSuitabilityAddRankList"]["array_type"] == "StructProperty"
+
+
+def test_with_NO_donor_anywhere_it_still_refuses():
+    """
+    The genuine "nothing to copy" case, and it must stay a refusal. The message
+    has to be actionable: the operator's move is to spend one handbook on any
+    Pal, not to give up.
+    """
+    import charedit
+
+    with pytest.raises(charedit.EditError) as excinfo:
+        charedit._write_work_ranks({}, "GotWorkSuitabilityAddRankList", {"Mining": 1})
+    message = str(excinfo.value)
+    assert "No Pal on this server" in message
+    assert "handbook" in message
+
+
+def test_the_donor_is_not_mutated_by_writing_into_the_recipient():
+    """
+    A shallow copy here would edit the Pal we borrowed from — silently, and on a
+    Pal the operator never named. That is the worst available outcome for a
+    feature whose whole safety argument is "we only copy".
+    """
+    import charedit
+
+    donor = _work_node("Mining", 2)
+    charedit._write_work_ranks(
+        {}, "GotWorkSuitabilityAddRankList", {"Watering": 9}, donor
+    )
+    assert donor["value"]["values"][0]["Rank"]["value"] == 2
+    assert (
+        donor["value"]["values"][0]["WorkSuitability"]["value"]["value"]
+        == "EPalWorkSuitability::Mining"
+    )
+
+
+def test_the_donor_scan_finds_one_and_skips_empty_lists():
+    """
+    A Pal carrying the property with an EMPTY array is not a donor — there is no
+    struct to copy out of it, which is the same distinction the writer already
+    made for the same-Pal case.
+    """
+    import charedit
+
+    def entry(obj):
+        return {"value": {"RawData": {"value": {"object": {"SaveParameter": {"value": obj}}}}}}
+
+    from types import SimpleNamespace
+
+    gvas = SimpleNamespace(properties={"worldSaveData": {"value": {
+        "CharacterSaveParameterMap": {"value": [
+            entry({}),
+            entry({"GotWorkSuitabilityAddRankList": {
+                "array_type": "StructProperty", "value": {"values": []}}}),
+            entry({"GotWorkSuitabilityAddRankList": _work_node("Handcraft", 4)}),
+        ]},
+    }}})
+
+    found = charedit.find_work_rank_donor(gvas, "GotWorkSuitabilityAddRankList")
+    assert found is not None
+    assert found["value"]["values"][0]["Rank"]["value"] == 4
+
+
+def test_the_donor_scan_returns_None_on_a_save_with_none():
+    import charedit
+
+    def entry(obj):
+        return {"value": {"RawData": {"value": {"object": {"SaveParameter": {"value": obj}}}}}}
+
+    from types import SimpleNamespace
+
+    gvas = SimpleNamespace(properties={"worldSaveData": {"value": {
+        "CharacterSaveParameterMap": {"value": [entry({}), entry({})]},
+    }}})
+    assert charedit.find_work_rank_donor(gvas, "GotWorkSuitabilityAddRankList") is None
