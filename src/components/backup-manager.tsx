@@ -251,7 +251,7 @@ export default function BackupManager() {
             </div>
           )}
 
-          <div style={{ maxHeight: 200, overflowY: 'auto', marginBottom: 10 }}>
+          <div style={{ maxHeight: 200, overflowY: 'auto', overflowX: 'auto', marginBottom: 10 }}>
             <table className="table">
               <tbody>
                 {preview.changes

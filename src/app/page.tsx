@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Archive, BookOpen, Building2, Egg, Eye, Lock, LogIn, LogOut, Map, Monitor, Package, PawPrint, RefreshCw, ScrollText, Server, Shield, ShieldCheck, Sliders, Trophy, Unlock, UserCircle, UserCog, Users, Wrench } from 'lucide-react';
+import { Archive, BookOpen, Building2, Egg, Eye, Lock, LogIn, LogOut, Map, Menu, Monitor, Package, PawPrint, RefreshCw, ScrollText, Server, Shield, ShieldCheck, Sliders, Trophy, Unlock, UserCircle, UserCog, Users, Wrench } from 'lucide-react';
 import { useDashboardStore } from '@/lib/store';
 import {
   getServerInfo, getServerMetrics, getPlayers,
@@ -87,6 +87,9 @@ export default function Home() {
   const [availability, setAvailability] = useState({ anyUsers: true, guestAvailable: true });
   const [refreshing, setRefreshing] = useState(false);
   const [refreshNote, setRefreshNote] = useState<string | null>(null);
+  // Drawer state. Meaningless above the 900px breakpoint, where CSS pins the
+  // sidebar open and ignores the class entirely.
+  const [navOpen, setNavOpen] = useState(false);
 
   // Zustand's hook returns a new object each render; using it directly as an
   // effect dependency would restart polling on every tick.
@@ -325,18 +328,20 @@ export default function Home() {
     : 'overview';
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh' }}>
-      <aside
-        style={{
-          width: 210,
-          padding: '14px 10px',
-          borderRight: '1px solid var(--border-primary)',
-          background: 'var(--bg-secondary)',
-          display: 'flex',
-          flexDirection: 'column',
-          flexShrink: 0,
-        }}
-      >
+    <div className="app-shell">
+      {/* Rendered on every viewport and hidden by CSS above 900px. Mounting it
+          conditionally would need a width check in JS, and this page is
+          server-rendered — the server does not know the viewport, so that is a
+          hydration mismatch on the first paint of the device least able to
+          absorb one. */}
+      <button
+        type="button"
+        className={`app-scrim ${navOpen ? 'open' : ''}`}
+        aria-label="Close navigation"
+        tabIndex={navOpen ? 0 : -1}
+        onClick={() => setNavOpen(false)}
+      />
+      <aside className={`app-sidebar ${navOpen ? 'open' : ''}`}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '4px 8px 16px' }}>
           <Server size={17} style={{ color: 'var(--accent)' }} />
           <div style={{ fontSize: 14, fontWeight: 600 }}>Palworld</div>
@@ -370,7 +375,13 @@ export default function Home() {
             <button
               key={tab.id}
               className={`sidebar-btn ${activeTab === tab.id ? 'active' : ''}`}
-              onClick={() => store.setActiveTab(tab.id)}
+              onClick={() => {
+                store.setActiveTab(tab.id);
+                // A drawer that stays open after you have chosen covers the
+                // thing you chose. Unconditional because above the breakpoint
+                // `navOpen` is not read by anything.
+                setNavOpen(false);
+              }}
             >
               {tab.icon}
               <span>{tab.label}</span>
@@ -399,9 +410,31 @@ export default function Home() {
         </div>
       </aside>
 
-      <main style={{ flex: 1, padding: 20, overflow: 'auto', minHeight: '100vh' }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 18 }}>
-          <div>
+      <main
+        className="app-main"
+        // `minWidth: 0` is the one that matters and is easy to leave out: a flex
+        // child's default `min-width: auto` refuses to shrink below its content,
+        // so one wide table inside pushed the whole page sideways instead of
+        // scrolling within itself.
+        style={{ flex: 1, minWidth: 0, padding: 20, overflow: 'auto', minHeight: '100vh' }}
+      >
+        <div
+          style={{
+            display: 'flex', alignItems: 'baseline',
+            justifyContent: 'space-between', marginBottom: 18, gap: 10,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+            <button
+              type="button"
+              className="btn btn-ghost nav-toggle"
+              aria-label="Open navigation"
+              aria-expanded={navOpen}
+              onClick={() => setNavOpen(true)}
+            >
+              <Menu size={17} />
+            </button>
+            <div style={{ minWidth: 0 }}>
             <h1 style={{ fontSize: 18, fontWeight: 600 }}>
               {visibleTabs.find((t) => t.id === activeTab)?.label}
             </h1>
@@ -410,8 +443,12 @@ export default function Home() {
                 {store.serverInfo.servername}
               </p>
             )}
+            </div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {/* Wraps rather than overflowing: these badges are the whole reason
+              an operator opens this on a phone — "is it up" — so they must not
+              be the thing pushed off the right edge. */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
             {!store.backendOnline && (
               <span className="badge badge-warning">Save backend offline</span>
             )}

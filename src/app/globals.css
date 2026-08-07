@@ -122,7 +122,84 @@ html, body {
 /* Kept so existing markup does not break; now a no-op. */
 .gradient-text { color: var(--text-primary); }
 
-/* ─── Sidebar ────────────────────────────────────────── */
+/* ─── Sidebar ──────────────────────────────────────────
+ *
+ * THE NAV WAS A FIXED 210px COLUMN WITH `flexShrink: 0`, and that is the whole
+ * mobile story. On a 390px phone it left **180px** for every tab's content —
+ * the map, the tables, the settings forms — which is not a layout problem so
+ * much as an unusable app. The task expected a sixteen-tab bar overflowing;
+ * there is no tab bar, and checking first is what found that.
+ *
+ * Off-canvas below 900px rather than at 640: a 720px tablet in portrait has the
+ * same problem in a milder form, and 210 of 768 is still a quarter of the screen
+ * spent on navigation.
+ *
+ * **The breakpoint is CSS, never `window.innerWidth`.** This page is
+ * server-rendered, the server does not know the viewport, and a JS width check
+ * would render the desktop tree and then rearrange it — a hydration mismatch on
+ * the very first paint, on the device least able to hide it.
+ */
+.app-shell { display: flex; min-height: 100vh; }
+
+.app-sidebar {
+  width: 210px;
+  flex-shrink: 0;
+  padding: 14px 10px;
+  border-right: 1px solid var(--border-primary);
+  background: var(--bg-secondary);
+  display: flex;
+  flex-direction: column;
+}
+
+/* The scrim and the toggle exist only under the breakpoint. Rendered always and
+ * hidden here, so opening the drawer is a class toggle rather than a mount —
+ * a mounting scrim cannot animate in and flashes on slow devices. */
+.nav-toggle { display: none; }
+.app-scrim { display: none; }
+
+@media (max-width: 900px) {
+  .app-sidebar {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 900;
+    overflow-y: auto;
+    transform: translateX(-100%);
+    transition: transform 0.18s ease-out;
+    box-shadow: 2px 0 16px rgba(0, 0, 0, 0.4);
+  }
+  .app-sidebar.open { transform: none; }
+
+  .app-scrim {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 899;
+    background: rgba(0, 0, 0, 0.5);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.18s ease-out;
+    border: 0;
+    padding: 0;
+  }
+  .app-scrim.open { opacity: 1; pointer-events: auto; }
+
+  .nav-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    /* 40px, because a tap target smaller than about 44 is a miss on a phone and
+     * this is the control every other control is behind. */
+    min-width: 40px;
+    min-height: 40px;
+    flex-shrink: 0;
+  }
+
+  /* 20px of padding either side is 10% of a 390px screen. */
+  .app-main { padding: 14px 12px !important; }
+}
+
 .sidebar-btn {
   display: flex;
   align-items: center;
@@ -213,6 +290,16 @@ html, body {
   transition: border-color 0.12s ease;
   width: 100%;
   outline: none;
+  /* Roughly thirty call sites set an inline pixel width — `width: 250` on a
+   * filter box, `width: 380` on a message field. An inline style beats a
+   * stylesheet rule, so those survive; `max-width` does not compete with
+   * `width` and caps them anyway. One rule instead of thirty edits, and a new
+   * fixed-width control added tomorrow is covered without anyone remembering.
+   *
+   * `box-sizing` is what makes the cap honest: with the default `content-box`,
+   * `max-width: 100%` still overflows its parent by the padding and border. */
+  max-width: 100%;
+  box-sizing: border-box;
 }
 .input:focus, .select:focus { border-color: var(--accent); }
 .input::placeholder { color: var(--text-muted); }
