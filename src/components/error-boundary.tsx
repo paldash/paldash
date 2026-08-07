@@ -47,13 +47,27 @@ export default class ErrorBoundary extends Component<
     console.error('[dashboard] tab error', error, stack);
   }
 
-  componentDidUpdate(prev: { children: ReactNode }) {
-    // Switching tabs swaps the children, which is the user's way of saying
-    // "try something else" — so clear the error rather than pinning them to it.
-    if (prev.children !== this.props.children && this.state.error) {
-      this.setState({ error: null, where: '' });
-    }
-  }
+  /*
+   * **THERE IS NO `componentDidUpdate` HERE ANY MORE, AND THAT WAS THE BUG.**
+   *
+   * It used to clear the error whenever `children` changed identity, reasoning
+   * that a tab switch is the user saying "try something else". But JSX builds a
+   * NEW element object on every parent render, so `prev.children !==
+   * this.props.children` is true every single time — and `page.tsx` re-renders
+   * every 5 seconds from the live-player poller.
+   *
+   * The result was a loop: poller fires -> parent re-renders -> boundary clears
+   * the error -> children re-render -> throw -> boundary catches -> poller
+   * fires again. On screen that is the tab flashing between an empty panel and
+   * the error message, twice a second, which reads as "the fix did nothing"
+   * rather than as a second bug sitting on top of the first. It also made the
+   * message impossible to read long enough to act on.
+   *
+   * `page.tsx` already mounts this with `key={activeTab}`, so a tab switch
+   * remounts it and clears the state for free. The retry button covers the
+   * manual case. Nothing was needed here.
+   */
+
 
   render() {
     const { error } = this.state;
