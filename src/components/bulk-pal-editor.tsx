@@ -6,6 +6,7 @@ import {
   getEditSchema, getPals, previewBulkPalEdit, applyBulkPalEdit, type PalRecord,
 } from '@/lib/save-api';
 import type { EditSchema, BulkEditPlan } from '@/lib/types';
+import { asArray } from '@/lib/arrays';
 
 /** Fields worth offering across many Pals at once. */
 const BULK_FIELDS = ['level', 'rank', 'ivs.hp', 'ivs.shot', 'ivs.defense'] as const;
@@ -71,7 +72,7 @@ export default function BulkPalEditor({ canEdit }: { canEdit: boolean }) {
   }, [pals, search]);
 
   const offered = useMemo(
-    () => (schema?.fields ?? []).filter((f) => (BULK_FIELDS as readonly string[]).includes(f.name)),
+    () => asArray(schema?.fields, 'bulk schema fields').filter((f) => (BULK_FIELDS as readonly string[]).includes(f.name)),
     [schema]
   );
 

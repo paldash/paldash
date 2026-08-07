@@ -9,6 +9,7 @@ import GameIcon from '@/components/game-icon';
 import PalOptimiser from '@/components/pal-optimiser';
 import PalWelfare from '@/components/pal-welfare';
 import { getWorkTypes, orderedWork, type WorkType } from '@/lib/work-types';
+import { asArray } from '@/lib/arrays';
 
 /**
  * A player's own Pals, as a table you can actually work with.
@@ -114,7 +115,12 @@ export default function MyPals() {
     setLoading(true);
     setError(null);
     try {
-      setPals(await getPals());
+      // **Guarded at the source, because `pals` is ITERATED, not mapped.**
+      // A non-array here throws "pals is not iterable" out of the `options`
+      // memo — before any `.map` is reached — and takes the whole tab with it.
+      // `getPals` is typed `PalRecord[]`; that is a claim about a server which
+      // may be a container rebuild behind this page.
+      setPals(asArray(await getPals(), 'pals'));
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not load your Pals');
     } finally {
@@ -137,8 +143,8 @@ export default function MyPals() {
     const elements = new Set<string>();
     const passives = new Set<string>();
     for (const pal of pals) {
-      (pal.elements ?? []).forEach((e) => elements.add(e));
-      (pal.passiveSkillNames ?? []).forEach((p) => passives.add(p));
+      asArray(pal.elements, 'pal elements').forEach((e) => elements.add(e));
+      asArray(pal.passiveSkillNames, 'pal passives').forEach((p) => passives.add(p));
     }
     return {
       elements: [...elements].sort(),
@@ -184,10 +190,10 @@ export default function MyPals() {
         !(p.speciesId ?? '').toLowerCase().includes(q)) return false;
       if (p.level < minLevel) return false;
       if (gender && p.gender !== gender) return false;
-      if (element && !(p.elements ?? []).includes(element)) return false;
+      if (element && !asArray(p.elements, 'pal elements').includes(element)) return false;
       if (minRank && (p.rank ?? 1) < minRank) return false;
       if (minIv && Math.max(iv(p, 'hp'), iv(p, 'attack'), iv(p, 'defense')) < minIv) return false;
-      if (passive && !(p.passiveSkillNames ?? []).includes(passive)) return false;
+      if (passive && !asArray(p.passiveSkillNames, 'pal passives').includes(passive)) return false;
       if (work && workLevel(p, work) < minWork) return false;
       if (alphaOnly && !p.isBoss) return false;
       if (where && (p.location ?? 'other') !== where) return false;
@@ -288,7 +294,7 @@ export default function MyPals() {
         <Field label="Element">
           <select className="select" style={{ width: 120 }} value={element} onChange={(e) => setElement(e.target.value)}>
             <option value="">Any</option>
-            {options.elements.map((e) => <option key={e} value={e}>{e}</option>)}
+            {asArray(options.elements, 'element options').map((e) => <option key={e} value={e}>{e}</option>)}
           </select>
         </Field>
 
@@ -307,7 +313,7 @@ export default function MyPals() {
         <Field label="Passive">
           <select className="select" style={{ width: 160 }} value={passive} onChange={(e) => setPassive(e.target.value)}>
             <option value="">Any</option>
-            {options.passives.map((p) => <option key={p} value={p}>{p}</option>)}
+            {asArray(options.passives, 'passive options').map((p) => <option key={p} value={p}>{p}</option>)}
           </select>
         </Field>
 
@@ -395,7 +401,7 @@ export default function MyPals() {
             </tr>
           </thead>
           <tbody>
-            {filtered.slice(0, 500).map((p) => (
+            {asArray(filtered, 'filtered pals').slice(0, 500).map((p) => (
               <tr key={p.instanceId}>
                 <td>
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
@@ -472,7 +478,7 @@ export default function MyPals() {
                   )}
                 </td>
                 <td style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
-                  {(p.passiveSkillNames ?? []).join(', ') || '—'}
+                  {asArray(p.passiveSkillNames, 'pal passives').join(', ') || '—'}
                 </td>
                 {work && <td className="mono">{workLevel(p, work) || '—'}</td>}
                 <td>

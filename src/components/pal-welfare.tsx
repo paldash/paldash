@@ -10,6 +10,7 @@ import {
 } from '@/lib/save-api';
 import type { BulkEditPlan } from '@/lib/types';
 import GameIcon from '@/components/game-icon';
+import { asArray } from '@/lib/arrays';
 
 /**
  * Pals that need attention — sick, starving, injured, or losing their minds.
@@ -126,7 +127,7 @@ export default function PalWelfare({ canEdit }: { canEdit: boolean }) {
    * game clamps an overshoot itself, so erring high costs nothing.
    */
   const feedTo = useMemo(() => {
-    const seen = (report?.pals ?? [])
+    const seen = asArray(report?.pals, 'welfare pals')
       .map((p) => p.fullStomach)
       .filter((v): v is number => typeof v === 'number');
     return seen.length ? Math.ceil(Math.max(...seen)) : 0;
@@ -134,7 +135,7 @@ export default function PalWelfare({ canEdit }: { canEdit: boolean }) {
 
   const idsFor = useCallback(
     (remedy: Remedy) =>
-      (report?.pals ?? [])
+      asArray(report?.pals, 'welfare pals')
         .filter((p) => p.problems.some((problem) => remedy.covers.includes(problem)))
         .map((p) => p.instanceId),
     [report]
@@ -224,7 +225,7 @@ export default function PalWelfare({ canEdit }: { canEdit: boolean }) {
       {report && active.length > 0 && (
         <>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
-            {active.map((p) => (
+            {asArray(active, 'active welfare pals').map((p) => (
               <span
                 key={p.key}
                 style={{
@@ -254,7 +255,7 @@ export default function PalWelfare({ canEdit }: { canEdit: boolean }) {
               permanent without medicine). The game ships all of it. */}
           {(report.illnesses?.length ?? 0) > 0 && (
             <div style={{ marginBottom: 12 }}>
-              {report.illnesses!.map((ill) => (
+              {asArray(report.illnesses, 'illnesses').map((ill) => (
                 <div
                   key={ill.id}
                   title={ill.description}
@@ -344,7 +345,7 @@ export default function PalWelfare({ canEdit }: { canEdit: boolean }) {
                 </>
               ) : (
                 <ul style={{ margin: 0, paddingLeft: 16, color: 'var(--accent-danger, #e5484d)' }}>
-                  {plan.plan.problems.slice(0, 6).map((p, i) => (
+                  {asArray(plan.plan.problems, 'welfare plan problems').slice(0, 6).map((p, i) => (
                     <li key={i}>{p.field ? `${p.field}: ` : ''}{p.problem}</li>
                   ))}
                 </ul>
@@ -353,7 +354,7 @@ export default function PalWelfare({ canEdit }: { canEdit: boolean }) {
           )}
 
           <div style={{ maxHeight: 260, overflowY: 'auto' }}>
-            {report.pals.slice(0, 200).map((pal) => (
+            {asArray(report.pals, 'welfare pals').slice(0, 200).map((pal) => (
               <WelfareRow key={pal.instanceId} pal={pal} />
             ))}
           </div>
@@ -388,7 +389,7 @@ function WelfareRow({ pal }: { pal: PalRecord & { problems: WelfareProblem[] } }
         <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>· {where}</span>
       )}
       <span style={{ marginLeft: 'auto', display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-        {pal.problems.map((problem) => {
+        {asArray(pal.problems, 'welfare problems').map((problem) => {
           const meta = PROBLEMS.find((p) => p.key === problem);
           return (
             <span

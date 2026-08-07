@@ -6,6 +6,7 @@ import {
   previewPalImport, applyPalImport, getPalContainers,
 } from '@/lib/save-api';
 import type { PalContainer, PalImportPlan, IgnoredField } from '@/lib/types';
+import { asArray } from '@/lib/arrays';
 
 type Mode = 'overwrite' | 'create';
 
@@ -251,7 +252,7 @@ function PlanSummary({
       <div className="notice notice-warn" style={{ marginTop: 10 }}>
         <div style={{ fontWeight: 600, marginBottom: 4 }}>Nothing applied</div>
         <ul style={{ margin: 0, paddingLeft: 16, fontSize: 12 }}>
-          {(plan.problems ?? []).slice(0, 8).map((p, i) => (
+          {asArray(plan.problems, 'import problems').slice(0, 8).map((p, i) => (
             <li key={i}>{p.field ? `${p.field}: ` : ''}{p.problem}</li>
           ))}
         </ul>
@@ -279,7 +280,7 @@ function PlanSummary({
         </div>
       )}
 
-      {(plan.pals ?? []).slice(0, 12).map((pal) => (
+      {asArray(plan.pals, 'import pals').slice(0, 12).map((pal) => (
         <div key={pal.instanceId} style={{ fontSize: 11, marginBottom: 3 }}>
           <span style={{ color: 'var(--text-muted)' }}>
             {pal.nickname || pal.instanceId.slice(0, 8)}:{' '}
