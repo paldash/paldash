@@ -1436,6 +1436,24 @@ Penguin — one flyer, one swimmer — land in different buckets from each other
 while every ordinary flyer and ground mount share one. A rule built on it would
 have looked convincing on Jetragon and been wrong on Nitewing.
 
+**And Jetragon's launcher IS its saddle** — you ride Jetragon with it; the item
+grants the mount *and* the weapon, so the differing icon is the gear's artwork
+rather than a second category of item. That kills the reading in which
+`_MultiMissile` marks "weapon instead of saddle": there is one gear item per Pal
+and `IconName` only ever describes its art.
+
+**Which also means "has PalGear" is not "is a mount", and Galeclaw is the
+counterexample.** `SkillUnlock_Eagle` is *Galeclaw's Gloves* — "gloves for
+modifying the performance of the equipped glider" — a partner skill you hold,
+not a mount. So `RestrictionItems` narrows the field usefully and does not settle
+it either.
+
+Last avenue, also empty: `DT_PartnerSkillParameter.ActiveSkill` carries
+`bIsOneShotRideAction`, `IsRidingActiveSkillNotWeapon` and
+`RidingActiveSkillNotWeaponCondition`, which read like the answer. They are
+defaults — **680 of 682 rows are `::None`** and the other two are `WaterJump` —
+and non-rideable Lamball is byte-identical to Vanwyrm across all three.
+
 Also checked and empty: no ride/mount/fly column in `DT_PalMonsterParameter`'s
 90; `DT_PartnerSkillParameter` gives `RestrictionItems` (which **does** answer
 *rideable at all*) and no mode; `DT_PartnerSkill`'s 50 rows are ability kinds;
@@ -1445,7 +1463,8 @@ client-side, which is the unversioned wall.
 
 `RideSprintSpeed` is populated for **all 753 species**, including Pals that
 cannot be ridden, so sorting on it unfiltered produces a leaderboard of mounts
-that do not exist. Filter on `RestrictionItems` first.
+that do not exist. `RestrictionItems` is the best filter available and is not
+exact — see Galeclaw above.
 
 Conclusion: fastest **ride** is answerable and fastest **flyer** is not, from
 files. A hand-maintained mode list is allowed on `elements.py`'s terms — the data
