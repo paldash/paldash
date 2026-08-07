@@ -150,7 +150,14 @@ export default function InteractiveMap() {
     (l) => l.group === 'static' && mapLayers[l.id] && visibleStaticIds.has(l.id.slice(7))
   );
   const staticWantedRef = useRef(staticWanted);
-  staticWantedRef.current = staticWanted;
+  // Written in an effect, not during render. The "latest ref" pattern is
+  // right — this value is read inside a fetch callback that must not be a
+  // dependency — but assigning during render is a real hazard under
+  // concurrent rendering, where a render can be thrown away and the ref
+  // would keep a value that was never committed.
+  useEffect(() => {
+    staticWantedRef.current = staticWanted;
+  }, [staticWanted]);
 
   const lastBox = useRef<{ minX: number; minY: number; maxX: number; maxY: number } | null>(null);
   const inFlight = useRef(0);
@@ -176,7 +183,9 @@ export default function InteractiveMap() {
   }, [staticSummary, staticKindsOff]);
 
   const kindsRef = useRef(kindSelection);
-  kindsRef.current = kindSelection;
+  useEffect(() => {
+    kindsRef.current = kindSelection;
+  }, [kindSelection]);
 
   /**
    * Fetch the static objects for a viewport.

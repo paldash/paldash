@@ -170,8 +170,17 @@ export default function SlotEditor({ canEdit }: { canEdit: boolean }) {
     }
   }, []);
 
-  /** Edits staged for the container currently open. */
-  const edits = editsByContainer[containerId] ?? {};
+  /**
+   * Edits staged for the container currently open.
+   *
+   * Memoised because the `?? {}` fallback allocated a fresh object on every
+   * render, so a memo depending on it recomputed every time — which for a
+   * 960-slot palbox is the whole filter and diff, on every keystroke.
+   */
+  const edits = useMemo(
+    () => editsByContainer[containerId] ?? {},
+    [editsByContainer, containerId]
+  );
 
   const patch = (index: number, next: Partial<SlotPatch>) => {
     setPlan(null);
