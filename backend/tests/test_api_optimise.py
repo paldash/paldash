@@ -282,3 +282,32 @@ def test_condensing_is_NOT_folded_in_while_it_is_unverified():
     condensed = optimise.work_level(
         {"workSuitabilities": {"Mining": 5}, "rank": 5, "passiveSkills": []}, "Mining")
     assert plain["level"] == condensed["level"] == 5
+
+
+def test_welfare_pals_is_the_ARRAY_not_the_scope_count(client, alice):
+    """
+    **This took out the My Pals tab and nothing errored server-side.**
+
+    `_breeding_scope` returns its own `"pals"` — the COUNT of Pals the answer was
+    built from — and `/api/welfare` spread it LAST, so an integer silently
+    replaced the array of affected Pals. The client then ran
+    `report.pals.length.toLocaleString()` on a number: `.length` is undefined and
+    `.toLocaleString()` on undefined throws, killing the tab.
+
+    It survived three rounds of fixes because every symptom pointed at the
+    frontend. What identified it was a guard added along the way rendering the
+    non-array as a dash — "— Pals of 874 need attention" — which is the shape of
+    a wrong TYPE rather than a missing value.
+
+    A generic key name in a helper spread into other people's payloads is the
+    hazard. The scope spreads FIRST now, so an explicit key always wins.
+    """
+    body = client.get("/api/welfare", headers=alice).json()
+    assert isinstance(body["pals"], list), (
+        f"pals must be the affected-Pal array, got {type(body['pals']).__name__}"
+    )
+    # Spreading first must not drop the scope keys the planner header reads.
+    for key in ("scope", "linkedToPlayer", "mayScopeToOthers"):
+        assert key in body
+    assert isinstance(body["counts"], dict)
+    assert isinstance(body["scanned"], int)
