@@ -12,6 +12,7 @@ import type {
 } from '@/lib/types';
 import { buildChanges, type FieldValue as EditFieldValue } from '@/lib/edit-changes';
 import { getWorkTypes, type WorkType } from '@/lib/work-types';
+import { asArray } from '@/lib/arrays';
 
 type Mode = 'pal' | 'player';
 
@@ -109,7 +110,7 @@ export default function CharacterEditor({ canEdit }: { canEdit: boolean }) {
   // IV the save has no property for produces an input that can only be rejected.
   const editable = useMemo(
     () =>
-      (schema?.fields ?? []).filter(
+      asArray(schema?.fields, 'editor schema fields').filter(
         (f) =>
           !schema?.readOnly.includes(f.name) &&
           // Only offer a field this particular save actually carries.

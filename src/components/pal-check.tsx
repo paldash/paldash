@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { ScanSearch, ShieldCheck, AlertTriangle, Wrench, Info } from 'lucide-react';
 import { scanIllegalPals, previewPalRepair, applyPalRepair } from '@/lib/save-api';
 import type { PalCheckScan, PalRepairPlan } from '@/lib/types';
+import { asArray } from '@/lib/arrays';
 
 const CODE_LABELS: Record<string, string> = {
   iv_out_of_range: 'IV out of range',
@@ -205,7 +206,7 @@ export default function PalCheck({ canEdit }: { canEdit: boolean }) {
                       fix by writing a value (passive skill lists are not scalars)</>
                     )}.
                   </div>
-                  {(plan.pals ?? []).slice(0, 20).map((p) => (
+                  {asArray(plan.pals, 'palcheck pals').slice(0, 20).map((p) => (
                     <div key={p.instanceId} style={{ fontSize: 11, padding: '2px 0' }}>
                       <strong>{p.nickname || p.instanceId.slice(0, 8)}</strong>{' '}
                       <span style={{ color: 'var(--text-muted)' }}>
