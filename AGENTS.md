@@ -1412,6 +1412,77 @@ Pals each condenser star costs, 48 for all four** — the Arena rank ladder, and
 suitability-10 Pal is its species base plus work handbooks, and the only thing
 that moves work rank is `GotWorkSuitabilityAddRankList`.
 
+### CONDENSING RAISES WORK SUITABILITY — UNVERIFIED, AND THE TEST IS SPECIFIED
+
+**Status 2026-08-07: believed true, not yet confirmed, and nothing implements it.**
+Read this before answering "does the condenser affect work suitability" again —
+the answer was given as a flat *no* three times before anyone went and looked.
+
+The operator observes a 4-star Jetragon at Gathering **10** against a species
+base of **8**, and the same effect on Jormuntide, Jormuntide Ignis, Aegidron and
+Verdash. The save cannot show it: across 20 Pals at condenser rank 4 or 5,
+**nineteen have no `GotWorkSuitabilityAddRankList` at all**, and one clean case —
+a rank-5 Verdash at level 35 with an **empty passive list** — differs from a
+rank-1 Verdash in `Rank` and nothing else. So the bonus is **derived at load**,
+which is why every save-side and settings-side search came back empty.
+
+A community table (palworld.fandom) states it as:
+
+| Stars | Sacrifices | Stat bonus | Work suitability |
+|---|---:|---:|---|
+| 1 | 4 | 5% | +1 to its best suitability |
+| 2 | 8 | 10% | +1 to its 2nd-best |
+| 3 | 12 | 15% | +1 to its 3rd-best |
+| 4 | 24 | 20% | **+1 to every** suitability |
+
+**Two of its four columns are exactly reproduced by the game files** —
+`CharacterRankUpRequiredNumMap = {1:4, 2:8, 3:12, 4:24}` and
+`StatusCalculate_GenkaiToppa_PerAdd = 0.05` — which is real corroboration that
+the author was reading data rather than guessing. The suitability column is in
+no file found here.
+
+**The fallthrough is the majority case, not an edge case.** A Pal with one
+suitability has no "2nd-best", and the operator's reading — that the bonus lands
+on the only one it has — is what makes Jormuntide work: Watering 7 -> 8 -> 9 ->
+10, then clamped at `WorkSuitabilityMaxRank`. The alternative reading (skip)
+predicts 9 and is contradicted by observation. Measured across the 343 base
+species:
+
+| Suitabilities | Species | |
+|---:|---:|---|
+| 0 | 9 | nothing to add to; must not invent one |
+| 1 | 89 | fallthrough |
+| 2 | 92 | 3-star has no target |
+| 3+ | 153 | straightforward |
+
+**181 of 343 — 53% — hit a fallthrough.**
+
+**AND `BestWorkSuitability` IS EDITORIAL, NOT THE MAXIMUM.** The game ships the
+column, and it disagrees with the numeric max on 9 species — **8 of them naming
+`MonsterFarm`**. Caprity is `{Seeding: 2, MonsterFarm: 1}` and the game calls its
+best MonsterFarm, because Caprity is a ranch animal. So "+1 to its best" is
+ambiguous: for Caprity that is either Seeding 2->3 or MonsterFarm 1->2, and those
+are different Pals afterwards. **133 of 343 species also have a numeric tie for
+first place and 169 have a tie somewhere in the ordering**, with no tiebreak
+stated anywhere. Half the roster is undetermined by the rule as written.
+
+#### The two readings that settle it, both on Pals the operator already owns
+
+- **A 1-star Anubis** — `{Handcraft: 6, Mining: 6, Transport: 4}`,
+  `bestWorkSuitability = Handcraft`. One star, one bonus, and the top two tied.
+  Handiwork 7 / Mining 6 means the label breaks ties; 7 / 7 means both sides get
+  it; 6 / 7 means the ordering is something else; unchanged means 1-star grants
+  nothing. **A 4-star Anubis cannot answer this** — the tied pair converges on 8
+  either way, so only the 1-star discriminates.
+- **A 4-star Verdash** — `{Seeding: 4, Handcraft: 5, Collection: 5, Deforest: 3,
+  Transport: 3}`, nothing clipping the cap, and one specimen in the live world
+  carries **no passives at all**. Predicted 7 / 7 / 6 / 4 / 4 under the table.
+
+Until both are read, `optimise.work_level` must keep reporting `base + bought`
+and no third term. This belongs in the `elements.py` category when it lands: the
+data genuinely is not in the files, so a measured constant with the observation
+cited is legitimate — a guess presented as read is not.
+
 ### WORK SUITABILITY *IS* RAISED BY PASSIVES, AND I SAID TWICE THAT NOTHING RAISED IT
 
 The operator reported a 4-star Jetragon showing Gathering **10** against a species
@@ -1428,10 +1499,19 @@ question, and repeating it is the failure — not the first answer.
 | `..._MonsterFarm_2` — **Ranch Master** | Ranch **+2** | `ToSelf` / `InvokeAlways` |
 | 14 × `..._<work>` | that work **+1** | `ToBaseCampPal` / `InvokeInBaseCamp` |
 
-The last row is the shape that matters: a Pal carrying one raises that
-suitability **for every other Pal at the base**, so two stack to +2 — exactly
-8 → 10. **73 Pals on the live world carry one** (66 Farmhand, 7 Ranch Master),
-and every one is currently ranked as though it did not.
+**ONLY THE FIRST TWO ARE PAL PASSIVES.** The fourteen are the effect applied by
+the **Applied … Handbook** items (`WorkSuitability_AddTicket_Mining` -> "Applied
+Mining Handbook I"), and the rank a handbook grants is written into
+`GotWorkSuitabilityAddRankList` — so it is already counted as `bought` and adding
+it would double count. `optimise.work_level`'s docstring had this right before
+anyone re-derived it wrongly from the effect table; the giveaway is that Farmhand
+and Ranch Master carry real display names and prose ("Ranching's work suitability
++2") while the fourteen carry none.
+
+So the genuine gap is two effects, not sixteen — and it is real: **73 Pals on the
+live world carry one** (66 Farmhand, 7 Ranch Master) with nothing in their
+`GotWorkSuitabilityAddRankList`, and every one is ranked today as though it did
+not.
 
 **Why it was invisible is worth more than the finding.**
 `palstats.PASSIVE_SELF_INVOKES` excludes `InvokeInBaseCamp` and
