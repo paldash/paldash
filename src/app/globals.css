@@ -154,7 +154,19 @@ html, body {
 /* The scrim and the toggle exist only under the breakpoint. Rendered always and
  * hidden here, so opening the drawer is a class toggle rather than a mount —
  * a mounting scrim cannot animate in and flashes on slow devices. */
-.nav-toggle { display: none; }
+/* `button.nav-toggle`, not `.nav-toggle` — the hamburger also carries `.btn`,
+ * which is declared LATER in this file with `display: inline-flex`. At equal
+ * specificity source order wins, so the plain class lost and the toggle rendered
+ * on desktop, where clicking it toggles a class no rule reads. One element
+ * qualifier is enough to settle it without an `!important`.
+ *
+ * **AND THE MEDIA-QUERY RULE HAD TO BE QUALIFIED TOO, WHICH IS THE HALF THAT
+ * BITES.** A media query adds no specificity, so `button.nav-toggle` outranks a
+ * bare `.nav-toggle` inside one just as it does the `.btn` outside it — raising
+ * one selector to beat `.btn` also beat the rule that shows the toggle on a
+ * phone, hiding the only way to open the nav on the one viewport that needs it.
+ * Both ends of a specificity fight have to move together. */
+button.nav-toggle { display: none; }
 .app-scrim { display: none; }
 
 @media (max-width: 900px) {
@@ -185,7 +197,7 @@ html, body {
   }
   .app-scrim.open { opacity: 1; pointer-events: auto; }
 
-  .nav-toggle {
+  button.nav-toggle {
     display: inline-flex;
     align-items: center;
     justify-content: center;
