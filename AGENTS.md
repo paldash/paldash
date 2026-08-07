@@ -1382,8 +1382,29 @@ The *minimum* is real: rank 0 appears on none of the 39, so a zero is
 
 Three things it will not do, each for a measured reason:
 
-- **It will not create the property.** No property means no `array_type` to
-  preserve *and* no struct to copy — a new entry needs both.
+- **It will not construct an entry.** A new work type deep-copies an existing
+  one, which is `palclone`'s rule: the right struct metadata is whatever this
+  save already uses.
+
+**"IT WILL NOT CREATE THE PROPERTY" WAS THE FIRST OF THOSE THREE, AND IT WAS
+STRICTER THAN ITS OWN REASON.** The reason — never construct a shape — is
+unchanged; what was wrong is where the shape was allowed to come from. A
+work-rank node carries no `CustomVersionData`, no instance guid and an all-zero
+`id`, so two Pals' entries differ only in the enum and the integer and the
+writer overwrites both. Any Pal in the save is as good a template, and what the
+refusal actually enforced was "you may only edit a Pal that already has a rank"
+— not a safety property, just a smaller feature, and handbooks are per work
+category so an operator who has spent one anywhere has the shape everywhere.
+`charedit.find_work_rank_donor` scans for it once per apply. A save with none
+anywhere is still a refusal, now naming the fix.
+
+An **empty array** moves with it and has to: an absent property carries strictly
+less information than a present-but-empty one, so accepting the first while
+refusing the second is backwards. Only the donor's *entries* are taken there —
+this Pal's own array metadata is already correct, and replacing the node would
+discard a right answer to import a duplicate of it. Donors are deep-copied,
+because a shallow copy edits the Pal we borrowed from, silently, on a Pal the
+operator never named.
 - **It will not construct an entry.** A new work type deep-copies an existing one
   from the same Pal, which is `palclone`'s rule: the right struct metadata is
   whatever this save already uses.
@@ -1480,6 +1501,17 @@ Findings at 390px, in the order they matter:
 The sidebar is off-canvas below **900px**, not 640: a 768px tablet in portrait
 has the same problem in a milder form, and 210 of 768 is still a quarter of the
 screen spent on navigation.
+
+**And the hamburger lost a specificity fight to `.btn`, then won it too hard.**
+`.nav-toggle { display: none }` and `.btn { display: inline-flex }` are equal
+specificity, so source order decided it and the toggle rendered on desktop —
+a control that visibly does nothing, since the class it toggles is only read
+inside the media query. Qualifying it as `button.nav-toggle` settles that, and
+**a media query adds no specificity**, so the qualified selector then outranked
+the bare `.nav-toggle` *inside* the query as well — hiding the only way to open
+the nav on the one viewport that needs it. Both ends of a specificity fight have
+to move together, and the built bundle is where that was caught rather than the
+source.
 
 **THE BREAKPOINT IS CSS, NEVER `window.innerWidth`.** This page is
 server-rendered and the server does not know the viewport, so a JS width check
