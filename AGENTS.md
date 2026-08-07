@@ -1412,6 +1412,64 @@ Pals each condenser star costs, 48 for all four** — the Arena rank ladder, and
 suitability-10 Pal is its species base plus work handbooks, and the only thing
 that moves work rank is `GotWorkSuitabilityAddRankList`.
 
+### WORK SUITABILITY *IS* RAISED BY PASSIVES, AND I SAID TWICE THAT NOTHING RAISED IT
+
+The operator reported a 4-star Jetragon showing Gathering **10** against a species
+base of **8**, and was told twice that condenser stars do not raise work
+suitability. The answer to *that* question is still no. It was the wrong
+question, and repeating it is the failure — not the first answer.
+
+`passive_effects.json.gz` carries **16 passives whose effect type is
+`WorkSuitabilityAddRank_*`**:
+
+| Passive | Effect | Target / invoke |
+|---|---|---|
+| `..._MonsterFarm_1` — **Farmhand** | Ranch **+1** | `ToSelf` / `InvokeAlways` |
+| `..._MonsterFarm_2` — **Ranch Master** | Ranch **+2** | `ToSelf` / `InvokeAlways` |
+| 14 × `..._<work>` | that work **+1** | `ToBaseCampPal` / `InvokeInBaseCamp` |
+
+The last row is the shape that matters: a Pal carrying one raises that
+suitability **for every other Pal at the base**, so two stack to +2 — exactly
+8 → 10. **73 Pals on the live world carry one** (66 Farmhand, 7 Ranch Master),
+and every one is currently ranked as though it did not.
+
+**Why it was invisible is worth more than the finding.**
+`palstats.PASSIVE_SELF_INVOKES` excludes `InvokeInBaseCamp` and
+`PASSIVE_SELF_TARGETS` excludes `ToBaseCampPal` — **both correct**, because a
+base-only buff is not part of the stat block the game prints on a palbox Pal.
+Nothing else ever looked. A filter that is right for its own surface becomes a
+blind spot the moment it is the only reader, which is the entire argument for
+`passiveeffects` being a second module with its own policy rather than a wider
+constant.
+
+Measured the same day: of the bundle's 208 effect types, **79 are named anywhere
+in `backend/` and 129 are mentioned nowhere.**
+
+### Four progression systems, and the dashboard knew two
+
+Chasing that turned up two more tables nothing reads, which is the count worth
+recording — a project that thought there were two ways to improve a Pal was
+wrong by half.
+
+| System | Currency | Cap | Where it is |
+|---|---|---:|---|
+| Level | EXP | 80 | `CharacterMaxLevel` |
+| **Condenser** | duplicate Pals | 5 | `CharacterRankUpRequiredNumMap` = `{1:4, 2:8, 3:12, 4:24}` — **48 duplicates for all four stars** |
+| **Statue of Power** | Pal Souls | **20** | `DT_CharacterUpgradeMasterDataTable`, never read |
+| Work handbooks | tickets | 10 | `GotWorkSuitabilityAddRankList` |
+
+`DT_CharacterUpgradeMasterDataTable` is **the cost side of `soulRanks`**, which
+the parser has always read without knowing what a rank cost. `PalUpgradeStone`
+1-4 are Small/Medium/Large/**Giant Pal Soul**, and the full climb to rank 20 is
+`{Small: 10, Medium: 6, Large: 6, Giant: 30}` plus 128,800 gold to reset. The
+table confirms the cap independently: 20 rows, and the live world's most
+invested Pal reads `soulRanks {hp: 20, attack: 20, defense: 20, craftSpeed: 20}`.
+
+And the condenser's stat effect is now read rather than assumed:
+**`StatusCalculate_GenkaiToppa_PerAdd = 0.05`** — *genkai toppa* is "breaking the
+limit" — so 5% per rank, applied to CraftSpeed as well as the combat stats. A
+4-star Verdash at level 50 really is better at every job: work speed **70 → 87**.
+
 ### The mount MODE is not in the server pak, and the saddle was the best guess
 
 Proposed 2026-08-07 — reasonably, since a flying mount needs a flying saddle,
