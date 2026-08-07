@@ -1433,6 +1433,91 @@ Character-container slots only decode with the item custom-property set. Without
 it `RawData` is an opaque 38-byte blob and `_new_slot` refuses rather than
 hand-writing binary.
 
+## Settings help comes from Pocketpair, and 19 keys get none
+
+`scripts/extract-settings-help.py` -> `backend/data/settings_help.json.gz`,
+served by `backend/settingshelp.py`. The Settings tab showed 119 identifiers like
+`PalStomachDecreaceRate` — the game's own misspelling — and explained none of
+them.
+
+**Hand-writing 119 sentences was the obvious move and would have been wrong.**
+It is the "do not hand-write game data that already exists" rule, and worse: a
+sentence I wrote about an unverified mechanic renders identically to one
+Pocketpair published, and gets trusted the same way.
+
+Three sources, each tagged in the payload because they carry different authority:
+
+| field | source | coverage |
+|---|---|---:|
+| `description` | **docs.palworldgame.com**, Pocketpair's own documentation | **93 of 119** |
+| `label` | the game's own `WORLDSSETTING_*` UI strings | 50 of 119 |
+| `note` | this project's own measurements, tagged `dashboard` | 6 |
+| `values` | the game's names for an enum's **values** | `DeathPenalty`, `RandomizerType` |
+
+**`values` is worth more than the key descriptions.** `DeathPenalty` was a free
+text field, so setting it meant knowing that the string
+`EquipmentAndItemAndRandomPal` exists and is spelled exactly that way — and a
+typo is accepted by the file and ignored by the game. It is a dropdown now, but
+**only when the value on disk is one the game names**: a select cannot represent
+a value it has no option for, so an unrecognised one falls back to the text box
+rather than being silently rewritten to whichever option is first.
+
+**19 keys get nothing at all, and that is the feature.** No official description,
+no game label, so no tooltip — the operator sees what they saw before. The
+extractor prints the list, and the footer says Pocketpair does not document them,
+because a missing explanation and a broken bundle look identical otherwise.
+
+**The fetch is a build step.** The container never reaches the network; the page
+is parsed once and the result bundled, same rule as `refs/`. And it is parsed
+from the table markup rather than read out of a summary — a language model asked
+for "verbatim" returns something that *reads* verbatim, and attributing a
+paraphrase to Pocketpair is worse than writing our own sentence and saying so.
+
+**`UI_ALIASES` is hand-written and each entry is confirmed by two unrelated
+sources.** Nineteen game UI rows are named for something other than their INI key
+(`WORLDSSETTING_HatchingEggTime` for `PalEggDefaultHatchingTime`). Matching those
+by string similarity is the failure this repo keeps recording. So the acceptance
+test is agreement: the pak string reads *"Time (h) to incubate Massive Egg. Note:
+Other eggs also require time to incubate"* and the doc row reads *"Time to hatch
+a Huge Egg (hours). Note: Other eggs also require time to incubate."* — the same
+sentence, reached from a 40 GB pak and from a website. `--show-aliases` prints
+every pair for re-checking.
+
+Three things that bit:
+
+- **`<br>` is a sentence boundary.** Stripping tags without substituting for it
+  gave "(max 50).Increasing this value" and "Death PenaltyNone : No drops" —
+  text that reads as a typo in Pocketpair's docs when it is one in our parser.
+- **An aliased row is not always a label.** `HatchingEggTime`'s string is a whole
+  explanatory sentence, which is *why* it agreed so well with the doc row — and
+  rendering it as the field's name captions a form control with a paragraph.
+  Over `MAX_LABEL_CHARS` the label is dropped; the description already covers it.
+- **`RANDOMIZER_MODE_NO` is the value `None`.** Title-casing the suffix gets two
+  of three and invents `No` for the one that matters, so the three are written
+  out and confirmed against the official description, which spells the
+  vocabulary out in full.
+
+**`WorldName -> ServerName` is deliberately absent** — the same INI field, but
+the game calls it "World Name" on the single-player creation screen and this is a
+dedicated-server dashboard. The one case where the game's own words are not
+automatically the right ones.
+
+**And the PvP page is a recorded negative.** Six of the 19 are PvP keys that page
+names — inside prose recipes ("set these three to True"), never as a description
+of any one of them. Splitting that into per-key help means deciding which clause
+belongs to which key, which is the guess this whole script avoids. What it *does*
+carry is the game's own recommended PvP configuration as key/value pairs, which
+belongs in `settings_ini.PRESETS`.
+
+### 92 of the 119 could not be edited here at all
+
+Only the `HIGHLIGHT_GROUPS` keys rendered. That was defensible while the page
+could show a key's *name* and nothing else — ninety identifiers in a column is a
+hex dump, not a settings screen — and stops being defensible once each one
+carries Pocketpair's description. The rest are now behind a collapsed,
+filterable "Show the other 92 settings", which is why this shipped **with** the
+help rather than before it.
+
 ## The INI is not the source of truth on a containerised server
 
 `thijsvanloef/palworld-server-docker` **regenerates PalWorldSettings.ini from

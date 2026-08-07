@@ -65,6 +65,7 @@ import teleport
 import soloexport
 import schedule as schedule_module
 import settings_ini
+import settingshelp
 import viewcache
 import worldobjects
 import habitats
@@ -1928,6 +1929,10 @@ def reload_world_packs(request: Request) -> dict[str, Any]:
     user = authz.require_user(request, roles_module.POLICY_MANAGE)
     result = {
         "worldObjects": worldobjects.reload(),
+        # Bundled like the rest, so it goes stale like the rest — a regenerated
+        # `settings_help.json.gz` that needed a container restart to take effect
+        # would be the one bundle this button did not cover.
+        "settingsHelp": settingshelp.reload(),
         **gamedata.reload(),
     }
     # `breeding` caches *derivations* of these bundles, not copies of them, so
@@ -3380,8 +3385,16 @@ def read_settings(request: Request) -> dict:
         data = settings_ini.read_ini()
     except settings_ini.SettingsError as e:
         raise HTTPException(404, str(e))
+    # What each key does, from Pocketpair's own documentation and the game's own
+    # world-settings strings. Attached here rather than inside `read_ini` so a
+    # bundle problem can never reach the code that *writes* a server's config.
+    settingshelp.annotate(data.get("options") or {})
     return {
         **data,
+        # 19 of the 119 have no help at all, and saying so is deliberate: an
+        # operator hunting for a missing tooltip should learn that Pocketpair
+        # does not document that key, not conclude the dashboard is broken.
+        "helpCoverage": settingshelp.coverage(),
         # `all_presets`, so the game's own difficulties reach the UI beside the
         # hand-made ones. Each row carries `source` for grouping.
         "presets": settings_ini.all_presets(),

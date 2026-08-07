@@ -416,6 +416,33 @@ observed", not "safe".
 `PalWorldSettings.ini` holds live passwords. `settings_ini.SECRET_KEYS` masks them
 on read and in the audit log.
 
+**The file itself explains nothing** — three comment lines in total, none of them
+per key. What each setting *does* is documented by Pocketpair on the web, not
+shipped with the server; see §5b.
+
+### 5b. docs.palworldgame.com — the only non-pak source in the bundle
+
+`scripts/extract-settings-help.py` -> `backend/data/settings_help.json.gz`.
+
+**93 of the 119 keys have an official description**, from
+`docs.palworldgame.com/settings-and-operation/configuration`. The whole category
+was checked: `arguments` and `commands` cover the command line and RCON, `mod`
+adds nothing, and `technologyids` is the `DenyTechnologyList` vocabulary.
+
+Combined with the game's own `WORLDSSETTING_*` UI strings from the client pak
+(§4), which supply **50 labels** and — more usefully — the names of the *values*
+of `DeathPenalty` and `RandomizerType`.
+
+**The fetch is a build step.** The container must work offline on a LAN, so the
+page is parsed once and bundled, exactly like everything out of `refs/`. Parsed
+from the table markup, never read out of an LLM summary: a model asked for
+"verbatim" returns something that reads verbatim, and attributing a paraphrase to
+Pocketpair would be worse than writing our own sentence and labelling it ours.
+
+**19 keys are documented nowhere and get no explanation** rather than a guess.
+Six of those are PvP keys that the `pvp` page names only inside prose recipes
+("set these three to True"), which is not a per-key description — see §8.
+
 ---
 
 ## 6. The reference archive
