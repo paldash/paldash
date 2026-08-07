@@ -431,9 +431,35 @@ def pal_exp_table() -> dict[str, Any]:
 
 
 def pal_name(species_id: str) -> str:
+    """
+    A species' display name: **normalised first, exact as a fallback.**
+
+    `pal()` strips `BOSS_`/`RAID_`/… and that is right for naming — an alpha
+    Lamball is still called Lamball, and the bundled archive's own
+    `(Boss)`/`(Gym)` suffixes are its editorialising rather than the game's
+    words. 66 prefixed rows carry one, so preferring the exact row would put
+    "Melpaca (Boss)" back on screen everywhere.
+
+    **But 40 prefixed rows have no base row at all**, and those were being
+    humanised into nonsense while carrying a perfectly good name of their own:
+    `RAID_NightLady_Dark_2` rendered as "Night Lady Dark 2" when its row says
+    *Bellanoir Libero (Raid)*, and `RAID_YakushimaBoss002` as "Yakushima
+    Boss002" when its row says *Moon Lord*. Stripping `RAID_` looks for
+    `NightLady_Dark_2`, which the game does not ship — the raid tiers exist only
+    in prefixed form, so the normalising step that rescues alphas is exactly
+    what loses these.
+
+    So the fallback order is normalised -> exact -> `humanize`. Reported by an
+    operator whose raid tab showed six unnamed bosses beside correctly-named
+    summon items.
+    """
     entry = pal(species_id)
-    if entry:
+    if entry and entry.get("name"):
         return entry["name"]
+    # No base row. The prefixed row's own name beats humanising the id.
+    exact = _lookup("pals", species_id)
+    if exact and exact.get("name"):
+        return exact["name"]
     species, _ = normalise_species(species_id)
     return humanize(species)
 

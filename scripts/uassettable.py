@@ -207,6 +207,19 @@ def _text(r: _Reader, size: int) -> Any:
 _MAX_MAP_ENTRIES = 100_000
 
 
+def _map_key(value: Any) -> str:
+    """
+    A map key as a JSON-safe string, unwrapping the `FName` cell shape.
+
+    `{'Key': 'BOSS_NightLady'}` -> `BOSS_NightLady`. Anything else is
+    stringified unchanged, so a multi-field struct key stays visibly wrong
+    rather than quietly losing every field but one.
+    """
+    if isinstance(value, dict) and list(value) == ["Key"]:
+        return str(value["Key"])
+    return str(value)
+
+
 def _map_half(r: _Reader, typ: str) -> Any:
     """
     One key or one value inside a MapProperty, serialised **without a tag**.
@@ -353,7 +366,20 @@ def _value(r: _Reader, typ: str, size: int, extra: dict) -> Any:
                 raise TableError(
                     f"map walk ended at {r.o - start} of {size} bytes"
                 )
-            return {str(k): v for k, v in pairs}
+            # **`str()` ON AN FName KEY IS THE TRAP THIS PROJECT ALREADY
+            # RECORDS ONCE.** A JSON object needs string keys, so the obvious
+            # `str(k)` looked mandatory — but a struct-typed key decodes to
+            # `{'Key': 'BOSS_NightLady'}`, and stringifying that yields the
+            # literal `"{'Key': 'BOSS_NightLady'}"`: id-shaped, serialises
+            # perfectly, resolves to nothing. Exactly what happened to the
+            # Pal-shop rosters for months, reproduced here within a day of the
+            # map decoder landing, and caught only because the raid egg table's
+            # `BOSS_` prefix check came back empty.
+            #
+            # Unwrapped for the single-entry `Key` shape ONLY. A genuine
+            # multi-field struct key still stringifies, because collapsing one
+            # of its fields would silently pick a winner.
+            return {_map_key(k): v for k, v in pairs}
         except (TableError, struct.error, IndexError, UnicodeDecodeError) as e:
             r.o = start + size
             return f"<MapProperty {size}B, undecoded: {e}>"

@@ -63,17 +63,25 @@ def test_the_row_key_is_the_summon_item():
     assert gamedata.item_name("PalSummon_NightLady") == "Bellanoir's Slab"
 
 
-def test_egg_weights_are_reported_as_unread_not_as_empty():
+def test_egg_weights_are_read_and_the_old_refusal_is_retired():
     """
-    `EggPalIDAndWeight` is a `MapProperty` and `uassettable` decodes none. The
-    old code iterated it as a list — over the characters of the string
-    `"<MapProperty 98B>"` — and produced `[]` for every boss, which reads as
-    "this raid drops no eggs": a claim about the game rather than about the
-    reader.
+    **This test used to assert the opposite, and both versions were right at the
+    time.** `EggPalIDAndWeight` is a `MapProperty`; `uassettable` decoded none,
+    so the extractor reported the field unread rather than shipping `[]` —
+    because an empty egg table reads as "this raid drops no eggs", a claim about
+    the game rather than about the reader. Before that it was worse: the code
+    iterated the map as a list, walking the characters of the string
+    `"<MapProperty 98B>"`, and produced `[]` for every boss silently.
+
+    The map decoder landed 2026-08-07 and the premise expired. Kept as an
+    assertion on the *new* answer rather than deleted, because a regression here
+    would look exactly like the original bug.
     """
     for boss in gamedata.raid_bosses().values():
-        assert boss["eggWeightsRead"] is False
-        assert boss["eggWeights"] == []
+        assert boss["eggWeightsRead"] is True, (
+            "a raid reporting its egg table unread means the reader lost a "
+            "capability it had — that is the failure this pins"
+        )
 
 
 def test_no_raid_boss_has_a_position_and_none_is_in_the_field_boss_bundle():
@@ -149,3 +157,103 @@ def test_a_build_triggered_raid_is_carried_unresolved():
         for e in entries
     }
     assert "Factory_Money" in conditions
+
+
+# ─── Two operator-reported bugs, 2026-08-07 ──────────────────────
+
+
+def test_the_raid_egg_table_is_read_now_that_MapProperty_decodes():
+    """
+    **The refusal this replaces was correct and its premise expired.**
+    `EggPalIDAndWeight` is a MapProperty, `uassettable` decoded none, so the
+    extractor reported `eggWeightsRead: False` rather than shipping `[]` —
+    because an empty egg table reads as "this raid drops no eggs", a claim about
+    the game rather than about the reader. The map decoder landed 2026-08-07 and
+    nothing re-ran the extractor, so the Progression tab showed raid rewards
+    with the boss egg missing.
+    """
+    import gzip, json, os
+
+    path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                        "data", "raidbosses.json.gz")
+    with gzip.open(path, "rt", encoding="utf-8") as f:
+        bosses = json.load(f)["bosses"]
+
+    assert all(b["eggWeightsRead"] for b in bosses.values()), (
+        "every raid must report its egg table as read — an unread one is a "
+        "reader regression, not a game fact"
+    )
+    with_eggs = [b for b in bosses.values() if b["eggWeights"]]
+    assert len(with_eggs) == 9
+
+    # Two entries per raid: the alpha form at 0.1 and the ordinary at 0.9.
+    for boss in with_eggs:
+        alphas = [e for e in boss["eggWeights"] if e["isBoss"]]
+        assert len(alphas) == 1, f"{boss['id']} should offer exactly one alpha form"
+        assert alphas[0]["weight"] == 0.1
+        assert alphas[0]["speciesId"].startswith("BOSS_")
+
+
+def test_an_empty_egg_map_is_READ_not_unread():
+    """
+    `YakushimaBoss002` and its `_2` ship `{}` — the game says those raids have
+    no egg table. That is an answer, and reporting it as unread would conflate
+    it with a reader failure, which is the distinction the missing ban list and
+    the unparsed world already turn on.
+    """
+    import gzip, json, os
+
+    path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                        "data", "raidbosses.json.gz")
+    with gzip.open(path, "rt", encoding="utf-8") as f:
+        bosses = json.load(f)["bosses"]
+
+    empty = [b for b in bosses.values() if not b["eggWeights"]]
+    assert len(empty) == 2
+    assert all(b["eggWeightsRead"] for b in empty), (
+        "an empty map is the game's answer; only a non-map is unread"
+    )
+
+
+def test_raid_tiers_are_NAMED_not_humanised():
+    """
+    Reported: the `_2` raids showed as "Night Lady Dark 2" while their summon
+    items were named correctly.
+
+    `pal()` strips `RAID_` — right for alphas, since `BOSS_Alpaca` -> `Alpaca`
+    exists — but the raid tiers exist ONLY in prefixed form, so stripping looks
+    up `NightLady_Dark_2`, finds nothing, and humanises the id. Their own rows
+    carried the name the whole time.
+    """
+    import gamedata
+
+    assert gamedata.pal_name("RAID_NightLady_Dark_2") == "Bellanoir Libero (Raid)"
+    assert gamedata.pal_name("RAID_YakushimaBoss002") == "Moon Lord"
+    assert gamedata.pal_name("RAID_LegendDeer_2") == "Hartalis (Raid)"
+    for species in ("RAID_NightLady_Dark_2", "RAID_KingBahamut_Dragon_2"):
+        assert "Night Lady" not in gamedata.pal_name(species)
+
+
+def test_the_fix_does_NOT_put_the_archive_s_Boss_suffix_back():
+    """
+    THE REASON THE FALLBACK ORDER IS NORMALISED-FIRST. 66 prefixed rows carry
+    the bundled archive's own `(Boss)` editorialising in their name, and
+    AGENTS.md is explicit that the game calls `BOSS_Alpaca` "Melpaca" and that
+    `isBoss` travels separately. Preferring the exact row would have fixed six
+    raid names and broken sixty-six alpha ones.
+    """
+    import gamedata
+
+    for species in ("BOSS_Alpaca", "BOSS_JetDragon", "BOSS_ArmorWoodlouse",
+                    "BOSS_KingCrab", "BOSS_CandleWitch"):
+        assert "(Boss)" not in gamedata.pal_name(species)
+    assert gamedata.pal_name("BOSS_Alpaca") == gamedata.pal_name("Alpaca")
+
+
+def test_prefixed_forms_with_no_base_row_are_rescued():
+    """The same fallback, on 40 rows that were humanised for no reason."""
+    import gamedata
+
+    assert gamedata.pal_name("BOSS_BadCatgirl") == "Nyafia"
+    assert gamedata.pal_name("BOSS_CowPal") == "Mozzarina"
+    assert gamedata.pal_name("BOSS_Kirin_Ice") == "Univolt Cryst"
