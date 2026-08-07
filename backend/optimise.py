@@ -72,6 +72,53 @@ def work_types() -> list[dict[str, Any]]:
     return gamedata.work_suitabilities()
 
 
+#: Invoke conditions under which a suitability-granting passive applies to the
+#: Pal carrying it. **Deliberately not `palstats.PASSIVE_SELF_INVOKES`**, which
+#: answers "does this belong in the displayed stat block" — a different question,
+#: and sharing the constant is how two surfaces silently converge. The exclusion
+#: that matters is `InvokeInBaseCamp`: that is what the fourteen handbook effects
+#: carry, and counting them would double the `bought` term.
+_GRANT_INVOKES = frozenset({"InvokeAlways", "InvokeInOtomo", "InvokeActiveOtomo"})
+
+#: Targets meaning "the Pal carrying this". `ToBaseCampPal` is excluded for the
+#: same reason — it is the handbook shape, not a Pal's own trait.
+_GRANT_TARGETS = frozenset({"ToSelf", "ToSelfAndTrainer"})
+
+_GRANT_PREFIX = "WorkSuitabilityAddRank_"
+
+
+def passive_work_rank(passive_ids: Any, work_id: str) -> int:
+    """
+    Work-suitability ranks this Pal's own passives grant for `work_id`.
+
+    Derived from the effect bundle rather than a list of ids written here: a
+    hardcoded list is how a passive added by an update stays uncounted, and the
+    two that exist today (`Farmhand`, `Ranch Master`) were found in the bundle
+    rather than from any documentation.
+
+    Returns 0 for an unreadable bundle — a missing term is the behaviour this
+    had before, and losing a whole ranking to a missing file is not.
+    """
+    ids = passive_ids if isinstance(passive_ids, (list, tuple)) else ()
+    total = 0
+    for passive_id in ids:
+        entry = gamedata.passive_effects(str(passive_id))
+        if not entry:
+            continue
+        if not (set(str(i) for i in (entry.get("invoke") or [])) & _GRANT_INVOKES):
+            continue
+        for effect in entry.get("effects") or []:
+            kind = str(effect.get("type") or "")
+            if not kind.startswith(_GRANT_PREFIX):
+                continue
+            if kind[len(_GRANT_PREFIX):] != work_id:
+                continue
+            if str(effect.get("target") or "") not in _GRANT_TARGETS:
+                continue
+            total += int(effect.get("value") or 0)
+    return total
+
+
 def work_level(pal: dict[str, Any], work_id: str) -> dict[str, Any]:
     """
     One Pal's level at one kind of work, with the two halves kept apart.
@@ -82,20 +129,41 @@ def work_level(pal: dict[str, Any], work_id: str) -> dict[str, Any]:
     summed, because "this species is good at mining" and "somebody invested in
     this particular Pal" are different facts and a single number hides which.
 
-    **THERE IS NO THIRD SOURCE, AND `WorkSuitabilityAddRank_*` IS NOT ONE.**
-    Those fourteen entries sit in the passive-effect bundle and read exactly
-    like a passive that grants a work rank — which is what a first attempt at
-    this took them for. They are the effect applied by the **Applied … Handbook**
-    items (`WorkSuitability_AddTicket_Mining` -> "Applied Mining Handbook I"),
-    and the rank a handbook grants is written into
-    `GotWorkSuitabilityAddRankList` — so it is *already* counted as `bought`.
-    Adding them here counts the same rank twice.
+    **FOURTEEN OF THE SIXTEEN `WorkSuitabilityAddRank_*` ENTRIES ARE NOT A THIRD
+    SOURCE.** They sit in the passive-effect bundle and read exactly like a
+    passive that grants a work rank — which is what a first attempt at this took
+    them for, and what a second attempt took them for again in 2026-08. They are
+    the effect applied by the **Applied … Handbook** items
+    (`WorkSuitability_AddTicket_Mining` -> "Applied Mining Handbook I"), and the
+    rank a handbook grants is written into `GotWorkSuitabilityAddRankList` — so
+    it is *already* counted as `bought`. Adding them here counts it twice.
 
     The existing filters happen to reject them (`InvokeInBaseCamp` is not in
     `palstats.PASSIVE_SELF_INVOKES`, `ToBaseCampPal` not in
     `PASSIVE_SELF_TARGETS`), so nothing was ever double counted — but that is a
     coincidence of two unrelated guards, not a decision, which is why it is
     written down here rather than left to be rediscovered.
+
+    **THE OTHER TWO ARE REAL, AND THEY WERE BEING DROPPED.** `Farmhand` and
+    `Ranch Master` are `ToSelf` / `InvokeAlways` Pal passives with the game's own
+    display names and prose ("Ranching's work suitability +2") — which is the
+    tell that separates them from the fourteen, none of which carry either.
+    Nothing writes them into `GotWorkSuitabilityAddRankList`: measured on the
+    live world, **73 Pals carry one and every one of them has an empty
+    `workRanks`**, so this is a gap rather than a double count.
+
+    They are summed into a separate `passive` component rather than folded into
+    `bought`, for the reason the other two are kept apart: "somebody spent a
+    handbook on this Pal" and "this Pal was born with it" are different facts.
+
+    The result is clamped to `WorkSuitabilityMaxRank`. A Ranch-8 Pal with Ranch
+    Master is 10, not 10-and-a-bit, and the cap is read from the bundle rather
+    than written here.
+
+    **Condensing is believed to raise suitability too, and is deliberately NOT
+    included** — see AGENTS.md. It is unverified, the rule is undetermined for
+    half the roster by ties and fallthrough, and a third term that is wrong half
+    the time is worse than a missing one.
 
     **A Pal with no suitability for a work type is level 0 and cannot do it** —
     that is the game's answer, not missing data. Two released Pals (Panthalus and
@@ -106,7 +174,15 @@ def work_level(pal: dict[str, Any], work_id: str) -> dict[str, Any]:
     # common case — most Pals have never had a rank bought. None and {} mean the
     # same thing here, so both read as zero.
     bought = int((pal.get("workRanks") or {}).get(work_id) or 0)
-    out = {"base": base, "bought": bought, "level": base + bought}
+    granted = passive_work_rank(pal.get("passiveSkills"), work_id)
+
+    level = base + bought + granted
+    cap = workrank.max_rank()
+    if cap:
+        # A missing bound drops the clamp rather than guessing one, which is the
+        # posture `editschema.max_work_rank()` already takes.
+        level = min(level, cap)
+    out = {"base": base, "bought": bought, "passive": granted, "level": level}
 
     # **What the level actually buys.** The game's own `CraftSpeeds` curve is not
     # linear — for Mining rank 3 is 100 and rank 10 is 1000 — so a bare integer

@@ -201,3 +201,84 @@ def test_counters_are_only_computed_when_a_target_is_given(client, alice):
     body = client.get("/api/optimise/combat", headers=alice).json()
     assert body["counters"] is None
     assert body["against"] == []
+
+
+# ─── Suitability-granting passives ───────────────────────────────
+
+
+def test_farmhand_and_ranch_master_count_toward_the_level():
+    """
+    **Real Pal passives, and they were being dropped.** 73 Pals on the live world
+    carry one — 66 Farmhand, 7 Ranch Master — every one with an empty
+    `workRanks`, so this was a gap rather than a double count.
+    """
+    from optimise import passive_work_rank
+
+    assert passive_work_rank(["WorkSuitabilityAddRank_MonsterFarm_1"], "MonsterFarm") == 1
+    assert passive_work_rank(["WorkSuitabilityAddRank_MonsterFarm_2"], "MonsterFarm") == 2
+
+
+def test_the_HANDBOOK_effects_must_never_count():
+    """
+    THE TRAP THIS WHOLE COMPONENT HAD TO AVOID, and it caught two people.
+
+    Fourteen `WorkSuitabilityAddRank_*` entries look identical to the two above
+    and are the effect applied by the **Applied … Handbook** items. The rank a
+    handbook grants is written into `GotWorkSuitabilityAddRankList` and is
+    already counted as `bought`, so counting the effect too would double it.
+
+    They are separated by `ToBaseCampPal` / `InvokeInBaseCamp`, not by an id
+    list — a list is how the next one added by an update slips through.
+    """
+    from optimise import passive_work_rank
+
+    for work in ("Mining", "Handcraft", "Collection", "Watering", "Transport"):
+        assert passive_work_rank([f"WorkSuitabilityAddRank_{work}"], work) == 0, (
+            f"{work} handbook effect leaked into the Pal's own level"
+        )
+
+
+def test_a_passive_for_another_work_type_does_not_leak():
+    from optimise import passive_work_rank
+
+    assert passive_work_rank(["WorkSuitabilityAddRank_MonsterFarm_2"], "Mining") == 0
+
+
+def test_an_unknown_passive_contributes_nothing_rather_than_raising():
+    """A modded or newer passive should cost the term, not the ranking."""
+    from optimise import passive_work_rank
+
+    assert passive_work_rank(["Modded_Nonsense"], "Mining") == 0
+    assert passive_work_rank(None, "Mining") == 0
+
+
+def test_the_three_components_stay_separate_and_the_total_is_capped():
+    """
+    `base`, `bought` and `passive` are three different facts — the species, the
+    owner's handbooks, and what the Pal was born with — and one number hides
+    which. The sum clamps at `WorkSuitabilityMaxRank`.
+    """
+    import optimise
+
+    row = optimise.work_level(
+        {"workSuitabilities": {"MonsterFarm": 9}, "workRanks": {"MonsterFarm": 2},
+         "passiveSkills": ["WorkSuitabilityAddRank_MonsterFarm_2"]},
+        "MonsterFarm",
+    )
+    assert row["base"] == 9 and row["bought"] == 2 and row["passive"] == 2
+    assert row["level"] == 10, "9 + 2 + 2 must clamp to WorkSuitabilityMaxRank"
+
+
+def test_condensing_is_NOT_folded_in_while_it_is_unverified():
+    """
+    Believed true, unverified, and undetermined for half the roster by ties and
+    fallthrough — see AGENTS.md. A third term that is wrong half the time is
+    worse than a missing one, so `rank` must not move the level.
+    """
+    import optimise
+
+    plain = optimise.work_level(
+        {"workSuitabilities": {"Mining": 5}, "rank": 1, "passiveSkills": []}, "Mining")
+    condensed = optimise.work_level(
+        {"workSuitabilities": {"Mining": 5}, "rank": 5, "passiveSkills": []}, "Mining")
+    assert plain["level"] == condensed["level"] == 5
