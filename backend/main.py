@@ -1015,7 +1015,22 @@ def get_welfare(request: Request, owner: Optional[str] = None) -> dict:
     def _needs_help(pal: dict) -> list[str]:
         problems = []
         if pal.get("workerSick"):
-            problems.append("sick")
+            # **A BASE-CAMP WORKER SICKNESS DOES NOT DESCRIBE A PAL IN A BOX.**
+            # The field is `EPalBaseCampWorkerSickType` and its own name says
+            # what it is about. Reported 2026-08-07: every Pal the panel called
+            # sick was in a palbox, and checking them in game showed all of them
+            # healthy — so the flag persists on the record after the Pal leaves
+            # the base, and the game does not treat it as a live condition
+            # there. `PalBoxTimePeriodRecoverySick` (3,600s) is the game's own
+            # statement that the box cures them.
+            #
+            # Split rather than dropped. A Pal recovering in the box is a fact
+            # worth showing, and silently discarding 54 of 54 flags would be its
+            # own kind of wrong — but it is not something to go and fix, which
+            # is the only question this panel exists to answer.
+            problems.append(
+                "sick" if pal.get("location") == "base" else "sickRecovering"
+            )
         if pal.get("physicalHealth"):
             problems.append("injured")
         hunger = pal.get("hungerType")

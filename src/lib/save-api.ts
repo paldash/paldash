@@ -439,6 +439,15 @@ export interface SanityThreshold {
 
 export type WelfareProblem =
   | 'sick'
+  /**
+   * Sick, but sitting in a palbox where the game cures it.
+   *
+   * `EPalBaseCampWorkerSickType` is a base-camp worker state, so it does not
+   * describe a Pal that is not working at a base — every Pal one live server
+   * flagged as sick was healthy in game. Reported separately rather than
+   * dropped: it is true, and it is not something to act on.
+   */
+  | 'sickRecovering'
   | 'injured'
   | 'hungry'
   | 'starving'
