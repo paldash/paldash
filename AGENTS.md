@@ -1412,11 +1412,43 @@ Pals each condenser star costs, 48 for all four** — the Arena rank ladder, and
 suitability-10 Pal is its species base plus work handbooks, and the only thing
 that moves work rank is `GotWorkSuitabilityAddRankList`.
 
-### CONDENSING RAISES WORK SUITABILITY — UNVERIFIED, AND THE TEST IS SPECIFIED
+### CONDENSING RAISES WORK SUITABILITY — CONFIRMED 2026-08-07, AND `backend/condenser.py` HAS IT
 
-**Status 2026-08-07: believed true, not yet confirmed, and nothing implements it.**
-Read this before answering "does the condenser affect work suitability" again —
-the answer was given as a flat *no* three times before anyone went and looked.
+**Status: CONFIRMED by five in-game readings, and `backend/condenser.py`
+implements the determined part.** Read this before answering "does the condenser
+affect work suitability" again — the answer was given as a flat *no* three
+times, the operator kept saying otherwise, and the operator was right.
+
+    star 1   +1 to its best suitability (the game's `BestWorkSuitability`)
+    star 2   +1 to its 2nd-best
+    star 3   +1 to its 3rd-best
+    star 4   +1 to EVERY suitability      ... all clamped to 10
+
+**THE 1-STAR ANUBIS IS THE READING THAT SETTLED IT, AND A 4-STAR ONE COULD NOT
+HAVE.** `{Handcraft 6, Mining 6, Transport 4}`, top two *tied*, observed
+**7 / 6 / 4**. Only Handiwork moved — so a tie breaks on the label, not on both
+sides getting it and not on enum order, and one star is not zero. At four stars
+the tied pair converges on 8 under every reading.
+
+**The fallthrough is real**: Jetragon (Gathering 8), Aegidron (Mining 8) and
+Jormuntide (Watering 7) all read **10** at four stars — 8+4 and 7+4 both clamp
+— which only works if the missing 2nd/3rd slots land on the one suitability
+they have.
+
+**WHAT IS STILL UNKNOWN IS THE 2nd/3rd ORDERING, AND IT IS NOT BY BASE VALUE.**
+Verdash at four stars read `5 / 7 / 7 / 5 / 4` — three at +2, two at +1, which
+is exactly the rule's total — but the three winners are Handiwork (5), Gathering
+(5) and **Lumbering (base 3)**, while Planting at base **4** got only the
+all-stars +1. One observation cannot separate enum order from a designer list
+from a base-mate's `WorkSuitabilityAddRank_Deforest` passive, and choosing the
+one that fits this Pal would be fitting the method to the answer.
+
+So `condenser.bonus()` returns `determined: False` there rather than a number.
+That still leaves **262 of 343 species fully determined at four stars (76%)**,
+because a Pal with three or fewer suitabilities has all of them inside the top
+three and the ordering stops mattering.
+
+
 
 The operator observes a 4-star Jetragon at Gathering **10** against a species
 base of **8**, and the same effect on Jormuntide, Jormuntide Ignis, Aegidron and
