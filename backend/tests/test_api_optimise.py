@@ -311,3 +311,42 @@ def test_welfare_pals_is_the_ARRAY_not_the_scope_count(client, alice):
         assert key in body
     assert isinstance(body["counts"], dict)
     assert isinstance(body["scanned"], int)
+
+
+def test_a_boxed_sick_pal_is_RECOVERING_not_a_problem(client, alice, monkeypatch):
+    """
+    Reported 2026-08-07: the panel said 53 Pals were sick, the operator checked
+    them in game, and they were all fine — because they were all in a palbox.
+
+    `WorkerSick` is `EPalBaseCampWorkerSickType`. Its own name says it is a
+    base-camp worker state, and the game ships `PalBoxTimePeriodRecoverySick`
+    (3,600s) as the statement that the box cures it. So a boxed Pal carrying the
+    flag is not something to go and fix, which is the only question this panel
+    answers.
+
+    **Split, not dropped.** It is still true, and discarding every flag on a
+    world where none of them is at a base would be its own kind of wrong.
+    """
+    import main
+
+    monkeypatch.setattr(
+        main.savecache, "get_section",
+        lambda name, auto=True: {
+            "pals": [
+                _pal("s1", ALICE_UID, "SheepBall", workerSick="Sprain", location="base"),
+                _pal("s2", ALICE_UID, "SheepBall", workerSick="Sprain", location="palbox"),
+                _pal("s3", ALICE_UID, "SheepBall", workerSick="Sprain", location="storage"),
+            ],
+            "guilds": GUILDS,
+        }.get(name, []),
+    )
+    viewcache.clear()
+
+    body = client.get("/api/welfare", headers=alice).json()
+    assert body["counts"].get("sick") == 1, "only the base worker is actionable"
+    assert body["counts"].get("sickRecovering") == 2, "boxed and stored are recovering"
+
+    problems = {p["instanceId"]: p["problems"] for p in body["pals"]}
+    assert problems["s1"] == ["sick"]
+    assert problems["s2"] == ["sickRecovering"]
+    assert problems["s3"] == ["sickRecovering"]
