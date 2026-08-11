@@ -481,3 +481,50 @@ def test_an_unresolvable_skin_id_returns_None_rather_than_a_guess():
     assert gamedata.skin_label("NoSuchSpecies_Skin001") is None
     assert gamedata.skin_label("") is None
     assert gamedata.skin_label(None) is None
+
+
+def test_pal_drops_keys_EXACTLY_so_an_alpha_is_not_the_ordinary_form():
+    """
+    **364 of the 890 drop rows are `BOSS_`-prefixed and they are not a richer
+    version of the ordinary table.** Anubis gives Bone and a Large Pal Soul;
+    `BOSS_Anubis` gives Ancient Civilization Parts and Precious Entrails.
+
+    `pal()` strips the prefix — right for naming, since an alpha Lamball is
+    still called Lamball — and would hand back the wrong loot here. Same trap
+    `palstats` documents for stat scaling, where the alpha bonus lives in the
+    prefixed row.
+    """
+    import gamedata
+
+    ordinary = gamedata.pal_drops("Anubis")
+    alpha = gamedata.pal_drops("BOSS_Anubis")
+    assert ordinary and alpha
+    assert ordinary != alpha
+
+    names = {i["name"] for b in ordinary for i in b["items"]}
+    alpha_names = {i["name"] for b in alpha for i in b["items"]}
+    assert "Bone" in names
+    assert "Bone" not in alpha_names
+
+
+def test_level_bands_are_kept_apart_because_their_contents_differ():
+    """
+    128 species have more than one band, and they are different tables rather
+    than a richer version of the first. Merging them would invent a drop list
+    the game does not ship; showing only the first is confidently wrong about
+    every endgame Pal.
+    """
+    import gamedata
+
+    bands = gamedata.pal_drops("Anubis")
+    assert [b["levelFrom"] for b in bands] == [0, 80]
+    early = {i["name"] for i in bands[0]["items"]}
+    late = {i["name"] for i in bands[1]["items"]}
+    assert early & late == set(), "the two bands should share nothing here"
+
+
+def test_a_species_with_no_drop_row_returns_empty_rather_than_raising():
+    import gamedata
+
+    assert gamedata.pal_drops("NoSuchPal") == []
+    assert gamedata.pal_drops("") == []
