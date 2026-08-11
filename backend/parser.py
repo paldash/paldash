@@ -1335,6 +1335,50 @@ def extract_player_progress(gvas: Any) -> dict[str, Any]:
             "keys": [str(e.get("key")) for e in obtained],
         }
 
+    # **THE FLAT EFFIGY FLAG LIST IS A LEGACY FIELD AND THE GAME ABANDONED IT.**
+    # `RelicObtainForInstanceFlag` is what `_PROGRESS_FLAGS` reads above, and on
+    # every one of five real players it holds a fraction of the truth:
+    #
+    #     player     flat   ByType
+    #     11A11A01     39      103
+    #     55E55E05     44       98
+    #     44D44D04     21       64
+    #     22B22B02     11       24
+    #
+    # `bCaptureCompletionRelicFixupDone` is True on all of them — the game's own
+    # marker that it migrated relic data — after which the flat list stopped
+    # being written. So the count was **frozen, not stale**, which is why an
+    # operator re-parsing changed nothing and why effigies they had already
+    # collected kept showing as available on the map.
+    #
+    # `RelicObtainForInstanceFlagByType` is the record now: one row per
+    # `EPalRelicType`, each with a `Flags` map of instance GUID -> bool. The
+    # GUIDs are the same undashed uppercase hex `effigies.json.gz` carries — the
+    # existing join was verified 39 of 39 with zero unmatched, so only the
+    # source was ever wrong.
+    #
+    # The union is taken rather than the replacement, and the flat list is still
+    # merged in: a save from before the fixup has only the old field, and
+    # branching on `bCaptureCompletionRelicFixupDone` would still leave the
+    # pre-migration entries out for no reason. A GUID in either place was
+    # obtained.
+    by_type = _v(record, "RelicObtainForInstanceFlagByType", "value")
+    rows = by_type.get("values") if isinstance(by_type, dict) else None
+    if isinstance(rows, list):
+        found: set[str] = {str(k) for k in (progress.get("effigies") or {}).get("keys") or []}
+        for row in rows:
+            flags = _v(row, "Flags", "value")
+            for entry in flags if isinstance(flags, list) else []:
+                if entry.get("value") is True and entry.get("key"):
+                    found.add(str(entry.get("key")))
+        progress["effigies"] = {
+            "obtained": len(found),
+            "keys": sorted(found),
+            # So a caller can tell a migrated save from an old one rather than
+            # inferring it from the count.
+            "fixupDone": bool(_v(record, "bCaptureCompletionRelicFixupDone", "value")),
+        }
+
     for label, prop in _PROGRESS_COUNTERS:
         entries = _flag_entries(record, prop)
         total = 0
