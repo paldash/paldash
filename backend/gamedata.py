@@ -357,10 +357,22 @@ def all_items() -> list[dict[str, Any]]:
     `id` and `name` both travel because the API speaks ids (`AIcore`) and people
     speak names ("AI Core"), and a catalogue that carries only one of them forces
     every caller to build the other index itself.
+
+    **`liveTwin` is a badge, never a filter.** It names the legal item sharing
+    this one's display name, so an autocomplete showing two identical rows can
+    say which one the game still uses (`Gunpowder` -> `Gunpowder2`). Hiding the
+    legacy id instead would be wrong: `bLegalInGame` is *not* "unobtainable" —
+    ten of the 575 false ones are held in refworld right now — and the editor's
+    whole job is writing ids that already exist in somebody's save.
+
+    `legalInGame` travels for the 575 so a caller can tell "the game flags this"
+    from "we have nothing to say", but only the 95 with a twin carry an
+    actionable claim. See `scripts/build-gamedata.py:apply_item_legality`.
     """
     entries = (load().get("items") or {})
-    return [
-        {
+    out = []
+    for item_id, entry in sorted(entries.items()):
+        row = {
             "id": item_id,
             "name": entry.get("name") or humanize(item_id),
             "icon": entry.get("icon", ""),
@@ -374,8 +386,19 @@ def all_items() -> list[dict[str, Any]]:
             # DynamicItemSaveData record.
             "hasDurability": bool((entry.get("dynamic") or {}).get("type")),
         }
-        for item_id, entry in sorted(entries.items())
-    ]
+        # Written only when they say something, matching the bundle: 1,891 items
+        # would otherwise carry `legalInGame: true` and a null twin for nothing.
+        if entry.get("legalInGame") is False:
+            row["legalInGame"] = False
+        twin = entry.get("liveTwin")
+        if twin:
+            # The id only. A `liveTwinName` beside it would be identical to
+            # `name` on every row *by construction* — the twin is chosen because
+            # it shares the display name — so it would read as a second fact and
+            # be a restatement of the first.
+            row["liveTwin"] = twin
+        out.append(row)
+    return out
 
 
 def max_stack(item_id: str) -> int:

@@ -1694,6 +1694,23 @@ export interface CatalogueItem {
   weight: number;
   /** Equipment. Overwriting such a slot would orphan a durability record. */
   hasDurability: boolean;
+  /**
+   * `DT_ItemDataTable.bLegalInGame`, present only on the 575 that are false.
+   *
+   * **It does NOT mean unobtainable.** Ten of them are held in the reference
+   * world right now, all seven Key Spheres among them. On its own it warrants
+   * a neutral note at most — `liveTwin` is the field that carries a claim.
+   */
+  legalInGame?: false;
+  /**
+   * The legal item sharing this one's display name, on 95 of the 575.
+   *
+   * This is the actionable half: `Gunpowder` -> `Gunpowder2`. Two rows read
+   * identically in an autocomplete and one of them is dead, so the id is worth
+   * showing. Absent when there is no legal namesake (474) or more than one (6),
+   * because neither supports a unique answer.
+   */
+  liveTwin?: string;
 }
 
 

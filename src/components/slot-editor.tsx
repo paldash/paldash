@@ -13,6 +13,7 @@ import type {
   PlayerSaveData,
 } from '@/lib/types';
 import { asArray } from '@/lib/arrays';
+import { resolveItem as resolveItemShared } from '@/lib/item-lookup';
 
 /**
  * Inventory slot editor.
@@ -130,23 +131,14 @@ export default function SlotEditor({ canEdit }: { canEdit: boolean }) {
    * showing what resolved makes a wrong entry visible before preview instead of
    * surfacing as a rejection after it.
    */
-  const itemIndex = useMemo(() => {
-    const byId = new Map<string, (typeof knownItems)[number]>();
-    const byName = new Map<string, (typeof knownItems)[number]>();
-    for (const item of knownItems) {
-      byId.set(item.id.toLowerCase(), item);
-      if (item.name) byName.set(item.name.toLowerCase(), item);
-    }
-    return { byId, byName };
-  }, [knownItems]);
-
+  // ONE RULE, SHARED WITH THE ITEM CREATOR. This used to build its own id/name
+  // maps and the creator had its own single-pass `find`; the two disagreed
+  // about which of two same-named items to return, and neither had reasoned
+  // about it — a bare `set` is last-wins, which happened to pick the live
+  // `Gunpowder2` and the dead `Head001_5`. See `src/lib/item-lookup.ts`.
   const resolveItem = useCallback(
-    (typed: string) => {
-      const key = typed.trim().toLowerCase();
-      if (!key) return null;
-      return itemIndex.byId.get(key) ?? itemIndex.byName.get(key) ?? null;
-    },
-    [itemIndex]
+    (typed: string) => resolveItemShared(knownItems, typed) ?? null,
+    [knownItems]
   );
 
   const loadContainer = useCallback(async (id: string) => {
