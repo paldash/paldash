@@ -7,6 +7,7 @@ import type { ItemCreatePlan } from '@/lib/save-api';
 import type { CatalogueItem } from '@/lib/types';
 import GameIcon from './game-icon';
 import { asArray } from '@/lib/arrays';
+import { resolveItem, shadowedByName } from '@/lib/item-lookup';
 
 /**
  * Create one piece of equipment or one egg into an empty slot.
@@ -58,14 +59,13 @@ export default function ItemCreator({
   // Accepts either spelling, because the API speaks `Rankup_1` and people say
   // "Starfruit ☆1". A name that resolves to nothing is still sent — the backend
   // validates against all 2,466 items and gives the better error.
-  const resolve = (text: string): CatalogueItem | undefined => {
-    const q = text.trim().toLowerCase();
-    if (!q) return undefined;
-    return catalogue.find(
-      (i) => i.id.toLowerCase() === q || (i.name ?? '').toLowerCase() === q
-    );
-  };
-  const resolved = resolve(typed);
+  //
+  // `resolveItem` is shared with the slot editor. It used to be written out
+  // here, and the editor had its own version; they disagreed about which of two
+  // same-named items to pick and neither had reasoned about it. See
+  // `src/lib/item-lookup.ts`.
+  const resolved = resolveItem(catalogue, typed);
+  const shadowed = shadowedByName(catalogue, typed);
   const itemId = resolved?.id ?? typed.trim();
 
   const preview = async () => {
@@ -188,6 +188,50 @@ export default function ItemCreator({
           Preview
         </button>
       </div>
+
+      {/* A BADGE, NEVER A FILTER. Hiding these would be wrong twice over: the
+          flag is not "unobtainable" (Key Spheres carry it and players hold
+          them), and an id already sitting in somebody's save must stay
+          writable. All this does is say which id the game still uses. */}
+      {resolved?.liveTwin && (
+        <div className="notice notice-warn" style={{ marginTop: 10, fontSize: 12 }}>
+          <AlertTriangle size={13} style={{ display: 'inline', verticalAlign: '-2px', marginRight: 5 }} />
+          Two items share the name &ldquo;{resolved.name}&rdquo;, and the game
+          flags this one <code>bLegalInGame = false</code> while{' '}
+          <code>{resolved.liveTwin}</code> is flagged legal. If you meant the one
+          players normally have, use <code>{resolved.liveTwin}</code>.
+          {/* WHAT THE FLAG DOES is not stated here, because it is not known.
+              A first draft said "crafting and recipes will not recognise it",
+              which sounds right and is false: 88 of these 95 ids DO appear in
+              DT_ItemRecipeDataTable. Report the facts, not the mechanic —
+              basesupply.py's rule, and the same trap it was written for. */}
+        </div>
+      )}
+
+      {/* The other half: a NAME that matched several ids, where we picked one.
+          A substitution the operator did not make must be visible, even though
+          it is the right one — the whole complaint behind this was a resolution
+          nobody could see. */}
+      {shadowed.length > 0 && resolved && (
+        <div className="notice" style={{ marginTop: 10, fontSize: 12 }}>
+          &ldquo;{resolved.name}&rdquo; is the name of{' '}
+          {shadowed.length + 1} items. Using <code>{resolved.id}</code>, the one
+          the game still flags as legal; the {shadowed.length === 1 ? 'other is' : 'others are'}{' '}
+          {shadowed.map((id, n) => (
+            <span key={id}>{n > 0 && ', '}<code>{id}</code></span>
+          ))}. Type an id directly to pick one yourself.
+        </div>
+      )}
+
+      {resolved && resolved.legalInGame === false && !resolved.liveTwin && (
+        <div className="notice" style={{ marginTop: 10, fontSize: 12 }}>
+          The game flags <code>{resolved.id}</code> as{' '}
+          <code>bLegalInGame = false</code>. That is <strong>not</strong> the
+          same as unobtainable — Key Spheres carry the same flag and are held on
+          real servers — and no live item shares this name, so there is nothing
+          to point you at instead.
+        </div>
+      )}
 
       {error && (
         <div className="notice notice-warn" style={{ marginTop: 10, fontSize: 12 }}>

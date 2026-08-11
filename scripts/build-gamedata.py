@@ -657,11 +657,107 @@ def apply_species_fields(data: dict) -> dict[str, int]:
     return counts
 
 
+def apply_item_legality(data: dict) -> dict[str, int]:
+    """
+    `DT_ItemDataTable.bLegalInGame`, and the one claim it actually supports.
+
+    575 of the 2,466 items are `False`. The tempting reading is "unobtainable",
+    and it is **wrong**: ten of them are sitting in refworld's containers right
+    now — all seven `KeySphere_01..07`, `WhaleWhistle`, `Blueprint_WhaleWhistle`
+    and `MachingunBullet`. A badge saying "unobtainable" would be a confident
+    falsehood about items a player owns, which is worse than no badge.
+
+    The id convention does not rescue it either. "The `2` suffix is the live
+    one" holds for `Gunpowder`/`Gunpowder2` and fails for `Leather`, which is a
+    crafting material while `Leather2` is the illegal one.
+
+    So only one thing is written, and only where it is checkable: **an illegal
+    item that shares its display name with exactly one legal item**. That is the
+    case the item creator actually gets wrong — someone types "Gunpowder", sees
+    two identical rows, and spawns the dead one. 95 of the 575 qualify:
+
+        Gunpowder          -> Gunpowder2
+        PalSphere_Debug    -> PalSphere
+        Glider_Legendary   -> Glider_Tera
+        Head001_2..05      -> Head001
+
+    **89 of those 95 collide only because of OUR naming rule**, and that is a
+    feature rather than a caveat. `apply_game_names` is exact-first,
+    base-fallback (AGENTS.md, "Display names come from the CLIENT pak"), so
+    `Head001_2` shows "Monarch's Crown" because the game never named it at all.
+    An illegal item the game declined to name, wearing a live item's name, is
+    exactly a dead tier. The other 6 the game names twice itself, and they are
+    the same shape — `PalSphere_Debug` is a debug sphere called "Pal Sphere".
+
+    **The 474 with no legal namesake get `legalInGame` and nothing more**, which
+    is where the ten held items land, so none of them is ever badged. The 6 with
+    *two* legal namesakes (`OctaviaRevolver_2..4`, whose tiers 1 and 5 are both
+    live) get no twin either: there is no unique answer and guessing one would
+    be inventing data.
+
+    Case is folded on the join for the reason `gamedata.py` documents and the
+    technology join already needed — an `FName` compares case-insensitively and
+    a `dict` does not.
+    """
+    import palpak
+    import uassettable
+
+    pak = palpak.Pak()
+    path = next(
+        (f for f in pak.files if f.endswith("DT_ItemDataTable.uasset")), None
+    )
+    if path is None:
+        raise SystemExit("!! DT_ItemDataTable not in the server pak")
+
+    rows = uassettable.read_table(pak, path)
+    legal = {str(k).lower(): bool(r.get("bLegalInGame")) for k, r in rows.items()}
+
+    items = data.get("items") or {}
+    counts = {"total": len(items), "unmatched": 0, "illegal": 0,
+              "twin": 0, "noTwin": 0, "ambiguous": 0}
+
+    # Group by display name so the twin lookup is one pass. Only entries the
+    # table actually covers take part: an item with no row has no opinion to
+    # contribute in either direction.
+    by_name: dict[str, list[tuple[str, bool]]] = {}
+    for ident, entry in items.items():
+        state = legal.get(ident.lower())
+        if state is None:
+            continue
+        by_name.setdefault(str(entry.get("name") or ""), []).append((ident, state))
+
+    for ident, entry in items.items():
+        state = legal.get(ident.lower())
+        if state is None:
+            counts["unmatched"] += 1
+            continue
+        if state:
+            continue
+        # Written only when it says something, like `zukanSuffix` above: the
+        # blob does not grow by 1,891 trues.
+        entry["legalInGame"] = False
+        counts["illegal"] += 1
+
+        live = [i for i, s in by_name.get(str(entry.get("name") or ""), []) if s]
+        if len(live) == 1:
+            entry["liveTwin"] = live[0]
+            counts["twin"] += 1
+        elif not live:
+            counts["noTwin"] += 1
+        else:
+            counts["ambiguous"] += 1
+    return counts
+
+
 def main() -> int:
     data = build()
 
     species = apply_species_fields(data)
     names = apply_game_names(data)
+    # AFTER the names, never before: the twin join keys on the display name, and
+    # before this runs those are the third-party archive's rather than the
+    # game's. Reordering these two silently changes which items pair up.
+    legality = apply_item_legality(data)
     icons = resolve_icons(data)
 
     os.makedirs(os.path.dirname(OUT_PATH), exist_ok=True)
@@ -689,12 +785,23 @@ def main() -> int:
     )
     print("  names (from the game's own L10N tables):")
     for section, counts in names.items():
+        # `partnerSkills` is counted with a narrower shape than the six text
+        # sections — it has no archive value to fall back to, so no `renamed`
+        # or `fellBack`. Indexing them unconditionally crashed the report after
+        # the bundle had already been written, which is why the failure was
+        # invisible: the file on disk was correct and the exit code was not.
         print(
             f"    {section:13s} {counts['named']:5,}/{counts['total']:,} named"
-            f"  {counts['renamed']:5,} changed"
-            f"  {counts['fellBack']:5,} still from archive"
-            f"  {counts['described']:5,} described"
+            f"  {counts.get('renamed', 0):5,} changed"
+            f"  {counts.get('fellBack', 0):5,} still from archive"
+            f"  {counts.get('described', 0):5,} described"
         )
+    print(
+        f"  item legality:       {legality['illegal']:,} of {legality['total']:,}"
+        f" are bLegalInGame=false; {legality['twin']} badged with a live twin"
+        f" ({legality['noTwin']} have no legal namesake and are NOT badged,"
+        f" {legality['ambiguous']} ambiguous)"
+    )
     # Per section, because one aggregate is unreadable here. `technology` and
     # `structures` are ~100% "missing" **by design** — `scripts/install-icons.py`
     # deliberately does not ship them (994 files, 6.4 MB, and nothing renders a
