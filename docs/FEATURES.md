@@ -288,6 +288,16 @@ container must match while **every other container in the world is unchanged**.
 This is also how arbitrary items get added to a world — any id in the bundled
 2,466-item database is addressable.
 
+**575 of those ids are flagged `bLegalInGame: false`, and 95 of them share their
+display name with a legal item** — `Gunpowder` beside `Gunpowder2`, four dead
+`Head001_*` tiers beside `Head001`. Typing the name used to pick between them
+arbitrarily, and differently in the two editors. It now prefers the live one,
+an exact id is still honoured literally, and the creator says which is which.
+
+Nothing is hidden and nothing is refused: the flag is **not** "unobtainable" —
+Key Spheres carry it and players hold them — and what it *does* mean is stated
+by no game file, so the UI reports the fact and stops there.
+
 ### Illegal-Pal detection and repair
 Scans every Pal against the same `editschema` bounds the editor enforces, and
 repairs by clamping. Reports **violations** and **advisories** separately:

@@ -3272,6 +3272,63 @@ where an item comes from, folding six bundled tables into one answer. Its census
 counterpart is `/api/bases/craftable` — what a guild's own materials could make —
 and the two sit on opposite sides of exactly the line above.
 
+### `bLegalInGame` is not "unobtainable", and a display name is not unique
+
+`DT_ItemDataTable.bLegalInGame` is **false on 575 of the 2,466 items**. The
+tempting reading is "unobtainable" and it is wrong: **ten of them are sitting in
+refworld's containers**, all seven `KeySphere_01..07` among them. The id
+convention does not rescue it either — `Gunpowder2` is the live one and
+**`Leather2` is the dead one**, so liveness is read from the column and never
+derived from a suffix.
+
+So one claim is bundled, and only where it is checkable: `liveTwin`, on the
+**95** illegal items sharing a display name with **exactly one** legal item.
+
+| | |
+|---|---:|
+| illegal, one legal namesake — **badged** | **95** |
+| illegal, no legal namesake — flag only, and where all ten held items land | 474 |
+| illegal, **two** legal namesakes (`OctaviaRevolver_2..4`) — no unique answer | 6 |
+
+**89 of the 95 collide because of OUR naming rule, and that is the signal rather
+than a caveat.** `apply_game_names` is exact-first/base-fallback, so `Head001_2`
+reads "Monarch's Crown" precisely because the game never named it at all. An
+illegal item the game declined to name, wearing a live item's name, *is* a dead
+tier. The other 6 the game names twice itself — `PalSphere_Debug` is a debug
+sphere called "Pal Sphere".
+
+`apply_item_legality` **must run after `apply_game_names`**; the join keys on the
+display name, and before that runs those are the third-party archive's.
+
+**WHAT THE FLAG DOES IS CLAIMED NOWHERE.** A first draft of the badge said a
+legacy id would not be recognised by crafting — plausible, comfortable, and
+false: **88 of the 95 appear in `DT_ItemRecipeDataTable`**. Report the facts,
+not the mechanic; a test pins the 88 so the claim cannot come back.
+
+**And it is a badge, never a filter.** These ids exist in real saves and the
+editor's job is writing what exists.
+
+#### The resolution was the actual bug, and there were two of it
+
+`src/lib/item-lookup.ts`. Both components mapped typed text onto the catalogue
+and **both got the ambiguous case wrong, in ways that look nothing alike**:
+
+    item-creator   `id === q || name === q` in one pass over an id-sorted list,
+                   so an early NAME match beat a later ID match
+    slot-editor    a bare `byName.set` — last-wins
+
+Neither was reasoned about; they just failed on different rows. Last-wins
+happened to pick the live `Gunpowder2` and the **dead** `Head001_5`. One rule
+now, callers passing their own catalogue — the `_scope_pals` lesson again.
+
+**An exact id wins even when it is the dead one.** My first draft of the tests
+asserted both that typing "Gunpowder" resolves to `Gunpowder2` *and* that legacy
+ids stay reachable, which cannot both hold — `Gunpowder` is simultaneously the
+dead item's id and both items' display name. Honouring literal input and warning
+beats silently substituting a different item than the one whose id was typed. A
+display *name* has no literal reading to honour, so that ambiguity does resolve
+to the live item, and `shadowedByName` makes the substitution visible.
+
 ### Keeping ONE recipe per product silently answered a twelfth of the question
 
 `economy.json.gz` used to key recipes by product, which collapsed 1,414 rows to
