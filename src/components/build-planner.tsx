@@ -134,19 +134,22 @@ export default function BuildPlanner() {
                                          display: 'flex', gap: 6 }}>
           <Info size={12} style={{ flexShrink: 0, marginTop: 1 }} />
           <span>
-            {/* THIS USED TO SAY LEVEL AND STARS "DO NOT" CHANGE A SPEED. They
-                carry no term in the game's files, which is not the same claim —
-                the condenser's effect on work suitability is applied at load
-                and appears in no file either, and was wrongly denied three
-                times. The panel states what is known and what is not. */}
-            Speed and stamina are flat per-species figures, and this ranking
-            applies <strong>no</strong> level, IV, star or soul bonus to them —
-            no game file states one.{' '}
-            <strong>Whether the condenser raises them anyway is unverified:</strong>{' '}
-            its bonus is applied when the game loads, so a movement effect would
-            be invisible here exactly as the work-suitability one was. Passives
-            are the only route the files confirm. A timed run on a 0-star and a
-            4-star of the same species would settle it.
+            {/* THIS PANEL HAS BEEN WRONG TWICE. It first said level and stars
+                "do not" change a speed; corrected to "unverified" when the
+                operator challenged it; corrected again when they observed
+                Direhowl getting faster and the mechanism turned up in the
+                files. Stars DO raise some speeds — through the species'
+                partner skill, which is a list indexed by condenser rank. */}
+            Speed and stamina are flat per-species figures: no level, IV or soul
+            bonus applies to them, and this ranking invents none.{' '}
+            <strong>Stars do raise the speed of some Pals</strong> — 96 species
+            have a partner skill that scales with condenser rank, so a 4-star
+            Direhowl rides 20% faster while most Pals gain nothing. That term is
+            applied here and shown per row.{' '}
+            Whether the condenser <em>also</em> multiplies the underlying species
+            figure the way it multiplies HP and Attack is still unverified — it
+            would be applied at load and invisible in every file, so only a
+            timed run on a 0-star and a 4-star settles it.
           </span>
         </div>
       )}
@@ -199,6 +202,19 @@ export default function BuildPlanner() {
                 <td className="mono" style={{ padding: '4px 6px', textAlign: 'right',
                                               color: 'var(--text-primary)' }}>
                   {num(row.value)}
+                  {/* What the stars bought, when they bought anything. Only 96
+                      species have a partner skill that scales with condenser
+                      rank, so most rows show nothing here — which is the
+                      honest answer rather than a "+0%" implying a shared rule. */}
+                  {!!row.partnerBonus && (
+                    <span
+                      title={`+${Math.round(row.partnerBonus * 100)}% from this Pal's partner skill at the chosen condenser rank — the term the stars buy`}
+                      style={{ marginLeft: 5, fontSize: 10,
+                               color: 'var(--accent-green)' }}
+                    >
+                      ★+{Math.round(row.partnerBonus * 100)}%
+                    </span>
+                  )}
                 </td>
                 {data?.matchupApplied && (
                   <td className="mono" style={{ padding: '4px 6px', textAlign: 'right',

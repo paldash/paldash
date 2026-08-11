@@ -33,36 +33,46 @@ def _clean_caches():
 MAXED = {"level": 80, "condenserRank": 5, "iv": 100, "soulRank": 20}
 
 
-# ─── Movement takes no build term, which is the whole finding ───
+# ─── Movement: the species column is fixed, the terms beside it are not ───
 
 
-def test_this_ranking_applies_no_build_bonus_to_a_speed():
+def test_the_species_speed_column_is_never_multiplied_by_a_build():
     """
     A statement about THIS MODULE, not about the game.
 
-    **The earlier version of this test was called `test_a_maxed_pal_is_not_
-    faster` and asserted the game's behaviour, which it cannot see.** The
-    operator challenged it and was right: `StatusCalculate_GenkaiToppa_PerAdd`
-    carries no stat suffix while every other constant in its family does, and
-    the condenser's effect on work suitability is applied at load, absent from
-    every file, and was wrongly denied three times.
+    **This test has now been wrong twice, in opposite directions, and the second
+    time is the instructive one.** It began as `test_a_maxed_pal_is_not_faster`,
+    asserting the game's behaviour. The operator challenged that and was right,
+    so it was rewritten to assert the *ranking* is unchanged by a maxed build —
+    which was a weaker claim and still false, because a partner skill is indexed
+    by condenser rank and Direhowl really does ride 20% faster at four stars.
 
-    What is testable is that nothing here invents a multiplier — the ranking
-    reports the species column untouched — and that the payload says so as an
-    unknown rather than as a denial.
+    What survives is the part that was always the point: **`base` is the game's
+    own column and nothing here multiplies it.** Any change shows up in `value`
+    with a named term beside it, never by the species figure moving.
     """
     base = buildplanner.rank("rideSprint", limit=20)
     maxed = buildplanner.rank("rideSprint", build=MAXED, limit=20)
-    assert [(r["speciesId"], r["value"]) for r in base["rows"]] == \
-        [(r["speciesId"], r["value"]) for r in maxed["rows"]]
+    bases = {r["speciesId"]: r["base"] for r in base["rows"]}
+    for row in maxed["rows"]:
+        if row["speciesId"] in bases:
+            assert row["base"] == bases[row["speciesId"]]
     assert base["buildAffectsMetric"] is False
     assert base["movementInFiles"] is True
-    # NEVER False. False would be a claim about the game that nothing here can
-    # support, which is exactly the mistake this test replaces.
-    assert base["condenserOnMovement"] == "unverified"
+    # The condenser question split in two once the mechanism was found. The
+    # partner-skill half is answered; the speed-column half is not, and is
+    # NEVER False — that was the original overclaim.
+    assert base["condenserOnMovement"] == "viaPartnerSkill"
+    assert base["condenserOnSpeedColumns"] == "unverified"
 
 
-def test_passives_are_the_only_thing_that_moves_a_speed():
+def test_passives_move_a_speed_and_stack_additively():
+    """
+    **Renamed.** This was `test_passives_are_the_only_thing_that_moves_a_speed`,
+    and that stopped being true the moment partner skills were read — a name
+    left behind by a correction is how the retracted claim survives in the one
+    place people grep.
+    """
     plain = buildplanner.rank("rideSprint", limit=1)["rows"][0]
     swift = buildplanner.rank(
         "rideSprint", build={"passives": ["Legend", "MoveSpeed_up_3"]}, limit=1
@@ -326,3 +336,111 @@ def test_any_leftover_placeholder_marks_the_text_unfilled():
     jetragon = buildplanner.partner_skill("JetDragon", 5)
     assert "{" in jetragon["description"]
     assert jetragon["filled"] is False
+
+
+# ─── The condenser DOES move a speed, via the partner skill ───
+
+
+def _row(metric, species_id, **build):
+    out = buildplanner.rank(metric, build=build, limit=500)
+    return next((r for r in out["rows"] if r.get("speciesId") == species_id), None)
+
+
+def test_condensing_direhowl_makes_it_faster():
+    """
+    The operator observed it in game; the files say it too.
+
+    `Garm.ranks` is empty at rank 1 and `MoveSpeed_up_PartnerSkill_Ride_1..4` at
+    ranks 2-5, so a four-star Direhowl rides 20% faster. Nothing computed this
+    before — `movement_bonuses` read only the Pal's own passives, and the term
+    lives on the species' partner skill.
+    """
+    stock = _row("rideSprint", "Garm", condenserRank=1)
+    maxed = _row("rideSprint", "Garm", condenserRank=5)
+    assert stock and maxed
+    assert stock["base"] == maxed["base"], "the species column must not move"
+    assert stock["partnerBonus"] == 0.0
+    assert maxed["partnerBonus"] == 0.2
+    assert maxed["value"] > stock["value"]
+    assert maxed["value"] == round(stock["base"] * 1.2, 1)
+
+
+def test_the_bonus_climbs_with_each_star_rather_than_switching_on():
+    """0 / 10 / 12 / 15 / 20 % — five distinct ranks, not a flag."""
+    seen = [buildplanner.partner_movement("Garm", r)["riding"].get("rideSprint", 0.0)
+            for r in range(1, 6)]
+    assert seen == [0.0, 0.1, 0.12, 0.15, 0.2]
+
+
+def test_most_pals_gain_nothing_from_condensing():
+    """
+    96 of the species/forms have a movement-scaling partner skill, so a ranking
+    where *everything* moved would mean the term had been applied to the wrong
+    thing. Melpaca is a mount with no such skill and must be identical.
+    """
+    stock = _row("rideSprint", "Alpaca", condenserRank=1)
+    maxed = _row("rideSprint", "Alpaca", condenserRank=5)
+    assert stock and maxed
+    assert stock["value"] == maxed["value"]
+    assert maxed["partnerBonus"] == 0.0
+
+
+def test_which_speed_moves_depends_on_the_species():
+    """
+    Azurobe's partner skill is `SwimSpeed`, not `MoveSpeed`.
+
+    Pinned because a reader that mapped every movement effect onto ride speed
+    would look right on Direhowl and be wrong on every swimmer.
+    """
+    swim = buildplanner.partner_movement("BlueDragon", 5)["riding"]
+    assert swim.get("swim") and not swim.get("rideSprint")
+
+
+def test_a_riding_bonus_does_not_inflate_the_pals_own_run_speed():
+    """
+    `MoveSpeed_up_PartnerSkill_Ride_*` is `InvokeRiding` — it applies while you
+    are riding, so it must not raise the figure for a Pal running beside you.
+    """
+    stock = _row("run", "Garm", condenserRank=1)
+    maxed = _row("run", "Garm", condenserRank=5)
+    assert stock and maxed
+    assert stock["value"] == maxed["value"]
+
+
+def test_a_trainer_targeted_movement_effect_is_not_the_pals_speed():
+    """
+    `ClimbMoveSpeedRate` is **`ToTrainer`** — it speeds up the PLAYER's
+    climbing. Counting it would credit a Pal with a bonus that moves somebody
+    else, which is the `palstats` target rule doing its job through reuse.
+    """
+    effects = (gamedata.passive_effects("ClimbSpeedUp_1") or {}).get("effects") or []
+    assert effects, "the skill this rule was read off is no longer in the bundle"
+    assert effects[0]["type"] == "ClimbMoveSpeedRate"
+    assert effects[0]["target"] == "ToTrainer"
+
+    moved = buildplanner.movement_bonuses(["ClimbSpeedUp_1"])
+    assert not moved["always"] and not moved["riding"]
+
+
+def test_the_two_condenser_questions_stay_separate():
+    """
+    One got answered and the other did not, and merging them would turn a
+    partial answer into a wrong one: whether `GenkaiToppa_PerAdd` also
+    multiplies the speed COLUMNS is still unsettled.
+    """
+    out = buildplanner.rank("rideSprint", limit=1)
+    assert out["condenserOnMovement"] == "viaPartnerSkill"
+    assert out["condenserOnSpeedColumns"] == "unverified"
+    # Never `false` — that was the overclaim this whole thread retracted.
+    assert out["condenserOnSpeedColumns"] is not False
+
+
+def test_rank_and_compare_agree_about_the_condenser():
+    """Both are on screen together; disagreeing would be the worse wrong."""
+    ranked = buildplanner.rank("rideSprint", limit=1)
+    compared = buildplanner.compare(["Garm"], build={"condenserRank": 5})
+    for key in ("condenserOnMovement", "condenserOnSpeedColumns"):
+        assert ranked[key] == compared[key]
+    movement = compared["species"][0]["movement"]["rideSprint"]
+    assert movement["partnerBonus"] == 0.2
+    assert movement["value"] == round(movement["base"] * 1.2, 1)
