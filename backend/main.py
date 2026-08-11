@@ -32,6 +32,7 @@ import baseassign
 import basesupply
 import breeding
 import charedit
+import crafting
 import db
 import editschema
 import elements
@@ -2453,6 +2454,32 @@ def get_item_sources(item_id: str, request: Request) -> dict[str, Any]:
     authz.require(request, roles_module.VIEW_BASIC)
     try:
         return itemsource.describe(item_id)
+    except gamedata.GameDataUnavailable as e:
+        raise HTTPException(503, str(e))
+
+
+@app.get("/api/world/items/{item_id}/tree")
+def get_crafting_tree(item_id: str, request: Request, count: int = 1,
+                      prefer: str = "") -> dict[str, Any]:
+    """
+    The full crafting tree for an item, down to raw materials, with quantities.
+
+    The recursive half of `/api/world/items/{id}`, which stops one level down.
+    Same gate and the same reason: catalogue data about what Palworld has, no
+    parsed world read and no stock checked.
+
+    `count` is clamped rather than refused — somebody typing a large number wants
+    a large answer, and the tree is bounded by node count instead, which is the
+    thing that actually costs. `prefer` is a comma-separated list of recipe row
+    ids for the four products with more than one way to make them.
+    """
+    authz.require(request, roles_module.VIEW_BASIC)
+    try:
+        return crafting.tree(
+            item_id,
+            count=max(1, min(int(count or 1), 100_000)),
+            prefer=[p for p in (prefer or "").split(",") if p],
+        )
     except gamedata.GameDataUnavailable as e:
         raise HTTPException(503, str(e))
 

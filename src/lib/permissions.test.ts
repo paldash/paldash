@@ -107,6 +107,9 @@ describe('describeSavePath', () => {
       // from container contents and takes the storage gate instead.
       ['world/items', 'GET', CAPABILITIES.VIEW_BASIC],
       ['world/items/AIcore', 'GET', CAPABILITIES.VIEW_BASIC],
+      // The recursive tree is the same disclosure taken further down, so it
+      // shares the gate rather than getting a looser or stricter one.
+      ['world/items/AIcore/tree', 'GET', CAPABILITIES.VIEW_BASIC],
       ['bases/craftable', 'GET', CAPABILITIES.VIEW_SELF],
       // The checklist detail must take the SAME gate as the summary it details.
       // A stricter one makes the tab unreachable wherever the counts work,
@@ -133,6 +136,11 @@ describe('describeSavePath', () => {
       expect(describeSavePath('world/items/a-b', 'GET').allowed).toBe(false);
       // And it is a read. The catalogue is bundled data nothing can write to.
       expect(describeSavePath('world/items/AIcore', 'POST').allowed).toBe(false);
+      // `/tree` is listed explicitly, so adding it did not widen the pattern
+      // above into "any trailing segment" — which is the way an unintended
+      // route becomes reachable through an allowlist.
+      expect(describeSavePath('world/items/AIcore/tree/deeper', 'GET').allowed).toBe(false);
+      expect(describeSavePath('world/items/AIcore/tree', 'POST').allowed).toBe(false);
     });
 
     it('no longer exposes the retired general edit route', () => {

@@ -158,6 +158,11 @@ const ROUTES: RouteRule[] = [
   // Where one item comes from — recipes, drops, chests, merchants. Same
   // catalogue, same gate: it describes the game, not this world.
   { pattern: /^world\/items\/[A-Za-z0-9_]+$/, methods: ['GET'], capability: CAPABILITIES.VIEW_BASIC, feature: FEATURES.SERVER_STATUS },
+  // ...and the recursive version of the same answer, all the way to raw
+  // materials. Listed separately rather than widening the pattern above: the
+  // allowlist is explicit by design, and a trailing segment matched by a `.*`
+  // is how an unintended route becomes reachable.
+  { pattern: /^world\/items\/[A-Za-z0-9_]+\/tree$/, methods: ['GET'], capability: CAPABILITIES.VIEW_BASIC, feature: FEATURES.SERVER_STATUS },
   // Discoveries are VIEW_BASIC because a Player must be able to see their OWN
   // progress. The backend decides what a given role may see of the undiscovered
   // half — the proxy cannot, since that depends on the discoveryVisibility
