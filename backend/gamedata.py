@@ -141,9 +141,17 @@ PASSIVE_EFFECT_PATH = os.environ.get(
     ),
 )
 
+PARTNER_SKILL_PATH = os.environ.get(
+    "PARTNER_SKILL_DATA_PATH",
+    os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "data", "partner_skills.json.gz"
+    ),
+)
+
 _data: Optional[dict[str, Any]] = None
 _effigies: Optional[list[dict[str, Any]]] = None
 _passive_effects: Optional[dict[str, Any]] = None
+_partner_skills: Optional[dict[str, Any]] = None
 _game_settings: Optional[dict[str, Any]] = None
 _boss_spawners: Optional[list[dict[str, Any]]] = None
 _work_assign: Optional[dict[str, Any]] = None
@@ -227,7 +235,9 @@ def _reset_cache() -> None:
     its own global and none were added here, which is the failure mode a partial
     reset always has: it works until it silently does not.
     """
-    global _data, _effigies, _passive_effects, _game_settings, _effigy_icon_index
+    global _data, _effigies, _passive_effects, _partner_skills
+    global _game_settings, _effigy_icon_index
+    _partner_skills = None
     global _boss_spawners, _work_assign, _basecamp, _economy, _spawns, _moves
     global _npcs, _guild
     global _progression, _raidbosses, _invaders, _worldpresets
@@ -1740,6 +1750,59 @@ def passive_effects(passive_id: str) -> Optional[dict[str, Any]]:
             )
             _passive_effects = {}
     return _passive_effects.get(str(passive_id or "").lower())
+
+
+def partner_skills(species_id: str) -> Optional[dict[str, Any]]:
+    """
+    What a species does for **you** — in your party or while you ride it.
+
+    `{"ranks": [[skill ids at rank 1], ... rank 5], "active": {...},
+      "mountGearItem": "SkillUnlock_..."}` from
+    `scripts/extract-partner-skills.py`.
+
+    **`ranks` is indexed by CONDENSER rank**, which makes partner skills a fifth
+    way a Pal improves and one the dashboard did not know about: Silvegis cuts
+    the player's shield damage by 65% at one star and 80% at five.
+
+    The ids resolve through `passive_effects()` — 933 of 933 — so this is a
+    mapping and describes no effect of its own. Look one up rather than reading
+    a name: `GiveAElectricity_Ride` is `ElementElectricity -> ToTrainer` while
+    riding, which is the game saying it rather than the id being trusted.
+
+    Degrades to None like every other bundle here.
+    """
+    global _partner_skills
+    if _partner_skills is None:
+        try:
+            with gzip.open(PARTNER_SKILL_PATH, "rt", encoding="utf-8") as f:
+                raw = json.load(f)
+            _partner_skills = {
+                str(k).lower(): v for k, v in (raw.get("species") or {}).items()
+            }
+        except (OSError, json.JSONDecodeError) as e:
+            logger.warning(
+                "Partner skill data unavailable (%s); party and ride buffs will "
+                "not be reported", e,
+            )
+            _partner_skills = {}
+    return _partner_skills.get(str(species_id or "").lower())
+
+
+def partner_skills_at(species_id: str, condenser_rank: int = 1) -> list[str]:
+    """
+    The skill ids a species grants at one condenser rank.
+
+    **The index is clamped, not defaulted to empty.** Two species (Valentail)
+    ship a single rank entry because their effect is on/off with nothing to
+    scale, so asking for rank 4 must give the one entry rather than nothing —
+    that is the game declining to write four identical rows, not an absence.
+    """
+    entry = partner_skills(species_id) or {}
+    ranks = entry.get("ranks") or []
+    if not ranks:
+        return []
+    index = max(1, min(int(condenser_rank or 1), len(ranks))) - 1
+    return list(ranks[index])
 
 
 def passive_effects_all() -> dict[str, Any]:

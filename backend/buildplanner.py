@@ -176,6 +176,63 @@ def movement_bonuses(passive_ids: list) -> dict[str, Any]:
     return {"always": always, "riding": riding, "conditional": conditional}
 
 
+# Where a partner skill's effect lands, and therefore which question it answers.
+# `ToTrainer` is 669 of the bundle's 2,057 effects and `palstats` excludes it
+# **correctly** — it is not part of a Pal's stat block. It is the entire content
+# of "which Pal should I carry", which is why it is read here instead.
+_PLAYER_TARGETS = {"ToTrainer", "ToTrainerAndOtomo"}
+# In the party / out with you, versus specifically while ridden.
+_PARTY_INVOKES = {"InvokeInOtomo", "InvokeActiveOtomo", "InvokeAlways"}
+
+
+def partner_effects(species_id: str, condenser_rank: int = 1) -> dict[str, Any]:
+    """
+    What carrying this Pal does for the player, at a given condenser rank.
+
+    **This is the axis `palstats` deliberately cannot see.** Its filters exclude
+    `ToTrainer` and `InvokeInOtomo`, both right for a Pal's own stat block and
+    both blind to the reason somebody carries a Pal that never fights: Silvegis
+    cuts the player's shield damage by 65% at one star and **80% at five**.
+
+    Split by *when*, never summed into one number:
+
+    - `party` — `InvokeInOtomo` / `InvokeActiveOtomo` / `InvokeAlways`. Just for
+      being out with you.
+    - `riding` — `InvokeRiding`. `GiveAElectricity_Ride` on Solmora Lux is
+      `ElementElectricity -> ToTrainer`, which is the game stating that riding
+      it makes your damage electric.
+    - `toPal` — effects the skill puts on the Pal rather than on you, kept apart
+      because "+15% Dark boost" reads very differently depending on whose it is.
+
+    Nothing is inferred from a skill id. Each one is looked up in
+    `passive_effects.json.gz`; an id that does not resolve is dropped rather
+    than guessed at from its name.
+    """
+    out: dict[str, list] = {"party": [], "riding": [], "toPal": [], "unknown": []}
+    for skill_id in gamedata.partner_skills_at(species_id, condenser_rank):
+        entry = gamedata.passive_effects(skill_id)
+        if not entry:
+            out["unknown"].append(skill_id)
+            continue
+        invokes = set(entry.get("invoke") or [])
+        for effect in entry.get("effects") or []:
+            row = {
+                "skillId": skill_id,
+                "type": effect.get("type"),
+                "value": effect.get("value"),
+                "target": effect.get("target"),
+                "invoke": sorted(invokes),
+            }
+            if str(effect.get("target") or "") in _PLAYER_TARGETS:
+                bucket = "riding" if invokes & _RIDING else (
+                    "party" if invokes & _PARTY_INVOKES else "party"
+                )
+            else:
+                bucket = "toPal"
+            out[bucket].append(row)
+    return out
+
+
 def _hypothetical(species_id: str, build: dict[str, Any]) -> dict[str, Any]:
     """
     A Pal-shaped record for a build nobody owns.
@@ -428,6 +485,12 @@ def compare(species_ids: list, build: Optional[dict[str, Any]] = None
             # None for an NPC rather than a block of zeroes, which would read as
             # a confident answer about a merchant.
             "stats": stats,
+            # What carrying it does for YOU, at this build's condenser rank —
+            # the axis a stat comparison cannot show.
+            "partner": partner_effects(
+                entry["speciesId"], int(build.get("condenserRank") or 1)
+            ),
+            "mountGearItem": entry.get("mountGearItem"),
         })
 
     return {
