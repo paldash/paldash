@@ -11,6 +11,7 @@ import {
 } from '@/lib/save-api';
 import GameIcon from '@/components/game-icon';
 import { asArray } from '@/lib/arrays';
+import BossPlanner from '@/components/boss-planner';
 import type {
   Checklist, ChecklistEntry, ProgressDetailReport, RaidBossReport,
   PaldeckCompletion,
@@ -167,6 +168,10 @@ export default function Progression() {
       )}
 
       <PaldeckCompletionCard entries={dex} who={who} />
+
+      {/* Reference data rather than this player's progress, so it sits below
+          the checklists and does not depend on a parsed world. */}
+      <BossPlanner />
 
       {raids && <RaidBosses report={raids} defeated={player} />}
     </div>

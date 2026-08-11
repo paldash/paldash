@@ -53,6 +53,7 @@ import type {
   CatalogueItem,
   CraftableReport,
   NpcPlacements,
+  BossEncounters,
   PaldeckCompletion,
   ProgressDetailReport,
   InvaderReport,
@@ -1865,6 +1866,22 @@ export async function getProgress(): Promise<{
  * The not-yet-caught half is filtered server-side by `discoveryVisibility`;
  * `showsMissing` says whether it was.
  */
+/**
+ * Every boss with its counters. Catalogue data, no parsed world.
+ *
+ * `element` filters on the boss's OWN element, not on what beats it.
+ */
+export async function getBossEncounters(options: {
+  kind?: string; element?: string; maxLevel?: number;
+} = {}): Promise<BossEncounters> {
+  const query = new URLSearchParams();
+  if (options.kind) query.set('kind', options.kind);
+  if (options.element) query.set('element', options.element);
+  if (options.maxLevel !== undefined) query.set('maxLevel', String(options.maxLevel));
+  const suffix = query.toString();
+  return saveFetch(`/world/encounters${suffix ? `?${suffix}` : ''}`);
+}
+
 export async function getPaldeckCompletion(uid?: string): Promise<{
   players: PaldeckCompletion[];
   showsMissing: boolean;
