@@ -543,6 +543,7 @@ export default function MyPals() {
                       ✦ {p.skin.label}
                     </div>
                   )}
+                  <ResistBadges resist={p.resist} />
                 </td>
                 {work && <td className="mono">{workLevel(p, work) || '—'}</td>}
                 <td>
@@ -681,5 +682,84 @@ function SortHead({
         style={{ marginLeft: 3, opacity: active ? 0.9 : 0.25, verticalAlign: '-1px' }}
       />
     </th>
+  );
+}
+
+/**
+ * What a Pal resists, as badges — never as a number you could sort on.
+ *
+ * `optimise.py`'s rule, one surface over: there is no coefficient that combines
+ * a 15% element resistance with the type chart's x1.2, so anything that looked
+ * like a defensive score would be inventing one. Percentages and immunities are
+ * shown as themselves.
+ *
+ * **`softTo` is deliberately not rendered here.** It is a property of the
+ * species, identical on every Lamball in the list, and repeating it on 1,905
+ * rows would bury the thing that actually differs between two Pals. It travels
+ * in the payload for the boss planner and the Paldeck, where one Pal is in view.
+ */
+function ResistBadges({ resist }: { resist?: PalRecord['resist'] }) {
+  if (!resist?.any) return null;
+  const elements = Object.entries(resist.elements).filter(([, v]) => v > 0);
+  const immune = Object.entries(resist.ailments).filter(([, v]) => v.immune);
+  const other = Object.entries(resist.other).filter(([, v]) => v !== 0);
+  return (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 2 }}>
+      {elements.map(([element, percent]) => (
+        <span
+          key={element}
+          /* `when` says whether it applies always or only while the Pal is out
+             with you — a real difference the number alone would hide. */
+          title={
+            `${percent}% less incoming ${element} damage`
+            + (resist.when[element] === 'deployed' ? ' (only while in your party)' : '')
+            + (resist.softToButResists.includes(element)
+              ? ` — and ${element} is strong against this Pal`
+              : '')
+          }
+          style={{
+            fontSize: 10,
+            padding: '0 4px',
+            borderRadius: 3,
+            border: '1px solid var(--border-primary)',
+            color: 'var(--text-muted)',
+            /* The one row worth colouring: a resistance to something that beats
+               you. Not a score — just where the two facts meet. */
+            borderColor: resist.softToButResists.includes(element)
+              ? 'var(--accent-green)' : undefined,
+            opacity: resist.when[element] === 'deployed' ? 0.7 : 1,
+          }}
+        >
+          🛡 {element} {percent}%
+        </span>
+      ))}
+      {immune.map(([ailment]) => (
+        <span
+          key={ailment}
+          /* Every ailment resistance in the game's data is 100, so this is
+             immunity. Shown as a word rather than as "100%", which would read
+             as a percentage comparable with the element figures. */
+          title={`Immune to ${ailment}`}
+          style={{
+            fontSize: 10, padding: '0 4px', borderRadius: 3,
+            border: '1px solid var(--border-primary)', color: 'var(--text-muted)',
+          }}
+        >
+          ✖ {ailment}
+        </span>
+      ))}
+      {other.map(([kind, percent]) => (
+        <span
+          key={kind}
+          title={`${kind} resistance ${percent}%`}
+          style={{
+            fontSize: 10, padding: '0 4px', borderRadius: 3,
+            border: '1px solid var(--border-primary)', color: 'var(--text-muted)',
+          }}
+        >
+          {kind} {percent}%
+        </span>
+      ))}
+    </div>
   );
 }

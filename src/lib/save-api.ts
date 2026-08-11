@@ -270,6 +270,32 @@ export interface PalRecord {
     label: string;
     derived: boolean;
   } | null;
+  /**
+   * What this Pal RESISTS, from its passives — the defensive half `stats` does
+   * not cover, because the four figures the game prints are HP, Attack, Defense
+   * and Work Speed and a 35% Fire reduction is none of them.
+   *
+   * `elements` is a percentage reduction in incoming damage; `ailments` is
+   * immunity (every one in the game's data is 100). `softTo` is the *type
+   * chart* read from this Pal's side and is independent of its passives — it
+   * does not move when a resistance is added.
+   *
+   * **The two never combine.** `stackingKnown` is false because no game file
+   * states how a resistance composes with the chart's x1.2, so a client shows
+   * them as separate lines and never as an effective-HP figure.
+   */
+  resist?: {
+    elements: Record<string, number>;
+    ailments: Record<string, { percent: number; immune: boolean }>;
+    other: Record<string, number>;
+    conditional: Record<string, number>;
+    when: Record<string, string>;
+    softTo: string[];
+    softToButResists: string[];
+    any: boolean;
+    stackingKnown: boolean;
+    matchRate: number;
+  } | null;
   /** Equipped moves, prefix stripped. Null when the Pal stores no EquipWaza. */
   activeSkills?: string[] | null;
   activeSkillNames?: string[];

@@ -1647,9 +1647,13 @@ three groups, by who the effect targets:
 
 | Group | Types | Effects | Examples |
 |---|---:|---:|---|
-| buffs the **Pal** | 49 | 381 | `ElementResist_*`, `ResistAdditionalEffect_Burn`, `DamageRateIfDefender_Poison` |
+| buffs the **Pal** | 49 | 381 | `ElementResist_*`, `ResistAdditionalEffect_Burn` |
 | buffs the **player** | 50 | 273 | `AdditionalEffect_Burn`, the eleven `Fishing_*` |
 | other targets | 20 | 208 | `ElementBoost_*`, `FarmCropGrowupSpeed` |
+
+**That first row used to end `…, DamageRateIfDefender_Poison`, and it is not a
+Pal buff — it is offensive.** See the correction below; the example was removed
+rather than left standing beside its own retraction.
 
 **The detection is a crude grep for the literal token**, so a type the code
 reaches by prefix reads as unread — `WorkSuitabilityAddRank_MonsterFarm` appears
@@ -1676,6 +1680,70 @@ real and neither is the type chart.
 They do narrow `buildplanner`'s `stackingKnown: false` a little: passives that
 add to element damage exist and carry numbers. **How they compose with the 1.2
 is still unstated**, so the flag stays.
+
+### The pick landed, and 311 of 1,905 Pals resist something
+
+`backend/palresist.py`. `ElementResist_Fire_1` is `ToSelf` / `InvokeAlways` at a
+flat 15% reduction in incoming Fire damage, on a passive any catchable Pal can
+roll — and nothing in this dashboard had ever shown it. Measured on refworld:
+**311 of 1,905 carry a resistance**, 303 of them elemental, and the elements are
+spread evenly (Fire 49, Neutral 41, Dragon 38 … Water 27), which is what a
+lottery roll should look like and is the check that the reader is not selecting
+on something else. Four times #94's 73.
+
+A second module with its own policy rather than a wider constant in `palstats`,
+for the third time — the `InvokeInOtomo` question has *opposite* answers on the
+two surfaces. A buff that fires only while the Pal is deployed is not part of
+the stat block the game prints, and is exactly the resistance that matters in a
+boss fight, so `palresist` counts it and labels it `when: "deployed"`.
+
+#### `DamageRateIfDefender_*` IS OFFENSIVE, AND ITS NAME SAYS THE OPPOSITE
+
+53 effects across eight ailments, `ToSelfAndTrainer`, values 30-70. It reads
+exactly like "the rate at which I take damage as a defender", the table above
+listed it as a Pal buff, and task #104's own description filed it under
+buffs-the-Pal. The game's own prose settles it in one query:
+
+    DamageUpTrainerAndOtomo_ToPoison  ->  "Damage vs Poison +70%"
+
+It is damage **you deal** to a defender who is suffering that ailment. Folding
+it in would have reported a Pal as 70% poison-resistant on a passive that makes
+it hit *poisoned enemies* harder — wrong in the one direction nobody questions,
+because the number is large and the sign is comforting.
+
+**The prose column exists so this is checkable**, and every other claim in the
+module is checked the same way: `ResistAdditionalEffect_*` is 100.0 on all 63,
+so it is immunity rather than a percentage, and reporting it as one would invite
+adding it to the element figures. Both are pinned by tests against the shipped
+bundle rather than a fixture.
+
+#### Two traps, one of them the element vocabulary again
+
+**The element comes from the effect TYPE, never the skill id.**
+`ElementResist_Aqua_1` carries effect type `ElementResist_Water`, and
+`Aqua`/`Thunder` resolve to nothing in `elements.canonical` — so an id-keyed
+reader drops Water and Electric resistance entirely while all seven other
+elements work. That reads as two missing entries in the data rather than as
+reading the wrong field, which is why it gets a test of its own.
+
+**`softTo` is the chart, not the build.** A Pal with no Fire resistance is not
+weak to Fire — it takes normal damage. What makes it soft is its own element
+being one an attacker beats, the defender side of the single
+`DamageElementMatchRate`. The two facts are independent, and `softToButResists`
+is where they meet. Memoised on the element tuple: recomputed per Pal it cost
+**185 ms** across refworld's 1,905, and 15 ms keyed.
+
+**No effective-HP figure, and a test asserts the payload has no such key.** How
+a 15% reduction composes with the ×1.2 is stated in no file, so `against()`
+returns the two terms separately and `stackingKnown: false` travels with them —
+the same refusal `buildplanner` already holds, for the same reason.
+
+**And my own first test asserted a Neutral Pal is soft to nothing.** It is soft
+to Dark. Every one of the nine elements is beaten by exactly one other, so there
+is no empty case to write a test around at all — the claim came from reading
+"Neutral is strong against nothing" as though the relation were symmetric. Two
+directions of a one-directional chart, which is the mistake this file already
+records the operator catching once.
 
 ### Four progression systems, and the dashboard knew two
 
