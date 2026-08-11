@@ -56,6 +56,7 @@ import type {
   ProgressDetailReport,
   InvaderReport,
   RaidBossReport,
+  CraftTree,
   ItemSources,
   GuildMovePlan,
   GuildMoveResult,
@@ -1268,6 +1269,25 @@ export async function getItemCatalogue(): Promise<{
  */
 export async function getItemSources(itemId: string): Promise<ItemSources> {
   return saveFetch(`/world/items/${encodeURIComponent(itemId)}`);
+}
+
+/**
+ * The same answer taken all the way down: every material, to raw, with totals.
+ *
+ * `prefer` names recipe rows for the four products with more than one way to
+ * make them, and applies wherever that product appears rather than only at the
+ * root — "make Carbon Fibre from Charcoal" is a statement about how you play.
+ */
+export async function getCraftingTree(
+  itemId: string,
+  count = 1,
+  prefer: string[] = []
+): Promise<CraftTree> {
+  const query = new URLSearchParams({ count: String(count) });
+  if (prefer.length) query.set('prefer', prefer.join(','));
+  return saveFetch(
+    `/world/items/${encodeURIComponent(itemId)}/tree?${query.toString()}`
+  );
 }
 
 /**

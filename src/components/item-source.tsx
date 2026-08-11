@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { Hammer, Skull, Package, Store, Factory, Lightbulb, X } from 'lucide-react';
 import { getItemSources } from '@/lib/save-api';
 import GameIcon from '@/components/game-icon';
+import CraftingTree from '@/components/crafting-tree';
 import type { ItemSources, TechnologyUnlock } from '@/lib/types';
 
 /**
@@ -97,6 +98,12 @@ export default function ItemSourcePanel({
           )}
 
           <Crafting recipes={data.crafting ?? []} />
+          {/* The recursive version, directly under the one-level answer it
+              extends — and mounted only when there is a recipe at all, so a
+              gathered material costs no second request. It can still render
+              nothing: the four Pal Soul sizes have recipes and every one of
+              them converts rather than produces. */}
+          {data.crafting?.length ? <CraftingTree itemId={itemId} /> : null}
           <Drops drops={data.drops} />
           <Loot loot={data.loot ?? []} />
           <Shops shops={data.shops ?? []} />

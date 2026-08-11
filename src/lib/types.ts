@@ -1868,6 +1868,71 @@ export interface ItemSources {
   hasSource?: boolean;
 }
 
+/**
+ * One node of a recursive crafting tree.
+ *
+ * `leaf` with `leafReason: 'raw'` is a material you gather. `'cycle'` and
+ * `'depth'` are the guards, and both are visible on purpose — a branch that
+ * stopped short must not render like one that finished.
+ */
+export interface CraftNode extends ItemRef {
+  need: number;
+  leaf: boolean;
+  leafReason?: 'raw' | 'cycle' | 'depth';
+  materials: CraftNode[];
+  recipeId?: string;
+  yields?: number;
+  batches?: number;
+  made?: number;
+  surplus?: number;
+  workPerBatch?: number;
+  work?: number;
+  alternatives?: number;
+  /** Present only when there is more than one way to make this — the alternates
+   *  described by their materials, so a chooser can offer "from Coal" rather
+   *  than a row id. */
+  otherRecipes?: CraftRecipeSummary[];
+  /** Recipes that convert this item back into what it came from — named, never
+   *  expanded, because walking one is the cycle. */
+  alsoFrom?: CraftRecipeSummary[];
+}
+
+export interface CraftRecipeSummary {
+  recipeId: string;
+  yields: number;
+  from: (ItemRef & { count: number })[];
+}
+
+export interface CraftStep extends ItemRef {
+  recipeId: string;
+  need: number;
+  batches: number;
+  yields: number;
+  made: number;
+  surplus: number;
+  work: number;
+}
+
+export interface CraftTree extends ItemRef {
+  known: boolean;
+  note?: string;
+  count?: number;
+  craftable?: boolean;
+  tree?: CraftNode;
+  /** The shopping list. Not the sum of the tree's leaves by construction — see
+   *  `backend/crafting.py` — though the two are measured equal. */
+  raw?: (ItemRef & { count: number })[];
+  steps?: CraftStep[];
+  totalWork?: number;
+  maxDepth?: number;
+  truncated?: boolean;
+  /** Work units, never a duration. What converts them is which Pals are
+   *  assigned, which no game file states. */
+  workIsUnits?: boolean;
+  /** This is catalogue data: nothing here read a world or a chest. */
+  checksStock?: boolean;
+}
+
 export interface CraftableRecipe extends ItemRef {
   recipeId: string;
   batches: number;
