@@ -10,6 +10,7 @@ import PalOptimiser from '@/components/pal-optimiser';
 import PalWelfare from '@/components/pal-welfare';
 import { getWorkTypes, orderedWork, type WorkType } from '@/lib/work-types';
 import { asArray } from '@/lib/arrays';
+import { loadPassives, describePassive } from '@/lib/passives';
 import { num, fixed, count } from '@/lib/format';
 
 /**
@@ -109,6 +110,9 @@ export default function MyPals() {
   const [exporting, setExporting] = useState('');
   // The game's own work list: display names, icons, and its ordering.
   const [workTypes, setWorkTypes] = useState<WorkType[]>([]);
+  // `{passiveId: tooltip}`. Catalogue data, fetched once for the distinct set
+  // across the whole table rather than per row — see `lib/passives`.
+  const [passiveTips, setPassiveTips] = useState<Record<string, string>>({});
   const [sort, setSort] = useState<SortKey>('level');
   const [descending, setDescending] = useState(true);
 
@@ -136,6 +140,28 @@ export default function MyPals() {
   useEffect(() => {
     getWorkTypes().then(setWorkTypes).catch(() => undefined);
   }, []);
+
+  // Descriptions for every passive on screen. Deliberately after the Pals load
+  // and independent of it: a failure here costs tooltips, never the table.
+  useEffect(() => {
+    const ids = [...new Set(pals.flatMap((p) => asArray<string>(p.passiveSkills, 'pal passive ids')))];
+    if (ids.length === 0) return;
+    let live = true;
+    loadPassives(ids)
+      .then(() => {
+        if (!live) return;
+        const tips: Record<string, string> = {};
+        for (const id of ids) {
+          const text = describePassive(id);
+          if (text && text !== id) tips[id] = text;
+        }
+        setPassiveTips(tips);
+      })
+      .catch(() => undefined);
+    return () => {
+      live = false;
+    };
+  }, [pals]);
 
   // Options come from what you actually own, not from the full 753-species
   // table — a dropdown offering elements none of your Pals have is a list of
@@ -479,7 +505,33 @@ export default function MyPals() {
                   )}
                 </td>
                 <td style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
-                  {asArray(p.passiveSkillNames, 'pal passives').join(', ') || '—'}
+                  {/* One span per passive so each carries its own tooltip.
+                      The NAMES are what a player reads; the ids are what the
+                      effect table is keyed on, and they arrive in parallel
+                      arrays — so an index mismatch would attach the wrong
+                      description to the right name, which is worse than none.
+                      Guarded below. */}
+                  {(() => {
+                    const names = asArray<string>(p.passiveSkillNames, 'pal passives');
+                    const ids = asArray<string>(p.passiveSkills, 'pal passive ids');
+                    if (names.length === 0) return '—';
+                    const aligned = ids.length === names.length;
+                    return names.map((name, i) => (
+                      <span
+                        key={`${name}-${i}`}
+                        title={aligned ? passiveTips[ids[i]] || name : name}
+                        style={{
+                          borderBottom:
+                            aligned && passiveTips[ids[i]]
+                              ? '1px dotted var(--border-primary)'
+                              : undefined,
+                          cursor: aligned && passiveTips[ids[i]] ? 'help' : undefined,
+                        }}
+                      >
+                        {name}{i < names.length - 1 ? ', ' : ''}
+                      </span>
+                    ));
+                  })()}
                   {p.skin?.label && (
                     /* Derived, not the game's words — see gamedata.skin_label.
                        Shown because an equipped skin changes what the Pal looks
