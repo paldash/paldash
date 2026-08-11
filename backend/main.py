@@ -49,6 +49,7 @@ import optimise
 import palcheck
 import palclone
 import palimport
+import labresearch
 import palstats
 import passiveeffects
 import policy as policy_module
@@ -2357,6 +2358,46 @@ def get_item_catalogue(request: Request) -> dict[str, Any]:
     except gamedata.GameDataUnavailable as e:
         raise HTTPException(503, str(e))
     return {"items": items, "total": len(items)}
+
+
+@app.get("/api/world/research")
+def get_lab_research(request: Request, guild: Optional[str] = None) -> dict[str, Any]:
+    """
+    The Pal Lab research tree, and how far a guild has got through it.
+
+    **The catalogue works with no parsed world**, which is why progress is a
+    query rather than always folded in: 168 nodes with their prerequisites,
+    costs and effects are worth reading on a fresh server, and a tree that 503s
+    until someone parses reads as broken.
+
+    Progress is **guild-scoped and privacy-filtered through the same rule as
+    everything else**: a caller sees their own guilds, and staff see all, via
+    `privacy.conceals` rather than a role list — so a role added to `roles.py`
+    lands on the right side without anyone remembering.
+
+    Asking for a guild you are not in returns the catalogue without progress,
+    not an error: the tree is public, one guild's shopping list is not.
+    """
+    authz.require(request, roles_module.VIEW_BASIC)
+
+    wanted = str(guild or "")
+    if not wanted:
+        return labresearch.tree()
+
+    role, username = _viewer(request)
+    staff = not privacy.conceals(role, "player", "player")
+    if not staff:
+        uid, _ = _own_identity(request)
+        own = _guilds_of(uid) if uid else set()
+        if wanted not in own:
+            # Not an error — the tree itself is catalogue data. Withholding the
+            # progress and saying so beats a 403 that reads as "this feature is
+            # broken for you".
+            return {**labresearch.tree(), "scopeRefused": True}
+
+    state = (savecache.get_data() or {}).get("guildResearch") or {}
+    entry = state.get(wanted) or {}
+    return labresearch.tree(entry.get("progress"), entry.get("currentResearchId", ""))
 
 
 @app.get("/api/world/passives")

@@ -39,7 +39,7 @@ logger = logging.getLogger(__name__)
 # update, with nothing anywhere saying why. `savecache` now discards a cache
 # whose schema does not match this, so the worst case is one re-parse instead of
 # a wrong number.
-SCHEMA_VERSION = 11
+SCHEMA_VERSION = 12
 
 
 def lower_priority() -> None:
@@ -114,6 +114,7 @@ def main() -> int:
         extract_container_ownership,
         extract_containers,
         extract_dimension_storage,
+        extract_guild_research,
         extract_guild_storage,
         extract_guilds,
         extract_map_objects,
@@ -162,6 +163,10 @@ def main() -> int:
     # module off its placed object, so `ownership` never sees it. Its contents
     # are guild property held one level up. See `extract_guild_storage`.
     guild_storage = extract_guild_storage(gvas)
+    # The Pal Lab tree's per-guild progress. Guild-level for the same reason the
+    # chest is: research is shared by everyone in it, so folding it into a base
+    # would report the same thing once per base.
+    guild_research = extract_guild_research(gvas)
     base_storage = summarise_base_storage(containers, ownership, bases) if args.items else []
     storage_by_base = {s["baseId"]: s for s in base_storage}
 
@@ -288,6 +293,7 @@ def main() -> int:
         "containerOwnership": ownership,
         "baseStorage": base_storage,
         "guildStorage": guild_storage,
+        "guildResearch": guild_research,
         "mapObjects": map_objects,
         "items": items,
         "counts": {
@@ -298,6 +304,7 @@ def main() -> int:
             "containers": len(containers),
             "ownedContainers": len(ownership),
             "guildChests": len(guild_storage),
+            "guildResearch": len(guild_research),
             "mapObjects": len(map_objects),
             "itemTypes": len(items),
         },
