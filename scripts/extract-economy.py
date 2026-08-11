@@ -141,6 +141,7 @@ def _recipes(pak) -> dict:
             if item_id not in UNSET and count > 0:
                 materials.append({"itemId": item_id, "count": count})
         unlock = str(row.get("UnlockItemID") or "")
+        deny = [str(d) for d in (row.get("DenyRecipeChain") or []) if str(d)]
         out[product].append({
             # The row name, so two recipes for one product can be told apart.
             "recipeId": str(key),
@@ -150,12 +151,83 @@ def _recipes(pak) -> dict:
             "materials": materials,
             # The schematic that unlocks it, where one exists.
             "unlockItemId": "" if unlock in UNSET else unlock,
+            # Craft EXP. Carried because it is half of the conversion test in
+            # `_mark_conversions` — on its own it means "grants no EXP" and
+            # nothing more.
+            "craftExpRate": float(row.get("CraftExpRate") or 0.0),
+            # The game's own "do not chain into these", which turns out to name
+            # a weapon's own higher tiers rather than anything cyclic. 94 rows,
+            # 373 targets, every one a real recipe row. See `_mark_conversions`.
+            "denyRecipeChain": deny,
         })
         # `WorkableAttribute` is deliberately not carried: measured 0 on every
         # row, so bundling it would imply a link that is not in the data.
     for rows in out.values():
         rows.sort(key=lambda r: (r["workAmount"], r["recipeId"]))
-    return dict(out)
+    return _mark_conversions(dict(out))
+
+
+def _mark_conversions(recipes: dict) -> dict:
+    """
+    Flag the recipes that convert a thing back into what it was made from.
+
+    A recursive crafting tree needs to know which way is *down*, and 16 products
+    sit in a cycle: a Pal Sphere is made from Paldium Fragment and dismantles
+    back into Paldium, and the four Pal Soul sizes convert both up and down.
+    Expanding either direction forever is the obvious failure; picking a
+    direction by name (`CryStal_*`, `_2_1`) is the failure this repo keeps
+    recording.
+
+    **The test is a conjunction of two independent things, and each alone is
+    wrong.**
+
+    - *Structural*: the recipe's product is transitively required by its own
+      materials. True of all 26 recipes in the cycle, in **both** directions —
+      a symmetric test cannot pick one, which is exactly why it is not enough.
+    - *The game's own column*: `CraftExpRate == 0`. Every conversion has it,
+      and so do **17 ordinary crafts** — Money from Copper Ingots, Baked Berries
+      from Berries, every gym head band from Cloth. Dropping on this alone
+      deletes seventeen real production paths.
+
+    Together they name **exactly 16 rows**, and the acceptance criterion is not
+    that those 16 look like dismantles: it is that removing them leaves a graph
+    with **zero cycles**, checked in `verify`. A wrong predicate does not
+    produce a DAG.
+
+    What falls out is right rather than merely consistent: the four Pal Soul
+    sizes end up with no production recipe at all, which is the game — souls are
+    found and traded up, never crafted.
+    """
+    in_cycle = _cyclic_products(recipes, lambda row: True)
+    for rows in recipes.values():
+        for row in rows:
+            row["isConversion"] = (
+                row["craftExpRate"] == 0.0
+                and row["productId"] in in_cycle
+                and any(m["itemId"] in in_cycle for m in row["materials"])
+            )
+    return recipes
+
+
+def _cyclic_products(recipes: dict, keep) -> set:
+    """Products that transitively require themselves, over the kept recipes."""
+    graph: dict[str, list] = defaultdict(list)
+    for product, rows in recipes.items():
+        for row in rows:
+            if keep(row):
+                graph[product].extend(m["itemId"] for m in row["materials"])
+
+    def reachable(start: str) -> set:
+        seen: set = set()
+        stack = [start]
+        while stack:
+            for material in graph.get(stack.pop(), ()):
+                if material not in seen:
+                    seen.add(material)
+                    stack.append(material)
+        return seen
+
+    return {p for p in graph if p in reachable(p)}
 
 
 def _tech_unlocks(pak, recipes_by_row: dict) -> dict:
@@ -458,6 +530,22 @@ def verify(data: dict) -> list[str]:
             f"e.g. {missing_parents[:5]}"
         )
 
+    # THE CONVERSION FLAG IS ACCEPTED ON ITS RESULT, NOT ON ITS REASONING.
+    # `_mark_conversions` argues that 16 rows convert rather than produce; what
+    # is checked here is that removing exactly those rows leaves a graph a
+    # crafting tree can be walked over at all. A predicate that picked the wrong
+    # direction — or one row too few — leaves a cycle standing, and a cycle is
+    # the one thing recursive expansion cannot survive.
+    left = sorted(_cyclic_products(
+        data["recipes"], lambda row: not row.get("isConversion")
+    ))
+    if left:
+        problems.append(
+            f"crafting cycles: {len(left)} product(s) still require themselves "
+            f"after excluding conversions, e.g. {left[:5]} — the conversion "
+            "test no longer picks a direction"
+        )
+
     return problems
 
 
@@ -519,8 +607,13 @@ def main() -> int:
     rows = sum(len(v) for v in data["recipes"].values())
     alternates = sum(1 for v in data["recipes"].values() if len(v) > 1)
     print(f"wrote {OUT}")
+    conversions = [r["recipeId"] for v in data["recipes"].values()
+                   for r in v if r["isConversion"]]
     print(f"  {rows} recipe rows over {len(data['recipes'])} products "
           f"({alternates} have more than one way to make them)")
+    print(f"  {len(conversions)} of those convert rather than produce — "
+          "dismantling and Pal Soul trading; excluding exactly these leaves a "
+          "graph with no cycles, which is what accepts the test")
     print(f"  {len(data['drops'])} species with drop tables")
     print(f"  {len(data['lottery'])} loot fields, "
           f"{sum(len(v) for v in data['lottery'].values())} entries")
