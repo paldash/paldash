@@ -2287,6 +2287,14 @@ def get_discoveries(request: Request, uid: str = Query("")) -> dict[str, Any]:
         "fastTravel": {
             "total": len(gamedata.fast_travel_points()),
             "found": len(found_travel),
+            # **BROKEN OUT BECAUSE 166 OF 174 READS AS "MISSING EIGHT SOMEWHERES".**
+            # The 174 are three different things: 144 ordinary travel points, 22
+            # watchtowers, and 8 `… Tower Entrance` boss arenas you unlock by
+            # BEATING the tower boss rather than by walking up to a statue.
+            # Reported by an operator whose player had 166 and could not find the
+            # missing one — they had every ordinary point and none of the eight
+            # towers, which a single fraction cannot say.
+            "byKind": _fast_travel_progress(found_travel),
             "points": travel,
         },
         "effigies": {
@@ -2295,6 +2303,26 @@ def get_discoveries(request: Request, uid: str = Query("")) -> dict[str, Any]:
             "points": effigies,
         },
     }
+
+
+def _fast_travel_progress(found: set[str]) -> list[dict]:
+    """
+    Found-vs-total per fast-travel kind, in the order a player thinks of them.
+
+    `gamedata.fast_travel_kind` has split these three ways since the tower-boss
+    work; only the *count* still treated all 174 as one pool.
+    """
+    buckets: dict[str, dict] = {}
+    for point in gamedata.fast_travel_points():
+        kind = gamedata.fast_travel_kind(str(point.get("name") or ""))
+        row = buckets.setdefault(kind, {"kind": kind, "total": 0, "found": 0})
+        row["total"] += 1
+        if str(point.get("key", "")).upper() in found:
+            row["found"] += 1
+    order = ("travel", "watchtower", "tower")
+    return [buckets[k] for k in order if k in buckets] + [
+        v for k, v in buckets.items() if k not in order
+    ]
 
 
 @app.get("/api/world/items")
