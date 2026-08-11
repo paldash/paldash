@@ -941,7 +941,7 @@ Each is one bundle away, and the bundle is small.
 |---|---|---|
 | #92 | Pal build planner | **done** — movement + `rideable` bundled, `buildplanner.py`, both routes, UI under the Paldeck |
 | #71 | Boss encounter planner | joins bundles that all exist (`boss_spawners`, `raidbosses`, progression) |
-| #67 | Completion tracker | joins habitats + breeding + Paldeck; no new source |
+| #67 | Completion tracker | **done** — `completion.py` + `/api/progress/paldeck` + a card on the Progression tab. 167 of 204 on the reference player, each of the 37 with a route |
 | #47 | Progression checklists | **already done** — `progression.tsx` renders tower/field bosses, regions, fast travel, effigies and raid bosses against real denominators. Listed as pending here for longer than it was actually open |
 | #103 | Partner/ride skills | **new** — `DT_PartnerSkillParameter.PassiveSkills` bundled; Paldeck display remains |
 
