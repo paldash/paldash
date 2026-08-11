@@ -291,6 +291,10 @@ const ROUTES: RouteRule[] = [
   // stricter one here would make the detail unreachable wherever the summary
   // works, which reads as a broken tab rather than as a policy.
   { pattern: /^progress\/detail$/, methods: ['GET'], capability: CAPABILITIES.VIEW_SELF, feature: null },
+  // The Paldeck checklist, split from `detail` because it is 204 rows with a
+  // route each. Same gate as the summary it details — a stricter one makes the
+  // tab unreachable wherever the counts work, which reads as broken.
+  { pattern: /^progress\/paldeck$/, methods: ['GET'], capability: CAPABILITIES.VIEW_SELF, feature: null },
   // Same scoping as base storage above: a Player reaches containers belonging
   // to their own guild's bases and nothing else. The backend enforces it — this
   // allowlist cannot tell whose container an id names.
