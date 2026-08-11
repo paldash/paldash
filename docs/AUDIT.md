@@ -911,23 +911,27 @@ picking up work is "can I start this right now", and four of these cannot be.
 Phases 9-11 are strictly ordered against each other only where a dependency is
 named. Within a phase, order is by value.
 
-### Phase 9 — Surfacing: the data is already bundled
+### Phase 9 — Surfacing: the data is already bundled — **DONE**
 
-Nothing to extract, nothing to verify. These are UI against artifacts that ship
-today, which makes them the cheapest value left and the right thing to do first.
+Nothing to extract, nothing to verify. These were UI against artifacts that
+already shipped, which made them the cheapest value left and the right thing to
+do first. All five are complete.
 
 | | Task | State |
 |---|---|---|
-| #72 | Passive effects panel | **backend done**, `passiveeffects` + 2 routes shipped; UI only |
-| #70 | Effigy relic icons on the map | **half done**, `gamedata.effigy_kind_icon` resolves 11/11; map layer only |
-| #97 | What each Pal drops | `economy.json.gz` `drops`, 890 species, untouched |
-| #93 | Pal Lab research tree | bundle shipped this session; needs parser + route + UI |
-| #98 | Recursive crafting tree | 1,399 recipes bundled; **27% of products cycle**, so the algorithm is the work |
+| #72 | Passive effects panel | **done** — `passiveeffects`, 2 routes, My Pals tooltips |
+| #70 | Effigy relic icons on the map | **done** — all 396 draw the game's own relic artwork |
+| #97 | What each Pal drops | **done** — 890 species on the Paldeck |
+| #93 | Pal Lab research tree | **done** — bundle, parser, route and panel; verified 27/67/0/8/27 of 168 across five real guilds, and the zero guild shows exactly the 9 roots |
+| #98 | Recursive crafting tree | **done** — `crafting.py`, and the cycle turned out to be the interesting part |
 
-**#93 has a second half worth doing**: the save records progress at
-`GuildExtraSaveDataMap[].Lab.RawData.research_info` — 840 entries across 5
-guilds on the live world — so "what has this guild researched" is answerable,
-not just "what exists".
+**#98 revised one of this document's own figures.** "27% of products cycle" was
+counting products whose tree *touches* a cycle (378 of 1,399). **Sixteen are
+actually in one** — the ten Pal Spheres, Paldium Fragment, the four Pal Soul
+sizes and Steel Ingot — and no column marks which direction is production. The
+test that settles it is a conjunction of a structural property and
+`CraftExpRate`, accepted on the result rather than the reasoning: excluding
+exactly those 16 rows leaves a graph with zero cycles. See AGENTS.md.
 
 ### Phase 10 — Features needing one new extraction
 

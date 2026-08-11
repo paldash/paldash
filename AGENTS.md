@@ -2881,6 +2881,50 @@ product now, each carrying its row id — a product's recipes can be unlocked by
 *different* technologies, so the row is the thing a technology joins to, never
 the product.
 
+### Sixteen recipes convert rather than produce, and NO column says which
+
+`backend/crafting.py` expands an item to its raw materials. It cannot start
+until something decides which way is *down*, because sixteen products sit in a
+cycle: a Pal Sphere is crafted from Paldium Fragment and dismantles back into
+it, and the four Pal Soul sizes trade both up and down. The audit's figure of
+"27% of products cycle" is the number whose tree *touches* one (378). Sixteen
+are in one.
+
+**The two obvious tests are each wrong, and the conjunction is exact.**
+
+| Test | Verdict |
+|---|---|
+| Structural: the product is transitively required by its own materials | true of **all 26** cycle recipes, in *both* directions — a symmetric test cannot pick one |
+| `CraftExpRate == 0`, the game's own column | true of every conversion **and of 17 ordinary crafts** — Money from Copper Ingots, Baked Berries from Berries, every gym head band from Cloth |
+
+Together they name **exactly 16 rows**, and the acceptance criterion is not that
+those rows look like dismantles — it is that **removing them leaves a graph with
+zero cycles**. A wrong predicate does not produce a DAG. `extract-economy.py`'s
+`verify()` refuses the build otherwise, and `test_crafting.py` re-asserts it
+against the shipped bundle rather than the generator.
+
+What falls out is right rather than merely consistent: all four Pal Soul sizes
+end up with **no production recipe at all**, which is the game — souls are found
+and traded up, never crafted.
+
+A conversion is **named, never walked**. "Also obtainable by dismantling a Pal
+Sphere" is a real answer the bundle holds; following it is the cycle.
+
+**`DenyRecipeChain` reads like the answer and is not.** 94 rows naming 373
+targets, and the name is precisely "do not chain into these" — but every target
+is a weapon's own higher **tier** (`BowGun` denies `BowGun_2..5`), which are
+independent recipes rather than anything cyclic. Bundled with its meaning
+stated, consulted by nothing, on `DT_PalStaticItemIDRedirectData`'s terms.
+
+**And the second pass in `crafting.py` does not buy what it looks like it
+buys.** Batching per branch can in principle overstate a shopping list, and 44
+intermediates do yield more than one per craft — but only **two** products put
+such an intermediate under two consumers, and the two totals are **identical on
+all 1,399 products** at counts 1, 7 and 100, and for those two at every count
+from 1 to 59. The pass earns its place on the *craft order*, which needs one row
+per item rather than one per tree occurrence. The docstring says that instead of
+claiming a discrepancy nothing here can produce.
+
 ### `DT_PalStaticItemIDRedirectData` IS NOT A RENAME MAP
 
 29 rows of `SourceItemIds -> DestinationItemId` reads exactly like "these old ids
