@@ -2300,6 +2300,17 @@ def get_discoveries(request: Request, uid: str = Query("")) -> dict[str, Any]:
         "effigies": {
             "total": len(gamedata.effigies()),
             "found": len(found_effigies),
+            # **A FOUND GUID THAT MATCHES NO PLACEMENT IS REPORTED, NOT HIDDEN.**
+            # Ten distinct ones across five real players. `effigies.json.gz` is
+            # extracted from `MainGrid_L15_X0_Y0` — the always-loaded cell that
+            # AGENTS.md records as containing nothing but relics — so a relic
+            # placed anywhere else is collectable and absent from the bundle.
+            # Without this the panel would read "103 of 396" while 3 of the 103
+            # correspond to nothing it can draw, which is the kind of quiet
+            # mismatch that gets reported as a wrong count months later.
+            "foundNotPlaced": len(
+                found_effigies - {str(e.get("guid", "")).upper() for e in gamedata.effigies()}
+            ),
             "points": effigies,
         },
     }
