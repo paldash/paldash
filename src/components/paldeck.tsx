@@ -21,6 +21,7 @@ const STAT_LABELS: Record<string, string> = {
   craft: 'Work Speed',
 };
 import HabitatMap from '@/components/habitat-map';
+import BuildPlanner from '@/components/build-planner';
 import type {
   PaldeckEntry, PaldeckListing, PaldeckDetail, SpeciesMove, SpeciesMoves,
   DropBand,
@@ -131,6 +132,10 @@ export default function Paldeck() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      {/* Mounted here rather than as a sixteenth tab: this is reference data
+          about the game, which is what the Paldeck is, and the mobile nav is
+          already long enough that another tab has a real cost. */}
+      <BuildPlanner />
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
         <div style={{ position: 'relative', flex: 1, minWidth: 200 }}>
           <Search size={13} style={{ position: 'absolute', left: 10, top: 9, color: 'var(--text-muted)' }} />

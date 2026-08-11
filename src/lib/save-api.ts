@@ -56,6 +56,7 @@ import type {
   ProgressDetailReport,
   InvaderReport,
   RaidBossReport,
+  BuildRanking,
   CraftTree,
   ItemSources,
   GuildMovePlan,
@@ -1269,6 +1270,39 @@ export async function getItemCatalogue(): Promise<{
  */
 export async function getItemSources(itemId: string): Promise<ItemSources> {
   return saveFetch(`/world/items/${encodeURIComponent(itemId)}`);
+}
+
+/**
+ * Rank every species at a chosen build.
+ *
+ * Catalogue data — this describes the game, so it needs no parsed world. The
+ * roster-scoped version is `/optimise/*`, which ranks the Pals somebody owns
+ * and is privacy-filtered accordingly.
+ *
+ * `against` names an ELEMENT, not a species: it is the one thing the game gives
+ * a coefficient for.
+ */
+export async function getBuildRanking(options: {
+  metric: string;
+  level?: number;
+  condenser?: number;
+  iv?: number;
+  souls?: number;
+  passives?: string[];
+  against?: string;
+  rideable?: boolean;
+  limit?: number;
+}): Promise<BuildRanking> {
+  const query = new URLSearchParams({ metric: options.metric });
+  if (options.level) query.set('level', String(options.level));
+  if (options.condenser) query.set('condenser', String(options.condenser));
+  if (options.iv) query.set('iv', String(options.iv));
+  if (options.souls) query.set('souls', String(options.souls));
+  if (options.passives?.length) query.set('passives', options.passives.join(','));
+  if (options.against) query.set('against', options.against);
+  if (options.rideable) query.set('rideable', 'true');
+  if (options.limit) query.set('limit', String(options.limit));
+  return saveFetch(`/world/builds?${query.toString()}`);
 }
 
 /**
