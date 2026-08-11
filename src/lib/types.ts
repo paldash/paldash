@@ -1397,6 +1397,27 @@ export interface PaldeckDetail extends PaldeckEntry {
    */
   drops?: DropBand[];
   /**
+   * What this Pal does for YOU, at every condenser rank.
+   *
+   * All five travel because the numbers move with the rank — Silvegis reduces
+   * shield damage by 65% at one star and 80% at five — and that ladder is the
+   * decision somebody is making when they look a Pal up.
+   *
+   * `filled: false` means the game's text still holds a reference this project
+   * does not resolve; the sentence is shown as the game wrote it rather than
+   * with a number invented for it.
+   */
+  partnerSkill?: {
+    name?: string | null;
+    scales?: boolean;
+    byRank?: {
+      name?: string | null;
+      description?: string;
+      filled?: boolean;
+      atRank?: number;
+    }[];
+  };
+  /**
    * The ALPHA form's table, which is a separate row rather than a richer
    * version of the ordinary one — `BOSS_Anubis` gives Ancient Civilization
    * Parts where Anubis gives Bone. Absent when it matches.
