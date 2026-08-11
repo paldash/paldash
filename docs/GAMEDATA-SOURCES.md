@@ -115,7 +115,7 @@ of day.
 | Table | Rows | What it gives you |
 |---|---:|---|
 | `DT_ItemDataTable` | 2,466 | The item catalogue — already bundled as `gamedata.json.gz` |
-| `DT_ItemRecipeDataTable` | 1,414 | **Full crafting recipes**: product, count, work amount, up to five materials. **`WorkableAttribute` is 0 on all 1,414 rows** — it reads like the link to the work type that crafts a recipe and carries nothing, so which bench crafts what still has no source anywhere. 1,414 rows over 1,399 products: fifteen products have a second way to make them, twelve of them Paldium Fragment |
+| `DT_ItemRecipeDataTable` | 1,414 | **Full crafting recipes**: product, count, work amount, up to five materials. **`WorkableAttribute` is 0 on all 1,414 rows** — it reads like the link to the work type that crafts a recipe and carries nothing, so which bench crafts what still has no source anywhere. 1,414 rows over 1,399 products: fifteen products have a second way to make them, twelve of them Paldium Fragment. **`CraftExpRate` and `DenyRecipeChain` are also carried.** The first is half of the test that says which of sixteen cyclic recipes converts rather than produces (on its own it means "grants no EXP" and is true of seventeen ordinary crafts). The second reads exactly like "do not recurse here" and is not: 94 rows, 373 targets, every one a weapon's own higher **tier** rather than anything cyclic — bundled, consulted by nothing. See AGENTS.md |
 | `DT_TechnologyRecipeUnlock` | 588 | Tech tree: unlocks, cost, tier, level cap, prerequisites, boss requirements |
 | `DT_ItemLotteryDataTable` | 8,777 | Loot tables with real `WeightInSlot` drop rates, min/max, chest grade |
 | `DT_FieldLotteryNameDataTable` | 511 | Per-slot probabilities for field loot |
