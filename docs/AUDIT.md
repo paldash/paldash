@@ -939,10 +939,31 @@ Each is one bundle away, and the bundle is small.
 
 | | Task | What it needs first |
 |---|---|---|
-| #92 | Pal build planner | movement/stamina columns from `DT_PalMonsterParameter` — present, unbundled. **Fastest RIDE is answerable; fastest FLYER is not** (see AGENTS.md) |
+| #92 | Pal build planner | **done** — movement + `rideable` bundled, `buildplanner.py`, both routes, UI under the Paldeck |
 | #71 | Boss encounter planner | joins bundles that all exist (`boss_spawners`, `raidbosses`, progression) |
 | #67 | Completion tracker | joins habitats + breeding + Paldeck; no new source |
 | #47 | Progression checklists | `progression.json.gz` ships; `dungeonsCleared` stays `available: false` |
+| #103 | Partner/ride skills | **new** — `DT_PartnerSkillParameter.PassiveSkills` bundled; Paldeck display remains |
+
+**#92 turned up three things worth more than the feature.**
+
+1. **`RestrictionItems` IS the mount list**, which this document and AGENTS.md
+   both said it was not. 143 PalGear items, 126 named by some `RestrictionItems`,
+   and the 17 named by none are exactly the gear you hold or wear — including
+   Galeclaw's Gloves, the case cited as the counterexample.
+2. **Movement takes no level, IV, condenser or soul term.** A four-star Jetragon
+   is not faster than a one-star one, and only passives move a speed. Pinned as
+   a differential, not as prose.
+3. **Partner skills are a FIFTH progression axis** — `PassiveSkills` is indexed
+   by condenser rank, and Silvegis cuts the player's shield damage 65% → 80%
+   across it. This document's own "four ways to improve a Pal" was short by one.
+   Filed as #103.
+
+**And the element chart's "missing resist half" was never missing.** The chart
+is one-directional, so a disadvantaged defender takes the attacker's ×1.2 rather
+than a penalty of its own — one constant, read from both sides. `buildplanner`
+ranks defensively on that basis; `optimise.py`'s badge-not-a-sort-key rule is
+untouched, because it ranks a roster for general use where no target is named.
 
 ### Phase 11 — Mining, payoff unknown
 

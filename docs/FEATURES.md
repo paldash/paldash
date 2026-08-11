@@ -130,6 +130,12 @@ Legend: ✅ works · 🟡 works with a caveat · 🔴 not built · ⚪ out of sc
 | Search | ✅ | Name, Paldeck number, internal id or element |
 | Location variants merged | ✅ | `HadesBird` + `HadesBird_Electric` are one Helzephyr entry with the **union** of their ranges |
 | Spawn *rates* | 🔴 | Not derivable. A sheet says a species is referenced by spawners in an area, not how often it appears |
+| **Build planner** | ✅ | Ranks all 753 species at a level / stars / IV / soul / passive build you choose. Jetragon is the fastest ride at 3,300, which is the check that the column means what it looks like |
+| Which Pals can be ridden | ✅ | 149 base species, from the game's own `RestrictionItems`. Incineram reads a 960 ride speed and is **not** a mount; the filter excludes it, and Galeclaw too |
+| **Level and stars do not change a speed** | ✅ | Measured, and the form greys out to say so. Movement is a flat species figure — only passives move it |
+| Fastest *flyer* | 🔴 | **No source.** Whether a mount flies, swims or walks is in no game file; five avenues checked and recorded. Fastest **ride** is answerable and that is what this ranks |
+| Element matchups in the ranking | ⚠️ | Only when you name a target element, and only on damage/bulk — using the game's own ×1.2, the same multiplier both ways. The un-multiplied figure stays in its own column |
+| Partner / ride skills | ⚠️ | **Bundled, not yet on the Paldeck.** Silvegis cuts your shield damage 65%→80% across condenser ranks; riding Solmora Lux makes your damage electric. A fifth progression axis (#103) |
 
 **Where the habitat data comes from, and why it took a detour.** Spawner actors
 name a *sheet*, not a species (`BP_PalSpawner_Sheets_2_1_forest_1`), and the
