@@ -1970,6 +1970,12 @@ export interface BuildRankRow {
    *  so nothing is hidden behind the sort. */
   raw?: number;
   passiveBonus?: number;
+  /**
+   * The share of `passiveBonus` that comes from the species' own partner skill
+   * at the chosen condenser rank — i.e. what the stars bought. Separate because
+   * a merged figure could not tell a player which part condensing gave them.
+   */
+  partnerBonus?: number;
   matchRate?: number;
   /** You hitting them. NOT the inverse of `incoming`. */
   matchup?: 'strong' | 'weak' | 'neutral';
@@ -1992,14 +1998,29 @@ export interface BuildRanking {
     riding: Record<string, number>;
     conditional: { passiveId: string; type: string; value: number; when?: string[] }[];
   };
-  /** False for every movement metric: a build does not change a speed. */
+  /**
+   * False for every movement metric: the stat FORMULA does not touch a speed.
+   * Not the same as "a build cannot change one" — see `condenserOnMovement`.
+   */
   buildAffectsMetric?: boolean;
   /** The columns carry no build term — a fact about the FILES. */
   movementInFiles?: boolean;
-  /** "unverified", never false: the condenser bonus is applied at load and a
-   *  movement effect would be invisible in every file, exactly as the
-   *  work-suitability one is. */
+  /**
+   * `"viaPartnerSkill"`: condenser rank DOES raise movement, for the 96
+   * species whose partner skill scales with it — Direhowl reads +0/10/12/15/20%
+   * across the stars. Applied by the ranking and broken out per row as
+   * `partnerBonus`.
+   */
   condenserOnMovement?: string;
+  /**
+   * The other half, still open: whether `GenkaiToppa_PerAdd` also multiplies
+   * the species speed columns the way it multiplies HP and Attack.
+   * `"unverified"`, **never false** — it would be applied at load and invisible
+   * in every file, exactly as the work-suitability bonus was.
+   */
+  condenserOnSpeedColumns?: string;
+  /** Movement from the species' own partner skill is counted in `value`. */
+  partnerSkillMovementApplied?: boolean;
   mountModeKnown?: boolean;
   speedUnitKnown?: boolean;
   against?: string;

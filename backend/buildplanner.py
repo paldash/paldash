@@ -33,10 +33,33 @@ bonus applied at load would look identical from here: absent from every file,
 and real.
 
 So the payload says `movementInFiles` — the columns carry no build term — and
-`condenserOnMovement: "unverified"`, never a claim of absence. Nothing here
-multiplies a speed by a bonus the game has not stated, and nothing here asserts
-there is none. **Only an in-game timing run settles it**, the same way an
-observation settled the condenser's effect on work suitability.
+never a claim of absence. Nothing here multiplies a speed by a bonus the game
+has not stated, and nothing here asserts there is none.
+
+### AND THE CONDENSER DOES CHANGE MOVEMENT — VIA THE PARTNER SKILL
+
+**Confirmed 2026-08-11 from the operator's observation, then found in the
+files.** Direhowl's move speed rises with rank, and not every Pal's does. Both
+halves of the argument above were correct and the *connection* was missed:
+`DT_PartnerSkillParameter.PassiveSkills` is a list **indexed by condenser
+rank**, which is #103's own finding sitting one module over in the bundle.
+
+    Garm (Direhowl).ranks = [ [],                                # rank 1: none
+                              MoveSpeed_up_PartnerSkill_Ride_1,  # rank 2: +10%
+                              _2, _3, _4 ]                       # +12/15/20%
+
+`partner_movement()` reads it and `rank()`/`compare()` apply it, broken out as
+`partnerBonus` so a player can see which part four stars bought. **96 of the
+species/forms have a movement-scaling partner skill**; the rest genuinely gain
+nothing, which is the "not all Pals" half of the observation. Which *figure*
+moves also varies — Azurobe's is `SwimSpeed`, Dazemu's the terrain-gated
+`MoveSpeed_Ground` — which is the other half.
+
+**Two questions, and only one is now answered.** Whether
+`GenkaiToppa_PerAdd` *also* multiplies the speed columns is untouched by this
+and still needs a timing run, so it keeps its own flag
+(`condenserOnSpeedColumns`) rather than being buried by the half that got
+resolved. Collapsing the two would be how a partial answer becomes a wrong one.
 
 **Passives demonstrably do change movement.** `MoveSpeed`, `SwimSpeed` and
 friends are real effect types on real passives — Legend is +20% — so that route
@@ -199,6 +222,65 @@ def movement_bonuses(passive_ids: list) -> dict[str, Any]:
                 })
 
     return {"always": always, "riding": riding, "conditional": conditional}
+
+
+def partner_movement(species_id: str, condenser_rank: int = 1) -> dict[str, Any]:
+    """
+    Movement a species' own PARTNER SKILL grants, at a given condenser rank.
+
+    **This is how the condenser makes a Pal faster, and nothing read it.** The
+    module docstring above argues at length that the speed columns carry no
+    build term — true, and it is not the whole story, because
+    `DT_PartnerSkillParameter.PassiveSkills` is a list *indexed by condenser
+    rank*. Direhowl's is empty at rank 1 and `MoveSpeed +10/12/15/20%` at ranks
+    2-5, so a four-star Direhowl really is 20% faster and the reason was sitting
+    one module over in the bundle #103 produced.
+
+    Confirmed by the operator's in-game observation before it was found in the
+    files, which is the third time the condenser has worked that way round.
+
+    **`movement_bonuses` is reused rather than reimplemented**, because its
+    target and invoke rules are exactly the ones needed here and a second copy
+    would drift. Three things fall out of that reuse and all three are right:
+
+    - `InvokeRiding` (156 effects) lands in `riding`, so it only ever counts
+      towards a figure you get while riding.
+    - `InvokeInOtomo` (160) lands in `conditional` — it applies while the Pal is
+      out with you rather than while ridden, and describing it beats folding it
+      into a ride-speed headline.
+    - `ClimbMoveSpeedRate` is **`ToTrainer`** — it speeds up the *player's*
+      climbing, not the Pal — so `_SELF_TARGETS` drops it. Counting it would
+      have credited a Pal with a bonus that moves somebody else.
+
+    A species with no partner skill, or one whose skill does not touch movement,
+    returns empty rather than zero-filled: 96 of the species/forms have a
+    movement-scaling partner skill and the rest genuinely gain nothing.
+    """
+    skills = [str(s) for s in
+              (gamedata.partner_skills_at(str(species_id), int(condenser_rank)) or [])]
+    out = movement_bonuses(skills)
+    out["skillIds"] = skills
+    out["condenserRank"] = int(condenser_rank)
+    # Named so a client can say "10% of this is the partner skill at 4 stars"
+    # rather than presenting one merged figure the player cannot attribute.
+    out["source"] = "partnerSkill"
+    return out
+
+
+def _merged_movement(moves: dict[str, Any], partner: dict[str, Any],
+                     metric: str) -> tuple[float, float]:
+    """
+    `(always, riding)` fractions for one metric, from passives AND partner skill.
+
+    Separate arguments rather than one merged dict because the two are reported
+    separately in the payload — the partner-skill half is what a condenser buys,
+    and merging them at source would make that unattributable.
+    """
+    always = (moves["always"].get(metric, 0.0)
+              + partner["always"].get(metric, 0.0))
+    riding = (moves["riding"].get(metric, 0.0)
+              + partner["riding"].get(metric, 0.0))
+    return always, riding
 
 
 # Where a partner skill's effect lands, and therefore which question it answers.
@@ -404,6 +486,7 @@ def rank(metric: str, build: Optional[dict[str, Any]] = None,
     build = dict(build or {})
     passives = [str(p) for p in (build.get("passives") or []) if p]
     moves = movement_bonuses(passives)
+    condenser = max(1, min(int(build.get("condenserRank") or 1), 5))
     only_rides = rideable_only or spec["ridesOnly"]
 
     # A target element only means something for a damage or survival ranking.
@@ -427,14 +510,24 @@ def rank(metric: str, build: Optional[dict[str, Any]] = None,
             # which is not a slow Pal and must not be ranked as one.
             if base is None:
                 continue
-            always = moves["always"].get(metric, 0.0)
+            # The species' own partner skill, at THIS build's condenser rank —
+            # which is where a condenser's effect on movement actually lives.
+            partner = partner_movement(entry["speciesId"], condenser)
+            always, riding_all = _merged_movement(moves, partner, metric)
             # A riding bonus only counts towards a figure you get while riding.
-            riding = moves["riding"].get(metric, 0.0) if metric == "rideSprint" else 0.0
+            riding = riding_all if metric == "rideSprint" else 0.0
             value = base * (1.0 + always + riding)
             row = {
                 "base": base,
                 "value": round(value, 1),
                 "passiveBonus": round(always + riding, 4),
+                # Broken out, because this is the part that changes when you
+                # condense — and a merged figure could not tell a player that
+                # four stars is what bought it.
+                "partnerBonus": round(
+                    partner["always"].get(metric, 0.0)
+                    + (partner["riding"].get(metric, 0.0)
+                       if metric == "rideSprint" else 0.0), 4),
             }
         else:
             stats = palstats.describe(_hypothetical(entry["speciesId"], build))
@@ -510,6 +603,10 @@ def rank(metric: str, build: Optional[dict[str, Any]] = None,
             "passives": passives,
         },
         "passiveEffect": moves,
+        # Movement from the species' own partner skill AT THIS CONDENSER RANK.
+        # Per row rather than here, because it differs by species — this flag
+        # only says the ranking accounts for it at all.
+        "partnerSkillMovementApplied": True,
         # THE PART PEOPLE GET WRONG, carried in the payload rather than only in
         # a docstring: the client is the thing about to render a build form.
         # "Does a build change this number *in this ranking*" — a statement
@@ -517,11 +614,19 @@ def rank(metric: str, build: Optional[dict[str, Any]] = None,
         "buildAffectsMetric": spec["source"] == "calculated",
         # The columns carry no build term. That is a fact about the FILES.
         "movementInFiles": True,
-        # AND THIS IS THE HONEST HALF. The condenser bonus could be applied at
-        # load, invisibly, exactly as the work-suitability bonus is. Nothing
-        # here applies it and nothing here denies it — only an in-game timing
-        # run settles it. Never "false", which would be a claim.
-        "condenserOnMovement": "unverified",
+        # **THE CONDENSER DOES CHANGE MOVEMENT, and this used to read
+        # "unverified".** Confirmed 2026-08-11 from the operator's observation
+        # and then found in the game's own data: a partner skill is a list
+        # indexed by condenser rank, so Direhowl reads MoveSpeed +0/10/12/15/20%
+        # across the stars. Applied above, per species, and broken out as
+        # `partnerBonus` on each row.
+        "condenserOnMovement": "viaPartnerSkill",
+        # Which is NOT the same question as whether `GenkaiToppa_PerAdd` also
+        # multiplies the speed columns the way it multiplies HP and Attack. That
+        # half is still unsettled and still needs a timing run, so it keeps its
+        # own flag rather than being buried by the half that got answered.
+        # Never "false" — see the module docstring.
+        "condenserOnSpeedColumns": "unverified",
         # "Fastest ride" is answerable; "fastest flyer" is not.
         "mountModeKnown": False,
         "speedUnitKnown": False,
@@ -564,16 +669,26 @@ def compare(species_ids: list, build: Optional[dict[str, Any]] = None
             continue
         stats = palstats.describe(_hypothetical(entry["speciesId"], build))
         moves = movement_bonuses([str(p) for p in (build.get("passives") or []) if p])
+        # Per species, because the partner skill IS the species — this is the
+        # term that makes a four-star Direhowl faster than a one-star one, and
+        # `rank()` applies the identical one.
+        partner = partner_movement(
+            entry["speciesId"], int(build.get("condenserRank") or 1)
+        )
         movement = {}
         for key, base in (entry["movement"] or {}).items():
             if key == "stamina":
                 movement[key] = {"base": base, "value": base}
                 continue
-            always = moves["always"].get(key, 0.0)
-            riding = moves["riding"].get(key, 0.0) if key == "rideSprint" else 0.0
+            always, riding_all = _merged_movement(moves, partner, key)
+            riding = riding_all if key == "rideSprint" else 0.0
             movement[key] = {
                 "base": base,
                 "value": round(base * (1.0 + always + riding), 1),
+                "partnerBonus": round(
+                    partner["always"].get(key, 0.0)
+                    + (partner["riding"].get(key, 0.0)
+                       if key == "rideSprint" else 0.0), 4),
             }
         out.append({
             "speciesId": entry["speciesId"],
@@ -617,6 +732,12 @@ def compare(species_ids: list, build: Optional[dict[str, Any]] = None
             "passives": [str(p) for p in (build.get("passives") or []) if p],
         },
         "movementInFiles": True,
-        "condenserOnMovement": "unverified",
+        # Same two flags `rank()` carries, and they must stay in step — a
+        # comparison that disagreed with the ranking about whether the condenser
+        # moves a speed would be the worse kind of wrong, since both are on
+        # screen together.
+        "condenserOnMovement": "viaPartnerSkill",
+        "condenserOnSpeedColumns": "unverified",
+        "partnerSkillMovementApplied": True,
         "mountModeKnown": False,
     }
