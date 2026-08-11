@@ -12,6 +12,7 @@ import type { BaseStorage } from '@/lib/types';
 import { CAPABILITIES } from '@/lib/permissions';
 import BaseSupplyPanel from '@/components/base-supply';
 import BaseAssignPanel from '@/components/base-assign';
+import LabResearchPanel from '@/components/lab-research';
 
 /** A base this full is about to start dropping what its Pals produce. */
 const NEARLY_FULL = 90;
@@ -384,6 +385,11 @@ export default function BaseViewer() {
           than containers — and because it recommends where supply only
           reports. */}
       <BaseAssignPanel />
+
+      {/* Guild-wide and permanent, which is why it sits with Bases rather than
+          on a Pal: it is the upgrade that explains why two identical Pals
+          produce differently on two different servers. */}
+      <LabResearchPanel />
     </div>
   );
 }
