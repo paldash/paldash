@@ -1557,6 +1557,49 @@ constant.
 Measured the same day: of the bundle's 208 effect types, **79 are named anywhere
 in `backend/` and 129 are mentioned nowhere.**
 
+### FIVE progression systems — this section said four, and partner skills are the fifth
+
+`DT_PartnerSkillParameter.PassiveSkills` is a list **indexed by condenser rank**,
+and nothing read it: the table was opened once for `RestrictionItems` and its
+largest column was walked straight past. `scripts/extract-partner-skills.py`
+bundles it (`partner_skills.json.gz`, 18 KB, 624 species, 479 with ranks).
+
+    Silvegis   ShieldDamageCutRate            65% -> 80%   (rank 1 -> 5)
+               PlayerShield_RecoverStartTime  30% -> 60%
+
+Both `ToTrainer` under `InvokeInOtomo` — a buff to the **player**, for the Pal
+merely being in the party. So a 4-star Silvegis is meaningfully better at
+something that has nothing to do with its stats.
+
+**Why nothing could see it is worth more than the finding.**
+`palstats.PASSIVE_SELF_TARGETS` excludes `ToTrainer` (669 of 2,057 effects) and
+`PASSIVE_SELF_INVOKES` excludes `InvokeInOtomo` — **both correct**, because
+neither is part of the stat block the game prints on a palbox Pal. That
+correctness is exactly what made it invisible: this is the third time this file
+records "a filter that is right for its own surface becomes a blind spot the
+moment it is the only reader."
+
+**The bundle is a MAPPING and describes no effect of its own.** All **933 of 933**
+skill ids resolve in `passive_effects.json.gz`, and that is the acceptance
+criterion — a dangling id means the two extractions drifted, which a row count
+would never show. Nothing is inferred from an id: `GiveAElectricity_Ride` reads
+obvious and what makes it true is the effect table saying `ElementElectricity
+1.0 -> ToTrainer` under `InvokeRiding`. Plain Solmora does **not** carry it, so
+the Lux variant specifically is the one that electrifies the rider's damage.
+
+**Two species ship one rank entry rather than five and it is not a fault.**
+`LongCat`/`BOSS_LongCat` (Valentail): its only partner skill is `LowGravity`, an
+on/off effect with nothing to scale, so the game declined to write four
+identical rows. `gamedata.partner_skills_at` **clamps** the index rather than
+returning empty at rank 4. Anything other than 1 or 5 entries still refuses the
+build.
+
+`ActiveSkill` is carried and **not interpreted**: Jetragon's
+`UniqueRideShooting_JetMissile` has `MainValueByRank [20, 22, 26, 32, 40]` and
+the column naming that value is editor-only Japanese, so the numbers travel with
+no unit claimed. `SkillName: "Unknown"` is the game's own placeholder on most
+rows and is dropped rather than shipped as a name.
+
 ### Four progression systems, and the dashboard knew two
 
 Chasing that turned up two more tables nothing reads, which is the count worth
@@ -1615,8 +1658,35 @@ and `IconName` only ever describes its art.
 **Which also means "has PalGear" is not "is a mount", and Galeclaw is the
 counterexample.** `SkillUnlock_Eagle` is *Galeclaw's Gloves* — "gloves for
 modifying the performance of the equipped glider" — a partner skill you hold,
-not a mount. So `RestrictionItems` narrows the field usefully and does not settle
-it either.
+not a mount.
+
+#### ...AND THE SENTENCE THAT USED TO FOLLOW WAS WRONG: `RestrictionItems` SETTLES IT
+
+It read *"so `RestrictionItems` narrows the field usefully and does not settle
+it either"*, carrying the PalGear doubt across to a different table without
+checking whether Galeclaw was in that one. **It is not.** Corrected 2026-08-11.
+
+| | |
+|---|---:|
+| `Essential_PalGear` items in `DT_ItemDataTable` | 143 |
+| items named by some `RestrictionItems` | **126** |
+| PalGear items named by none | **17** |
+
+and the 17 are *exactly* the gear you hold or wear rather than ride: five
+gloves (**Galeclaw**, Celaray, Jolthog, Killamari, Hangyu), three necklaces
+that summon a companion (Daedream, Flopie, Dazzi), two harnesses, a headband
+and a power converter. Every known non-mount checked is absent — Lamball,
+Caprity, Katress, Kitsun, Dumud and Galeclaw itself — and every known mount is
+present. **149 base species, 288 forms.**
+
+So "which Pals can be ridden" is answerable from the files, and Jetragon coming
+out fastest at 3,300 is the independent check that the speed column means what
+it looks like.
+
+The transferable half: a doubt earned against one table was applied to a
+neighbouring table that does not share its premise — the same shape as the
+`IgnoreCombi`, element-variant and egg-template retractions recorded elsewhere
+in this file.
 
 Last avenue, also empty: `DT_PartnerSkillParameter.ActiveSkill` carries
 `bIsOneShotRideAction`, `IsRidingActiveSkillNotWeapon` and
@@ -1633,8 +1703,23 @@ client-side, which is the unversioned wall.
 
 `RideSprintSpeed` is populated for **all 753 species**, including Pals that
 cannot be ridden, so sorting on it unfiltered produces a leaderboard of mounts
-that do not exist. `RestrictionItems` is the best filter available and is not
-exact — see Galeclaw above.
+that do not exist — Incineram reads **960** and Galeclaw **700**. Filter on
+`rideable`, which is `RestrictionItems`, which is exact.
+
+**And `-1` is a sentinel, not a slow speed.** 60 species carry it on
+`RideSprintSpeed`, 52 on `SwimSpeed`, 105 on `TransportSpeed`.
+`build-gamedata.py` **drops** the key rather than bundling the number, so a
+caller's `.get()` returns None and those species are excluded from a ranking
+instead of sorted to the bottom as though they were merely slow. It is *not*
+the rideable marker either: the -1 set and the `RestrictionItems` set do not
+overlap at all, and the 403 species in neither still carry a real speed.
+
+**Two further avenues for the MODE were checked while building
+`buildplanner.py`, and both are empty.** The client pak has no
+`BP_Pal_<species>` blueprint at all (the only `BP_Pal_*` match is a console
+mesh), and per-species animation folders — 213 of 753 — do not attribute it
+either: Jetragon has **no fly-named animation** and every species has an
+`Idle_Swim`. Do not re-open these two.
 
 Conclusion: fastest **ride** is answerable and fastest **flyer** is not, from
 files. A hand-maintained mode list is allowed on `elements.py`'s terms — the data
@@ -2707,6 +2792,34 @@ Neutral is strong against nothing, which is the game's design (Neutral Pals trad
 matchups for base work) rather than a hole in the transcription, and Fire is the
 only element strong against two.
 
+#### THERE WAS NEVER A "RESIST HALF" TO FIND, AND LOOKING FOR ONE WAS THE ERROR
+
+The paragraph above says the settings object has "no halving or resist
+counterpart", and treats that as a gap. It is not a gap — **the design does not
+have one.** Raised by the operator, 2026-08-11, and they are right: the chart is
+a one-directional *strong against* relation, so a disadvantaged defender does
+not take a penalty of its own. It takes the attacker's ×1.2. One constant
+covers both directions:
+
+    your damage to them   x1.2 when YOUR element beats theirs, else x1.0
+    their damage to you   x1.2 when THEIR element beats yours, else x1.0
+
+Being "weak" therefore costs nothing offensively and means they hit you 20%
+harder, which is exactly what a single `DamageElementMatchRate` with no
+counterpart implies. So `buildplanner.rank` ranks `hp` and `defense` against a
+named element too — effective bulk, the same constant read from the defender's
+side — and a Grass attacker penalises **50 of 342** species, which are the Earth
+ones.
+
+**`matchup` and `incoming` are both carried and are NOT inverses.** Fire beats
+Grass and Grass beats Earth, so a Fire Pal facing Grass is strong *and* safe
+while a Water Pal facing Grass is neutral both ways. One field cannot say that.
+
+What is still genuinely unknown is narrower than the old claim: whether anything
+*stacks* on top of the 1.2, since `DamageUpElement_ByElementStatus` and
+`DamageDownElement_ByElementStatus` are C++ and unread. That travels as
+`stackingKnown: false`.
+
 ### The optimiser is where that quarantine could leak, so it is pinned twice
 
 `backend/optimise.py` ranks Pals for work and for combat. The rule it exists to
@@ -2724,6 +2837,21 @@ badge would defeat a backend that did not.
 `hasMultiplier: false` travels in the payload, not only in a docstring. The client
 is the thing about to render a damage figure, so it is the thing that has to be
 told there is none.
+
+**`buildplanner.py` MAY sort on a matchup, and that does not weaken this rule.**
+The two are different questions. `optimise.py` ranks a roster for general use,
+where no target is named and a matchup could only be decoration; the rule stands
+there unchanged, tests and all. `buildplanner.rank(..., against="Grass")` is
+somebody asking *who hits Grass hardest*, and the game now supplies the
+coefficient that was missing when this rule was written. It applies only when
+`against` is given, only to `attack`/`hp`/`defense`, and never silently — `raw`
+stays on every row so the un-multiplied figure is visible beside the sorted one,
+and asking who *runs fastest* against Grass reorders nothing at all.
+
+The distinction to keep: the objection was never "matchups are unimportant", it
+was **"there is no number, so a score would be invented"**. Once the number is
+Pocketpair's, the objection expires for the question that names a target and
+holds for the one that does not.
 
 **Work levels are read; work speed is calculated; the payload says which per
 row.** `base` (the species table) and `bought`

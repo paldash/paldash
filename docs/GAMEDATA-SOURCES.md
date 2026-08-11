@@ -88,7 +88,7 @@ of day.
 | `DT_WazaDataTable` | 384 | Every move: element, power, category, cooldown, range |
 | `DT_WazaMasterLevel` | 5,772 | Which move a species learns at which level |
 | `DT_WazaMasterTamago` | 7,111 | Moves inherited via eggs |
-| `DT_PartnerSkill` / `DT_PartnerSkillParameter` | 50 / 682 | Partner skill mechanics and per-species parameters |
+| `DT_PartnerSkill` / `DT_PartnerSkillParameter` | 50 / 682 | **`RestrictionItems` is the MOUNT LIST** — 126 items, 149 base species, and the 17 `Essential_PalGear` items it does *not* name are exactly the gear you hold or wear (Galeclaw's Gloves among them). **`PassiveSkills` is a list indexed by CONDENSER RANK** and was unread until 2026-08-11: it is what a Pal does for *you* in the party or while ridden, and it makes partner skills a fifth progression axis. Bundled as `partner_skills.json.gz`; all 933 skill ids resolve in `passive_effects.json.gz`. `ActiveSkill` is the ride weapon with `MainValueByRank`. **It still carries no mount MODE** |
 | `DT_PassiveSkillEffectCondition` | 51 | Stacking rules (`bIsHighestOnly`, `bIsFixedValue`) |
 | `DT_OperatingTablePassiveSkillDataTable` | 54 | Passive-skill prices at the Operating Table |
 
