@@ -36,20 +36,30 @@ MAXED = {"level": 80, "condenserRank": 5, "iv": 100, "soulRank": 20}
 # ─── Movement takes no build term, which is the whole finding ───
 
 
-def test_a_maxed_pal_is_not_faster():
+def test_this_ranking_applies_no_build_bonus_to_a_speed():
     """
-    THE HEADLINE, and the thing everyone assumes otherwise.
+    A statement about THIS MODULE, not about the game.
 
-    `RideSprintSpeed` is a flat species column. `StatusCalculate_GenkaiToppa_
-    PerAdd` moves HP, Attack, Defense and CraftSpeed and stops there, so a
-    four-star level-80 Jetragon runs at exactly the speed of a level-1 one.
+    **The earlier version of this test was called `test_a_maxed_pal_is_not_
+    faster` and asserted the game's behaviour, which it cannot see.** The
+    operator challenged it and was right: `StatusCalculate_GenkaiToppa_PerAdd`
+    carries no stat suffix while every other constant in its family does, and
+    the condenser's effect on work suitability is applied at load, absent from
+    every file, and was wrongly denied three times.
+
+    What is testable is that nothing here invents a multiplier — the ranking
+    reports the species column untouched — and that the payload says so as an
+    unknown rather than as a denial.
     """
     base = buildplanner.rank("rideSprint", limit=20)
     maxed = buildplanner.rank("rideSprint", build=MAXED, limit=20)
     assert [(r["speciesId"], r["value"]) for r in base["rows"]] == \
         [(r["speciesId"], r["value"]) for r in maxed["rows"]]
     assert base["buildAffectsMetric"] is False
-    assert base["movementIgnoresLevel"] is True
+    assert base["movementInFiles"] is True
+    # NEVER False. False would be a claim about the game that nothing here can
+    # support, which is exactly the mistake this test replaces.
+    assert base["condenserOnMovement"] == "unverified"
 
 
 def test_passives_are_the_only_thing_that_moves_a_speed():

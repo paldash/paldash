@@ -1973,7 +1973,12 @@ export interface BuildRanking {
   };
   /** False for every movement metric: a build does not change a speed. */
   buildAffectsMetric?: boolean;
-  movementIgnoresLevel?: boolean;
+  /** The columns carry no build term — a fact about the FILES. */
+  movementInFiles?: boolean;
+  /** "unverified", never false: the condenser bonus is applied at load and a
+   *  movement effect would be invisible in every file, exactly as the
+   *  work-suitability one is. */
+  condenserOnMovement?: string;
   mountModeKnown?: boolean;
   speedUnitKnown?: boolean;
   against?: string;
