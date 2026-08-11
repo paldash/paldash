@@ -1933,6 +1933,58 @@ export interface CraftTree extends ItemRef {
   checksStock?: boolean;
 }
 
+export interface BuildRankRow {
+  speciesId: string;
+  name: string;
+  icon?: string | null;
+  elements?: string[];
+  rideable?: boolean;
+  /** Not in any game file. Null rather than inferred from a name. */
+  mountMode: null;
+  stamina?: number | null;
+  value: number;
+  /** The species column, before any passive multiplier. Movement metrics only. */
+  base?: number;
+  /** The figure before the element multiplier — always present when one applied,
+   *  so nothing is hidden behind the sort. */
+  raw?: number;
+  passiveBonus?: number;
+  matchRate?: number;
+  /** You hitting them. NOT the inverse of `incoming`. */
+  matchup?: 'strong' | 'weak' | 'neutral';
+  /** Them hitting you. */
+  incoming?: 'strong' | 'weak' | 'neutral';
+  breakdown?: Record<string, unknown>;
+}
+
+export interface BuildRanking {
+  metric: string;
+  known: boolean;
+  note?: string;
+  label?: string;
+  source?: 'table' | 'calculated';
+  ranked?: number;
+  rows?: BuildRankRow[];
+  build?: Record<string, unknown>;
+  passiveEffect?: {
+    always: Record<string, number>;
+    riding: Record<string, number>;
+    conditional: { passiveId: string; type: string; value: number; when?: string[] }[];
+  };
+  /** False for every movement metric: a build does not change a speed. */
+  buildAffectsMetric?: boolean;
+  movementIgnoresLevel?: boolean;
+  mountModeKnown?: boolean;
+  speedUnitKnown?: boolean;
+  against?: string;
+  matchupApplied?: boolean;
+  matchRate?: number | null;
+  matchRateAppliesBothWays?: boolean;
+  stackingKnown?: boolean;
+  chartIsHandEntered?: boolean;
+  unknownElements?: string[];
+}
+
 export interface CraftableRecipe extends ItemRef {
   recipeId: string;
   batches: number;
