@@ -54,6 +54,7 @@ import palcheck
 import palclone
 import palimport
 import labresearch
+import palresist
 import palstats
 import passiveeffects
 import policy as policy_module
@@ -945,6 +946,18 @@ def _enriched_pals() -> list[dict]:
                 # `gamedata.skin_label`. None when absent, which is 2,943 of the
                 # live world's 2,963 Pals.
                 "skin": gamedata.skin_label(pal.get("skinName")),
+                # What this Pal RESISTS — the defensive half of its passives,
+                # which `stats` above deliberately does not cover: the four
+                # figures the game prints are HP, Attack, Defense and Work
+                # Speed, and a 35% Fire reduction is none of them. 311 of the
+                # reference world's 1,905 Pals carry one.
+                #
+                # Species elements are passed in so `softTo` is the chart read
+                # from this Pal's own side. The two terms never combine — see
+                # `palresist`, and `stackingKnown` travels in the payload.
+                "resist": palresist.profile(
+                    details.get("elements") or [], pal.get("passiveSkills") or []
+                ),
             }
         )
     return enriched
@@ -2562,6 +2575,31 @@ def get_boss_encounters(request: Request, kind: str = "", element: str = "",
             kind=kind, element=element,
             max_level=int(maxLevel) if maxLevel is not None else None,
         )
+    except gamedata.GameDataUnavailable as e:
+        raise HTTPException(503, str(e))
+
+
+@app.get("/api/world/resistances")
+def get_resistances(request: Request, passives: str = "", elements: str = "",
+                    against: str = "") -> dict[str, Any]:
+    """
+    What a passive set makes a Pal resist — the defensive half nothing computed.
+
+    Catalogue data: it describes passives and the type chart, not this world, so
+    `VIEW_BASIC` and no parsed save. `elements` is the Pal's OWN elements, which
+    is what `softTo` needs; `against` narrows to one attacking element.
+
+    Returns the passive term and the chart term **separately**. Nothing here
+    multiplies them, because no game file states how they compose.
+    """
+    authz.require(request, roles_module.VIEW_BASIC)
+    passive_ids = [p for p in (passives or "").split(",") if p][:8]
+    own = [e for e in (elements or "").split(",") if e][:4]
+    try:
+        out = palresist.profile(own, passive_ids)
+        if against:
+            out["against"] = palresist.against(own, passive_ids, against)
+        return out
     except gamedata.GameDataUnavailable as e:
         raise HTTPException(503, str(e))
 
