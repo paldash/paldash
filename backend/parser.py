@@ -54,6 +54,11 @@ _NEEDED_CUSTOM_PROPERTIES = (
     # coordinates and the base camp each belongs to. Measured at no extra parse
     # cost on a real save, and it is what makes the map more than dots.
     ".worldSaveData.MapObjectSaveData",
+    # The Pal Lab research tree's per-guild progress. Without this the blob is
+    # opaque bytes and `extract_guild_research` yields nothing. Measured at
+    # **+0.4s on a 5.0s parse** of the live world — the first measurement said
+    # 1.5s and was warmup noise, which reversing the order exposed.
+    ".worldSaveData.GuildExtraSaveDataMap.Value.Lab.RawData",
 )
 # Only decoded when inventory detail is requested — noticeably heavier.
 _ITEM_CUSTOM_PROPERTIES = (
@@ -1043,6 +1048,64 @@ def extract_base_worker_capacity(gvas: Any) -> dict[str, int]:
     a zero denominator renders as infinitely full.
     """
     return _base_worker_join(gvas)[1]
+
+
+def extract_guild_research(gvas: Any) -> dict[str, dict]:
+    """
+    `{guild_id: {currentResearchId, progress: {research_id: work_amount}}}`.
+
+    The Pal Lab tree, which is **guild-wide and permanent** — the one base
+    upgrade that explains why two identical Pals produce differently on two
+    different servers.
+
+    `Lab.RawData` decodes to named fields rather than needing a byte offset, so
+    this is the `extract_pal_storage` shape rather than the `WorkerDirector`
+    one: where the game gives a name, take the name.
+
+    **Every guild carries all 168 rows, including the ones it has not started.**
+    On the live world one guild's rows are all `0.0`. So a row's presence says
+    nothing; only `work_amount` does, and completion is a comparison against
+    `RequiredWorkAmount` from `lab_research.json.gz` — which is why this returns
+    raw amounts and lets `labresearch` do the join rather than deciding here.
+
+    **`current_research_id` is the STRING "None" when idle**, not null. Treating
+    it as a real id would put a node called "None" on screen.
+    """
+    world = _world_save_data(gvas)
+    out: dict[str, dict] = {}
+
+    guilds = _v(world, "GuildExtraSaveDataMap", "value", default=[]) or []
+    for entry in guilds if isinstance(guilds, list) else []:
+        guild_id = str(_v(entry, "key", "value") or entry.get("key") or "")
+        lab = _v(entry, "value", "Lab", "value", "RawData", "value")
+        if not guild_id or not isinstance(lab, dict):
+            continue
+
+        rows = lab.get("research_info")
+        if not isinstance(rows, list):
+            # Opaque bytes: the custom property was not requested. Yield nothing
+            # rather than an empty tree, which would read as "researched none".
+            continue
+
+        progress: dict[str, float] = {}
+        for row in rows:
+            research_id = str((row or {}).get("research_id") or "")
+            if research_id:
+                progress[research_id] = float((row or {}).get("work_amount") or 0.0)
+
+        current = str(lab.get("current_research_id") or "")
+        out[guild_id] = {
+            "currentResearchId": "" if current in ("", "None") else current,
+            "progress": progress,
+        }
+
+    if guilds and not out:
+        logger.warning(
+            "No guild research decoded across %d guilds — the Lab.RawData custom "
+            "property may not have been requested; research progress unavailable",
+            len(guilds),
+        )
+    return out
 
 
 def extract_guild_storage(gvas: Any) -> dict[str, str]:
