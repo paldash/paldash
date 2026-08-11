@@ -2043,6 +2043,41 @@ export interface PaldeckCompletion {
   missingHidden?: boolean;
 }
 
+export interface BossCounters {
+  bringElements: string[];
+  /** Your Pals of these elements take the boss's bonus. NOT the inverse of
+   *  `bringElements` — Fire beats Grass and Grass beats Earth. */
+  avoidElements: string[];
+  matchRate: number;
+  matchRateAppliesBothWays: boolean;
+}
+
+export interface BossEncounter {
+  kind: 'field' | 'raid' | 'tower';
+  id: string;
+  speciesId: string;
+  name: string;
+  icon?: string | null;
+  elements: string[];
+  /** Absent on towers — a tower entrance is a place, not an encounter. */
+  level?: number | null;
+  /** **Null on a raid boss**, which is summoned rather than placed. */
+  position?: { x?: number; y?: number; z?: number } | null;
+  summonItemId?: string;
+  /** Null on a tower: no species, so no matchup. */
+  counters?: BossCounters | null;
+}
+
+export interface BossEncounters {
+  bosses: BossEncounter[];
+  counts: { field: number; raid: number; tower: number };
+  kindsAreNotComparable: boolean;
+  raidBossesHaveNoPosition: boolean;
+  recommendedLevelKnown: boolean;
+  partySizeKnown: boolean;
+  chartIsHandEntered: boolean;
+}
+
 export interface CraftableRecipe extends ItemRef {
   recipeId: string;
   batches: number;
