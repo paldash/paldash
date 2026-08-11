@@ -296,6 +296,20 @@ export interface PalRecord {
     stackingKnown: boolean;
     matchRate: number;
   } | null;
+  /**
+   * Movement this Pal's partner skill grants **at its own condenser rank** —
+   * i.e. whether condensing it actually made it faster.
+   *
+   * Null when there is nothing to report, which is most Pals: only 96 species
+   * have a partner skill that scales with rank. `riding` applies only while you
+   * are riding it, and is kept apart from `always` for that reason.
+   */
+  partnerMovement?: {
+    always: Record<string, number>;
+    riding: Record<string, number>;
+    skillIds: string[];
+    condenserRank: number;
+  } | null;
   /** Equipped moves, prefix stripped. Null when the Pal stores no EquipWaza. */
   activeSkills?: string[] | null;
   activeSkillNames?: string[];

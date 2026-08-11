@@ -544,6 +544,7 @@ export default function MyPals() {
                     </div>
                   )}
                   <ResistBadges resist={p.resist} />
+                  <StarSpeedBadge moved={p.partnerMovement} />
                 </td>
                 {work && <td className="mono">{workLevel(p, work) || '—'}</td>}
                 <td>
@@ -760,6 +761,40 @@ function ResistBadges({ resist }: { resist?: PalRecord['resist'] }) {
           {kind} {percent}%
         </span>
       ))}
+    </div>
+  );
+}
+
+/**
+ * What condensing THIS Pal bought it, in movement.
+ *
+ * The build planner answers the question for a hypothetical build; this answers
+ * it for the Direhowl somebody actually owns, at the rank it is actually at.
+ *
+ * **Absent on most Pals, and that is the answer rather than a gap** — 96 of the
+ * species have a partner skill that scales with condenser rank and the rest gain
+ * nothing, so a "+0%" here would imply a shared rule that does not exist.
+ */
+function StarSpeedBadge({ moved }: { moved?: PalRecord['partnerMovement'] }) {
+  if (!moved) return null;
+  // Riding and always-on are listed separately because a ride bonus does
+  // nothing for a Pal following you around, and one merged figure would say it
+  // did. `run` is dropped from the riding set for the same reason.
+  const parts: string[] = [];
+  for (const [metric, value] of Object.entries(moved.always)) {
+    parts.push(`${metric} +${Math.round(value * 100)}%`);
+  }
+  for (const [metric, value] of Object.entries(moved.riding)) {
+    if (metric === 'run') continue;
+    parts.push(`${metric} +${Math.round(value * 100)}% while ridden`);
+  }
+  if (!parts.length) return null;
+  return (
+    <div
+      title={`From this Pal's partner skill at condenser rank ${moved.condenserRank} (${moved.skillIds.join(', ')}). Rank 1 is no stars.`}
+      style={{ fontSize: 10, color: 'var(--accent-green)', marginTop: 2 }}
+    >
+      ★ {parts.join(' · ')}
     </div>
   );
 }
