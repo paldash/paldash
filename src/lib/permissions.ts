@@ -152,6 +152,9 @@ const ROUTES: RouteRule[] = [
   // the biome can be joined to a save.
   { pattern: /^world\/invaders$/, methods: ['GET'], capability: CAPABILITIES.VIEW_BASIC, feature: FEATURES.SERVER_STATUS },
   { pattern: /^world\/reference$/, methods: ['GET'], capability: CAPABILITIES.VIEW_BASIC, feature: FEATURES.SERVER_STATUS },
+  // Every boss in one list with its counters. Catalogue data like the map
+  // layers it draws from, so the same gate.
+  { pattern: /^world\/encounters$/, methods: ['GET'], capability: CAPABILITIES.VIEW_BASIC, feature: FEATURES.SERVER_STATUS },
   // Ranking the GAME at a chosen build. Catalogue data, so the same gate as the
   // rest of `world/` — `optimise/*` is the roster-scoped version and is gated
   // on what somebody may see of this world instead.

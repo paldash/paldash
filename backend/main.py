@@ -30,6 +30,7 @@ import authz
 import baseprivacy
 import baseassign
 import basesupply
+import bossplanner
 import breeding
 import buildplanner
 import charedit
@@ -2538,6 +2539,28 @@ def compare_builds(request: Request, species: str = "", level: int = 1,
                 "soulRank": max(0, min(int(souls or 0), 20)),
                 "passives": [p for p in (passives or "").split(",") if p][:8],
             },
+        )
+    except gamedata.GameDataUnavailable as e:
+        raise HTTPException(503, str(e))
+
+
+@app.get("/api/world/encounters")
+def get_boss_encounters(request: Request, kind: str = "", element: str = "",
+                        maxLevel: Optional[int] = None) -> dict[str, Any]:
+    """
+    Every boss in one list, with which elements beat it and which beat you.
+
+    Catalogue data — `VIEW_BASIC`, no parsed world. The map layers
+    (`/api/world/bosses`, `/api/world/raidbosses`) still serve their own kinds;
+    this is the planner across all of them.
+
+    `element` filters on the boss's OWN element, not on what counters it.
+    """
+    authz.require(request, roles_module.VIEW_BASIC)
+    try:
+        return bossplanner.encounters(
+            kind=kind, element=element,
+            max_level=int(maxLevel) if maxLevel is not None else None,
         )
     except gamedata.GameDataUnavailable as e:
         raise HTTPException(503, str(e))
