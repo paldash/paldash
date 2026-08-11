@@ -31,6 +31,7 @@ import baseprivacy
 import baseassign
 import basesupply
 import breeding
+import buildplanner
 import charedit
 import crafting
 import db
@@ -2479,6 +2480,63 @@ def get_crafting_tree(item_id: str, request: Request, count: int = 1,
             item_id,
             count=max(1, min(int(count or 1), 100_000)),
             prefer=[p for p in (prefer or "").split(",") if p],
+        )
+    except gamedata.GameDataUnavailable as e:
+        raise HTTPException(503, str(e))
+
+
+@app.get("/api/world/builds")
+def get_build_ranking(request: Request, metric: str = "rideSprint",
+                      level: int = 1, condenser: int = 1, iv: int = 0,
+                      souls: int = 0, trust: int = 0, passives: str = "",
+                      against: str = "", rideable: bool = False,
+                      limit: int = 50) -> dict[str, Any]:
+    """
+    Rank every species at a chosen build — fastest mount, hardest hitter.
+
+    Catalogue data: this describes the game, not this world, so `VIEW_BASIC` and
+    no parsed save. The roster-scoped version is `/api/optimise/*`, which ranks
+    the Pals somebody actually owns and is privacy-filtered accordingly.
+
+    `against` names a target *element*, not a species — the one thing the game
+    gives a coefficient for.
+    """
+    authz.require(request, roles_module.VIEW_BASIC)
+    try:
+        return buildplanner.rank(
+            metric,
+            build={
+                "level": max(1, min(int(level or 1), 100)),
+                "condenserRank": max(1, min(int(condenser or 1), 5)),
+                "iv": max(0, min(int(iv or 0), 100)),
+                "soulRank": max(0, min(int(souls or 0), 20)),
+                "trustPoints": max(0, int(trust or 0)),
+                "passives": [p for p in (passives or "").split(",") if p][:8],
+            },
+            limit=limit,
+            rideable_only=bool(rideable),
+            against=against,
+        )
+    except gamedata.GameDataUnavailable as e:
+        raise HTTPException(503, str(e))
+
+
+@app.get("/api/world/builds/compare")
+def compare_builds(request: Request, species: str = "", level: int = 1,
+                   condenser: int = 1, iv: int = 0, souls: int = 0,
+                   passives: str = "") -> dict[str, Any]:
+    """Every metric for a handful of named species at one build."""
+    authz.require(request, roles_module.VIEW_BASIC)
+    try:
+        return buildplanner.compare(
+            [s for s in (species or "").split(",") if s],
+            build={
+                "level": max(1, min(int(level or 1), 100)),
+                "condenserRank": max(1, min(int(condenser or 1), 5)),
+                "iv": max(0, min(int(iv or 0), 100)),
+                "soulRank": max(0, min(int(souls or 0), 20)),
+                "passives": [p for p in (passives or "").split(",") if p][:8],
+            },
         )
     except gamedata.GameDataUnavailable as e:
         raise HTTPException(503, str(e))
