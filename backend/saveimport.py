@@ -266,7 +266,23 @@ def _describe(before_item: str, before_count: int, after_item: str, after_count:
 
 
 def _live_slots(entry: dict) -> list[dict]:
-    """The container's slots as the planner sees them, read from the live tree."""
+    """
+    The container's slots as the planner sees them, read from the live tree.
+
+    **PADDED TO `SlotNum`, and the absence of that was a second blocker on
+    writing to an empty slot.** The save stores only occupied slots, so this
+    returned three rows for a chest with three items in it — and
+    `plan_container_import` takes `capacity = len(current_slots)`, which then
+    rejected any index at or above three as "outside the target container".
+
+    `parser.extract_containers` has padded the READ side since the empty-row
+    work, so the editor showed free slots the writer then refused. Two views of
+    one container disagreeing about how big it is, which is the shape of bug
+    this file already documents for `SlotNum` versus the slot array.
+
+    Padding here rather than at the call site because every caller wants the
+    same answer, and the capacity check is derived from the length.
+    """
     import saveedit
 
     slots = []
@@ -284,6 +300,23 @@ def _live_slots(entry: dict) -> list[dict]:
             "isEmpty": not item_id or count <= 0,
             "hasDynamicId": saveedit._has_dynamic_id(raw),
         })
+
+    # `SlotNum` is the real capacity; the array is only what the game bothered
+    # to write. A padded row is a slot that genuinely exists and is free.
+    from parser import _num
+
+    capacity = _num(entry.get("value") or {}, "SlotNum", 0)
+    present = {s["slotIndex"] for s in slots}
+    for index in range(capacity):
+        if index not in present:
+            slots.append({
+                "slotIndex": index,
+                "itemId": "",
+                "stackCount": 0,
+                "isEmpty": True,
+                "hasDynamicId": False,
+            })
+    slots.sort(key=lambda s: s["slotIndex"])
     return slots
 
 
