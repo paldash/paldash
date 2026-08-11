@@ -951,9 +951,16 @@ Each was one bundle away, and the bundle was small. All five are complete.
    both said it was not. 143 PalGear items, 126 named by some `RestrictionItems`,
    and the 17 named by none are exactly the gear you hold or wear — including
    Galeclaw's Gloves, the case cited as the counterexample.
-2. **Movement takes no level, IV, condenser or soul term.** A four-star Jetragon
-   is not faster than a one-star one, and only passives move a speed. Pinned as
-   a differential, not as prose.
+2. **Movement carries no build term IN THE FILES — and this entry used to say
+   "a four-star Jetragon is not faster than a one-star one", which was an
+   overclaim the operator caught.** The columns are flat, which is a fact about
+   the columns. `palstats` transcribes a community-derived formula whose four
+   targets are exactly the four stats the game prints a number for — so they are
+   the only ones anybody could ever have checked it against, and absence of a
+   movement term there is absence of evidence. `GenkaiToppa_PerAdd` is also the
+   one constant in its family carrying no stat suffix. Passives demonstrably do
+   move a speed. `condenserOnMovement: "unverified"`, never `false`; filed as
+   **#106** with the timing protocol.
 3. **Partner skills are a FIFTH progression axis** — `PassiveSkills` is indexed
    by condenser rank, and Silvegis cuts the player's shield damage 65% → 80%
    across it. This document's own "four ways to improve a Pal" was short by one.
@@ -971,15 +978,29 @@ Genuine investigations. **Do not schedule these as though they were features** �
 each may end as a recorded negative, which is a real outcome and is why
 `docs/GAMEDATA-SOURCES.md` exists.
 
-| | Task | Prior |
+| | Task | Prior / outcome |
 |---|---|---|
-| #95 | 129 unread passive effect types | `ElementBoost_*` is the prize: a stated number where the element chart has none |
+| #95 | 129 unread passive effect types | **done, and the prize was elsewhere.** `ElementBoost_*` was expected to be a stated number the element chart lacks; that number turned out to be `DamageElementMatchRate = 1.2` in the settings CDO, already claimed. What `ElementBoost_*` is, is an additive passive on element damage. The audit's real pick was `ElementResist_*` |
+| #104 | Elemental resistance | **done** — `palresist.py`, badges on My Pals. **311 of refworld's 1,905 Pals** carry a resistance nothing computed, four times #94's figure. And `DamageRateIfDefender_*` is *offensive* despite its name — the audit table here listed it as a Pal buff |
+| #58 | CDO on `BP_BuildObject_PalFoodBox` | **done, and a recorded negative.** All four build-object CDOs decode and terminate four bytes short of the export end, and what comes out is presentation and placement — nothing about what a container accepts. `PalMapObjectFoodBoxParameterComponent` decodes to **zero properties**. `basesupply.py`'s refusal now rests on having looked |
 | #46 | Re-check what the client-pak wall ruled out | the server pak plus MapProperty changed the premises |
-| #58 | CDO on `BP_BuildObject_PalFoodBox` | would settle "what does a Feed Box accept", which `basesupply.py` refuses to assert |
 | #87 | `WorkSaveData` | the game's own record of who works where; **already partly indexed** in `docs/savefields.json` |
 | #86 | `MapObjectSpawnerInStageSaveData` | 31,824 entries nothing reads |
 | #88 | `BaseCampSaveData` ModuleMap RawData | 46 constant bytes; a fixed width is a reason to look, not a promise |
 | #89 | Achievement progress | the game's own, not Steam's |
+
+**Three of the seven closed, and two closed as negatives** — which is the
+outcome this phase was framed to allow. #58 in particular is worth reading as a
+success: "the technique works and the answer is not there" is a stronger
+statement than the refusal it replaced, which rested on nobody having tried.
+
+**Needing an in-game observation rather than a file** — not schedulable here,
+and each has its protocol written down:
+
+| | Task | What settles it |
+|---|---|---|
+| #106 | Does the condenser change movement speed | one timed run, 0★ vs 4★, same species, no `MoveSpeed` passives |
+| #96 | Condenser 2nd/3rd suitability ordering | one 4-star Pal with 4+ suitabilities; 262 of 343 species are already fully determined without it |
 
 ### Phase 12 — Blocked or cheap-but-unverifiable
 

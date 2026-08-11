@@ -1591,6 +1591,87 @@ So the payload now carries `movementInFiles: true` (a claim about the files) and
 half is which and how to settle it. The refusal is symmetric: this neither
 applies an unverified bonus nor asserts its absence.
 
+### THE CONDENSER DOES RAISE MOVEMENT, AND THE MECHANISM WAS ALREADY BUNDLED
+
+**Confirmed 2026-08-11 from the operator's observation — "Direhowl's move speed
+goes up with rank, but not all speeds go up" — and then found in the files.**
+Third time the operator has been right about the condenser.
+
+It is **not** `GenkaiToppa_PerAdd` applied to a speed column. Both halves of the
+old argument were correct and the connection between them was missed: the
+movement columns really do carry no build term, *and* the condenser really does
+make some Pals faster, because **partner skills are indexed by condenser rank**
+— which is #103's own finding, sitting unread one module over.
+
+    Garm (Direhowl).ranks = [ [],                                  # rank 1
+                              MoveSpeed_up_PartnerSkill_Ride_1,    # rank 2
+                              ..._2, ..._3, ..._4 ]                # ranks 3-5
+
+    MoveSpeed_up_PartnerSkill_Ride_1  ->  MoveSpeed +10%  ToSelf / InvokeRiding
+    ..._4                             ->  MoveSpeed +20%
+
+So Direhowl reads **0 / 10 / 12 / 15 / 20 %** across the stars, and rank 1 being
+*empty* is why a first check reported "no partner skills" — reading index 0 of a
+list whose first entry is legitimately blank. A zero that means "wrong index"
+again.
+
+**"Not all speeds" is exactly right, in two independent ways.** Which figure
+moves depends on the species' own partner skill — Azurobe gets `SwimSpeed`
+(0→10→14→18→25), Dazemu gets the terrain-gated `MoveSpeed_Ground`
+(50→62→74→86→100) — and **96 of the species/forms have such a skill at all**,
+so most Pals genuinely gain nothing.
+
+**`buildplanner.movement_bonuses` reads only the Pal's PASSIVES and therefore
+misses every one of these.** The planner understates a condensed Direhowl today.
+That is the fix this finding calls for; the flag becomes a number, not `false`.
+
+**And Galeclaw was checked deeper rather than excused.** The operator flagged it
+as a Reddit claim they were unsure of, and absence from our bundle would have
+been weak evidence — the extractor drops rows with no ranks, no active skill and
+no gear, so a dropped row and an empty row look identical downstream. Read
+straight out of `DT_PartnerSkillParameter`: **`Eagle` IS one of the 682 rows**,
+with `RestrictionItems: []` and `PassiveSkills: []`. The game gives Galeclaw no
+rank-scaled anything, so the extractor was right and the claim is contradicted
+by the table rather than merely unsupported by our copy. (It also independently
+re-confirms the `RestrictionItems` mount rule: Galeclaw is one of the 17 pieces
+of PalGear named by no restriction row.)
+
+### Airborne locomotion has a SIGNAL in the speed columns — not a rule
+
+Raised by the operator: if there are separate ground and water speeds, can the
+flying Pals not be picked out? `DT_PalMonsterParameter`'s 90 columns hold seven
+speeds — `WalkSpeed`, `SlowWalkSpeed`, `RunSpeed`, `RideSprintSpeed`,
+`SwimSpeed`, `SwimDashSpeed`, `TransportSpeed` — and **no air speed of any
+kind**, which is consistent with the long-recorded negative: a flyer's ride
+speed is the same `RideSprintSpeed` column a ground mount uses.
+
+But there is a pattern in them, and it is worth recording rather than dismissing:
+
+    run == swim == swimDash   ->  85 of 342 base species
+
+| | |
+|---|---|
+| known pure flyers matching (Nitewing, Vanwyrm, Galeclaw, Beakon, Faleris, Helzephyr, Ragnahawk) | **7 of 7** |
+| known **ground** mounts matching (Melpaca, Rushoar, Eikthyrdeer, Direhowl, Chillet, Univolt, Blazehowl, Sweepa, Mammorest, Anubis) | **0 of 10** |
+| known water Pals matching (Penking, Azurobe, Surfent, Kelpsea) | **0 of 4** |
+| known flyers **missing** it (Jetragon, Frostallion, Necromus, Paladius, Shadowbeak, Jormuntide) | 6 |
+
+The 85 are dominated by things that float rather than walk — Cave Bat, Demon
+Eye, Daedream, Dazzi, Cinnamoth, Hangyu, Celaray, Flopie, Killamari — which is
+what makes it look like a locomotion marker rather than a coincidence.
+
+**It is not shippable as one, and the reason is the failure mode this file keeps
+recording.** The likeliest reading is "swim speed was never tuned separately
+from run", which *correlates* with never swimming but is not the game stating a
+mode — and the misses are not random, they are the flagship mounts, whose
+numbers somebody clearly did tune. It also admits Panthalus and Kelpsea Ignis,
+which are not flyers. A category whose membership disagrees with what the game
+has is wrong however plausible it reads.
+
+So: a genuine lead with a measured control, **not** a `mountMode`. Anyone taking
+it further needs a real flyer list to score against; without one, tuning the
+predicate until the list looks right is fitting the method to the answer.
+
 **The general rule, third time of writing it.** A ranking that greys out a
 control is making a claim about the game in the loudest place available. State
 what the files say, mark what is unmeasured, and let an observation decide —
