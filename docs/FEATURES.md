@@ -130,6 +130,7 @@ Legend: ✅ works · 🟡 works with a caveat · 🔴 not built · ⚪ out of sc
 | Search | ✅ | Name, Paldeck number, internal id or element |
 | Location variants merged | ✅ | `HadesBird` + `HadesBird_Electric` are one Helzephyr entry with the **union** of their ranges |
 | Spawn *rates* | 🔴 | Not derivable. A sheet says a species is referenced by spawners in an area, not how often it appears |
+| **Paldeck completion** | ✅ | On the Progression tab: which entries you are missing and how to get each — spawn count, a named pairing, or "no pairing produces this". Denominator is Paldeck **entries** (204), never species forms (753), so 100% is reachable |
 | **Build planner** | ✅ | Ranks all 753 species at a level / stars / IV / soul / passive build you choose. Jetragon is the fastest ride at 3,300, which is the check that the column means what it looks like |
 | Which Pals can be ridden | ✅ | 149 base species, from the game's own `RestrictionItems`. Incineram reads a 960 ride speed and is **not** a mount; the filter excludes it, and Galeclaw too |
 | **Level and stars do not change a speed** | ✅ | Measured, and the form greys out to say so. Movement is a flat species figure — only passives move it |
