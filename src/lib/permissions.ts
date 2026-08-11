@@ -160,6 +160,10 @@ const ROUTES: RouteRule[] = [
   // on what somebody may see of this world instead.
   { pattern: /^world\/builds$/, methods: ['GET'], capability: CAPABILITIES.VIEW_BASIC, feature: FEATURES.SERVER_STATUS },
   { pattern: /^world\/builds\/compare$/, methods: ['GET'], capability: CAPABILITIES.VIEW_BASIC, feature: FEATURES.SERVER_STATUS },
+  // What a passive set resists. Describes passives and the type chart rather
+  // than this world, so the same catalogue gate — nothing about a Pal somebody
+  // owns travels through it.
+  { pattern: /^world\/resistances$/, methods: ['GET'], capability: CAPABILITIES.VIEW_BASIC, feature: FEATURES.SERVER_STATUS },
   // The item *catalogue* — what the game has. Not /items, which reports what
   // this world holds and is privacy-filtered per guild.
   { pattern: /^world\/items$/, methods: ['GET'], capability: CAPABILITIES.VIEW_BASIC, feature: FEATURES.SERVER_STATUS },
