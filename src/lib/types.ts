@@ -1389,6 +1389,32 @@ export interface PaldeckDetail extends PaldeckEntry {
   moves?: SpeciesMoves;
   /** Whether breeding can reach this Pal, and by what. */
   obtainability?: BreedingLimitRow;
+  /**
+   * What it drops, by level BAND — `levelFrom` is 0/10/20…80, never an exact
+   * level. 128 species have more than one band and the contents genuinely
+   * differ: Anubis at 0 gives Bone and a Large Pal Soul, at 80 it gives World
+   * Tree Relics.
+   */
+  drops?: DropBand[];
+  /**
+   * The ALPHA form's table, which is a separate row rather than a richer
+   * version of the ordinary one — `BOSS_Anubis` gives Ancient Civilization
+   * Parts where Anubis gives Bone. Absent when it matches.
+   */
+  alphaDrops?: DropBand[];
+}
+
+export interface DropBand {
+  levelFrom: number;
+  items: {
+    itemId: string;
+    name: string;
+    icon: string;
+    /** The game's own per-drop percentage. 100 means always. */
+    rate: number;
+    min: number;
+    max: number;
+  }[];
 }
 
 export interface SpeciesMove {

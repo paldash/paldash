@@ -23,6 +23,7 @@ const STAT_LABELS: Record<string, string> = {
 import HabitatMap from '@/components/habitat-map';
 import type {
   PaldeckEntry, PaldeckListing, PaldeckDetail, SpeciesMove, SpeciesMoves,
+  DropBand,
 } from '@/lib/types';
 import { asArray } from '@/lib/arrays';
 
@@ -332,6 +333,32 @@ export default function Paldeck() {
                 <MoveLists moves={selected.moves} />
               )}
 
+              {/* What it drops. Bands are shown separately and never merged:
+                  128 species have more than one and the contents differ
+                  outright — Anubis at level 0 gives Bone and a Pal Soul, at 80
+                  it gives World Tree Relics. Averaging them would invent a
+                  table the game does not ship. */}
+              {(selected.drops?.length || selected.alphaDrops?.length) ? (
+                <div style={{ marginBottom: 10 }}>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>
+                    Drops
+                  </div>
+                  <DropBands bands={selected.drops ?? []} />
+                  {selected.alphaDrops?.length ? (
+                    <>
+                      <div style={{
+                        fontSize: 11, color: 'var(--text-muted)', margin: '8px 0 4px',
+                      }}>
+                        {/* A separate row in the game's table, not a bonus on
+                            top of the ordinary one. */}
+                        Alpha form
+                      </div>
+                      <DropBands bands={selected.alphaDrops} />
+                    </>
+                  ) : null}
+                </div>
+              ) : null}
+
               {/* Whether breeding can reach it. Silent for an ordinary Pal —
                   "this can be bred normally" is not worth a line. */}
               {selected.obtainability?.note && (
@@ -462,5 +489,51 @@ function MoveChip({ move, label }: { move: SpeciesMove; label?: string }) {
       {move.name}
       {label && <span style={{ color: 'var(--text-muted)', marginLeft: 4 }}>{label}</span>}
     </span>
+  );
+}
+
+/**
+ * Drop tables, one block per level band.
+ *
+ * `levelFrom` is a BAND — the source column holds only 0, 10, 20 … 80 — so it
+ * renders as "level 80+", never "level 80". A single band gets no heading at
+ * all, because "level 0+" in front of the only table is noise.
+ */
+function DropBands({ bands }: { bands: DropBand[] }) {
+  if (bands.length === 0) return null;
+  return (
+    <>
+      {bands.map((band) => (
+        <div key={band.levelFrom} style={{ marginBottom: 6 }}>
+          {bands.length > 1 && (
+            <div style={{ fontSize: 10, color: 'var(--text-muted)', marginBottom: 2 }}>
+              Level {band.levelFrom}+
+            </div>
+          )}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {band.items.map((item) => (
+              <span
+                key={item.itemId}
+                title={`${item.name} — ${item.rate}% chance, ${item.min}-${item.max}`}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 3,
+                  fontSize: 11, color: 'var(--text-secondary)',
+                }}
+              >
+                <GameIcon src={item.icon} size={14} />
+                {item.min === item.max ? item.min : `${item.min}-${item.max}`}
+                {'\u00d7 '}
+                {item.name}
+                {/* Only shown below 100: "100%" on every row is noise, and its
+                    absence is not ambiguous once one row carries a figure. */}
+                {item.rate < 100 && (
+                  <span style={{ color: 'var(--text-muted)' }}>({item.rate}%)</span>
+                )}
+              </span>
+            ))}
+          </div>
+        </div>
+      ))}
+    </>
   );
 }

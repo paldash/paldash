@@ -1020,6 +1020,55 @@ def worker_sanity_thresholds() -> list[dict[str, Any]]:
     return basecamp().get("workerEvents") or []
 
 
+def pal_drops(species_id: str) -> list[dict[str, Any]]:
+    """
+    What this species drops when defeated or butchered, by level band.
+
+    `[]` when the bundle is unreadable or the species has no row — which is a
+    real answer for a good many of them, not a gap.
+
+    **KEYED EXACTLY, NOT NORMALISED, AND THAT IS THE POINT.** 364 of the 890
+    rows are `BOSS_`-prefixed and carry their own drops, so an alpha genuinely
+    gives different loot from the ordinary form. `pal()` strips the prefix and
+    would quietly hand back the wrong table — the same trap `palstats`
+    documents for stat scaling, where the alpha bonus lives in the prefixed row.
+
+    **`levelFrom` IS A BAND, NOT AN EXACT LEVEL.** The source column holds only
+    0, 10, 20 … 80, and 128 species have more than one band with genuinely
+    different contents: Anubis at 0 drops Bone and a Large Pal Soul, at 80 it
+    drops `PalAwakening_Material_Ground` and four World Tree Relics. A UI that
+    showed the first band only would be confidently wrong about every endgame
+    Pal, and one that merged them would invent a table the game does not have.
+
+    `rate` is the game's own per-drop percentage. 100.0 means always; a lower
+    number is not a promise about several kills.
+    """
+    bands = (economy().get("drops") or {}).get(str(species_id or ""))
+    if not isinstance(bands, list):
+        return []
+
+    out: list[dict[str, Any]] = []
+    for band in bands:
+        items = []
+        for row in (band or {}).get("items") or []:
+            item_id = str(row.get("itemId") or "")
+            if not item_id:
+                continue
+            items.append({
+                "itemId": item_id,
+                "name": item_name(item_id),
+                "icon": (item(item_id) or {}).get("icon", ""),
+                "rate": float(row.get("rate") or 0.0),
+                "min": int(row.get("min") or 0),
+                "max": int(row.get("max") or 0),
+            })
+        if items:
+            out.append({"levelFrom": int((band or {}).get("levelFrom") or 0),
+                        "items": items})
+    out.sort(key=lambda b: b["levelFrom"])
+    return out
+
+
 def economy() -> dict[str, Any]:
     """
     Recipes, Pal drops, loot tables, shops, food effects and production yields.

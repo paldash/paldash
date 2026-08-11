@@ -2583,6 +2583,24 @@ def get_paldeck_entry(species_id: str, request: Request) -> dict[str, Any]:
     except (breeding.BreedingDataError, gamedata.GameDataUnavailable):
         pass
 
+    # What it drops, which is the other half of "is this worth hunting".
+    #
+    # **The alpha's table is a SEPARATE row and is reported separately.** 364 of
+    # the 890 drop rows are `BOSS_`-prefixed and they are not a richer version
+    # of the ordinary one — Anubis gives Bone and a Large Pal Soul, `BOSS_Anubis`
+    # gives Ancient Civilization Parts and Precious Entrails. Merging them would
+    # invent a table the game does not have; picking one would answer the wrong
+    # question half the time.
+    try:
+        drops = gamedata.pal_drops(species_id)
+        if drops:
+            extra["drops"] = drops
+        alpha = gamedata.pal_drops(f"BOSS_{species_id}")
+        if alpha and alpha != drops:
+            extra["alphaDrops"] = alpha
+    except gamedata.GameDataUnavailable:
+        pass        # the entry is still useful without them
+
     # Merge the location variants that share this Paldeck number, so the map
     # shows every place the Pal is found rather than one of them.
     ids = _paldeck_siblings().get(species_id, [species_id])
