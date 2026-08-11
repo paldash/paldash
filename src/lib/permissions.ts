@@ -152,6 +152,11 @@ const ROUTES: RouteRule[] = [
   // the biome can be joined to a save.
   { pattern: /^world\/invaders$/, methods: ['GET'], capability: CAPABILITIES.VIEW_BASIC, feature: FEATURES.SERVER_STATUS },
   { pattern: /^world\/reference$/, methods: ['GET'], capability: CAPABILITIES.VIEW_BASIC, feature: FEATURES.SERVER_STATUS },
+  // Ranking the GAME at a chosen build. Catalogue data, so the same gate as the
+  // rest of `world/` — `optimise/*` is the roster-scoped version and is gated
+  // on what somebody may see of this world instead.
+  { pattern: /^world\/builds$/, methods: ['GET'], capability: CAPABILITIES.VIEW_BASIC, feature: FEATURES.SERVER_STATUS },
+  { pattern: /^world\/builds\/compare$/, methods: ['GET'], capability: CAPABILITIES.VIEW_BASIC, feature: FEATURES.SERVER_STATUS },
   // The item *catalogue* — what the game has. Not /items, which reports what
   // this world holds and is privacy-filtered per guild.
   { pattern: /^world\/items$/, methods: ['GET'], capability: CAPABILITIES.VIEW_BASIC, feature: FEATURES.SERVER_STATUS },
