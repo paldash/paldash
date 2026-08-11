@@ -422,6 +422,38 @@ def apply_game_names(data: dict) -> dict[str, dict[str, int]]:
 
         stats[section] = counts
 
+    # ── The partner skill's own name and description, onto the Pal ──
+    #
+    # A separate pass because it is keyed on the SPECIES id but is not the
+    # species' own name or Paldeck text: `PARTNERSKILL_WhiteShieldDragon` is
+    # "Aegis Shield", and what it does is written in the first-catch info text
+    # one table over.
+    #
+    # **The description keeps its `{Passive1_EffectValue1}` placeholders.** They
+    # cannot be filled here: the numbers come from `partner_skills.json.gz`
+    # joined to `passive_effects.json.gz`, and they differ per condenser rank —
+    # Silvegis reduces shield damage by 65% at one star and 80% at five, so
+    # there is no single string to bake. `gamedata.partner_skill_text` fills
+    # them at a named rank and refuses to half-fill.
+    partner_names = {k.lower(): v for k, v in cat.names("partnerSkills").items()}
+    partner_descs = {k.lower(): v for k, v in cat.descriptions("partnerSkills").items()}
+    partner_counts = {"total": len(data.get("pals") or {}), "named": 0,
+                      "described": 0}
+    for ident, entry in (data.get("pals") or {}).items():
+        name = partner_names.get(ident.lower())
+        description = partner_descs.get(ident.lower())
+        if not name and not description:
+            continue
+        skill: dict = {}
+        if name:
+            skill["name"] = name
+            partner_counts["named"] += 1
+        if description:
+            skill["description"] = description
+            partner_counts["described"] += 1
+        entry["partnerSkill"] = skill
+    stats["partnerSkills"] = partner_counts
+
     # Region and dungeon names were not in this bundle at all before — the
     # progression extractor deliberately carried `REGION_Grass_1` unresolved
     # rather than inventing "Grass 1". The game's own answer is

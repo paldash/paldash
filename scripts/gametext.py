@@ -77,7 +77,15 @@ import palpak       # noqa: E402
 
 # A reference to another catalogue entry. Case-insensitive: the game ships three
 # spellings of `mapObjectName`.
-_REFERENCE = re.compile(r"<(\w+)\s+id=\|([^|]*)\|\s*/>", re.I)
+# A REFERENCE TAG MAY CARRY FURTHER ATTRIBUTES AFTER ITS ID, and missing that
+# was a silent hole rather than a visible failure. The game writes
+# `<uiCommon id=|COMMON_ELEMENT_NAME_Electricity| style=|Elem_Electric|/>` —
+# the older pattern demanded `/>` immediately after the id, did not match, and
+# `_STYLE_OPEN` then stripped the whole tag as presentational. Solmora Lux's
+# partner skill read "changes the player's attack type to  and increases
+# Attack by 20%": a sentence with a gap where the element should be, which is
+# worse than the markup this module exists to keep out, because it looks fine.
+_REFERENCE = re.compile(r"<(\w+)\s+id=\|([^|]*)\|[^>]*?/>", re.I)
 
 # A presentational wrapper: `<NumRed_12>text</>`. The inner text is kept.
 _STYLE_OPEN = re.compile(r"<(?!/)[^>]*>")
@@ -258,6 +266,11 @@ class Catalogue:
         "uniqueNpcs": ("DT_UniqueNPCText_Common", "NAME_"),
         "regions": ("DT_WorldMap_Common_Text_Common", "REGION_"),
         "dungeons": ("DT_DungeonNameText", "NAME_"),
+        # Keyed on the SPECIES id, not on a skill id — the game names a partner
+        # skill after the Pal that has it (`PARTNERSKILL_WhiteShieldDragon` ->
+        # "Aegis Shield"), so this section joins against the same ids `pals`
+        # does. 311 rows.
+        "partnerSkills": ("DT_SkillNameText_Common", "PARTNERSKILL_"),
     }
 
     DESC_SOURCE = {
@@ -266,6 +279,12 @@ class Catalogue:
         "technology": ("DT_TechnologyDescText_Common", "DESC_RECIPE_"),
         "activeSkills": ("DT_SkillDescText_Common", "ACTION_SKILL_"),
         "passives": ("DT_SkillDescText_Common", "PASSIVE_"),
+        # **NOT `DT_SkillDescText_Common`, which has no PARTNERSKILL_ rows.**
+        # What a partner skill does is written in the text the game shows when
+        # you first catch the Pal — "While mounted, changes the player's attack
+        # type to Electric and increases Attack by..." — so the description
+        # lives one table over from its name. Also keyed on the species id.
+        "partnerSkills": ("DT_PalFirstActivatedInfoText", "PAL_FIRST_SPAWN_DESC_"),
     }
 
     def _strip(self, table: str, prefix: str) -> dict[str, str]:

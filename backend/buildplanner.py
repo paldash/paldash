@@ -71,6 +71,7 @@ three honest numbers.
 from __future__ import annotations
 
 import logging
+import re
 from typing import Any, Optional
 
 import elements
@@ -253,6 +254,74 @@ def partner_effects(species_id: str, condenser_rank: int = 1) -> dict[str, Any]:
             else:
                 bucket = "toPal"
             out[bucket].append(row)
+    return out
+
+
+_PLACEHOLDER = re.compile(r"\{Passive(\d+)_EffectValue(\d+)\}")
+
+
+def partner_skill(species_id: str, condenser_rank: int = 1) -> dict[str, Any]:
+    """
+    The partner skill's name, and what it does **at this condenser rank**.
+
+    The game writes the description with placeholders — *"reduces damage taken
+    by your shield by `{Passive2_EffectValue1}`%"* — because the number moves
+    with the rank. `Passive<n>` indexes that rank's skill list and
+    `EffectValue<m>` indexes that skill's effects, both 1-based.
+
+    **THE INDEX MAPPING IS AN INFERENCE, SO IT IS CHECKED RATHER THAN TRUSTED.**
+    Silvegis's prose reads "reduces shield regeneration delay by
+    {Passive1_EffectValue1}% and reduces damage taken by your shield by
+    {Passive2_EffectValue1}%", and its rank-1 skills are, in order,
+    `PlayerShield_RecoverStartTimeRate 30` then `ShieldDamageCutRate 65` — the
+    prose and the order agree on which is which. `filled` reports whether every
+    placeholder resolved.
+
+    **A half-filled sentence is never returned.** If any placeholder has no
+    value the raw text comes back with `filled: false`, on the resolver rule
+    this project already holds: failing to state a number is recoverable,
+    stating the wrong one is not.
+    """
+    entry = (gamedata.pal_exact(species_id) or gamedata.pal(species_id) or {})
+    skill = dict(entry.get("partnerSkill") or {})
+    if not skill:
+        return {}
+
+    ids = gamedata.partner_skills_at(species_id, condenser_rank)
+    values: list[list[float]] = []
+    for skill_id in ids:
+        effect = gamedata.passive_effects(skill_id) or {}
+        values.append([float(e.get("value") or 0.0)
+                       for e in (effect.get("effects") or [])])
+
+    missing = False
+
+    def fill(match: "re.Match") -> str:
+        nonlocal missing
+        skill_index = int(match.group(1)) - 1
+        value_index = int(match.group(2)) - 1
+        try:
+            return f"{values[skill_index][value_index]:g}"
+        except IndexError:
+            missing = True
+            return match.group(0)
+
+    text = str(skill.get("description") or "")
+    filled_text = _PLACEHOLDER.sub(fill, text) if text else ""
+    # ANY brace left over, not just the ones this pattern knows. The first
+    # version checked only its own substitutions and reported Jetragon's
+    # `{ReferenceMsgId_DamageUp}` as filled — a flag that says "complete" about
+    # a sentence with a placeholder in it is worse than no flag.
+    if "{" in filled_text:
+        missing = True
+
+    out: dict[str, Any] = {"name": skill.get("name")}
+    if text:
+        out["description"] = text if missing else filled_text
+        out["filled"] = not missing
+        # An unfilled description still says what the skill does; it just leaves
+        # the magnitude as the game wrote it. The flag is so a UI can choose.
+        out["atRank"] = max(1, min(int(condenser_rank or 1), 5))
     return out
 
 
