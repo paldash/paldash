@@ -33,6 +33,7 @@ be modded" is not worth a corrupted world.
 
 from __future__ import annotations
 
+import copy
 import logging
 from typing import Any, Optional
 
@@ -393,15 +394,58 @@ def apply_container_import(
         by_index = {c["slotIndex"]: c for c in plan["changes"]}
         raw_slots = ((target.get("value") or {}).get("Slots") or {}).get("value", {}).get("values", [])
 
-        applied = 0
+        # **THE SAVE STORES ONLY OCCUPIED SLOTS, SO AN EMPTY ONE HAS NOTHING TO
+        # WRITE INTO.** `extract_containers` pads the read side up to `SlotNum`
+        # — which is right, the slots genuinely exist — and the planner happily
+        # plans a change for a padded index. This loop then walked the raw array
+        # looking for it, never found it, and the count check below refused the
+        # whole import. Reported as "I can see the empty spots but cannot write
+        # to them", and the refusal was correct about the array while being
+        # wrong about the container.
+        #
+        # Writing into a free slot therefore means APPENDING an entry, which is
+        # the same thing `palclone` does for a Pal and `itemclone` for a
+        # durability record — and it follows the same rule: the entry is a
+        # **deep copy of one the save already has**, never constructed. A slot
+        # carries `CustomVersionData` and other opaque metadata whose right
+        # values are whatever this save uses, so a hand-built one is a guess.
+        by_position: dict[int, dict] = {}
         for position, slot in enumerate(raw_slots):
             raw = saveedit._slot_raw(slot)
+            if raw is not None:
+                by_position[int(raw.get("slot_index", position) or 0)] = raw
+
+        applied = 0
+        appended = 0
+        for change in plan["changes"]:
+            index = int(change["slotIndex"])
+            raw = by_position.get(index)
+
             if raw is None:
-                continue
-            index = int(raw.get("slot_index", position) or 0)
-            change = by_index.get(index)
-            if change is None:
-                continue
+                if not change["after"]["itemId"]:
+                    # Clearing a slot the save never wrote is already true.
+                    # Counting it keeps the completeness check meaningful
+                    # instead of refusing a no-op.
+                    applied += 1
+                    continue
+                if not raw_slots:
+                    raise ImportError_(
+                        f"Slot {index} is empty and this container has no slot to "
+                        "copy a shape from, so a new entry cannot be created. Put "
+                        "one item in the container by hand first."
+                    )
+                entry = copy.deepcopy(raw_slots[0])
+                raw = saveedit._slot_raw(entry)
+                if raw is None:
+                    raise ImportError_(
+                        f"Slot {index}: the template slot did not decode, so no "
+                        "entry can be appended."
+                    )
+                raw["slot_index"] = index
+                raw_slots.append(entry)
+                by_position[index] = raw
+                appended += 1
+
             _write_slot(raw, change["after"]["itemId"], change["after"]["stackCount"])
             applied += 1
 
@@ -409,6 +453,10 @@ def apply_container_import(
             raise ImportError_(
                 f"Planned {len(plan['changes'])} slot changes but only {applied} slots were "
                 "found in the container — refusing to write a partial import"
+            )
+        if appended:
+            logger.info(
+                "Appended %d new slot entries to container %s", appended, container_id
             )
 
         encoded = compress_gvas_to_sav(gvas.write(PALWORLD_CUSTOM_PROPERTIES), save_type)
