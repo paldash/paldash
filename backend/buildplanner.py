@@ -225,12 +225,26 @@ def rank(metric: str, build: Optional[dict[str, Any]] = None,
     silently: `attack`, `matchup` and `effectiveAttack` all travel, so the
     un-multiplied figure is always visible beside the multiplied one.
 
-    **The resisted half is NOT in the files and is not modelled.** The settings
-    object has exactly one element-damage constant, with no halving or resist
-    counterpart, so "who *survives* Grass best" stays unanswerable and nothing
-    here pretends otherwise. `DamageUpElement_ByElementStatus` and
-    `DamageDownElement_ByElementStatus` are C++ and unread, so whether anything
-    stacks on top of 1.2 is not established either — `resistModelled: false`.
+    ## There is no "resist half" to find, and looking for one was the mistake
+
+    This docstring used to say the defensive question was unanswerable because
+    the settings object has no halving constant. **That was the wrong shape of
+    answer.** The chart is a one-directional "strong against" relation, so a
+    disadvantaged defender does not take a *penalty* — it takes the attacker's
+    ×1.2. One constant covers both directions:
+
+        your damage to them   x1.2 when YOUR element beats theirs, else x1.0
+        their damage to you   x1.2 when THEIR element beats yours, else x1.0
+
+    Being "weak" therefore costs nothing offensively and means they hit you 20%
+    harder, which is exactly what a single `DamageElementMatchRate` with no
+    counterpart implies. So `incoming` and `effectiveHp`/`effectiveDefense`
+    travel too, and a defensive ranking against a named element is a real
+    answer rather than a refusal.
+
+    What is still **not** established is whether anything stacks on top of the
+    1.2 — `DamageUpElement_ByElementStatus` and `DamageDownElement_ByElementStatus`
+    are C++ and unread — so the figure is one multiplier and says so.
     """
     spec = METRICS.get(metric)
     if spec is None:
@@ -242,11 +256,14 @@ def rank(metric: str, build: Optional[dict[str, Any]] = None,
     moves = movement_bonuses(passives)
     only_rides = rideable_only or spec["ridesOnly"]
 
-    # A target element only means something for a damage ranking. Asking who
-    # runs fastest "against Grass" is not a question, and answering it would
-    # reorder a movement table for no reason.
+    # A target element only means something for a damage or survival ranking.
+    # Asking who runs fastest "against Grass" is not a question, and answering
+    # it would reorder a movement table for no reason.
     target = elements.canonical(against) if against else None
-    applies = bool(target) and metric == "attack"
+    # Offensive: your attack gains when you beat them.
+    # Defensive: your effective bulk drops when they beat you — the SAME
+    # constant read from the other side, not a second mechanic.
+    applies = bool(target) and metric in ("attack", "hp", "defense")
     rate = elements.match_rate()
 
     rows: list[dict[str, Any]] = []
@@ -281,16 +298,35 @@ def rank(metric: str, build: Optional[dict[str, Any]] = None,
                 continue
             row = {"value": value, "breakdown": block}
             if target:
+                # Two readings of one relation. `matchup` is you hitting them;
+                # `incoming` is them hitting you, and it is NOT the inverse —
+                # Fire beats Grass and Grass beats Earth, so a Fire Pal facing
+                # Grass is strong AND safe, while a Water Pal facing Grass is
+                # neutral both ways.
                 verdict = elements.matchup(entry["elements"], [target])
+                incoming = elements.matchup([target], entry["elements"])
                 row["matchup"] = verdict
+                row["incoming"] = incoming
                 if applies:
-                    # The un-multiplied figure stays on the row as `attack`, so
+                    # The un-multiplied figure always stays on the row, so
                     # nothing is hidden behind the sort.
-                    row["attack"] = value
-                    row["matchRate"] = rate if verdict == "strong" else 1.0
-                    row["value"] = (
-                        int(value * rate) if verdict == "strong" else value
-                    )
+                    row["raw"] = value
+                    if metric == "attack":
+                        row["matchRate"] = rate if verdict == "strong" else 1.0
+                        row["value"] = (
+                            int(value * rate) if verdict == "strong" else value
+                        )
+                    else:
+                        # Effective bulk: how much of this stat survives an
+                        # attacker that beats your element. Dividing by the same
+                        # 1.2 is the constant read from the defender's side, not
+                        # a resist coefficient — there is no such thing to find.
+                        row["matchRate"] = (
+                            round(1.0 / rate, 4) if incoming == "strong" else 1.0
+                        )
+                        row["value"] = (
+                            int(value / rate) if incoming == "strong" else value
+                        )
 
         rows.append({
             "speciesId": entry["speciesId"],
@@ -336,9 +372,13 @@ def rank(metric: str, build: Optional[dict[str, Any]] = None,
         "against": target or "",
         "matchupApplied": applies,
         "matchRate": rate if applies else None,
-        # Exactly one element-damage constant exists. There is no resist half,
-        # so this ranking is about damage DEALT and says so.
-        "resistModelled": False,
+        # ONE constant, read from both sides: it is your bonus when you beat
+        # them and their bonus when they beat you. There is no separate resist
+        # coefficient, which is why there was never one to find.
+        "matchRateAppliesBothWays": True,
+        # What is genuinely unknown: whether anything stacks on top of the 1.2.
+        # `Damage{Up,Down}Element_ByElementStatus` are C++ and unread.
+        "stackingKnown": False,
         "chartIsHandEntered": True,
         "unknownElements": list(elements.unknown_to_chart()),
     }
