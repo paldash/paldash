@@ -215,3 +215,71 @@ def test_compare_names_a_typo_rather_than_dropping_it():
     result = buildplanner.compare(["JetDragon", "NotAPal"])
     assert [s["speciesId"] for s in result["species"]] == ["JetDragon"]
     assert result["unknown"] == ["NotAPal"]
+
+
+# ─── Partner skills: the axis palstats deliberately cannot see ───
+
+
+def test_silvegis_buffs_the_player_and_the_buff_scales_with_stars():
+    """
+    The operator's example, and the reason this axis exists: Silvegis raises
+    the *player's* defence for merely being in the party, and four stars is
+    meaningfully better than one.
+
+    `palstats` cannot see this and is right not to — `ToTrainer` is not part of
+    a Pal's stat block. It is the whole content of "which Pal should I carry".
+    """
+    at_one = {e["type"]: e["value"]
+              for e in buildplanner.partner_effects("WhiteShieldDragon", 1)["party"]}
+    at_five = {e["type"]: e["value"]
+               for e in buildplanner.partner_effects("WhiteShieldDragon", 5)["party"]}
+    assert at_one["ShieldDamageCutRate"] == 65.0
+    assert at_five["ShieldDamageCutRate"] == 80.0
+    assert at_five["PlayerShield_RecoverStartTimeRate"] > \
+        at_one["PlayerShield_RecoverStartTimeRate"]
+
+
+def test_riding_solmora_lux_electrifies_the_rider_and_plain_solmora_does_not():
+    """
+    Read off the effect table rather than off the skill id. `GiveAElectricity_
+    Ride` is obvious-looking and what makes it true is
+    `ElementElectricity -> ToTrainer` under `InvokeRiding`.
+    """
+    lux = buildplanner.partner_effects("KingSunfish_Thunder", 3)
+    assert any(e["type"] == "ElementElectricity" and e["target"] == "ToTrainer"
+               for e in lux["riding"])
+    plain = buildplanner.partner_effects("KingSunfish", 3)
+    assert not any(e["type"] == "ElementElectricity"
+                   for e in plain["riding"] + plain["party"])
+
+
+def test_a_buff_to_the_pal_is_kept_apart_from_a_buff_to_you():
+    """"+15% Dark boost" reads very differently depending on whose it is."""
+    lux = buildplanner.partner_effects("KingSunfish_Thunder", 3)
+    assert all(e["target"] in ("ToTrainer", "ToTrainerAndOtomo")
+               for e in lux["party"] + lux["riding"])
+    assert all(e["target"] not in ("ToTrainer", "ToTrainerAndOtomo")
+               for e in lux["toPal"])
+
+
+def test_a_one_entry_species_clamps_rather_than_going_empty():
+    """
+    Valentail's only partner skill is on/off, so the game writes one rank entry
+    instead of five identical ones. Asking for rank 4 must give it, not nothing.
+    """
+    assert gamedata.partner_skills_at("LongCat", 1) == \
+        gamedata.partner_skills_at("LongCat", 4)
+    assert gamedata.partner_skills_at("LongCat", 4)
+
+
+def test_every_partner_skill_id_resolves():
+    """
+    The bundle is a MAPPING. A dangling id means the two extractions drifted,
+    which a row count would never show — so it is asserted against the shipped
+    files rather than left to the extractor's own run.
+    """
+    unresolved = []
+    for species in gamedata.load().get("pals") or {}:
+        effects = buildplanner.partner_effects(species, 5)
+        unresolved.extend(effects["unknown"])
+    assert unresolved == []

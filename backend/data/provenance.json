@@ -20,6 +20,12 @@
   "regenerateWith": "python3 scripts/extract-effigies.py",
   "note": "396 positions and instance GUIDs, read from the always-loaded relic cell. Positions are static per build; a content update can move or add relics."
  },
+ "partner_skills.json.gz": {
+   "source": "Pal-LinuxServer.pak (DT_PartnerSkillParameter)",
+   "gameBuild": "24370498",
+   "regenerateWith": "python3 scripts/extract-partner-skills.py",
+   "note": "What a Pal does for YOU — in your party or while you ride it. 624 species, 479 with rank-indexed partner skills, 176 with a ride action, 933 distinct skill ids. PassiveSkills IS A LIST INDEXED BY CONDENSER RANK, which makes partner skills a FIFTH way a Pal improves; the dashboard knew four (level, condenser, Statue of Power, work handbooks). Silvegis cuts the player's shield damage 65% at one star and 80% at five, and recovers the shield 30% -> 60% faster; both are ToTrainer/InvokeInOtomo, i.e. a buff to the PLAYER for merely being in the party. THIS BUNDLE IS A MAPPING AND DESCRIBES NO EFFECT OF ITS OWN: every skill id resolves in passive_effects.json.gz (933 of 933) and that is the acceptance criterion — a dangling id would mean the two extractions drifted, which a row count would never show. Nothing is inferred from a skill id: GiveAElectricity_Ride reads obvious and the effect table is what says it (ElementElectricity 1.0 -> ToTrainer, InvokeRiding), which is the game confirming that riding Solmora Lux makes the rider's damage electric rather than a name being trusted. Plain Solmora does NOT carry it, so the Lux variant is specifically the one that does. TWO SPECIES SHIP ONE RANK ENTRY RATHER THAN FIVE (LongCat/BOSS_LongCat, Valentail): their only partner skill is LowGravity, an on/off effect with a value of 1.0 and nothing to scale, so a single entry is the game declining to write four identical rows and not the index meaning something else. gamedata.partner_skills_at CLAMPS the index rather than returning empty for rank 4. Anything other than 1 or 5 entries still refuses the build. ActiveSkill is carried and NOT interpreted: Jetragon's UniqueRideShooting_JetMissile has ActiveSkill_MainValueByRank [20,22,26,32,40] and the column labelling that value is editor-only Japanese, so the numbers travel and no unit is claimed. SkillName 'Unknown' is the game's own placeholder on most rows and is dropped rather than shipped as a name."
+ },
  "passive_effects.json.gz": {
   "source": "Pal-LinuxServer.pak (DT_PassiveSkill_Main)",
   "gameBuild": "24370498",
