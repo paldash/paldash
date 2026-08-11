@@ -2727,6 +2727,26 @@ def get_paldeck_entry(species_id: str, request: Request) -> dict[str, Any]:
     except gamedata.GameDataUnavailable:
         pass        # the entry is still useful without them
 
+    # What it does for YOU, at every condenser rank.
+    #
+    # **All five ranks travel, not one.** The description's numbers move with
+    # the rank — Silvegis reduces shield damage by 65% at one star and 80% at
+    # five — so a single string would be an answer to a question nobody asked.
+    # The Paldeck is where somebody decides whether a Pal is worth condensing,
+    # and the whole ladder is that decision.
+    try:
+        ranks = [buildplanner.partner_skill(species_id, r) for r in range(1, 6)]
+        if any(ranks):
+            extra["partnerSkill"] = {
+                "name": next((r.get("name") for r in ranks if r.get("name")), None),
+                "byRank": ranks,
+                # Rank-indexed skills exist for 479 species; the rest have a
+                # name and nothing to scale. Absent is not a failure.
+                "scales": any(r.get("description") for r in ranks),
+            }
+    except gamedata.GameDataUnavailable:
+        pass        # the entry is still useful without it
+
     # Merge the location variants that share this Paldeck number, so the map
     # shows every place the Pal is found rather than one of them.
     ids = _paldeck_siblings().get(species_id, [species_id])

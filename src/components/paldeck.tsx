@@ -285,6 +285,18 @@ export default function Paldeck() {
               {/* Work suitabilities, with the game's own icons and in the
                   game's own order — which is the order a player already reads
                   on a Pal's page in game. */}
+              {selected.partnerSkill?.name && (
+                <div style={{ marginBottom: 10 }}>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>
+                    Partner skill
+                  </div>
+                  <div style={{ color: 'var(--text-primary)', fontSize: 13 }}>
+                    {selected.partnerSkill.name}
+                  </div>
+                  <PartnerSkillRanks entry={selected.partnerSkill} />
+                </div>
+              )}
+
               {(() => {
                 const work = orderedWork(
                   selected.work as Record<string, number> | undefined,
@@ -540,5 +552,66 @@ function DropBands({ bands }: { bands: DropBand[] }) {
         </div>
       ))}
     </>
+  );
+}
+
+
+/**
+ * What a partner skill does, across the condenser ranks.
+ *
+ * **The rank slider is the feature, not a nicety.** The numbers in the game's
+ * own sentence move with the stars — Silvegis cuts shield damage by 65% at one
+ * and 80% at five — so a single line would answer a question nobody asked and
+ * would hide that condensing a Pal improves this at all.
+ *
+ * Ranks whose text is identical collapse to one row: 306 species have a partner
+ * skill and only 479 forms carry rank-indexed entries, so for the rest the same
+ * sentence five times would read as five facts.
+ */
+function PartnerSkillRanks({ entry }: {
+  entry: NonNullable<PaldeckDetail['partnerSkill']>;
+}) {
+  const [rank, setRank] = useState(1);
+  const ranks = asArray(entry.byRank, 'partner skill ranks');
+  const current = ranks[Math.min(rank, ranks.length) - 1] ?? ranks[0];
+  const varies = new Set(ranks.map((r) => r?.description ?? '')).size > 1;
+
+  if (!current?.description) return null;
+
+  return (
+    <div style={{ marginTop: 4 }}>
+      <p style={{ fontSize: 12, color: 'var(--text-secondary)', whiteSpace: 'pre-line',
+                  margin: 0 }}>
+        {current.description}
+      </p>
+      {varies && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 5,
+                      fontSize: 11, color: 'var(--text-muted)' }}>
+          <span>Condenser</span>
+          {[1, 2, 3, 4, 5].map((r) => (
+            <button
+              key={r}
+              onClick={() => setRank(r)}
+              style={{
+                border: '1px solid var(--border-primary)', borderRadius: 4,
+                padding: '1px 7px', cursor: 'pointer', font: 'inherit',
+                background: r === rank ? 'var(--bg-input)' : 'none',
+                color: r === rank ? 'var(--text-primary)' : 'inherit',
+              }}
+            >
+              {r - 1}★
+            </button>
+          ))}
+        </div>
+      )}
+      {/* The game's text still holds a reference this project does not resolve.
+          Shown as written rather than with a number invented for it. */}
+      {current.filled === false && (
+        <p style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 3 }}>
+          Part of this line is a reference the game fills in itself; it is shown
+          as written.
+        </p>
+      )}
+    </div>
   );
 }
