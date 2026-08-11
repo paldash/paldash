@@ -135,7 +135,8 @@ Legend: ✅ works · 🟡 works with a caveat · 🔴 not built · ⚪ out of sc
 | **Level and stars do not change a speed** | ✅ | Measured, and the form greys out to say so. Movement is a flat species figure — only passives move it |
 | Fastest *flyer* | 🔴 | **No source.** Whether a mount flies, swims or walks is in no game file; five avenues checked and recorded. Fastest **ride** is answerable and that is what this ranks |
 | Element matchups in the ranking | ⚠️ | Only when you name a target element, and only on damage/bulk — using the game's own ×1.2, the same multiplier both ways. The un-multiplied figure stays in its own column |
-| Partner / ride skills | ⚠️ | **Bundled, not yet on the Paldeck.** Silvegis cuts your shield damage 65%→80% across condenser ranks; riding Solmora Lux makes your damage electric. A fifth progression axis (#103) |
+| **Partner / ride skills** | ✅ | On the Paldeck, with the game's own name and description **at every condenser rank** — Silvegis "Aegis Shield" cuts your shield damage 65%→80% across the stars; Solmora Lux "Shocking Fish" changes your attack type to Electric while mounted. A **fifth** progression axis; this file previously listed four |
+| Partner-skill lines the game fills itself | ⚠️ | 111 of 303 keep a `{ReferenceMsgId_*}` reference this project does not resolve. Shown as the game wrote it, flagged, never with an invented number |
 
 **Where the habitat data comes from, and why it took a detour.** Spawner actors
 name a *sheet*, not a species (`BP_PalSpawner_Sheets_2_1_forest_1`), and the
