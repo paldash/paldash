@@ -898,6 +898,32 @@ def get_guilds(request: Request) -> list[dict]:
     return out
 
 
+def _partner_movement_for(pal: dict) -> Optional[dict[str, Any]]:
+    """
+    The movement this Pal's partner skill grants **at its own condenser rank**.
+
+    Returned only when there is something to report. 96 of the species/forms
+    have a movement-scaling partner skill and the rest genuinely gain nothing
+    from condensing, so an empty dict on every Lamball would be noise on 1,905
+    rows — `None` says "nothing here" once.
+
+    The riding half is reported separately from the always-on half because a
+    `MoveSpeed_up_PartnerSkill_Ride_*` only applies while you are riding, and
+    merging them would credit a Pal following you with a bonus it has not got.
+    """
+    moved = buildplanner.partner_movement(
+        str(pal.get("speciesId") or ""), int(pal.get("rank") or 1)
+    )
+    if not moved["always"] and not moved["riding"]:
+        return None
+    return {
+        "always": moved["always"],
+        "riding": moved["riding"],
+        "skillIds": moved["skillIds"],
+        "condenserRank": moved["condenserRank"],
+    }
+
+
 def _enriched_pals() -> list[dict]:
     """Every Pal with its friendly names attached. ~12 ms on a 1,905-Pal world."""
     base_names = {
@@ -958,6 +984,16 @@ def _enriched_pals() -> list[dict]:
                 "resist": palresist.profile(
                     details.get("elements") or [], pal.get("passiveSkills") or []
                 ),
+                # **Whether condensing this Pal actually made it faster.** The
+                # build planner answers it for a hypothetical build; this
+                # answers it for the Direhowl somebody owns, at the rank it is
+                # actually at. Only 96 species have a partner skill that scales
+                # with rank, so this is empty on most Pals — which is the
+                # honest answer, not a gap.
+                #
+                # `rank` is the CONDENSER rank the parser read, where 1 is no
+                # stars. Passing a star count would shift every bonus one tier.
+                "partnerMovement": _partner_movement_for(pal),
             }
         )
     return enriched
