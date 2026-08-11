@@ -436,6 +436,16 @@ typo in their data), `SwordCutlassFish`. Exact matching silently loses eight rea
 Pals. Resolve through this module rather than indexing the blob directly, and let
 unknown IDs fall back to `humanize()` rather than failing.
 
+**IT APPLIES TO ITEM IDS IN THE SAVE TOO, and that was measured rather than
+assumed.** Of the 645 distinct item ids refworld's containers actually hold,
+**four** fail an exact join against `DT_ItemDataTable` and **all four are case
+alone**: the save writes `GunPowder2`, `Bow_triple` and `bone` where the table
+says `Gunpowder2`, `Bow_Triple` and `Bone`. This is the same disagreement
+`extract-economy.py` already folds case for on the technology join — one file,
+two spellings, an `FName` comparing case-insensitively while a `dict` does not.
+A case-sensitive reader does not error; it reports live, craftable, currently-held
+items as unknown.
+
 `CharacterSaveParameterMap` holds humans as well as Pals, so use
 `character_name()` for anything out of it — `pal_name()` alone leaves merchants
 and guards showing internal IDs.
