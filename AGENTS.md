@@ -1639,6 +1639,44 @@ the column naming that value is editor-only Japanese, so the numbers travel with
 no unit claimed. `SkillName: "Unknown"` is the game's own placeholder on most
 rows and is dropped rather than shipped as a name.
 
+### The 119 unread effect types, audited — and the pick is elemental RESISTANCE
+
+`passive_effects.json.gz` has 208 effect types and **119 are named nowhere in
+`backend/`**. Audited 2026-08-11 rather than left as a number. They fall into
+three groups, by who the effect targets:
+
+| Group | Types | Effects | Examples |
+|---|---:|---:|---|
+| buffs the **Pal** | 49 | 381 | `ElementResist_*`, `ResistAdditionalEffect_Burn`, `DamageRateIfDefender_Poison` |
+| buffs the **player** | 50 | 273 | `AdditionalEffect_Burn`, the eleven `Fishing_*` |
+| other targets | 20 | 208 | `ElementBoost_*`, `FarmCropGrowupSpeed` |
+
+**The detection is a crude grep for the literal token**, so a type the code
+reaches by prefix reads as unread — `WorkSuitabilityAddRank_MonsterFarm` appears
+in the list and is very much known. The figure is an upper bound on ignorance,
+not a count of bugs.
+
+**THE PICK IS `ElementResist_*`, because it is #94 happening again.** 120
+effects, and **55 of them sit on ordinary passives** — `ElementResist_Fire_1` is
+`ToSelf` / `InvokeAlways` at **15%**, a flat defensive stat any catchable Pal
+can carry. `palstats` computes HP, Attack, Defense and Work Speed and has no
+term for it, so a Pal with fire resistance is ranked today exactly as one
+without. That is the shape AGENTS.md already records twice: a filter correct for
+its own surface (`PASSIVE_EFFECT_STATS` maps four stats) becoming a blind spot
+because it is the only reader.
+
+**`ElementBoost_*` was listed as this task's prize and the prize was already
+claimed elsewhere.** The hope was "a stated number where the element chart has
+none"; that number turned out to be `DamageElementMatchRate = 1.2` in
+`BP_PalGameSetting`. What `ElementBoost_<element>` actually is, is an *additive
+passive* on damage of that element, and `ElementBoostWeakness_<element>` boosts
+damage against what that element beats — 25-27% on partner skills. Both are
+real and neither is the type chart.
+
+They do narrow `buildplanner`'s `stackingKnown: false` a little: passives that
+add to element damage exist and carry numbers. **How they compose with the 1.2
+is still unstated**, so the flag stays.
+
 ### Four progression systems, and the dashboard knew two
 
 Chasing that turned up two more tables nothing reads, which is the count worth
