@@ -2727,10 +2727,36 @@ has a Feed Box and it is empty" needs no rule cited and is worth flagging on its
 own; "move your food out of the chest" is a claim about game behaviour and is not
 supported. The first framing survives being wrong about the second.
 
-If someone does want the mechanic settled, the place to look is the build-object
-Blueprints themselves via the CDO technique below — a container's accepted-item
-filter is plausibly a UPROPERTY on `BP_BuildObject_PalFoodBox`'s class default.
-That technique is proven and cheap; nobody has pointed it at these.
+**SOMEBODY POINTED THE CDO READER AT THEM, AND THE ANSWER IS NO.** This
+paragraph used to say a container's accepted-item filter was "plausibly a
+UPROPERTY on `BP_BuildObject_PalFoodBox`'s class default" and that nobody had
+looked. Looked, 2026-08-11.
+
+The technique works — all four build-object CDOs decode and every walk
+terminates **four bytes short of the export end**, the same tail
+`BP_PalGameSetting` leaves, which is the acceptance criterion this project
+already uses:
+
+    BP_BuildObject_PalFoodBox        7 props   455/459
+    BP_BuildObject_GuildChest        7 props   455/459
+    BP_BuildObject_PalMedicineBox    7 props   536/540
+    BP_BuildObject_BreedFarm        12 props   734/738
+
+And what comes out is **presentation and placement**: `VisualCtrl`,
+`OverlapCheckCollisionRef`, `ArrowInSimulatingRelativeTransform`,
+`ConcreteModelClass`, `DamageReaction`, `DestroyFXType`, plus the Breeding
+Farm's `InstallStrategy` and slope tolerances. Nothing about what the container
+accepts.
+
+The one promising thread ends too. `PalMapObjectFoodBoxParameterComponent` is a
+component of that blueprint and looks exactly like where a food filter would
+live — its `FoodBoxParameter_GEN_VARIABLE` export decodes to **zero
+properties**, an empty default, so the component's behaviour is in the native
+class rather than in any blueprint value.
+
+So `basesupply.py`'s refusal stands, and it now rests on having looked rather
+than on nobody having tried: **"Pal food must be in a Feed Box" is still
+unconfirmed by any game file.** Report facts, not mechanics.
 
 **`backend/basesupply.py` is what got built on that**, and it holds the line: it
 reports where things are and never what to move. A test asserts that no note it
