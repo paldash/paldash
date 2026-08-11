@@ -134,10 +134,19 @@ export default function BuildPlanner() {
                                          display: 'flex', gap: 6 }}>
           <Info size={12} style={{ flexShrink: 0, marginTop: 1 }} />
           <span>
-            Level, stars, IVs and soul ranks do <strong>not</strong> change a
-            speed or stamina — those are flat per-species figures and the
-            condenser bonus only touches HP, Attack, Defense and Work Speed.
-            Passives are the only thing that moves them.
+            {/* THIS USED TO SAY LEVEL AND STARS "DO NOT" CHANGE A SPEED. They
+                carry no term in the game's files, which is not the same claim —
+                the condenser's effect on work suitability is applied at load
+                and appears in no file either, and was wrongly denied three
+                times. The panel states what is known and what is not. */}
+            Speed and stamina are flat per-species figures, and this ranking
+            applies <strong>no</strong> level, IV, star or soul bonus to them —
+            no game file states one.{' '}
+            <strong>Whether the condenser raises them anyway is unverified:</strong>{' '}
+            its bonus is applied when the game loads, so a movement effect would
+            be invisible here exactly as the work-suitability one was. Passives
+            are the only route the files confirm. A timed run on a 0-star and a
+            4-star of the same species would settle it.
           </span>
         </div>
       )}

@@ -1557,6 +1557,45 @@ constant.
 Measured the same day: of the bundle's 208 effect types, **79 are named anywhere
 in `backend/` and 129 are mentioned nowhere.**
 
+### "A MAXED PAL IS NOT FASTER" WAS AN OVERCLAIM, AND THE OPERATOR CAUGHT IT
+
+`buildplanner.py` shipped saying flatly that level, IVs, condenser stars and
+soul ranks do not change a speed — in the module docstring, in the payload as
+`movementIgnoresLevel: true`, in a test, and greyed out in the UI with that
+wording. Retracted 2026-08-11. What is established is narrower:
+
+| | |
+|---|---|
+| `RideSprintSpeed`/`RunSpeed`/`SwimSpeed`/`Stamina` are flat species columns with no build term beside them | **fact** |
+| `StatusCalculate_GenkaiToppa_PerAdd = 0.05` is the condenser bonus, applied by `palstats` to HP, Attack, Defense and CraftSpeed | **fact** |
+| those four are its *only* targets | **NOT ESTABLISHED** |
+
+`palstats` transcribes a **community-derived** formula, and those four stats are
+exactly the ones the game prints a number for — so they are the only ones anyone
+could ever have validated it against. Absence of a movement term in that formula
+is absence of evidence.
+
+**The naming cuts against the old claim.** Every other constant in the family is
+stat-suffixed: `StatusCalculate_ConstPlus_Attack`, `_ConstPlus_HP`,
+`_LevelMultiply_Attack`, `_LevelMultiply_Defense`, `_LevelMultiply_HP`,
+`_TribeMultiply_CraftSpeed`. **`GenkaiToppa_PerAdd` carries no suffix at all.**
+
+**And the precedent is sitting in this file.** The condenser's effect on work
+suitability is applied at load, invisible in the save, absent from all 471
+DataTables and from the settings CDO — and was answered "no" three times before
+the operator turned out to be right. A movement bonus applied the same way would
+look identical from here.
+
+So the payload now carries `movementInFiles: true` (a claim about the files) and
+**`condenserOnMovement: "unverified"` — never `false`**, and the UI says which
+half is which and how to settle it. The refusal is symmetric: this neither
+applies an unverified bonus nor asserts its absence.
+
+**The general rule, third time of writing it.** A ranking that greys out a
+control is making a claim about the game in the loudest place available. State
+what the files say, mark what is unmeasured, and let an observation decide —
+which is what `elements.py`, the condenser section and this now all do.
+
 ### FIVE progression systems — this section said four, and partner skills are the fifth
 
 `DT_PartnerSkillParameter.PassiveSkills` is a list **indexed by condenser rank**,

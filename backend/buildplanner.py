@@ -6,18 +6,41 @@ four stars, with these passives, which mount is quickest?"* — and it answers i
 over the whole species table rather than over the Pals somebody happens to own.
 `optimise.py` ranks a **world**; this ranks the **game**.
 
-## Movement takes no level, IV, condenser or soul term, and that is the finding
+## Movement carries no build term IN THE FILES — which is not "none"
 
-The obvious model is that a maxed Pal is faster. It is not. `RideSprintSpeed`,
-`RunSpeed`, `SwimSpeed` and `Stamina` are flat per-species columns, and nothing
-in `BP_PalGameSetting`, `DT_PalMonsterParameter` or the stat formula gives any
-of them a level, IV, condenser or soul-rank term — `StatusCalculate_GenkaiToppa_
-PerAdd` moves HP, Attack, Defense and CraftSpeed and stops there.
+**This section overclaimed and was corrected 2026-08-11, after the operator
+challenged it.** It said flatly that a maxed Pal is not faster. What is actually
+established is narrower, and the difference is the whole point:
 
-**Only passives change movement.** `MoveSpeed`, `SwimSpeed` and friends are real
-effect types on real passives — Legend is +20% — so a build genuinely matters,
-just not the part of it people expect. Saying so is the feature; quietly
-multiplying a speed by the condenser bonus would be inventing a mechanic.
+- **Fact.** `RideSprintSpeed`, `RunSpeed`, `SwimSpeed` and `Stamina` are flat
+  per-species columns with no level, IV, condenser or soul term beside them.
+- **Fact.** `StatusCalculate_GenkaiToppa_PerAdd = 0.05` is the condenser bonus,
+  and `palstats` applies it to HP, Attack, Defense and CraftSpeed.
+- **NOT established.** That those four are its *only* targets. `palstats`
+  transcribes a community-derived formula, and those four are precisely the
+  stats the game prints a number for — so they are the only ones anybody could
+  ever have checked it against.
+
+The naming cuts *against* the old claim rather than for it. Every other constant
+in that family is stat-suffixed — `StatusCalculate_ConstPlus_Attack`,
+`_LevelMultiply_HP`, `_LevelMultiply_Defense`, `_TribeMultiply_CraftSpeed`.
+**`GenkaiToppa_PerAdd` carries no suffix at all.**
+
+**The precedent is work suitability, and it is exactly this shape.** That bonus
+is applied at load, is invisible in the save, appears in no DataTable, and was
+answered "no" three times before the operator turned out to be right. A movement
+bonus applied at load would look identical from here: absent from every file,
+and real.
+
+So the payload says `movementInFiles` — the columns carry no build term — and
+`condenserOnMovement: "unverified"`, never a claim of absence. Nothing here
+multiplies a speed by a bonus the game has not stated, and nothing here asserts
+there is none. **Only an in-game timing run settles it**, the same way an
+observation settled the condenser's effect on work suitability.
+
+**Passives demonstrably do change movement.** `MoveSpeed`, `SwimSpeed` and
+friends are real effect types on real passives — Legend is +20% — so that route
+is established rather than inferred.
 
 ## `InvokeRiding` is why this module has its own passive policy
 
@@ -419,8 +442,16 @@ def rank(metric: str, build: Optional[dict[str, Any]] = None,
         "passiveEffect": moves,
         # THE PART PEOPLE GET WRONG, carried in the payload rather than only in
         # a docstring: the client is the thing about to render a build form.
+        # "Does a build change this number *in this ranking*" — a statement
+        # about what is computed here, never about the game.
         "buildAffectsMetric": spec["source"] == "calculated",
-        "movementIgnoresLevel": True,
+        # The columns carry no build term. That is a fact about the FILES.
+        "movementInFiles": True,
+        # AND THIS IS THE HONEST HALF. The condenser bonus could be applied at
+        # load, invisibly, exactly as the work-suitability bonus is. Nothing
+        # here applies it and nothing here denies it — only an in-game timing
+        # run settles it. Never "false", which would be a claim.
+        "condenserOnMovement": "unverified",
         # "Fastest ride" is answerable; "fastest flyer" is not.
         "mountModeKnown": False,
         "speedUnitKnown": False,
@@ -504,6 +535,7 @@ def compare(species_ids: list, build: Optional[dict[str, Any]] = None
             "soulRank": int(build.get("soulRank") or 0),
             "passives": [str(p) for p in (build.get("passives") or []) if p],
         },
-        "movementIgnoresLevel": True,
+        "movementInFiles": True,
+        "condenserOnMovement": "unverified",
         "mountModeKnown": False,
     }
