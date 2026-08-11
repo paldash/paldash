@@ -76,6 +76,7 @@ from typing import Any, Optional
 
 import elements
 import gamedata
+import palresist
 import palstats
 import viewcache
 
@@ -589,6 +590,17 @@ def compare(species_ids: list, build: Optional[dict[str, Any]] = None
             # the axis a stat comparison cannot show.
             "partner": partner_effects(
                 entry["speciesId"], int(build.get("condenserRank") or 1)
+            ),
+            # The defensive half, which `stats` does not cover — the game prints
+            # four figures and a 35% Fire reduction is none of them.
+            #
+            # Computed per species even though the passives are one chosen
+            # build, because `softTo` is the type chart read from each species'
+            # own side: the same build on a Grass Pal and a Water Pal is soft to
+            # different things, which is exactly what a comparison is for.
+            "resist": palresist.profile(
+                entry["elements"],
+                [str(p) for p in (build.get("passives") or []) if p],
             ),
             "mountGearItem": entry.get("mountGearItem"),
         })
