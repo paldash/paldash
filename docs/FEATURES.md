@@ -130,6 +130,8 @@ Legend: ✅ works · 🟡 works with a caveat · 🔴 not built · ⚪ out of sc
 | Search | ✅ | Name, Paldeck number, internal id or element |
 | Location variants merged | ✅ | `HadesBird` + `HadesBird_Electric` are one Helzephyr entry with the **union** of their ranges |
 | Spawn *rates* | 🔴 | Not derivable. A sheet says a species is referenced by spawners in an area, not how often it appears |
+| **Boss planner** | ✅ | Every boss with which elements beat it **and which of its own beat you** — not inverses, and the second is the half a one-sided planner drops. Field / raid / tower shown separately: a raid boss has no position, which is the game rather than a gap |
+| Recommended level / party size | 🔴 | **No source.** A field boss carries its own level and that is shown; what level *you* should be is in no file, and "boss level + 5" is folklore. The task assumed party size differs by kind — what the data actually has is a `canModeChange` flag on raids, which is not the same thing |
 | **Paldeck completion** | ✅ | On the Progression tab: which entries you are missing and how to get each — spawn count, a named pairing, or "no pairing produces this". Denominator is Paldeck **entries** (204), never species forms (753), so 100% is reachable |
 | **Build planner** | ✅ | Ranks all 753 species at a level / stars / IV / soul / passive build you choose. Jetragon is the fastest ride at 3,300, which is the check that the column means what it looks like |
 | Which Pals can be ridden | ✅ | 149 base species, from the game's own `RestrictionItems`. Incineram reads a 960 ride speed and is **not** a mount; the filter excludes it, and Galeclaw too |
