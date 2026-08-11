@@ -487,6 +487,26 @@ without stopping a server.
 Recorded so nobody searches twice — and each of these was checked across all 471
 tables, not merely "not found".
 
+- **What a base container accepts.** "Pal food must be in a Feed Box" and "the
+  Breeding Farm consumes Cake" are true in play and stated in no file.
+  `DT_MapObjectMasterDataTable` carries structure and combat columns only, and
+  the CDO reader was pointed at the build objects on 2026-08-11: all four decode
+  correctly (each walk ends four bytes short of the export, the same tail
+  `BP_PalGameSetting` leaves) and every property is presentation or placement —
+  `VisualCtrl`, `ConcreteModelClass`, `DamageReaction`, install slope
+  tolerances. `PalMapObjectFoodBoxParameterComponent` is the obvious home for a
+  filter and its generated variable holds **zero properties**, so the behaviour
+  is native. `basesupply.py` reports facts, not mechanics, and that is why.
+
+- **A mount's MODE** — flies, swims or walks. Five avenues checked and recorded
+  in AGENTS.md; `RestrictionItems` answers *rideable at all* (149 base species,
+  exact) and nothing answers mode.
+
+- **A recommended level or party size for a boss.** A field boss carries its own
+  level; what level *you* should be is nowhere, and the party-size difference
+  the roadmap assumed turns out to be a `canModeChange` flag on raid bosses,
+  which is a different thing.
+
 - **The element effectiveness chart.** No `Compatibility`, `Effectiveness`,
   `Weakness`, `AttributeDamage` or `ElementDamage` asset exists; the only element
   DataTable is `DT_PalAwakeningItemElement` (item → element, no multipliers), and
