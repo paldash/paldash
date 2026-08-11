@@ -440,6 +440,94 @@ def apply_game_names(data: dict) -> dict[str, dict[str, int]]:
     return stats
 
 
+# The movement and stamina columns, and the key each becomes in the bundle.
+# `Stamina` travels with them because it is the other half of the question a
+# mount is picked for: top speed against how long it holds.
+_MOVEMENT_COLUMNS = {
+    "RideSprintSpeed": "rideSprint",
+    "RunSpeed": "run",
+    "WalkSpeed": "walk",
+    "SlowWalkSpeed": "slowWalk",
+    "SwimSpeed": "swim",
+    "SwimDashSpeed": "swimDash",
+    "TransportSpeed": "transport",
+    "Stamina": "stamina",
+}
+
+
+def _movement(row: dict) -> dict:
+    """
+    A species' movement figures, with the game's own "not applicable" dropped.
+
+    **`-1` is a sentinel, not a speed**, and it is not rare: 60 species carry it
+    on `RideSprintSpeed`, 52 on `SwimSpeed` and 105 on `TransportSpeed`. Carrying
+    it through would put those species at the bottom of every ranking as though
+    they were merely slow, so the key is omitted and a caller's `.get()` returns
+    None — the same absent-means-absent rule `bestWorkSuitability` follows.
+
+    **A `-1` ride speed does NOT mean "cannot be ridden", and the two must not be
+    conflated.** Caprity reads 960 and is not rideable; the mount list is
+    `rideable`, from an entirely different table. See `_mounts`.
+    """
+    out = {}
+    for column, key in _MOVEMENT_COLUMNS.items():
+        value = row.get(column)
+        if isinstance(value, (int, float)) and value >= 0:
+            out[key] = int(value)
+    return out
+
+
+def _mounts(pak, uassettable) -> dict[str, str]:
+    """
+    Which species can actually be ridden, from `DT_PartnerSkillParameter`.
+
+    **THIS CORRECTS A NOTE IN AGENTS.md THAT SAID IT COULD NOT BE SETTLED.** That
+    note is right that "has PalGear" is not "is a mount" — `DT_ItemDataTable` has
+    143 `Essential_PalGear` items and Galeclaw's Gloves is one of them. It then
+    carried that doubt across to `RestrictionItems`, naming Galeclaw as the
+    counterexample there too. Galeclaw is not in `RestrictionItems`. Measured:
+
+        Essential_PalGear items                       143
+        items named by any RestrictionItems           126
+        PalGear items named by none                    17
+
+    and the 17 are **exactly** the partner gear you hold or wear rather than
+    ride: five gloves (Galeclaw, Celaray, Jolthog, Killamari, Hangyu), three
+    necklaces that summon a companion (Daedream, Flopie, Dazzi), two harnesses,
+    a headband and a power converter. Every known non-mount checked — Lamball,
+    Caprity, Katress, Kitsun, Dumud and Galeclaw itself — is absent, and every
+    known mount is present.
+
+    So `RestrictionItems` **is** the mount list. 149 base species; the rest of
+    the 290 rows are `BOSS_`/`PREDATOR_`/gym forms of the same Pals.
+
+    **It still says nothing about the MODE.** Whether a mount flies, swims or
+    walks is in no file, which AGENTS.md establishes at length and which two
+    further avenues checked here did not change: the client pak has no
+    `BP_Pal_<species>` blueprint at all, and per-species animation folders
+    (213 of 753) do not attribute it either — Jetragon has no fly-named
+    animation and every species has an `Idle_Swim`. "Fastest ride" is
+    answerable; "fastest flyer" is not.
+    """
+    path = next(
+        (f for f in pak.files if f.endswith("DT_PartnerSkillParameter.uasset")), None
+    )
+    if path is None:
+        raise SystemExit("!! DT_PartnerSkillParameter not in the server pak")
+
+    out: dict[str, str] = {}
+    for species, row in uassettable.read_table(pak, path).items():
+        for entry in row.get("RestrictionItems") or []:
+            # An FName cell decodes as {"Key": ...}; `str()` on that is the trap
+            # the Pal-shop rosters shipped for months.
+            item = entry.get("Key") if isinstance(entry, dict) else str(entry)
+            # `None` is the game's own empty slot and appears in this column.
+            if item and item != "None":
+                out[str(species).lower()] = str(item)
+                break
+    return out
+
+
 def apply_species_fields(data: dict) -> dict[str, int]:
     """
     Species fields the reference archive does not carry, read from the game.
@@ -482,6 +570,10 @@ def apply_species_fields(data: dict) -> dict[str, int]:
     Both are written **only when they say something** (suffix non-empty,
     `ignoreCombi` true), so a caller's `.get()` default is the common case and
     the blob does not grow by 753 falses.
+
+    **`movement` and `rideable`** are the fourth and fifth, added for the build
+    planner — see `_movement` and `_mounts` for what each is and, in the second
+    case, for the note it corrects.
     """
     import palpak
     import uassettable
@@ -495,14 +587,25 @@ def apply_species_fields(data: dict) -> dict[str, int]:
 
     rows = uassettable.read_table(pak, path)
     lowered = {str(k).lower(): v for k, v in rows.items()}
+    mounts = _mounts(pak, uassettable)
 
     counts = {"total": len(data.get("pals") or {}), "resolved": 0, "unmatched": 0,
-              "variants": 0, "noBreeding": 0}
+              "variants": 0, "noBreeding": 0, "movement": 0, "rideable": 0}
     for ident, entry in (data.get("pals") or {}).items():
         row = lowered.get(ident.lower())
         if row is None:
             counts["unmatched"] += 1
             continue
+
+        movement = _movement(row)
+        if movement:
+            entry["movement"] = movement
+            counts["movement"] += 1
+        gear = mounts.get(ident.lower())
+        if gear:
+            entry["rideable"] = True
+            entry["mountGearItem"] = gear
+            counts["rideable"] += 1
         best = str(row.get("BestWorkSuitability") or "")
         best = best.rsplit("::", 1)[-1] if "::" in best else best
         # `None` is the game's own "no best work", and several species genuinely
@@ -542,6 +645,11 @@ def main() -> int:
     print(
         f"  bestWorkSuitability: {species['resolved']:,}/{species['total']:,} species"
         f"  ({species['unmatched']} not in DT_PalMonsterParameter)"
+    )
+    print(
+        f"  movement: {species['movement']:,} species with speed/stamina figures; "
+        f"{species['rideable']:,} rideable (RestrictionItems — the mount list, "
+        "which is NOT the PalGear item list; see _mounts)"
     )
     print(
         f"  breeding columns:    {species['variants']} element variants"
