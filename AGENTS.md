@@ -3063,6 +3063,21 @@ placeholder — the table is right and the sentence is broken. The fifth
 (`FullStomach_Down_1_BossDefeat`, prose "+10.0% slower" against a stored -1.0) is
 a real disagreement and is left unresolved rather than explained away.
 
+**And on one of those four the sentence is wrong about the KIND, not just the
+number** — found while building `palresist`, 2026-08-11. `Alien`'s English reads
+*"Attack +{EffectValue1}% Fire damage reduction {EffectValue2}% Lightning damage
+reduction {EffectValue3}%"*, and its third effect is **`ElementBoost_Electricity`
+15.0** — a damage *boost*, not a resistance. So "the table is right and the
+sentence is broken" holds in a stronger sense than the count suggests: a reader
+trusting that prose would give Alien electric resistance it does not have.
+
+It is one row and it is already inside the known-broken set, which is why it
+changes no rule — `palresist` reads the **effect type** and never the prose, so
+it reports Fire only. A sweep for the same shape across every `ElementBoost_*`
+passive found no second case: the other five hits are `KingAlpaca_Ice_PartnerSkill_*`,
+whose prose *"Ice damage resistance +5% Ice attack damage +5%"* correctly
+describes an `ElementResist_Ice` sitting beside an `ElementBoost_Ice`.
+
 **A passive's bonus is per stat, not one number.** `Legend` is +20% shot attack
 AND +20% defence; `Noukin` is +30% attack and **-50%** craft speed. 175 of the
 1,897 touch more than one stat and 77 carry a negative, so a single multiplier is
