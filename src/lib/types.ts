@@ -2011,6 +2011,38 @@ export interface BuildRanking {
   unknownElements?: string[];
 }
 
+export interface PaldeckCompletionEntry {
+  id: string;
+  name: string;
+  icon?: string | null;
+  elements?: string[];
+  paldeckNumber?: number;
+  forms?: string[];
+  caught: boolean;
+  captured?: number;
+  habitatCells?: number;
+  /** Only on entries you have NOT caught — how to go and get one. */
+  route?: {
+    catch?: { cells: number };
+    breed?: { kind: string; pairings?: unknown[]; breedsTrue?: boolean };
+    unknown?: boolean;
+  };
+}
+
+export interface PaldeckCompletion {
+  uid: string;
+  name: string;
+  entries: PaldeckCompletionEntry[];
+  total: number;
+  caught: number;
+  missing: number;
+  /** Always "paldeckEntries" — 204, never the 753 species forms. */
+  denominator: string;
+  /** False when the account has no linked character: no score, not zero. */
+  linked: boolean;
+  missingHidden?: boolean;
+}
+
 export interface CraftableRecipe extends ItemRef {
   recipeId: string;
   batches: number;

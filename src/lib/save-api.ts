@@ -53,6 +53,7 @@ import type {
   CatalogueItem,
   CraftableReport,
   NpcPlacements,
+  PaldeckCompletion,
   ProgressDetailReport,
   InvaderReport,
   RaidBossReport,
@@ -1857,6 +1858,21 @@ export async function getProgress(): Promise<{
  * unfound half from this viewer, and the backend has already dropped it — the
  * lists are not merely unrendered.
  */
+/**
+ * Which Pals each player still needs, with a route to each.
+ *
+ * Split from `/progress/detail` because it is 204 rows with a route attached.
+ * The not-yet-caught half is filtered server-side by `discoveryVisibility`;
+ * `showsMissing` says whether it was.
+ */
+export async function getPaldeckCompletion(uid?: string): Promise<{
+  players: PaldeckCompletion[];
+  showsMissing: boolean;
+}> {
+  const query = uid ? `?uid=${encodeURIComponent(uid)}` : '';
+  return saveFetch(`/progress/paldeck${query}`);
+}
+
 export async function getProgressDetail(uid?: string): Promise<ProgressDetailReport> {
   const query = uid ? `?uid=${encodeURIComponent(uid)}` : '';
   return saveFetch(`/progress/detail${query}`);

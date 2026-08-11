@@ -33,6 +33,7 @@ import basesupply
 import breeding
 import buildplanner
 import charedit
+import completion
 import crafting
 import db
 import editschema
@@ -3158,6 +3159,72 @@ def get_progress_detail(request: Request, uid: Optional[str] = None) -> dict[str
         "showsMissing": show_missing,
         "available": progresscheck.available(),
     }
+
+
+@app.get("/api/progress/paldeck")
+def get_paldeck_completion(request: Request, uid: Optional[str] = None
+                           ) -> dict[str, Any]:
+    """
+    Which Pals a player still needs, and how to get each one.
+
+    `/api/progress/detail` lists five checklists of *places and bosses*; this is
+    the Paldeck one, split out because it is 204 rows with a route attached to
+    each and folding it in would double the size of a payload most callers do
+    not want.
+
+    Same three gates as its sibling — `VIEW_SELF`, per-player privacy, and
+    `discoveryVisibility` for the not-yet-caught half — and for the same reason:
+    a UI that received the full list and hid part of it would be handing out the
+    answers in the network tab.
+
+    **Your own progress is always your own**, whatever the policy says.
+    """
+    authz.require(request, roles_module.VIEW_SELF)
+
+    user = authz.current_user(request)
+    caps = authz.effective_capabilities(user)
+    own = privacy.normalise_uid(authz.linked_uid(user))
+
+    players = [p for p in get_players() if p.get("progress")]
+    if roles_module.VIEW_DETAIL not in caps:
+        players = [p for p in players if privacy.normalise_uid(p.get("uid")) == own]
+    else:
+        hidden = privacy.hidden_uids(*_viewer(request))
+        players = privacy.filter_players(players, hidden["players"])
+    if uid:
+        wanted = privacy.normalise_uid(uid)
+        players = [p for p in players if privacy.normalise_uid(p.get("uid")) == wanted]
+
+    # The stricter of the two discovery dials, as the sibling route explains.
+    show_missing = _may_see_undiscovered(request, "effigies")
+
+    try:
+        entries = _paldeck_entries()
+    except gamedata.GameDataUnavailable as e:
+        raise HTTPException(503, str(e))
+
+    out = []
+    for player in players:
+        progress = player.get("progress") or {}
+        report = completion.tracker(
+            entries,
+            unlocked=(progress.get("paldeck") or {}).get("keys") or [],
+            captures=progress.get("palsCaptured") or {},
+            linked=True,
+        )
+        if not show_missing and privacy.normalise_uid(player.get("uid")) != own:
+            report = completion.strip_missing(report)
+        out.append({"uid": player.get("uid"), "name": player.get("name"), **report})
+
+    # An account with no linked character gets the catalogue with no progress,
+    # which is a real and useful view — not an empty list, and not a zero score.
+    if not out:
+        out.append({
+            "uid": "", "name": "",
+            **completion.tracker(entries, unlocked=[], linked=False),
+        })
+
+    return {"players": out, "showsMissing": show_missing}
 
 
 def _drop_missing(detail: dict[str, Any]) -> dict[str, Any]:

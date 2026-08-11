@@ -3,14 +3,17 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   Trophy, RefreshCw, MapPin, Sparkles, Compass, Swords, EyeOff, Info,
+  BookMarked,
 } from 'lucide-react';
 import {
-  getProgress, getProgressDetail, getRaidBosses,
+  getProgress, getProgressDetail, getRaidBosses, getPaldeckCompletion,
   type PlayerProgress, type RelicLine,
 } from '@/lib/save-api';
 import GameIcon from '@/components/game-icon';
+import { asArray } from '@/lib/arrays';
 import type {
   Checklist, ChecklistEntry, ProgressDetailReport, RaidBossReport,
+  PaldeckCompletion,
 } from '@/lib/types';
 
 /**
@@ -44,14 +47,15 @@ export default function Progression() {
   const [loading, setLoading] = useState(true);
   const [who, setWho] = useState<string>('');
   const [raids, setRaids] = useState<RaidBossReport | null>(null);
+  const [dex, setDex] = useState<PaldeckCompletion[]>([]);
 
   const load = useCallback(async () => {
     setLoading(true);
     // Settled independently: the counts and the checklists come from different
     // endpoints, and one failing must not blank the other. A Promise.all with a
     // catch returning [] is how the base markers vanished from the map.
-    const [a, b, c] = await Promise.allSettled([
-      getProgress(), getProgressDetail(), getRaidBosses(),
+    const [a, b, c, d] = await Promise.allSettled([
+      getProgress(), getProgressDetail(), getRaidBosses(), getPaldeckCompletion(),
     ]);
     const problems: string[] = [];
     if (a.status === 'fulfilled') {
@@ -66,6 +70,8 @@ export default function Progression() {
     // but must not blank the rest of the tab.
     if (c.status === 'fulfilled') setRaids(c.value);
     else problems.push(`Raid bosses: ${String(c.reason)}`);
+    if (d.status === 'fulfilled') setDex(d.value.players);
+    else problems.push(`Paldeck: ${String(d.reason)}`);
     setErrors(problems);
     setLoading(false);
   }, []);
@@ -160,9 +166,140 @@ export default function Progression() {
         </div>
       )}
 
+      <PaldeckCompletionCard entries={dex} who={who} />
+
       {raids && <RaidBosses report={raids} defeated={player} />}
     </div>
   );
+}
+
+
+/**
+ * Which Pals this player still needs, and how to get each one.
+ *
+ * **The denominator is Paldeck entries (204), never species forms (753)**, and
+ * it comes off the payload rather than being counted here — `HadesBird` and
+ * `HadesBird_Electric` are one Helzephyr, and counting forms puts 100%
+ * permanently out of reach.
+ *
+ * Missing-first, because that is the list somebody came for. A route is shown
+ * only for what you have not caught: telling you where to find a Pal you own is
+ * noise, and it is also the half `discoveryVisibility` can remove.
+ */
+function PaldeckCompletionCard({ entries, who }: {
+  entries: PaldeckCompletion[];
+  who: string;
+}) {
+  const [showCaught, setShowCaught] = useState(false);
+  const report = entries.find((e) => e.uid === who) ?? entries[0];
+  const rows = asArray(report?.entries, 'paldeck completion entries');
+  if (!report) return null;
+
+  const shown = showCaught ? rows : rows.filter((r) => !r.caught);
+
+  return (
+    <div className="glass-card" style={{ padding: 14, marginTop: 14 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap',
+                    marginBottom: 8 }}>
+        <h3 style={{ display: 'flex', alignItems: 'center', gap: 6, margin: 0,
+                     fontSize: 14 }}>
+          <BookMarked size={15} /> Paldeck
+        </h3>
+        <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+          {/* NOT a percentage of 753. `denominator` says which it is. */}
+          {report.caught} of {report.total} caught · {report.missing} to go
+        </span>
+        <div style={{ flex: 1 }} />
+        {rows.some((r) => r.caught) && (
+          <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12 }}>
+            <input type="checkbox" checked={showCaught}
+                   onChange={(e) => setShowCaught(e.target.checked)} />
+            Show caught
+          </label>
+        )}
+      </div>
+
+      {/* No linked character means every row reads uncaught. That is not a
+          score of zero — it is no score at all, and saying so beats a panel
+          that looks like a fresh save. */}
+      {!report.linked && (
+        <div className="notice" style={{ fontSize: 11, marginBottom: 8 }}>
+          This account is not linked to a character, so nothing here counts as
+          caught yet.
+        </div>
+      )}
+      {report.missingHidden && (
+        <div className="notice" style={{ fontSize: 11, marginBottom: 8 }}>
+          The server hides Pals another player has not caught.
+        </div>
+      )}
+
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+        {shown.map((row) => (
+          <span
+            key={row.id}
+            title={routeLabel(row)}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 4,
+              border: '1px solid var(--border-primary)', borderRadius: 5,
+              padding: '2px 6px', fontSize: 11,
+              opacity: row.caught ? 0.5 : 1,
+            }}
+          >
+            <GameIcon src={row.icon} size={18} />
+            <span style={{ color: 'var(--text-primary)' }}>{row.name}</span>
+            {!row.caught && (
+              <span style={{ color: 'var(--text-muted)' }}>{routeShort(row)}</span>
+            )}
+          </span>
+        ))}
+      </div>
+
+      {shown.length === 0 && (
+        <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0 }}>
+          Every Paldeck entry caught.
+        </p>
+      )}
+    </div>
+  );
+}
+
+/** A word, for the chip. `?` is a real answer — see `routeLabel`. */
+function routeShort(row: PaldeckCompletion['entries'][number]): string {
+  if (row.route?.catch) return 'catch';
+  if (row.route?.breed && row.route.breed.kind !== 'never') return 'breed';
+  return '?';
+}
+
+/**
+ * The full explanation, on hover.
+ *
+ * **"Unknown" is stated rather than smoothed over.** A Pal with no world
+ * spawner and no pairing is a raid boss or a quest form, and "go and catch it"
+ * about Bellanoir would be wrong in a way that wastes an evening.
+ */
+function routeLabel(row: PaldeckCompletion['entries'][number]): string {
+  if (row.caught) return `${row.name} — caught`;
+  const parts: string[] = [];
+  if (row.route?.catch) {
+    parts.push(`spawns in ${row.route.catch.cells} places`);
+  }
+  const breed = row.route?.breed;
+  if (breed && breed.kind === 'named_pairing') {
+    parts.push('the game names an exact pairing for this');
+  } else if (breed && breed.kind === 'standard') {
+    parts.push('breedable');
+  } else if (breed && breed.kind === 'unverified') {
+    parts.push('breeding unverified — no game column settles it');
+  } else if (breed && breed.kind === 'never') {
+    parts.push(breed.breedsTrue
+      ? 'no pairing produces this; two of them breed true'
+      : 'no pairing produces this');
+  }
+  if (!parts.length) {
+    parts.push('no world spawner and no pairing — a raid or quest form');
+  }
+  return `${row.name} — ${parts.join('; ')}`;
 }
 
 function Counts({
