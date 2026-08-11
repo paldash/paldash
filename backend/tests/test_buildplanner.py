@@ -293,3 +293,36 @@ def test_every_partner_skill_id_resolves():
         effects = buildplanner.partner_effects(species, 5)
         unresolved.extend(effects["unknown"])
     assert unresolved == []
+
+
+def test_the_partner_skill_description_fills_at_the_rank_asked_for():
+    """
+    The game writes the number as a placeholder because it moves with the rank.
+    Silvegis's own prose, filled from its own rank-1 and rank-5 skills.
+    """
+    one = buildplanner.partner_skill("WhiteShieldDragon", 1)
+    five = buildplanner.partner_skill("WhiteShieldDragon", 5)
+    assert one["name"] == "Aegis Shield"
+    assert "65%" in one["description"] and one["filled"] is True
+    assert "80%" in five["description"] and five["filled"] is True
+
+
+def test_a_styled_reference_tag_resolves_instead_of_leaving_a_hole():
+    """
+    `<uiCommon id=|...| style=|...|/>` used to be stripped as presentational,
+    so Solmora Lux read "changes the player's attack type to  and increases".
+    A sentence with a gap is worse than visible markup — it looks fine.
+    """
+    text = buildplanner.partner_skill("KingSunfish_Thunder", 5)["description"]
+    assert "attack type to Electric" in text
+
+
+def test_any_leftover_placeholder_marks_the_text_unfilled():
+    """
+    `filled` must describe the whole string, not this module's own
+    substitutions. Jetragon keeps a `{ReferenceMsgId_*}` nothing here resolves,
+    and reporting that as complete is the bug this pins.
+    """
+    jetragon = buildplanner.partner_skill("JetDragon", 5)
+    assert "{" in jetragon["description"]
+    assert jetragon["filled"] is False
