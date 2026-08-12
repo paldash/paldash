@@ -2192,6 +2192,45 @@ export interface PlayerProgressDetail {
   effigies: Checklist;
   /** `available: false` with a reason — no save has ever written the flag. */
   dungeonsCleared: { available: boolean; reason: string };
+  achievements: AchievementSummary;
+}
+
+/** One milestone tier from the game's own reward NPC. */
+export interface AchievementTier {
+  id: string;
+  requireCount: number;
+  expBonusLevel: number;
+  rewards: { itemId: string; count: number }[];
+  /**
+   * `claimed`   — the save names this row; read, never inferred
+   * `unclaimed` — earned and still sitting with the NPC
+   * `locked`    — not yet reached
+   * `unknown`   — no counter is established for this category
+   */
+  state: 'claimed' | 'unclaimed' | 'locked' | 'unknown';
+}
+
+export interface AchievementCategory {
+  /** The save counter that drives it, or **null** when none is established. */
+  counter: string | null;
+  /** The player's figure. **null is not zero** — it means unknowable. */
+  value: number | null;
+  tiers: AchievementTier[];
+  claimed: number;
+  unclaimed: number;
+  total: number;
+  /** False for `BossDefeat`. Do not draw a progress bar without a number. */
+  hasProgress: boolean;
+}
+
+export interface AchievementSummary {
+  categories: Record<string, AchievementCategory>;
+  claimed: number;
+  unclaimed: number;
+  total: number;
+  source: string;
+  /** Always false. These are the game's own milestones, not Steam's. */
+  isSteam: boolean;
 }
 
 export interface ProgressDetailReport {
@@ -2199,6 +2238,7 @@ export interface ProgressDetailReport {
   /** False when the operator hides undiscovered content from this viewer. */
   showsMissing: boolean;
   available: boolean;
+  achievementsAvailable: boolean;
 }
 
 
