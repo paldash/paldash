@@ -1888,6 +1888,50 @@ by the table rather than merely unsupported by our copy. (It also independently
 re-confirms the `RestrictionItems` mount rule: Galeclaw is one of the 17 pieces
 of PalGear named by no restriction row.)
 
+### NOTHING IN EITHER PAK READS `GenkaiToppa_PerAdd` — 153,951 packages checked
+
+Raised by the operator, 2026-08-12, against a task that asked them to time a Pal
+with a stopwatch: *"even if I confirm it, don't you still need to know where it
+is stored to calculate it for others?"* The right response to that is to search
+before asking a human to do manual work, which is what should have happened
+first.
+
+Name tables of **every package in both paks**:
+
+| Pak | Packages | `GenkaiToppa` | `StatusCalculate` | `RideSprintSpeed` |
+|---|---:|---:|---:|---:|
+| server | 76,972 | **1** | **1** | 4 |
+| client | 76,979 | 0 | 0 | 0 |
+
+The single server hit is `BP_PalGameSetting`, the object that **declares** the
+constant. The four `RideSprintSpeed` hits are the species DataTables that
+declare the column. **No blueprint anywhere consumes either.** The client scores
+zero because unversioned cooking strips its column names — the documented wall.
+
+So the arithmetic is **native C++**, and this is now a measured negative rather
+than an assumption. It cost 30 seconds; `upackage.read` parses ~5,000 name
+tables a second, which makes an exhaustive pak-wide name search a *cheap* move
+and not a last resort. **Reach for it earlier.**
+
+The `StatusCalculate_*` family is also complete and has no movement member:
+`_ConstPlus_Attack`, `_ConstPlus_HP`, `_LevelMultiply_Attack`,
+`_LevelMultiply_Defense`, `_LevelMultiply_HP`, `_TribeMultiply_CraftSpeed`,
+`_GenkaiToppa_PerAdd`. Seven, and four stats.
+
+**What that does and does not do to the open question.** It does not settle
+whether the condenser scales the speed columns — that stays unverified and the
+payload still says so. It *does* mean one clean observation would generalise,
+because **there is no free parameter to fit**: the coefficient (0.05/rank) is
+already in the files and only its scope is unknown. Contrast the
+work-suitability case, where the magnitude itself was unknown and needed five
+readings.
+
+The protocol on task #106 is rewritten accordingly: **measure the ratio, not a
+verdict**, on foot *and* ridden, on a Pal with no rank-indexed partner skill.
+A reading of exactly 1.20 confirms the known constant and generalises to all
+753 species; any *other* non-unity ratio means a second native constant exists
+and **nothing may be generalised from one Pal**.
+
 ### Airborne locomotion has a SIGNAL in the speed columns — not a rule
 
 Raised by the operator: if there are separate ground and water speeds, can the
