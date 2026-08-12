@@ -1782,6 +1782,79 @@ export interface AssignCandidate {
   where: string;
 }
 
+/** One Pal the game has put on a job, with its level for that job. */
+export interface ActualWorker {
+  instanceId: string;
+  name: string;
+  speciesId: string;
+  level: number;
+  /**
+   * Per work type this structure needs. **`null` is not zero** — it means the
+   * character has no work table at all, which is what an NPC looks like, and
+   * reporting it as rank 0 would call a merchant unfit for a job.
+   */
+  workLevels: Record<string, number | null>;
+  /** The game's own integer. It names these nowhere; do not build a legend. */
+  state: number;
+}
+
+export interface ActualJob {
+  workId: string;
+  structureId: string;
+  structureName: string;
+  defineId: string;
+  workableType: string;
+  /** Ranch and walk-around jobs, which have no fixed standing positions. */
+  wanders: boolean;
+  needs: string[];
+  /** The structure asks for `Anyone` — any Pal qualifies, no suitability. */
+  anyPalQualifies: boolean;
+  assigned: ActualWorker[];
+  /** Slots pointing at a Pal that no longer exists. Real, and worth showing. */
+  staleAssignments: number;
+  /** Standing positions. **NOT a capacity** — a Ranch with two Pals reads 0. */
+  fixedPositions: number;
+}
+
+export interface ActualWorkBase {
+  baseId: string;
+  baseName: string;
+  jobs: ActualJob[];
+  workersAssigned: number;
+  staleAssignments: number;
+}
+
+export interface WorkMismatch {
+  kind: 'empty' | 'unsuitable';
+  baseId: string;
+  baseName: string;
+  structureName: string;
+  needs: string[];
+  instanceId?: string;
+  name?: string;
+  speciesId?: string;
+}
+
+export interface ActualWorkReport {
+  bases: ActualWorkBase[];
+  /** Jobs outside any base — a world-placed structure being repaired. */
+  unbased: ActualJob[];
+  totalJobs: number;
+  /**
+   * Every assignment in the world, including Pals the caller may not see. A
+   * job's own `assigned` is scoped; this is not, so a base does not read as
+   * empty because of somebody else's privacy setting.
+   */
+  totalAssigned: number;
+  staleAssignments: number;
+  /** The game does not name the state integers. Do not invent a legend. */
+  stateIsUnnamed: boolean;
+  mismatches: WorkMismatch[];
+  scope?: string;
+  linkedToPlayer?: boolean;
+  pals?: number;
+}
+
 export interface AssignNeed {
   work: string;
   workName: string;
@@ -1823,6 +1896,19 @@ export async function getBaseAssignments(
 ): Promise<{ bases: BaseAssignment[]; scope?: string; linkedToPlayer?: boolean; pals?: number }> {
   const query = base ? `?base=${encodeURIComponent(base)}` : '';
   return saveFetch(`/bases/assign${query}`);
+}
+
+/**
+ * Who the game has ACTUALLY assigned — the sibling of `getBaseAssignments`.
+ *
+ * That one ranks who *should* work at a base; this reports who *is*, from
+ * `WorkSaveData`. Easy to reach for wrongly, hence the two names.
+ */
+export async function getActualWork(
+  base?: string
+): Promise<ActualWorkReport> {
+  const query = base ? `?base=${encodeURIComponent(base)}` : '';
+  return saveFetch(`/bases/working${query}`);
 }
 
 /**
