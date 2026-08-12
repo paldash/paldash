@@ -39,7 +39,7 @@ logger = logging.getLogger(__name__)
 # update, with nothing anywhere saying why. `savecache` now discards a cache
 # whose schema does not match this, so the worst case is one re-parse instead of
 # a wrong number.
-SCHEMA_VERSION = 13
+SCHEMA_VERSION = 14
 
 
 def lower_priority() -> None:
@@ -120,6 +120,7 @@ def main() -> int:
         extract_map_objects,
         extract_pal_storage,
         extract_work_assignments,
+        extract_world_clock,
         guild_name_map,
         load_gvas,
         summarise_base_storage,
@@ -161,6 +162,10 @@ def main() -> int:
     # MapObjectSaveData and CharacterSaveParameterMap, so the only real cost is
     # decoding `WorkSaveData` itself — +0.30s median on refworld's 3.06s parse.
     work_assignments = extract_work_assignments(gvas)
+
+    # How old the world is. Two integers off an already-decoded structure —
+    # free, and the most human number this dashboard can show.
+    world_clock = extract_world_clock(gvas)
 
     # Which placed object owns which container, and therefore which base. Cheap
     # (it re-walks an already-decoded MapObjectSaveData) and it is what turns a
@@ -303,6 +308,7 @@ def main() -> int:
         "guildResearch": guild_research,
         "mapObjects": map_objects,
         "workAssignments": work_assignments,
+        "worldClock": world_clock,
         "items": items,
         "counts": {
             "guilds": len(guilds),

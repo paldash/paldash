@@ -1292,6 +1292,33 @@ def _plain_float(value: Any, default: float = 0.0) -> float:
         return default
 
 
+def extract_world_clock(gvas: Any) -> dict[str, int]:
+    """
+    `GameTimeSaveData` — how much time has passed in the world, and how long the
+    server has been up.
+
+    **Both are elapsed durations counted from zero, not .NET timestamps.**
+    `OwnedTime` on a Pal is the opposite trap (a timestamp whose name reads as a
+    duration); this is a duration in the same tick unit, so the two must not be
+    handled by the same helper.
+
+    Interpretation, verification and the one thing that is not established live
+    in `backend/worldclock.py`. This only reads.
+    """
+    world = _world_save_data(gvas)
+    clock = _v(world, "GameTimeSaveData", "value")
+    if not isinstance(clock, dict):
+        return {}
+
+    out: dict[str, int] = {}
+    for label, prop in (("gameTicks", "GameDateTimeTicks"),
+                        ("realTicks", "RealDateTimeTicks")):
+        value = _v(clock, prop, "value")
+        if isinstance(value, int) and not isinstance(value, bool):
+            out[label] = int(value)
+    return out
+
+
 def extract_work_assignments(gvas: Any) -> list[dict]:
     """
     Who the game has **actually** assigned to each job — `WorkSaveData`.
