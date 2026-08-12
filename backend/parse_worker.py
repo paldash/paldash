@@ -39,7 +39,7 @@ logger = logging.getLogger(__name__)
 # update, with nothing anywhere saying why. `savecache` now discards a cache
 # whose schema does not match this, so the worst case is one re-parse instead of
 # a wrong number.
-SCHEMA_VERSION = 12
+SCHEMA_VERSION = 13
 
 
 def lower_priority() -> None:
@@ -119,6 +119,7 @@ def main() -> int:
         extract_guilds,
         extract_map_objects,
         extract_pal_storage,
+        extract_work_assignments,
         guild_name_map,
         load_gvas,
         summarise_base_storage,
@@ -154,6 +155,12 @@ def main() -> int:
     players, pals = extract_characters(gvas)
     containers = extract_containers(gvas) if args.items else {}
     map_objects = extract_map_objects(gvas)
+
+    # Who the game has ACTUALLY assigned to each job, as opposed to who
+    # `baseassign` thinks should be there. Re-walks the already-decoded
+    # MapObjectSaveData and CharacterSaveParameterMap, so the only real cost is
+    # decoding `WorkSaveData` itself — +0.30s median on refworld's 3.06s parse.
+    work_assignments = extract_work_assignments(gvas)
 
     # Which placed object owns which container, and therefore which base. Cheap
     # (it re-walks an already-decoded MapObjectSaveData) and it is what turns a
@@ -295,6 +302,7 @@ def main() -> int:
         "guildStorage": guild_storage,
         "guildResearch": guild_research,
         "mapObjects": map_objects,
+        "workAssignments": work_assignments,
         "items": items,
         "counts": {
             "guilds": len(guilds),
@@ -306,6 +314,7 @@ def main() -> int:
             "guildChests": len(guild_storage),
             "guildResearch": len(guild_research),
             "mapObjects": len(map_objects),
+            "workAssignments": len(work_assignments),
             "itemTypes": len(items),
         },
     }

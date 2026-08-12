@@ -74,6 +74,7 @@ import schedule as schedule_module
 import settings_ini
 import settingshelp
 import viewcache
+import workassign
 import worldobjects
 import habitats
 import backup as backup_module
@@ -1581,6 +1582,74 @@ def get_base_assignment(
 
     return {
         "bases": reports,
+        **_breeding_scope(request, effective),
+    }
+
+
+@app.get("/api/bases/working")
+def get_actual_work(
+    request: Request,
+    base: Optional[str] = None,
+    owner: Optional[str] = None,
+) -> dict:
+    """
+    Who the game has **actually** assigned to each job — `WorkSaveData`.
+
+    The counterpart to `/api/bases/assign`, and the distinction is the whole
+    point: that one ranks who *should* work at a base, this one reports who
+    *is*. Until now nothing read the save's own assignment record, so the
+    optimiser had no third source to check itself against.
+
+    **The same two independent scopes**, for the same reason `/api/bases/assign`
+    documents at length: bases through the base-privacy filter, Pals through
+    `_scope_pals`. A filter applied to one of several endpoints serving the same
+    data is not a filter, and this is now the fourth endpoint over base work.
+
+    A Pal outside the caller's scope is **counted and not named** — the job
+    still reports its worker total, so a base does not read as empty because
+    somebody else's Pal is on it.
+
+    `mismatches` is reported beside the jobs rather than instead of them, and it
+    is framed as a disagreement rather than a verdict. See `workassign.py`.
+    """
+    authz.require(request, roles_module.VIEW_SELF)
+
+    if not workassign.data_available():
+        raise HTTPException(
+            503,
+            "Work assignment data is unavailable — backend/data/work_assign.json.gz "
+            "did not load. Regenerate with scripts/extract-work-assign.py.",
+        )
+
+    hidden = _hidden_base_ids(request)
+    own = _own_guild_base_ids(request)
+    bases = [
+        b for b in savecache.get_section("bases")
+        if str(b.get("id") or "") not in hidden
+        and (own is None or str(b.get("id") or "") in own)
+    ]
+    if base:
+        bases = [b for b in bases if str(b.get("id") or "") == base]
+
+    visible = {str(b.get("id") or "") for b in bases}
+    work = [
+        j for j in savecache.get_section("workAssignments")
+        # An unbased job (a world-placed repair) is visible to anyone who can
+        # see any base: it belongs to no guild, so there is nothing to conceal.
+        if not str(j.get("baseId") or "") or str(j.get("baseId") or "") in visible
+    ]
+
+    effective = _breeding_owner(request, owner)
+    pals = _scope_pals(
+        viewcache.derived("pals:enriched", _enriched_pals),
+        effective,
+        _guilds_of(effective) if effective else None,
+    )
+
+    summary = workassign.summarise(work, pals, bases)
+    return {
+        **summary,
+        "mismatches": workassign.mismatches(summary),
         **_breeding_scope(request, effective),
     }
 

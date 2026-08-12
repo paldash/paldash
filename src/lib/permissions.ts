@@ -212,6 +212,9 @@ const ROUTES: RouteRule[] = [
   // the base-privacy filter and Pals through `_scope_pals`. Gated on BASES
   // rather than ITEMS because it names no container contents.
   { pattern: /^bases\/assign$/, methods: ['GET'], capability: CAPABILITIES.VIEW_SELF, feature: FEATURES.BASES },
+  // Who the game has ACTUALLY assigned, from WorkSaveData. The sibling of
+  // /bases/assign — that one ranks who should work where, this reports who is.
+  { pattern: /^bases\/working$/, methods: ['GET'], capability: CAPABILITIES.VIEW_SELF, feature: FEATURES.BASES },
   // Rankings over the caller's own Pals — same scope and same feature gate as
   // the breeding planner, which reads the same list.
   { pattern: /^optimise\/work$/, methods: ['GET'], capability: CAPABILITIES.VIEW_SELF, feature: FEATURES.BREEDING },
