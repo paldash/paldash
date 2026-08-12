@@ -2480,15 +2480,24 @@ The value is not on the actor CDO but on a **component** export, which is the
                        MovementType = EPalMonsterMovementType::Fly
 
 `EPalMonsterMovementType` has five values — `Fly`, `FlyAndLanding`,
-`GroundOnly`, `Swim`, `SwimGroundDamage`. **31 of 772 species blueprints set it
-and the rest inherit**, so the overrides are exactly the Pals that do not walk:
+`GroundOnly`, `Swim`, `SwimGroundDamage`. **31 of the 772 `BP_<Species>` files
+set it**; everything else inherits, so the overrides are exactly the Pals that
+do not walk.
 
-| Mode | Species (incl. variants) |
+Those 31 files resolve onto the 753 species ids the bundle uses (a `BOSS_` form
+inherits its base's mode, so one file can cover two ids):
+
+| Mode | Species ids |
 |---|---:|
 | `Fly` | 30 |
 | `FlyAndLanding` | 12 |
 | `Swim` | 10 |
-| `GroundOnly` (inherited default) | 701 |
+| `GroundOnly` (inherited) | 701 |
+
+**Two denominators, deliberately.** 31 is a count of *files that override*; 52 is
+a count of *species that are not ground*. Quoting either as the other is the
+"159 field bosses" mistake — there the row count was reported when 90 rows were
+populated.
 
 **The control is two pairs the game overrides in the opposite direction.**
 `Serpent` (Surfent) is `Swim` and `Serpent_Ground` (Surfent Terra) is explicitly
