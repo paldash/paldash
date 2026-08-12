@@ -604,6 +604,70 @@ the breeding scope payload for the same reason scope itself does: the total
 legitimately exceeds the palbox, and an unexplained larger number reads as a
 miscount rather than as a fuller answer.
 
+## The base ModuleMap: seven blobs are empty, one is a constant, one decodes
+
+`scripts/decode-basecamp-modules.py`. Task #88 asked about "46 constant bytes on
+every base" in `BaseCampSaveData[].ModuleMap[].RawData`, reasoning from
+`WorkerDirector` (118 bytes, container id at 98) and `GuildItemStorage` (20
+bytes, GUID at 0) that a fixed width is the signature of a readable struct.
+
+**Measured per module type, it is one module, and six of the others are empty:**
+
+| Module | Width |
+|---|---|
+| `PassiveEffect` | **46 bytes, always** — the blob the task meant |
+| `TransportItemDirector` | 8 bytes empty, 82-159 when not |
+| Energy · Medical · ResourceCollector · ItemStorages · FacilityReservation · ObjectMaintenance · ItemStackInfo | **0 bytes on every base** |
+
+`ItemStorages` being empty was already recorded here. The other six were not,
+and knowing that costs the next person nothing.
+
+### `PassiveEffect` is a constant — the answer to #88 is a negative
+
+**One distinct value across 24 bases in two unrelated worlds**, byte-identical.
+It decomposes into scaffolding: an `18 00 00 00` length at offset 14 that is
+exactly the 24 bytes following it, holding one `CustomVersionData` entry whose
+GUID `380b00de-4949-d7ce-97df-2d99c0c1c369` is **the same one embedded in
+`WorkAssignMap`** — which is the check that the reading is right rather than
+merely tidy.
+
+A blob that never varies carries no information. Base level is not in there.
+
+### `TransportItemDirector` is the neighbour nobody asked about, and it decodes
+
+    int32   entry_count
+    repeat:
+      int32   unknown_a       always 1, five observations
+      int32   name_length     includes the NUL
+      char[]  item_id         null-terminated ASCII
+      byte[32] zeros          asserted, not skipped
+      int32   unknown_b       2, 4, 5 observed
+      double  x, y, z
+    int32   trailing
+
+**Two independent checks, and neither is the layout looking plausible.** The
+size arithmetic `4 + 4 + strlen + 32 + 4 + 24` reproduces the three observed
+blobs at **82, 159 and 156 bytes** exactly — a wrong layout does not land on the
+end of three differently-sized buffers. And every decoded position lands
+**inside its own base**: `Wheat` 1,947 units out, `Coal` 1,622, `CopperOre`
+1,407, `Stone` 1,172 and 950, against a `BaseCampAreaRange` of **3,500**. The
+base position comes from a completely different field than the bytes decoded.
+Five for five, every item id resolving in the catalogue.
+
+**WHAT IT MEANS IS NOT CLAIMED.** An (item, position) pair under a module called
+`TransportItemDirector` reads like a haul order, and that is a guess from a name
+— the `TowerLockBarrier` mistake, and `DamageRateIfDefender_*` is the case where
+the name meant the *opposite*. `unknown_a`/`unknown_b` are named for what is
+known about them.
+
+It is also rare: **3 of 53 bases across four worlds**, and the live 16-base world
+has none.
+
+**Nothing in `backend/` calls it, deliberately.** A verified layout is not a
+feature: wiring it in would put an (item, position) pair on the Bases tab with no
+honest caption. The decoder exists so that whoever finds out what creates one
+spends minutes rather than a day — run it against a base before and after.
+
 ## Who IS working, not who SHOULD — `WorkSaveData` was read by nothing
 
 `parser.extract_work_assignments` + `backend/workassign.py`. 160 entries on the
