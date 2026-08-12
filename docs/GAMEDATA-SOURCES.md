@@ -210,10 +210,48 @@ Unused and available: `BaseCampAreaRange = 3500`,
 `Combi_PassiveInheritNum` / `Combi_TalentInheritNum` (the real inheritance
 counts), `PalEggMapObjectId_Mutation = PalEgg_MutationPal`.
 
-**Untried, and the obvious next target:** the build objects' own CDOs
-(`BP_BuildObject_PalFoodBox` and friends). A container's accepted-item filter is
-plausibly a UPROPERTY there, which is the one thing `DT_MapObjectAssignData` does
-*not* answer. See task #58.
+**347 IS THE OVERRIDDEN SUBSET, NOT THE SETTINGS LIST.** A cooked Blueprint CDO
+serialises only what differs from its **native parent's** defaults, so any
+constant Pocketpair left alone appears in no asset at all. The server binary
+names **at least 54 more** in the same families — `Combi_MutationRate`,
+`StatusCalculate_Talent_PerAdd`, `FriendshipPoint_Max` — and an exhaustive sweep
+of all 76,972 server-pak packages finds **0 hits** for every one. Their *values*
+are native and remain unreadable. See §2b.
+
+### Species blueprints — where a mount's MODE lives
+
+    Pal/Content/Pal/Blueprint/Character/Monster/PalActorBP/<Species>/BP_<Species>
+
+1,831 assets, **in the server pak**, so tagged and decodable. The value is on a
+component export rather than the actor CDO:
+
+    BP_BirdDragon -> StaticCharacterParameterComponent
+                       MovementType = EPalMonsterMovementType::Fly
+
+31 of 772 override it — `Fly` 30, `FlyAndLanding` 12, `Swim` 10 — and the rest
+inherit `GroundOnly`. The control: `Serpent`/`Umihebi` are `Swim` while their
+land variants `Serpent_Ground` (Surfent Terra) and `Umihebi_Fire` (Jormuntide
+Ignis) are **explicitly reset to `GroundOnly`**.
+
+Two traps: a `BOSS_`/variant id has no blueprint and **inherits** rather than
+defaulting to ground; and `GroundOnly` for a base species is an inference from
+the overrides being exactly the non-walkers, not a stated value.
+
+### 2b. The server BINARY — names only
+
+`Pal/Binaries/Linux/PalServer-Linux-Shipping`, indexed by
+`scripts/mine-binary.py`. Stripped, but Unreal's reflection strings and C++
+vtable symbols survive: **100,368 identifiers, 1,800 enums (11,554 values),
+2,224 Pal types, 197 source paths**, in 1.5 seconds.
+
+**Names yes, values no** — a `UPROPERTY` default is compiled constructor code.
+Use it to find out whether the game *has* a concept before concluding it does
+not; never to state a number.
+
+It is what settled the condenser question: `GetWorkSuitabilityRankWithCharacterRank`
+and `GetRankBasedWorkSuitabilityBonus` are the game's own function names, and
+`WBP_IngameMenu_PalCondense` — the condenser screen — is the only package in
+either pak that calls the first.
 
 ---
 
@@ -498,9 +536,11 @@ tables, not merely "not found".
   filter and its generated variable holds **zero properties**, so the behaviour
   is native. `basesupply.py` reports facts, not mechanics, and that is why.
 
-- **A mount's MODE** — flies, swims or walks. Five avenues checked and recorded
-  in AGENTS.md; `RestrictionItems` answers *rideable at all* (149 base species,
-  exact) and nothing answers mode.
+- ~~**A mount's MODE** — flies, swims or walks.~~ **RETRACTED 2026-08-12.** It is
+  in the server pak after all, on the species blueprints — see §2. The five
+  avenues recorded in AGENTS.md were all real dead ends; the sixth was never
+  tried because a search for `BP_Pal_*` found nothing and the game names them
+  `BP_<Species>`. **A negative is only as good as the name you searched for.**
 
 - **A recommended level or party size for a boss.** A field boss carries its own
   level; what level *you* should be is nowhere, and the party-size difference

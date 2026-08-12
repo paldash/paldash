@@ -2003,10 +2003,106 @@ than an assumption. It cost 30 seconds; `upackage.read` parses ~5,000 name
 tables a second, which makes an exhaustive pak-wide name search a *cheap* move
 and not a last resort. **Reach for it earlier.**
 
-The `StatusCalculate_*` family is also complete and has no movement member:
-`_ConstPlus_Attack`, `_ConstPlus_HP`, `_LevelMultiply_Attack`,
-`_LevelMultiply_Defense`, `_LevelMultiply_HP`, `_TribeMultiply_CraftSpeed`,
-`_GenkaiToppa_PerAdd`. Seven, and four stats.
+*(This section used to end: "The `StatusCalculate_*` family is also complete and
+has no movement member … Seven, and four stats." The family is **ten**, and the
+word "complete" was the error. See directly below.)*
+
+## THE THIRD SURFACE: the server BINARY, which nobody had opened
+
+**Raised by the operator, 2026-08-12** — *"there should be something in game for
+Melpaca speed and work suitability rises; it seems weird to be parsed at game
+startup every time when everything else isn't; are you sure you didn't miss
+it?"* The answer is that the mechanism really is computed rather than stored,
+**and the searches that established this were run against two of the three
+places the game keeps things.** Fourth time the operator has been right about
+the condenser.
+
+`refs/palworld/Pal/Binaries/Linux/PalServer-Linux-Shipping` — 196 MB, ELF,
+**stripped**. Stripping removes debug symbols; it does not remove Unreal's
+reflection strings, because Blueprints bind to `UPROPERTY`/`UFUNCTION` names at
+runtime and those must survive as data. The C++ ABI also emits `_ZTV…` vtable
+symbols, which recovers class names independently.
+
+`scripts/mine-binary.py` indexes it — the third such index after
+`mine-datatables.py` (the pak) and `mine-savefields.py` (the save):
+
+| | |
+|---|---:|
+| strings | 1,564,419 |
+| reflection identifiers | 100,368 |
+| vtable types | 10,914 (2,224 Pal-specific) |
+| enums | 1,800 (11,554 values) |
+| **source file paths** | **197** |
+
+`strings` costs **1.5 seconds**. This was available from day one.
+
+**Names yes, values no** — the same contract `upackage.py` states for cooked
+packages, and it must be held just as firmly. A `UPROPERTY`'s default is
+assigned in compiled constructor code, so this index proves a constant *exists*
+and can never say what it equals.
+
+### `BP_PalGameSetting`'s 347 constants are the OVERRIDDEN SUBSET
+
+This is the finding that generalises, and it invalidates a whole class of
+negatives this file has recorded with confidence.
+
+A cooked Blueprint CDO serialises only what **differs from its native parent's
+defaults**. So every tuning constant Pocketpair left alone is absent from the
+pak *entirely* — and "I extracted BP_PalGameSetting, it's not in there" has been
+treated throughout this project as equivalent to "the game does not have it".
+
+Measured: the binary names **at least 54 more constants in the same families**,
+and an exhaustive sweep of **all 76,972 server-pak packages finds 0 hits** for
+every one of them.
+
+| Constant | Why it matters |
+|---|---|
+| **`Combi_MutationRate`** | the base mutation rate this file says "no file states" |
+| `Combi_MutationRankCoefficient`, `_MutationRankDiffPenalty`, `_MutationMinTalent`, `_MutationInitialRank`, `_MutationRandomCoefficient` | a whole mutation model, named |
+| **`StatusCalculate_Talent_PerAdd`** | the IV coefficient `palstats` transcribes from a community formula |
+| `StatusCalculate_TribePlus_HP`, `_ConstPlus_Defense` | two more stat terms |
+| `FriendshipPoint_Max` | the trust bound |
+
+`bIsMutationEgg`, `MutationCount`, `MutationPalAssignableSkillMap` and
+`EPalEggSpecialType::Mutation` are all named too. **None of this gives a
+number**, so the quote-don't-mechanise rule in `basesupply.py` stands unchanged
+— but "no file says what produces a mutated egg" must now read as *no file
+states the value*, which is a much narrower and more honest claim than *the game
+has no such concept*.
+
+**The transferable rule, fourth time this file has written a version of it:**
+a sweep of one surface is not a search of the game. It was DataTables vs the
+settings CDO (`WorkSuitabilityMaxRank`), DataTables vs DataAssets
+(`DA_BreedingItemEffectData`), and now **the pak vs the binary**.
+
+### And the condenser DOES drive work suitability — the game's own function says so
+
+The answer to "does condensing raise work suitability" was given as a flat **no**
+three times, then confirmed from five in-game readings, and the file still said
+the mechanism appeared in no game file. It appears in the binary, by name:
+
+    GetWorkSuitabilityRankWithCharacterRank
+    GetWorkSuitabilityRanksWithCharacterRank
+    GetRankBasedWorkSuitabilityBonus
+    GetRankBasedWorkSuitabilityBonuses
+
+"CharacterRank" is the condenser rank — `CharacterMaxRank` is 5 and
+`CharacterRankUpRequiredNumMap` is its cost table. And the wiring is visible in
+the pak once you know what to look for: **`WBP_IngameMenu_PalCondense`, the
+condenser screen itself, is the only package in either pak that references
+`GetWorkSuitabilityRankWithCharacterRank`**, calling it beside plain
+`GetWorkSuitabilityRank` and rendering `Text_StatusNum_Prev*` / `_Aft*` pairs.
+
+So `backend/condenser.py`'s rule is now corroborated by the game's own call
+graph rather than resting on observation alone. **The magnitudes and the
+2nd/3rd-best ordering are still unknown** — those are native constants and this
+index cannot reach a value — so `determined: False` stays exactly where it is.
+
+One honest counter-signal, recorded rather than buried: that screen's before/after
+readout names **Attack, Defense and HP only**, with no speed row. That is weak
+evidence about the condenser-and-movement question (#106) — a UI may simply not
+show a thing — but it points away from a movement term, and it is the first
+file-side evidence in either direction.
 
 **What that does and does not do to the open question.** It does not settle
 whether the condenser scales the speed columns — that stays unverified and the
@@ -2057,6 +2153,31 @@ has is wrong however plausible it reads.
 So: a genuine lead with a measured control, **not** a `mountMode`. Anyone taking
 it further needs a real flyer list to score against; without one, tuning the
 predicate until the list looks right is fitting the method to the answer.
+
+#### SCORED AGAINST THE REAL LIST, AND IT IS DEAD — 2026-08-12
+
+That list now exists: `EPalMonsterMovementType`, read off the species blueprints
+in the server pak (see the mount-mode retraction below). Scored against it over
+the 701 species carrying all three speed columns, with `BOSS_`/variant ids
+resolved to their base:
+
+| | |
+|---|---:|
+| airborne, the game's own answer | 42 |
+| predicted by `run == swim == swimDash` | 178 |
+| true positives | 24 |
+| **false positives** | **154** |
+| false negatives | 18 |
+| **precision** | **13.5%** |
+| recall | 57.1% |
+
+**The 7-of-7 that made it look good was a sample of seven.** Against the whole
+roster it labels 154 walking Pals as flyers — it is not a weak signal, it is
+mostly noise that happened to contain the seven Pals anyone would check first.
+The restraint recorded above is what this vindicates: the section called it a
+lead, refused to ship it as a `mountMode`, and named the exact evidence that
+would settle it. That is the process working, and it is the reason this correction
+costs a paragraph rather than a wrong field in the API.
 
 **The general rule, third time of writing it.** A ranking that greys out a
 control is making a claim about the game in the loudest place available. State
@@ -2308,10 +2429,12 @@ and non-rideable Lamball is byte-identical to Vanwyrm across all three.
 
 Also checked and empty: no ride/mount/fly column in `DT_PalMonsterParameter`'s
 90; `DT_PartnerSkillParameter` gives `RestrictionItems` (which **does** answer
-*rideable at all*) and no mode; `DT_PartnerSkill`'s 50 rows are ability kinds;
-**no `BP_Pal_*` asset and no `DA_*Ride/Mount/Move/Fly` exists in the server pak
-at all**, so the CDO technique has nothing to point at. The Pal blueprints are
-client-side, which is the unversioned wall.
+*rideable at all*) and no mode; `DT_PartnerSkill`'s 50 rows are ability kinds.
+
+*(This paragraph used to continue "**no `BP_Pal_*` asset … exists in the server
+pak at all**, so the CDO technique has nothing to point at. The Pal blueprints
+are client-side, which is the unversioned wall." Every clause after the first is
+false. See the retraction below.)*
 
 `RideSprintSpeed` is populated for **all 753 species**, including Pals that
 cannot be ridden, so sorting on it unfiltered produces a leaderboard of mounts
@@ -2333,10 +2456,64 @@ mesh), and per-species animation folders — 213 of 753 — do not attribute it
 either: Jetragon has **no fly-named animation** and every species has an
 `Idle_Swim`. Do not re-open these two.
 
-Conclusion: fastest **ride** is answerable and fastest **flyer** is not, from
-files. A hand-maintained mode list is allowed on `elements.py`'s terms — the data
-does not exist, so the obligation is provenance and a visible "unknown", never a
-guess derived from a name.
+#### THE MODE IS IN THE SERVER PAK, AND `BP_Pal_*` WAS A NAMING ASSUMPTION
+
+**Retracted 2026-08-12, prompted by the operator asking whether the condenser
+rules were really absent or merely unsearched.** Everything above about
+`DT_*` tables stands. The conclusion drawn from it — "fastest flyer is not
+answerable, a hand-maintained list is allowed" — was wrong, and so was the
+premise that the species blueprints are client-side.
+
+    Pal/Content/Pal/Blueprint/Character/Monster/PalActorBP/<Species>/BP_<Species>
+
+**1,831 assets, in the SERVER pak**, therefore tagged and decodable. The search
+that "proved" their absence looked for `BP_Pal_*`; the game names them
+`BP_<Species>`. **The search term encoded a naming convention, and the
+convention was the error — not the search, which ran correctly and reported
+exactly what it was asked.** That is the `TowerLockBarrier` failure inverted:
+there a plausible name was believed, here a plausible name was required.
+
+The value is not on the actor CDO but on a **component** export, which is the
+`PalMapObjectFoodBoxParameterComponent` lesson applied successfully for once:
+
+    BP_BirdDragon -> StaticCharacterParameterComponent
+                       MovementType = EPalMonsterMovementType::Fly
+
+`EPalMonsterMovementType` has five values — `Fly`, `FlyAndLanding`,
+`GroundOnly`, `Swim`, `SwimGroundDamage`. **31 of 772 species blueprints set it
+and the rest inherit**, so the overrides are exactly the Pals that do not walk:
+
+| Mode | Species (incl. variants) |
+|---|---:|
+| `Fly` | 30 |
+| `FlyAndLanding` | 12 |
+| `Swim` | 10 |
+| `GroundOnly` (inherited default) | 701 |
+
+**The control is two pairs the game overrides in the opposite direction.**
+`Serpent` (Surfent) is `Swim` and `Serpent_Ground` (Surfent Terra) is explicitly
+`GroundOnly`; `Umihebi` (Jormuntide) is `Swim` and `Umihebi_Fire` (Jormuntide
+Ignis) explicitly `GroundOnly`. A field that merely correlated with something
+would not have the land variants of two swimmers individually reset. Every known
+flyer resolves (Nitewing, Vanwyrm, Galeclaw, Beakon, Faleris, Helzephyr,
+Ragnahawk, Jetragon, Frostallion, Shadowbeak, Quivern, Elphidran, Astegon) and
+**Necromus and Paladius come out `GroundOnly`**, which is right — they are fast
+ground legendaries, not flyers.
+
+So fastest rideable flyer is now answerable and it is **Jetragon at 3,300**,
+with Shaolong 2,800 and Eidrolon 2,750 behind it.
+
+**`GroundOnly` for a base species is an INFERENCE, and it is the one soft spot.**
+The native default is not stated anywhere readable; it is inferred from Melpaca
+and every other walking Pal declining to override, and from the overrides being
+exactly the non-walkers. Anything built on this should carry the mode as read
+and the default as inherited, not present both as equally stated.
+
+**And absent does NOT mean `GroundOnly` for a VARIANT id.** `BOSS_HawkBird` has
+no blueprint of its own, so it inherits Nitewing's `Fly`. Reading the raw table
+called every alpha flyer a ground Pal — `pal_exact`'s lesson, one asset type
+over. Resolve `BOSS_`/variant to the base species first, exactly as
+`gamedata.pal()` already does for names.
 
 `fullStomach` is still unbounded — that one genuinely has no constant, and the
 lesson above is a reason to go and look again rather than to assume it does.
