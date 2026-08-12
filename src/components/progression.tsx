@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   Trophy, RefreshCw, MapPin, Sparkles, Compass, Swords, EyeOff, Info,
-  BookMarked,
+  BookMarked, Gift, Lock, CircleHelp,
 } from 'lucide-react';
 import {
   getProgress, getProgressDetail, getRaidBosses, getPaldeckCompletion,
@@ -14,7 +14,7 @@ import { asArray } from '@/lib/arrays';
 import BossPlanner from '@/components/boss-planner';
 import type {
   Checklist, ChecklistEntry, ProgressDetailReport, RaidBossReport,
-  PaldeckCompletion,
+  PaldeckCompletion, AchievementSummary, AchievementCategory, AchievementTier,
 } from '@/lib/types';
 
 /**
@@ -166,6 +166,12 @@ export default function Progression() {
           <Unavailable detail={lists.dungeonsCleared} />
         </div>
       )}
+
+      {/* The game's own milestone NPC. NOT Steam achievements — those live on
+          Steam's servers behind an API this project cannot depend on, and are
+          per-account rather than per-server. The caption says so, because a
+          panel labelled "Achievements" would be read as Steam's. */}
+      <MilestoneCard achievements={lists?.achievements} />
 
       <PaldeckCompletionCard entries={dex} who={who} />
 
@@ -380,6 +386,117 @@ function Relics({ lines }: { lines: RelicLine[] }) {
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+/** Human labels for the game's three milestone categories. */
+const MILESTONE_LABEL: Record<string, string> = {
+  PalCapture: 'Pals captured',
+  PalDex: 'Paldeck species',
+  BossDefeat: 'Bosses defeated',
+};
+
+const TIER_STYLE: Record<AchievementTier['state'], { color: string; label: string }> = {
+  claimed: { color: 'var(--accent-green)', label: 'Collected' },
+  unclaimed: { color: 'var(--accent-amber)', label: 'Ready to collect' },
+  locked: { color: 'var(--text-muted)', label: 'Not yet reached' },
+  unknown: { color: 'var(--text-muted)', label: 'Progress not known' },
+};
+
+function MilestoneRow({ name, category }: { name: string; category: AchievementCategory }) {
+  const label = MILESTONE_LABEL[name] ?? name;
+  return (
+    <div style={{ marginBottom: 10 }}>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap' }}>
+        <strong style={{ fontSize: 12 }}>{label}</strong>
+        {/* `hasProgress` false means no save counter is established for this
+            category — BossDefeat. A bar at 0% would be a claim about a number
+            the backend explicitly says it does not have. */}
+        {category.hasProgress ? (
+          <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+            {category.value?.toLocaleString()} so far
+          </span>
+        ) : (
+          <span
+            style={{ fontSize: 11, color: 'var(--text-muted)', display: 'inline-flex', gap: 4 }}
+            title="No counter in the save is established for this category, so how far along you are cannot be shown. Collected rewards are still exact — the save names them."
+          >
+            <CircleHelp size={11} style={{ alignSelf: 'center' }} />
+            progress not tracked
+          </span>
+        )}
+        <span style={{ fontSize: 11, marginLeft: 'auto', color: 'var(--text-muted)' }}>
+          {category.claimed}/{category.total} collected
+          {category.unclaimed > 0 && (
+            <span style={{ color: 'var(--accent-amber)' }}>
+              {' '}· {category.unclaimed} ready
+            </span>
+          )}
+        </span>
+      </div>
+
+      <div style={{ display: 'flex', gap: 3, marginTop: 4, flexWrap: 'wrap' }}>
+        {category.tiers.map((tier) => {
+          const style = TIER_STYLE[tier.state] ?? TIER_STYLE.unknown;
+          const reward = tier.rewards
+            .map((r) => (r.count > 1 ? `${r.itemId} x${r.count}` : r.itemId))
+            .join(', ');
+          return (
+            <span
+              key={tier.id}
+              title={`${tier.requireCount.toLocaleString()} needed — ${style.label}${reward ? ` · reward: ${reward}` : ''}`}
+              style={{
+                fontSize: 10,
+                padding: '1px 5px',
+                borderRadius: 3,
+                border: `1px solid ${style.color}`,
+                color: style.color,
+                opacity: tier.state === 'locked' || tier.state === 'unknown' ? 0.55 : 1,
+              }}
+            >
+              {tier.requireCount.toLocaleString()}
+            </span>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function MilestoneCard({ achievements }: { achievements?: AchievementSummary }) {
+  if (!achievements || !Object.keys(achievements.categories ?? {}).length) return null;
+  const ready = achievements.unclaimed;
+  return (
+    <div className="card" style={{ marginTop: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+        <Gift size={14} style={{ color: 'var(--accent-blue)' }} />
+        <strong style={{ fontSize: 13 }}>Milestone rewards</strong>
+        <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--text-muted)' }}>
+          {achievements.claimed}/{achievements.total} collected
+        </span>
+      </div>
+
+      {/* Stated, not implied. The backend sends `isSteam: false` precisely so
+          this caption cannot drift into calling them Steam achievements. */}
+      <p style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.6, margin: '0 0 8px' }}>
+        The in-game NPC who hands out rewards for capture and boss milestones.
+        These are <strong>not Steam achievements</strong> — those live on Steam&rsquo;s
+        servers and are per-account; these are read from each player&rsquo;s own save
+        and work offline.
+      </p>
+
+      {ready > 0 && (
+        <div className="notice" style={{ fontSize: 12, marginBottom: 8 }}>
+          <Lock size={12} style={{ display: 'inline', verticalAlign: '-2px', marginRight: 5 }} />
+          {ready} reward{ready === 1 ? '' : 's'} earned and not collected — they
+          are waiting with the NPC.
+        </div>
+      )}
+
+      {Object.entries(achievements.categories).map(([name, category]) => (
+        <MilestoneRow key={name} name={name} category={category} />
+      ))}
     </div>
   );
 }
