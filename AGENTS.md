@@ -2882,6 +2882,65 @@ down — a filter that only understood the top level would leave the larger list
 untouched. Server-side, as always: a UI that received everything and hid some of
 it would be handing out the answers in the network tab.
 
+## Milestone rewards are the game's own, and the join needed no inference
+
+`backend/achievements.py`, `achievements.json.gz`, folded into
+`/api/progress/detail`. **These are not Steam achievements** and that is not a
+matter of effort: Steam's live on Steam's servers behind
+`GetPlayerAchievements`, needing a publisher key and each player's SteamID — a
+runtime dependency on an external API this project forbids — and they are
+per-account, so they would cover only players who handed over a key and would
+report single-player activity too.
+
+`DT_AchivementRewardNPC` is the in-game reward NPC: 26 rows, three categories.
+**Pocketpair's typo is kept** — the DataTable *and* the save key are both
+`Achivement`, and correcting it breaks the join.
+
+| Category | Tiers | Thresholds | Counter |
+|---|---:|---|---|
+| `PalCapture` | 10 | 100 … 1000 | `PalCaptureCount` |
+| `PalDex` | 10 | 10 … 100 | `TribeCaptureCount` |
+| `BossDefeat` | 6 | 5 … 100 | **none established** |
+
+**THE HARD PART TURNED OUT NOT TO EXIST.** The task expected to match an
+`AchivementCategory` enum to a save counter by name and plausibility.
+`RecordData.NPCAchivementRewardFlag` holds the **row names outright**
+(`PalDex_7`), and **26 of 26 claimed keys across five players resolve to a real
+row**. Claimed is read, never guessed; only the *progress bar* needs a counter.
+
+**`BossDefeat` ships `counter: null` and renders no progress.** No
+`BossDefeatCount` exists; `TowerBossDefeatFlag` maxes at 7 observed against a
+top tier of **100**, so it cannot be towers alone; and the claim data cannot
+separate field-only from field-plus-tower, because every player who claimed the
+5-boss tier clears it under either reading. A merely plausible match is not a
+match — the `role_permissions` lesson. Such a tier is `claimed` or `unknown`,
+**never `locked`**, since "not yet reached" is a claim about a number this
+cannot see.
+
+**The mapping is validated rather than asserted:** no player has *claimed* a
+tier their counter has not reached, across five players and both mapped
+categories. Claimed comes from the save and the threshold from the table, so the
+counter is the only guess in that check. A second, independent check: species
+captured never exceeds the Paldeck count (210/211, 149/157, 128/129, 109/109),
+which is what a counter that was not species would break.
+
+**Claimed is not earned.** A reward is collected by walking to the NPC — one
+reference player has 149 species and has collected none of the ten tiers — so
+`unclaimed` is a real state and the actionable one.
+
+### And it found `speciesCaptured` reading zero for everybody
+
+**`TribeCaptureCount` is a plain int and the parser read it as a map.**
+`_flag_entries` returns `[]` for anything that is not a list, which is right for
+a missing key and silently wrong for a scalar — so `speciesCaptured` was
+`{total: 0, distinct: 0}` on **every player since the field was added**, against
+real values of **210, 149, 128, 109 and 8**.
+
+Nothing rendered it, which is why it survived. Same family as the effigy count:
+a field that reads as zero looks like a player who has done nothing, not like a
+reader pointed at the wrong shape. A scalar now reports `distinct: None` rather
+than copying `total` — those are different facts and one is unavailable.
+
 ## Undiscovered content is the operator's call
 
 `policy.DISCOVERY_LEVELS` — `everyone`, `detail` (the default: Trusted and
