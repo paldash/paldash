@@ -1631,7 +1631,26 @@ def extract_player_progress(gvas: Any) -> dict[str, Any]:
         }
 
     for label, prop in _PROGRESS_COUNTERS:
-        entries = _flag_entries(record, prop)
+        raw = _v(record, prop, "value")
+
+        # **`TribeCaptureCount` IS A PLAIN INT AND THIS READ IT AS A MAP**, so
+        # `speciesCaptured` has been `{total: 0, distinct: 0}` on every player
+        # since the field was added — against real values of 210, 149, 128, 109
+        # and 8 on the reference world. `_flag_entries` returns `[]` for
+        # anything that is not a list, which is right for a missing key and
+        # silently wrong for a scalar.
+        #
+        # Same family as the effigy count above: a field that reads as zero
+        # looks like a player who has done nothing, not like a reader pointed at
+        # the wrong shape. Nothing rendered it, which is why it survived.
+        if isinstance(raw, (int, float)) and not isinstance(raw, bool):
+            # A scalar carries no per-key breakdown, so `distinct` is None
+            # rather than a number copied from `total` — those are different
+            # facts and one of them is not available here.
+            progress[label] = {"total": int(raw), "distinct": None}
+            continue
+
+        entries = raw if isinstance(raw, list) else []
         total = 0
         for entry in entries:
             value = entry.get("value")
@@ -1640,6 +1659,16 @@ def extract_player_progress(gvas: Any) -> dict[str, Any]:
             elif value is True:
                 total += 1
         progress[label] = {"total": total, "distinct": len(entries)}
+
+    # Which milestone rewards this player has actually collected from the NPC.
+    # Pocketpair's typo, kept: the save key and the DataTable are both
+    # `Achivement`. See `backend/achievements.py` for why this is a join rather
+    # than an inference — the save names the exact row.
+    claimed = _flag_entries(record, "NPCAchivementRewardFlag")
+    progress["achievementsClaimed"] = sorted(
+        str(e.get("key")) for e in claimed
+        if e.get("value") not in (None, False, 0)
+    )
 
     # Relics SPENT per statue line, which is what says what the effigies a
     # player collected actually bought them. `gamedata.relic_rank` turns each

@@ -1873,9 +1873,17 @@ moves depends on the species' own partner skill — Azurobe gets `SwimSpeed`
 (50→62→74→86→100) — and **96 of the species/forms have such a skill at all**,
 so most Pals genuinely gain nothing.
 
-**`buildplanner.movement_bonuses` reads only the Pal's PASSIVES and therefore
-misses every one of these.** The planner understates a condensed Direhowl today.
-That is the fix this finding calls for; the flag becomes a number, not `false`.
+**`buildplanner.movement_bonuses` read only the Pal's PASSIVES and therefore
+missed every one of these** — the planner understated a condensed Direhowl.
+**Fixed the same day**: `buildplanner.partner_movement` looks the skills up at
+the Pal's condenser rank and reuses `movement_bonuses` on them rather than
+reimplementing it, `rank`/`compare` sum the two, and `partnerBonus` travels per
+row so the star-driven half is visible beside the passive half.
+`condenserOnMovement` is now `"viaPartnerSkill"` rather than `false`.
+
+*(This paragraph said "today" for a while after the code had changed. A
+correction that lands in the prose and not the code is half a correction — and
+so is the reverse, which is what this was.)*
 
 **And Galeclaw was checked deeper rather than excused.** The operator flagged it
 as a Reddit claim they were unsure of, and absence from our bundle would have
