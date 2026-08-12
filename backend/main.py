@@ -1656,11 +1656,28 @@ def get_actual_work(
 
 
 def _named_map_objects() -> list[dict]:
-    """~10 ms across 3,370 placed objects, and identical until the next parse."""
-    return [
-        {**o, "name": gamedata.structure_name(o.get("objectId") or "")}
-        for o in savecache.get_section("mapObjects")
-    ]
+    """
+    ~10 ms across 3,370 placed objects, and identical until the next parse.
+
+    `capability` is the structure's own contribution to base output — a tier-1
+    Blast Furnace is 1.0 against the Ancient one's 11.0. Attached here rather
+    than in each endpoint because this is the single place a placed object gets
+    named, and a second naming path is how the two drift.
+
+    **Only 48 structures have one**, so the key is absent on almost everything;
+    that is the ordinary case, not missing data. It is deliberately NOT combined
+    with the occupying Pal's work rank — no game file states how the two
+    compose, and `build_capabilities()["composesWithWorkRank"]` says so.
+    """
+    out = []
+    for o in savecache.get_section("mapObjects"):
+        object_id = o.get("objectId") or ""
+        named = {**o, "name": gamedata.structure_name(object_id)}
+        capability = gamedata.structure_capability(object_id)
+        if capability:
+            named["capability"] = capability
+        out.append(named)
+    return out
 
 
 @app.get("/api/mapobjects")

@@ -1135,6 +1135,20 @@ export interface MapObject {
   buildPlayerUid: string;
   opened?: boolean | null;
   grade?: string | null;
+  /**
+   * What this structure contributes to base output, from the game's own
+   * `DA_PalBuildObjectCapabilityData` — e.g. `WorkSpeedAdditionalRate` 1.0 on a
+   * Blast Furnace against 11.0 on the Ancient one.
+   *
+   * **Absent on almost everything**: only 48 of the game's ~1,000 build objects
+   * carry a capability, so a missing key is the ordinary case rather than data
+   * that failed to load.
+   *
+   * Do NOT multiply this by a Pal's work-rank speed. They are two numbers from
+   * two files and no game file states how they compose — the backend ships
+   * `composesWithWorkRank: false` for exactly this reason.
+   */
+  capability?: Record<string, number>;
 }
 
 /**
