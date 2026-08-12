@@ -986,10 +986,10 @@ each may end as a recorded negative, which is a real outcome and is why
 | #46 | Re-check what the client-pak wall ruled out | the server pak plus MapProperty changed the premises |
 | #87 | `WorkSaveData` | **done** — `workassign.py`, `/api/bases/working`. 160 jobs, every one resolving to a placed structure, and the work type reached two independent ways that agree on **all 160**. Two claims the data refuted while building it: `assign_locations` is not a capacity (20 rows have more Pals than positions) and **`Anyone` is not a work type** — reading it as one flagged Jetragon as unfit to breed. The honest result is zero unsuitable assignments, which needed a positive control to mean anything |
 | #86 | `MapObjectSpawnerInStageSaveData` | 31,824 entries nothing reads |
-| #88 | `BaseCampSaveData` ModuleMap RawData | 46 constant bytes; a fixed width is a reason to look, not a promise |
+| #88 | `BaseCampSaveData` ModuleMap RawData | **done, and the fixed width was a promise it did not keep.** The 46 bytes are `PassiveEffect` alone and are **byte-identical across 24 bases in two worlds** — scaffolding, carrying nothing; six further modules are empty on every base. The find is the neighbour: `TransportItemDirector` decodes to (item id, world position), verified two ways — the size arithmetic reproduces 82/159/156 bytes exactly, and all five positions land inside their own base against a 3,500 radius. **What it means is not claimed** and nothing calls it; `scripts/decode-basecamp-modules.py` |
 | #89 | Achievement progress | the game's own, not Steam's |
 
-**Four of the seven closed, and two closed as negatives** — which is the
+**Five of the seven closed, and three closed as negatives** — which is the
 outcome this phase was framed to allow. #58 in particular is worth reading as a
 success: "the technique works and the answer is not there" is a stronger
 statement than the refusal it replaced, which rested on nobody having tried.
