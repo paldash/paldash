@@ -274,15 +274,86 @@ def test_nothing_here_claims_a_mutation_mechanic():
     to change — deliberately.
     """
     limits = breeding.unbreedable()
-    prose = " ".join(
-        str(r.get("note") or "") + " " + str((r.get("mutatedEgg") or {}).get("note") or "")
-        for r in limits["never"] + limits["unverified"] + limits["namedPairingOnly"]
-    ).lower()
+
+    # EVERY string in the payload, not just `note`. The first version of this
+    # guard read `note` and `mutatedEgg.note` alone, and the moment the payload
+    # grew `passivesNote` and `perSpeciesNote` it was checking two of four
+    # places — the "a filter applied to one of two endpoints is not a filter"
+    # shape, in a test rather than in a route.
+    def strings(value):
+        if isinstance(value, str):
+            yield value
+        elif isinstance(value, dict):
+            for v in value.values():
+                yield from strings(v)
+        elif isinstance(value, list):
+            for v in value:
+                yield from strings(v)
+
+    rows = limits["never"] + limits["unverified"] + limits["namedPairingOnly"]
+    prose = " ".join(strings(rows)).lower()
     for claim in ("chance of", "% of the time", "you can get", "farm a", "guaranteed"):
         assert claim not in prose, claim
     # The absence is stated rather than left for the reader to notice.
     egg = limits["unverified"][0]["mutatedEgg"]
     assert "no game file says" in egg["note"].lower()
+
+
+def test_the_mutation_passives_are_the_games_own_flag_not_a_drop_table():
+    """
+    `AddMutationPal` is a real column, true on exactly five of the 1,897
+    passives — and it is read from the FLAG rather than from the id prefix.
+
+    Four are named `MutationPal_*`; **Skymarcher's id is
+    `RideJumpCount_Increase2`**. That mismatch is the whole reason this is worth
+    reading: the column carries information the naming convention does not, so a
+    prefix rule would have found four of five and looked right doing it.
+    """
+    egg = breeding.unbreedable()["unverified"][0]["mutatedEgg"]
+    ids = {p["id"] for p in egg["passives"]}
+    assert ids == {
+        "MutationPal_Babysitter",
+        "MutationPal_Mutant",
+        "MutationPal_Immortal",
+        "MutationPal_ExplosionResist",
+        "RideJumpCount_Increase2",
+    }
+    assert not all(i.startswith("MutationPal_") for i in ids), (
+        "a prefix rule would reproduce this set — the flag is then redundant "
+        "and this test no longer shows why it is read"
+    )
+
+
+def test_a_broken_description_is_flagged_rather_than_filled_in():
+    """
+    Three of the five carry a literal `{EffectValue1}` the archive never
+    substituted — a documented defect in this data.
+
+    Filling it from the `effects` list would be wrong: that list **skips unused
+    and zero-valued slots**, so `effects[0]` is not necessarily `EffectValue1`,
+    and the substitution would print a real number in the wrong place. Flagged
+    and left alone; the structured effects travel beside it.
+    """
+    egg = breeding.unbreedable()["unverified"][0]["mutatedEgg"]
+    flagged = [p for p in egg["passives"] if p.get("descriptionIncomplete")]
+    assert len(flagged) == 3
+    for p in flagged:
+        assert "{EffectValue" in p["description"]
+        assert p["effects"], "the structured effects are what replaces the prose"
+
+
+def test_it_says_out_loud_that_mutation_is_not_per_species():
+    """
+    Asked directly by the operator. No species table carries a mutation column,
+    and every constant the game names is `Combi_*` — the breeding system, keyed
+    on the parents' rank and IVs, with values compiled into the binary.
+
+    Stated as a field rather than left implicit, because "no per-Pal figure is
+    shown" otherwise reads as a number this dashboard failed to look up.
+    """
+    egg = breeding.unbreedable()["unverified"][0]["mutatedEgg"]
+    assert egg["perSpecies"] is False
+    assert "Combi_MutationRate" in egg["perSpeciesNote"]
 
 
 # ─── Reloading the bundles ───────────────────────────────

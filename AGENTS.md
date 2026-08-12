@@ -462,7 +462,37 @@ The binary corroborates the concept with `MutationPalAssignableSkillMap`.
 **What the flag MEANS is still one inference deep.** "These five can appear on a
 mutated Pal" fits the ids, the map name and the descriptions, and it is not a
 sentence any file states. So it travels as *the game flags these five passives
-as mutation-related* — never as a drop table, and never with a rate. So the quote-don't-mechanise rule in `basesupply.py` stands
+as mutation-related* — never as a drop table, and never with a rate.
+
+Shipped in `breeding._mutated_egg()` alongside **`perSpecies: false`**, which is
+said out loud rather than left implicit: with no rate anywhere on the panel,
+"nothing per Pal is shown" otherwise reads as a figure this dashboard failed to
+look up rather than as one the game does not have.
+
+#### THREE OF THE FIVE DESCRIPTIONS ARE BROKEN, AND THE OBVIOUS FIX IS WRONG
+
+Babysitter, Immortality and Idiosyncratic carry a literal `{EffectValue1}` the
+archive never substituted — the defect already recorded above, where 4 of the 5
+prose mismatches are this.
+
+The tempting repair is to fill it from the bundled `effects` list. **That would
+print a real number in the wrong place.** `extract-passive-effects.py`
+deliberately skips slots that are unused *or* zero-valued — the
+`GrassMinotaur_PartnerSkill_2` finding, where a wired-up `Defense 0.0` made a
+skill look like it touched defence — so **`effects[0]` is not `EffectValue1`**.
+Index-based substitution is a plausible mapping onto a list whose indices do not
+mean what the placeholder means.
+
+So the row is flagged `descriptionIncomplete` and the **structured effects are
+rendered instead of the prose**. Same shape as the `<itemName id=…/>` rule: a
+placeholder must never survive as text, and a guess must never replace it.
+
+**And the existing wording guard was checking two of four places.** The test
+that forbids "chance of"/"guaranteed" read `note` and `mutatedEgg.note` only;
+the moment the payload grew `passivesNote` and `perSpeciesNote` it was a filter
+over part of its own surface — the "a filter applied to one of two endpoints is
+not a filter" shape, in a test rather than a route. It now walks every string in
+the payload recursively. So the quote-don't-mechanise rule in `basesupply.py` stands
 for everything except this one figure, which is the game's own.
 
 Inheritance itself is **random with a distribution the game ships**, in

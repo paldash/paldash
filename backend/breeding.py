@@ -947,10 +947,45 @@ def obtainability(species_id: str) -> dict[str, Any]:
         "one — that disagreement is unresolved and nothing in the game files "
         "settles it. Treat a suggested route for this Pal as unconfirmed."
     )
-    result["mutatedEgg"] = {
+    result["mutatedEgg"] = _mutated_egg()
+    return result
+
+
+def _mutated_egg() -> dict[str, Any]:
+    """
+    What the game says about mutated eggs, and what it does not.
+
+    Everything here is quoted or read off a column. The rate is the one thing
+    anybody wants and the one thing no file states — see `perSpecies` below.
+    """
+    return {
         "quote": MUTATED_EGG_QUOTE,
         "cakeQuote": MUTATION_CAKE_QUOTE,
         "cakeItem": "Cake04",
+        # `AddMutationPal`, the game's own column, true on exactly five of the
+        # 1,897 passives. Read from the FLAG, not from the id prefix: four are
+        # named `MutationPal_*` and the fifth is `RideJumpCount_Increase2`
+        # (Skymarcher), so the column carries information the naming does not.
+        "passives": gamedata.mutation_passives(),
+        "passivesNote": (
+            "The game flags these five passives with AddMutationPal. What the "
+            "flag means is not stated in any file — it is not a drop table and "
+            "carries no probability."
+        ),
+        # **Asked directly, and the answer is no.** No species table anywhere
+        # carries a mutation column; every term the game names is `Combi_*`,
+        # i.e. the breeding system keyed on the parents' rank and IVs. Stated
+        # out loud because "no per-Pal figure is shown" otherwise reads as a
+        # figure this dashboard failed to look up.
+        "perSpecies": False,
+        "perSpeciesNote": (
+            "Mutation chance is not a property of the species. The game's own "
+            "constants are Combi_MutationRate, Combi_MutationRankCoefficient, "
+            "Combi_MutationRankDiffPenalty and Combi_MutationMinTalent — the "
+            "breeding system, keyed on the parents' condenser rank and IVs. "
+            "Their values are compiled into the server binary rather than any "
+            "data file, so no rate can be shown for any pairing."
+        ),
         # Said explicitly, because the absence is the point. A UI that shows the
         # quotes without this reads as "here is how you get one".
         "note": (
@@ -959,7 +994,6 @@ def obtainability(species_id: str) -> dict[str, Any]:
             "it hatches, so this dashboard does not."
         ),
     }
-    return result
 
 
 def unbreedable() -> dict[str, Any]:

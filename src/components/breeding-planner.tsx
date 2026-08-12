@@ -560,6 +560,52 @@ function LimitGroup({
               </div>
               <div style={{ fontStyle: 'italic' }}>&ldquo;{egg.quote}&rdquo;</div>
               <div style={{ fontStyle: 'italic', marginTop: 4 }}>&ldquo;{egg.cakeQuote}&rdquo;</div>
+
+              {/* The five passives the game flags with `AddMutationPal`. A list
+                  with no weights and no ordering claim — it is a flag, not a
+                  drop table, and `passivesNote` says so directly beneath. */}
+              {!!egg.passives?.length && (
+                <div style={{ marginTop: 8 }}>
+                  <div style={{ color: 'var(--text-muted)', marginBottom: 3 }}>
+                    Passives the game marks as mutation-related:
+                  </div>
+                  {egg.passives.map((p) => (
+                    <div key={p.id} style={{ marginTop: 3 }}>
+                      <span style={{ color: 'var(--text-primary)' }}>{p.name}</span>
+                      {/* The archive left `{EffectValue1}` unsubstituted on three
+                          of these. Showing the structured effects instead is not
+                          a nicety: filling the placeholder from `effects[0]`
+                          would be wrong, because that list skips unused and
+                          zero-valued slots and so is not slot 1. */}
+                      {p.descriptionIncomplete ? (
+                        <span style={{ color: 'var(--text-secondary)', marginLeft: 6 }}>
+                          {(p.effects ?? [])
+                            .map((e) => `${e.type} ${e.value > 0 ? '+' : ''}${e.value}`)
+                            .join(', ')}
+                        </span>
+                      ) : (
+                        <span style={{ color: 'var(--text-secondary)', marginLeft: 6 }}>
+                          {p.description}
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                  {egg.passivesNote && (
+                    <div style={{ color: 'var(--text-muted)', marginTop: 4 }}>
+                      {egg.passivesNote}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Asked directly, so answered directly. Without this, "no rate is
+                  shown" reads as a number the dashboard failed to look up. */}
+              {egg.perSpecies === false && egg.perSpeciesNote && (
+                <div style={{ color: 'var(--text-muted)', marginTop: 6 }}>
+                  {egg.perSpeciesNote}
+                </div>
+              )}
+
               {/* The absence is the point, and it is stated rather than left
                   for the reader to infer from two suggestive quotes. */}
               <div style={{ color: 'var(--text-muted)', marginTop: 6 }}>{egg.note}</div>
