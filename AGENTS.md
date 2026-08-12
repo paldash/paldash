@@ -70,6 +70,19 @@ They write those backup archives into `$TMPDIR`. If that is a tmpfs, repeated
 interrupted runs will fill it, and a full `/tmp` presents as **every shell
 command failing with no output** rather than as a disk error.
 
+**One full run costs ~2.6 GB of `/tmp` and pytest does not always reclaim it**,
+so four runs on a 7.7 GB tmpfs is enough to wedge the machine. `rm -rf
+/tmp/pytest-of-$USER` before a full run; it is cheaper than diagnosing the
+symptom, which looks nothing like a disk problem.
+
+**And a suite that fails this way fails LOUDLY but not honestly.** A wedged run
+here reported 211 failures, every one `OSError: [Errno 122] Disk quota
+exceeded`, with the rest surfacing one layer down as `shutil.Error` while
+copying the reference world. None of them was a real defect. Check the *reason*
+before believing a failure count — and then re-run on a clear disk rather than
+reasoning your way to a pass, because "these all look environmental" is exactly
+what a genuine regression hiding among them would also look like.
+
 ## The rule that matters most
 
 **Never write to a save file unless the server is provably stopped.** A corrupted
