@@ -2113,7 +2113,18 @@ So the table catalogue was very nearly complete — the honest answer to "are yo
 missing tables" is **7**, not hundreds. They are `DT_PalRaidBoss`(+`_Common`),
 `DT_TalkCamera`, `DT_NPCAppearFlagDable`, `CT_AmmoMesh` and two Wwise tables.
 
-**The DataAssets were the real gap: 8 exist and 1 was read.**
+**And all seven were read rather than merely listed.** `DT_PalRaidBoss` was
+already covered by `extract-raidbosses.py`; the Wwise pair is audio;
+`CT_AmmoMesh` is the pak's only `CurveTable` and holds weapon meshes. The two
+that looked promising are **dev leftovers**: `DT_NPCAppearFlagDable` (the typo is
+Pocketpair's) has two rows, `TestName` and `TestName001`, with a single
+`DummyValue` column of 0; `DT_TalkCamera` has seven rows led by `TestCamera01`
+and holds cutscene camera transforms. Nothing to build on, which is worth
+recording so the next person does not re-open them on the strength of the names.
+
+**The DataAssets were the real gap: 8 exist and 1 was read.** And the reason is
+not the one stated when this section was first written — see the correction
+below.
 
     PalBuildObjectCapabilityDataAsset   DA_PalBuildObjectCapabilityData
     PalAchivementRewardDataAsset        DA_AchivementReward
@@ -2122,6 +2133,34 @@ missing tables" is **7**, not hundreds. They are `DT_PalRaidBoss`(+`_Common`),
     PalMultiProductModeDataAsset        DA_MultiProduct_LoggingMining
     PalCaptureBallEffectSettingDataAsset, PalOneStrokeGameDataAsset
     PalBreedingItemEffectDataAsset      <- the only one anything reads
+
+#### "THE PREFIX CENSUS EXCLUDED IT TOO" WAS WRONG — THE SCRIPT WAS NEVER RUN
+
+Written above, and in a commit message, on the same day: that
+`DA_PalBuildObjectCapabilityData` was missed because `mine-assets.py` selects by
+filename prefix. **`DA_` is in that script's `DATA_PREFIXES`.** It would have
+found the asset on the first sweep.
+
+What actually happened is worse and simpler: **`docs/assets.json` and
+`docs/ASSETS.md` do not exist.** The script was committed (`a063373`, "lab
+research + asset miner: bundles and tooling, no UI yet") and its output never
+was — and a full sweep takes **over ten minutes**, which is a plausible reason
+it was started once and abandoned.
+
+So the tool built specifically to end this class of miss had been sitting in the
+repo, correct, unrun, for the entire period during which the miss kept
+happening. Its own docstring says it exists so that *"I could not find it stops
+being evidence that it is not there"* — and nobody could find anything in it,
+because there was nothing to look in.
+
+**A tool that is not run is not a tool, and an index with no committed output is
+a promise.** `mine-datatables.py` and `mine-savefields.py` both ship their
+index; this one did not, and that difference is the whole failure. Anything
+added here must commit its output, or it does not count.
+
+*(The class-based enumeration below is still worth having: it is what makes the
+skip list reviewable and what found the 7 tables outside `/DataTable/`. It is
+just not what would have caught this one.)*
 
 **`IMPORT_RECORD_SIZE` is 32, not 28**, and that is the one mistake here that
 produces no exception: UE5.1 appended `bImportOptional`. At 28 a DataTable still
@@ -2135,6 +2174,27 @@ working**, since that would mean the check no longer discriminates.
 `CompositeDataTable` — 42 of them exist — so a `_Common` twin is its *parent
 table*, which is precisely why the pairs are byte-identical on every non-text
 table. The section above that puzzles over them now has its answer.
+
+### All eight DataAssets, read — and three of them are real features
+
+Every one decodes cleanly, each walk ending 4 bytes from its export end.
+
+| Asset | What it holds | Verdict |
+|---|---|---|
+| `DA_PalBuildObjectCapabilityData` | 48 structures -> output multipliers | **shipped**, see below |
+| `DA_AchivementReward` | the reward ITEMS for all 26 milestone tiers | **worth building** |
+| `DA_PalDisplay` | 22 KB of "show me a Pal" requests by area, with rewards | **worth building** |
+| `DA_ItemRequest` | NPC item requests -> rewards | **worth building** |
+| `DA_MultiProduct_LoggingMining` | Ancient multi-product station wiring | thin |
+| `DA_PalCaptureBallEffectSetting` | particle counts per Pal size | cosmetic |
+| `DA_BreedingItemEffectData` | the cakes | already read |
+| `DA_OneStrokeMinigameData` | a minigame | nothing |
+
+**`DA_AchivementReward` is the one that closes a gap already shipped.**
+`achievements.py` reads `DT_AchivementRewardNPC` for the 26 tiers and their
+thresholds, and has never been able to say what a tier *gives* —
+`BossDefeat_1` is `RequireCount 5` and `RewardItems: [ExpBoost_02 x3]`. The
+progression tab shows "unclaimed" against a reward it cannot name.
 
 ### `DA_PalBuildObjectCapabilityData` — 48 structures, and nothing reads it
 
