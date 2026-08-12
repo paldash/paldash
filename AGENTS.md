@@ -420,7 +420,49 @@ words — carries a **2.0** mutation-rate bonus.
 
 **What is still not stated is the BASE rate.** `MutationRateBonusPercent` is a
 bonus, and no file found so far gives the number it is added to, nor what a
-mutated egg hatches. So the quote-don't-mechanise rule in `basesupply.py` stands
+mutated egg hatches.
+
+### The mutation model is NAMED, and it is not per-species — asked 2026-08-12
+
+The operator asked whether the mutation rate differs per Pal, to show it on the
+breeding tab. **It does not.** Measured rather than assumed:
+
+- **No species table carries a mutation column.** Across all 471 catalogued
+  DataTables, exactly two mention mutation and both are `DT_PassiveSkill_Main`
+  (+`_Common`). `DT_PalMonsterParameter`'s 90 columns have none.
+- The binary names the model, and every term is `Combi_*` — the breeding
+  *system*, not a species property: `Combi_MutationRate`,
+  `_MutationRankCoefficient`, `_MutationRankDiffPenalty`, `_MutationMinTalent`,
+  `_MutationInitialRank`, `_MutationRandomCoefficient`.
+
+So the inputs it names are the parents' **rank and IVs**, plus a random term —
+species is not among them. **The values are native defaults and unreadable**, so
+no rate can be shown for anybody, and `basesupply.py`'s quote-don't-mechanise
+rule is unaffected.
+
+**What IS showable, and it is real data: `AddMutationPal`.** A boolean column on
+`DT_PassiveSkill_Main`, true on exactly **five** passives:
+
+| Passive | The game's own description |
+|---|---|
+| Babysitter | egg production and incubation speed at a Breeding Farm |
+| Idiosyncratic | regen, defence, immune to poison and burn |
+| Immortality | life steal, regen, attack |
+| Heavily Armored | immune to explosion damage |
+| **Skymarcher** | mounted jump count +2 |
+
+**Four of the five have ids beginning `MutationPal_`; Skymarcher's is
+`RideJumpCount_Increase2`.** That mismatch is the verification rather than an
+oddity — the column flags a passive whose *name* does not advertise it, so it
+carries information the naming convention does not, which is what distinguishes
+a real data column from a rule somebody could have derived from ids.
+
+The binary corroborates the concept with `MutationPalAssignableSkillMap`.
+
+**What the flag MEANS is still one inference deep.** "These five can appear on a
+mutated Pal" fits the ids, the map name and the descriptions, and it is not a
+sentence any file states. So it travels as *the game flags these five passives
+as mutation-related* — never as a drop table, and never with a rate. So the quote-don't-mechanise rule in `basesupply.py` stands
 for everything except this one figure, which is the game's own.
 
 Inheritance itself is **random with a distribution the game ships**, in
@@ -2007,7 +2049,83 @@ and not a last resort. **Reach for it earlier.**
 has no movement member … Seven, and four stats." The family is **ten**, and the
 word "complete" was the error. See directly below.)*
 
-## THE THIRD SURFACE: the server BINARY, which nobody had opened
+## ENUMERATE BY CLASS, NOT BY NAME — the root cause of all four misses
+
+**Asked directly by the operator, 2026-08-12: "are you sure there are no more
+files or tables you're missing? it's been like 4 times at least."** It has, and
+they share one cause worth naming once rather than apologising for individually:
+
+| The search | What it missed |
+|---|---|
+| DataTables | `BP_PalGameSetting`'s 347 constants (a Blueprint) |
+| DataTables | `DA_BreedingItemEffectData` (a DataAsset) |
+| `BP_Pal_*` | the species blueprints, named `BP_<Species>` |
+| both paks | the server binary |
+
+Every one enumerated by a **naming or directory convention** instead of by what
+the pak contains. And the reason nobody did better is structural:
+**`upackage` parsed the export map and never parsed the import map**, so an
+export's class — an `FPackageIndex` at offset 0, negative for an import — was
+not reachable. Globbing was the only tool available.
+
+`Package.export_class()` fixes that, and the census is now definitive:
+
+| | |
+|---|---:|
+| server-pak packages | 76,973 |
+| distinct export classes | **610** |
+| `DataTable` + `CompositeDataTable` + `CurveTable` | **907** |
+| …under a `/DataTable/` path | 900 |
+| **…outside it, which every glob missed** | **7** |
+| `/DataTable/` files that are *not* a table | 12 |
+
+So the table catalogue was very nearly complete — the honest answer to "are you
+missing tables" is **7**, not hundreds. They are `DT_PalRaidBoss`(+`_Common`),
+`DT_TalkCamera`, `DT_NPCAppearFlagDable`, `CT_AmmoMesh` and two Wwise tables.
+
+**The DataAssets were the real gap: 8 exist and 1 was read.**
+
+    PalBuildObjectCapabilityDataAsset   DA_PalBuildObjectCapabilityData
+    PalAchivementRewardDataAsset        DA_AchivementReward
+    PalCircumRequestDataAsset           DA_ItemRequest
+    PalDisplayRequestDataAsset          DA_PalDisplay
+    PalMultiProductModeDataAsset        DA_MultiProduct_LoggingMining
+    PalCaptureBallEffectSettingDataAsset, PalOneStrokeGameDataAsset
+    PalBreedingItemEffectDataAsset      <- the only one anything reads
+
+**`IMPORT_RECORD_SIZE` is 32, not 28**, and that is the one mistake here that
+produces no exception: UE5.1 appended `bImportOptional`. At 28 a DataTable still
+resolves correctly — its class import happens to sit at index 0 — while every
+blueprint comes back as an unrelated asset path. There is no version field to
+branch on, so `test_upackage_class.py` pins it by resolving known assets to
+known classes, and carries a guard that **fails if stride 28 ever starts
+working**, since that would mean the check no longer discriminates.
+
+**And `_Common` twins are not a Palworld quirk.** `DT_PalMonsterParameter` is a
+`CompositeDataTable` — 42 of them exist — so a `_Common` twin is its *parent
+table*, which is precisely why the pairs are byte-identical on every non-text
+table. The section above that puzzles over them now has its answer.
+
+### `DA_PalBuildObjectCapabilityData` — 48 structures, and nothing reads it
+
+Decodes cleanly (walk ends 4 bytes from the end, the usual tail).
+`BuildObjectCapabilityMap` is structure -> capability -> number:
+
+| Capability | Rows | Range |
+|---|---:|---|
+| `WorkSpeedAdditionalRate` | 33 | BlastFurnace **1.0** -> BlastFurnace4 **4.5** -> Ancient **11.0** |
+| `ReviveSpeedMultiplier` | 6 | medical beds, 1.2 -> Ancient 2.0 |
+| `GenerateEnergyRateByWorker` | 4 | hand-cranked **0.2** -> Ancient **20.0** |
+| `AffectSanityRate` | 4 | the Spa, Ancient 2.0 |
+| `MaxEnergyStorage` | 1 | 1,000,000 |
+
+This is the multiplier a *structure* contributes, which pairs with the work-rank
+curve `workrank.py` already reads (the Pal's side). Nothing in `backend/` reads
+it.
+
+**IT DOES NOT SAY WHAT A CONTAINER ACCEPTS.** The name reads like it might, and
+`basesupply.py`'s refusal — "Pal food must be in a Feed Box" is stated in no game
+file — **stands unchanged**. There is no Feed Box row and no item filter in it.
 
 **Raised by the operator, 2026-08-12** — *"there should be something in game for
 Melpaca speed and work suitability rises; it seems weird to be parsed at game
@@ -2103,6 +2221,30 @@ readout names **Attack, Defense and HP only**, with no speed row. That is weak
 evidence about the condenser-and-movement question (#106) — a UI may simply not
 show a thing — but it points away from a movement term, and it is the first
 file-side evidence in either direction.
+
+### And the condenser-to-speed link is absent by ENUMERATION now
+
+The game has a naming convention for "this scales with condenser rank", and it
+has exactly two members on each side:
+
+    GetRankBasedWorkSuitabilityBonus     GetWorkSuitabilityRankWithCharacterRank
+    GetRankBasedWorkSuitabilityBonuses   GetWorkSuitabilityRanksWithCharacterRank
+
+**No movement member.** No `GetRankBasedMoveSpeed`, no `…WithCharacterRank` for
+any speed. The only rank-and-speed names in the entire binary are
+`GetWorkSpeedRank`, `Rank_CraftSpeed` and `AddWorkSpeedPerWorkSpeedRank`, which
+are the **soul** ranks feeding craft speed — already read by `palstats`.
+
+Three independent file-side signals now point the same way: the
+`StatusCalculate_*` family is enumerated at ten with no movement member, the
+condenser screen previews no speed, and the rank-scaling function family has no
+movement member.
+
+**It is still not proof.** Native code need not follow a naming convention and
+the values remain unreadable, so #106's measurement is what decides it. But the
+prior has moved, and the honest reading is that a movement term probably does
+not exist — which is worth saying plainly rather than leaving the question
+looking wide open.
 
 **What that does and does not do to the open question.** It does not settle
 whether the condenser scales the speed columns — that stays unverified and the
