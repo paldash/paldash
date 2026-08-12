@@ -12,6 +12,7 @@ import type { BaseStorage } from '@/lib/types';
 import { CAPABILITIES } from '@/lib/permissions';
 import BaseSupplyPanel from '@/components/base-supply';
 import BaseAssignPanel from '@/components/base-assign';
+import BaseWorkingPanel from '@/components/base-working';
 import LabResearchPanel from '@/components/lab-research';
 
 /** A base this full is about to start dropping what its Pals produce. */
@@ -385,6 +386,12 @@ export default function BaseViewer() {
           than containers — and because it recommends where supply only
           reports. */}
       <BaseAssignPanel />
+
+      {/* Directly beneath, because the pair is the point: the panel above ranks
+          who SHOULD work where, this reports who the game actually assigned.
+          Separating them across tabs would let a recommendation be mistaken for
+          a fact, which is the one confusion worth spending vertical space on. */}
+      <BaseWorkingPanel />
 
       {/* Guild-wide and permanent, which is why it sits with Bases rather than
           on a Pal: it is the upgrade that explains why two identical Pals
