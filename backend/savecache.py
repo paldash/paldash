@@ -31,6 +31,8 @@ from typing import Any, Optional
 
 from savefiles import CACHE_DIR, get_level_sav_path
 
+import worldclock
+
 logger = logging.getLogger(__name__)
 
 PARSE_ENABLED = os.environ.get("PARSE_ENABLED", "true").lower() != "false"
@@ -203,6 +205,11 @@ def status() -> dict[str, Any]:
         "load": load_verdict(),
         "levelSizeMb": data.get("levelSizeMb"),
         "counts": data.get("counts", {}),
+        # "Day 481 · 12:20" — the most human number a Palworld dashboard can
+        # show, and it comes from the save, so it is still true with the server
+        # down. `describe` returns None rather than a zeroed clock when the save
+        # carried none: a world this cannot read is not a world on day 1.
+        "worldClock": worldclock.describe(data.get("worldClock")),
     }
 
 
