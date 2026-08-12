@@ -2445,6 +2445,52 @@ edit that changed nothing planned as a change every time. It now expands a dict
 only when it is *not* itself a declared field. `ivs` is a grouping whose members
 are the real fields; `workRanks` is one field that happens to hold a map.
 
+## The world clock is two DURATIONS, and one of them is uptime
+
+`backend/worldclock.py`. `GameTimeSaveData` holds `GameDateTimeTicks` and
+`RealDateTimeTicks` — both **elapsed durations** in .NET ticks counted from
+zero, which is the exact opposite of `OwnedTime`, whose name reads as a duration
+and is an absolute timestamp. Same unit, opposite meaning; do not share a helper.
+
+**The units are verified against a control.** Two backups of the same server
+exactly 24 real hours apart:
+
+| | |
+|---|---:|
+| `RealDateTimeTicks` advanced | **21.43 h** |
+| `GameDateTimeTicks` advanced | 1,055.66 h = **43.99 game-days** |
+| implied game-day length | **29.2 real minutes** |
+
+29.2 minutes is Palworld's own cycle, which says the tick scale is right. And
+the real counter advancing only 21.43 of 24 hours says it counts **server
+uptime**, not wall time — that server was down 11% of the day. It travels as
+`serverUptimeHours` so nobody renders it as the world's age.
+
+**No INI dependency, which the task expected there to be.**
+`DayTimeSpeedRate`/`NightTimeSpeedRate` govern how fast game time advances
+*relative to real time*; `GameDateTimeTicks` is already game time, so turning it
+into a day needs only how many game-hours are in a game day.
+
+### The five hours that are NOT established
+
+`BP_PalGameSetting` has `NightStartHour = 23`, `NightEndHour = 3` and
+**`PalWorldTime_GameStartHour = 5`**. The first two settle that the clock is a
+24-hour one. The third does not settle what it looks like: whether the counter
+is **seeded** with those five hours at world creation, or starts at zero and the
+game adds them when it draws a clock. Nothing discriminates — a constant offset
+**cancels in the difference** the units were verified with.
+
+So `day` ships plainly (the ambiguity can only move a boundary), `timeOfDay`
+carries `clockOffsetVerified: false` and names the constant, and **no day/night
+indicator is emitted at all**. Night is a four-hour window, so a five-hour error
+could invert it, and a wrong clock reads as a cosmetic glitch where a wrong "it
+is night" reads as a fact about the world. A test asserts that absence, because
+adding one is the tempting next commit. One in-game reading settles it.
+
+**And `isinstance(True, int)` is True in Python**, so the first version rendered
+`gameTicks: True` as Day 1 at 00:00 — a confident clock built from a flag. Every
+numeric read here carries the `not isinstance(x, bool)` guard for that reason.
+
 ## Ownership history is a list of UUIDs, not a list of strings
 
 `OldOwnerPlayerUIds` is present on **100% of Pals** — the only record of a trade
