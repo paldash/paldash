@@ -604,6 +604,80 @@ the breeding scope payload for the same reason scope itself does: the total
 legitimately exceeds the palbox, and an unexplained larger number reads as a
 miscount rather than as a fuller answer.
 
+## Every gatherable's respawn clock is in the save, and it cannot be mapped
+
+`scripts/decode-spawner-state.py`. `MapObjectSpawnerInStageSaveData` was the
+**single largest unread structure in the save** — 31,824 slots on refworld, no
+backend module mentioning one of its field names. Task #86 guessed it holds
+which ore nodes and chests have been harvested and when they return.
+
+    MapObjectSpawnerInStageSaveData          keyed by STAGE
+      key.InternalId                         all-zero = the overworld
+      value.SpawnerDataMapByLevelObjectInstanceId
+        key                                  a LEVEL OBJECT instance id
+        value.ItemMap                        int -> struct
+          NextLotteryGameTime  Int64
+          MapObjectInstanceId  Guid          the object standing there now
+
+### The verification is a contingency table, not a count
+
+Cross-tabulate "does `MapObjectInstanceId` resolve in `MapObjectSaveData`"
+against "is a respawn timer set", and the two independently-read fields agree
+with **no exceptions**:
+
+| | standing | gone |
+|---|---:|---:|
+| no timer (`-1`) | **2,788** | 17,761 |
+| timer set | **0** | 11,275 |
+
+**Zero violations across three worlds and ~99,800 slots.** That is stronger than
+any count could be: it is the model predicting a relationship between two fields
+and being right every time. A spawner whose object stands has no timer; one with
+a timer has no object.
+
+Supporting: 154 of refworld's timestamps sit in the *future* against
+`GameTimeSaveData.GameDateTimeTicks` — a clock from an unrelated structure —
+0.5 to 219 game-hours out with a smoothly decaying histogram; and the objects
+that resolve are `TreasureBox`, fishing junk and `DamagableRock*` (Copper Ore,
+Rock), which is what a gatherable spawner should point at.
+
+### READ EVERY STAGE — `[0]` silently drops the dungeons
+
+The outer map is keyed by stage. refworld has **one** entry; a later snapshot of
+the same server has **three** — the overworld (34,598 spawners) plus two
+instanced stages with **5 spawners each**, which are dungeon chests.
+
+This is the `base_camp_level` mistake exactly: that field went unread for months
+because a check sampled `GroupSaveDataMap[0]`, which could never have carried
+it. **Sample by variant, never by index.**
+
+### `DateTime.MaxValue` means never, and it reads as a value
+
+`3155378975999999999` is exactly .NET's `DateTime.MaxValue.Ticks`. Taken as a
+duration it is **87,637,883 game-hours**, and the first version of the summary
+printed that as the respawn range — nonsense wearing a number. Excluding it,
+**316 of 319 pending timers fall within 30 days**. Three sentinels, all
+distinct: `-1` idle, `0` never written, `MaxValue` never respawns. Same family
+as `RideSprintSpeed = -1`.
+
+### Why there is no map layer, and the one thing that would unblock it
+
+- the spawner key is a **level object instance id**, and **0 of 31,774 resolve**
+  against `MapObjectSaveData` — a different id space, as the field name says
+- `worldobjects.json.gz` carries all 59,396 spawn points from the pak as
+  `cls, x, y, z` and **no GUID**
+
+So the save knows *that* a node is respawning, the pak knows *where* every node
+is, and nothing connects them. **The unblock is a technique this project already
+owns**: `extract-effigies.py` reads an actor's instance GUID out of a world cell
+(byte 252 on the relic actor), which is how 396 effigies got save-matching ids.
+Teaching `extract-world-objects.py` to capture the same per object would turn
+154 numbers into 154 map pins. The offset will not be 252 for every actor class,
+so it is real work — but a path, not a wall.
+
+Nothing in `backend/` reads the structure meanwhile: **a respawn timer with no
+position is a number, not a feature.**
+
 ## The base ModuleMap: seven blobs are empty, one is a constant, one decodes
 
 `scripts/decode-basecamp-modules.py`. Task #88 asked about "46 constant bytes on
