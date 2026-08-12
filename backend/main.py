@@ -25,6 +25,7 @@ from pydantic import BaseModel
 
 import accounts
 import announcements
+import achievements
 import audit
 import authz
 import baseprivacy
@@ -3317,6 +3318,15 @@ def get_progress_detail(request: Request, uid: Optional[str] = None) -> dict[str
             "uid": player.get("uid"),
             "name": player.get("name"),
             "level": player.get("level"),
+            # The game's own milestone NPC, NOT Steam achievements — see
+            # `achievements.py`. Folded in here rather than given a route
+            # because it answers the same question off the same save data, and
+            # the Progression tab is where a player looks for it.
+            #
+            # NOT subject to `show_missing`: a locked tier is a threshold from a
+            # bundled table, the same public information the checklists' totals
+            # come from. It reveals nothing about what anyone has found.
+            "achievements": achievements.summarise(player.get("progress") or {}),
             **detail,
         })
 
@@ -3324,6 +3334,7 @@ def get_progress_detail(request: Request, uid: Optional[str] = None) -> dict[str
         "players": entries,
         "showsMissing": show_missing,
         "available": progresscheck.available(),
+        "achievementsAvailable": achievements.available(),
     }
 
 
