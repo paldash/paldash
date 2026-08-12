@@ -1085,6 +1085,33 @@ export interface CacheStatus {
   schemaStale?: boolean;
   levelSizeMb?: number;
   counts: Record<string, number>;
+  /** null when the save carried no clock — NOT a world on day 1. */
+  worldClock?: WorldClock | null;
+}
+
+/**
+ * How old the world is, from `GameTimeSaveData`. Comes out of the save, so it
+ * is still true while the server is off.
+ */
+export interface WorldClock {
+  /** Counts from 1. Safe — the offset below can only move a day boundary. */
+  day: number;
+  hour: number;
+  minute: number;
+  timeOfDay: string;
+  gameTicks: number;
+  gameHours: number;
+  /**
+   * **Always false so far.** `PalWorldTime_GameStartHour` is 5 and it is not
+   * established whether the counter is seeded with it, so the clock may be five
+   * hours out. Never render a day/night state from this — night is a four-hour
+   * window, so a five-hour error could invert it.
+   */
+  clockOffsetVerified: boolean;
+  clockOffsetNote: string;
+  /** Server UPTIME, not the world's age. Absent if the save lacked it. */
+  serverUptimeHours?: number;
+  timeRatio?: number | null;
 }
 
 /** A placed world object with coordinates: chest, palbox, farm, bench… */
