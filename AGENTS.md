@@ -1888,6 +1888,76 @@ by the table rather than merely unsupported by our copy. (It also independently
 re-confirms the `RestrictionItems` mount rule: Galeclaw is one of the 17 pieces
 of PalGear named by no restriction row.)
 
+### The element chart is absent by ENUMERATION now, not by failed search
+
+`elements.py` ships the effectiveness relation as a hand-entered constant, and
+this file calls it "the only thing here that can silently rot". The negative
+behind it used to be "we scanned 480 DataTables and found nothing", which is a
+search that failed rather than a set that is closed.
+
+It is closed now. A 9-second sweep of all 76,973 server-pak packages finds
+**exactly 14 that name all nine `EPalElementType::` values**, and every one is
+accounted for:
+
+| Asset | What it does with elements |
+|---|---|
+| `DT_PalMonsterParameter` (+`_Common`) | each species tags **its own** element |
+| `DT_WazaDataTable` (+`_Common`) | each skill tags its own |
+| `DT_PassiveSkill_Main` (+`_Common`) | each passive tags its own |
+| `DT_PartnerSkillParameter` | same |
+| `DT_PalAwakeningItemElement` | item -> element, no multipliers |
+| `WBP_PalElementIcon`, `WBP_MainMenu_Pal_StatusElement`, `WBP_..._Skill_Active` | UI icons |
+| `BP_PalGameSetting` | `DamageElementMatchRate = 1.2`, already known |
+| **`BP_PalWazaDatabase`** | `AdditionalEffectToStatusID` (ailment->status), `OtomoBoringTimeWazaID` (element->idle skill) |
+| **`BP_PalItemIDManager`** | `PalEggStaticItemIdMap` (element->egg items) |
+
+The last two are the ones task #46 asked to check and nobody had. Both CDOs
+decode cleanly — 545/549 and 4,264/4,268 bytes, the same four-byte tail
+`BP_PalGameSetting` leaves — and **neither holds an element-to-element
+relation.** One further asset names eight of nine
+(`DT_CharacterTeamMissionDataTable`) and is a mission table.
+
+So no asset in the pak maps one element onto another. The chart is C++, the
+hand-entered constant stays, and the justification is now an enumeration.
+
+### "THE WALK ENDS AT THE BUFFER END" PROVES ALIGNMENT, NOT VALUES
+
+Found while diffing the `_Common` twins, and it qualifies the acceptance
+criterion this project quotes everywhere.
+
+`DT_PalMonsterParameter` and `DT_PalMonsterParameter_Common` have the same 753
+keys and differ on **exactly one column**: `MeshRelativeLocation`, on 97 rows.
+It is a `Vector 24B` opaque, and on 64 rows of one table and 33 of the other its
+decoded value is a **row-shaped dict rather than `{"_opaque": ...}`** — not equal
+to any real row, just junk that parsed.
+
+**The walk is still perfectly aligned**, and that is the point. `_value`
+over-reads the opaque struct, and the caller then snaps to `start + size`, so
+position is restored and every subsequent property lands correctly. The
+end-of-buffer check passes exactly as designed **and cannot see this**.
+
+Blast radius, measured: **zero**. Every column this project reads —
+`RideSprintSpeed`, `RunSpeed`, `WalkSpeed`, `SwimSpeed`, `Stamina`,
+`BestWorkSuitability`, `ZukanIndexSuffix`, `IgnoreCombi`, `CombiRank` — is
+present and identical on those rows in both tables. Nothing bundled is wrong.
+
+The transferable half: **a terminating walk certifies the tag stream, not the
+payload of a type the reader declined to understand.** Before trusting any
+opaque struct's *value*, check it separately — the boss-spawner Vector decode
+does exactly that, against the cell grid, and is the pattern to copy.
+
+### The `_Common` twins are the same table, with two exceptions
+
+41 DataTables have a `_Common` twin. Every non-text one this project reads is
+**byte-identical**, including `DT_ItemShopCreateData` — which answers #46's
+"which one does the game use?" with "it does not matter". The `*Text` twins all
+differ, which is expected: they are the localisation source and its override.
+
+Two real differences, neither currently read:
+**`DT_MapObjectMasterDataTable` 1,034 vs 632 rows**, and `DT_PalDropItem`
+1,044 vs 1,043. Anyone reaching for either should establish which is
+authoritative first.
+
 ### NOTHING IN EITHER PAK READS `GenkaiToppa_PerAdd` — 153,951 packages checked
 
 Raised by the operator, 2026-08-12, against a task that asked them to time a Pal
