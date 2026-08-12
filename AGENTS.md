@@ -4301,6 +4301,19 @@ must actually be numbers.
 
 ## Read `docs/SAVE-FIELDS.md` before deciding a field is not in the save
 
+**THAT CONCLUSION HAS NOW BEEN WRONG FIVE TIMES, AND THE FIFTH IS THE WORST OF
+THEM.** `docs/AUDIT.md` recorded the in-game clock as *"not in the save — zero
+world-time fields across three worlds"*. `GameTimeSaveData` is in all three, and
+**`docs/savefields.json` had indexed both of its fields since #85 built it.**
+The index and the audit were in direct contradiction, in the same repository,
+and the audit is what a reader reaches for.
+
+The other four were a field nobody had looked for. This one was a field this
+project had already catalogued and then written down as absent. **Grep the index
+before writing a negative into the audit** — it costs one command and it is the
+whole reason the index exists.
+
+
 `scripts/mine-savefields.py` walks a save with the **full** custom-property set
 and catalogues every field path with its type, occupancy and shape, then
 cross-references it against what `backend/*.py` actually mentions. The output is

@@ -1008,7 +1008,7 @@ and each has its protocol written down:
 |---|---|---|
 | #96 | Condensation suitability rule | **needs two in-game readings** — a 1-star Anubis and a 4-star Verdash, both already owned. Nothing else unblocks it |
 | #33 | Non-Steam player handling | needs an Xbox/PS5/Mac account on a real server to verify against |
-| #79 | In-game clock and day count | **not in the save** — zero world-time fields across three worlds. May be in the game's REST `metrics`, which cannot be checked without a live server |
+| #79 | In-game clock and day count | **done — and this row was a FALSE NEGATIVE.** It said "not in the save, zero world-time fields across three worlds". `GameTimeSaveData` is in all three, with `GameDateTimeTicks` and `RealDateTimeTicks`, and **`docs/savefields.json` indexed both the whole time** — the project's own index contradicted its own audit. Now shipped as "Day 481 · 12:20", units verified against a control (two backups 24 h apart put a game day at 29.2 real minutes) and the five-hour epoch offset explicitly not guessed |
 
 ### And one piece of tooling that is not finished
 
