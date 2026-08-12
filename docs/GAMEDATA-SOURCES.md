@@ -228,8 +228,12 @@ component export rather than the actor CDO:
     BP_BirdDragon -> StaticCharacterParameterComponent
                        MovementType = EPalMonsterMovementType::Fly
 
-31 of 772 override it — `Fly` 30, `FlyAndLanding` 12, `Swim` 10 — and the rest
-inherit `GroundOnly`. The control: `Serpent`/`Umihebi` are `Swim` while their
+**31 of the 772 `BP_<Species>` files override it**; the rest inherit. Resolved
+onto the 753 species ids (a `BOSS_` form inherits its base's mode, so one file
+can cover two ids) that is **52 non-ground species** — `Fly` 30,
+`FlyAndLanding` 12, `Swim` 10 — against 701 `GroundOnly`. Those are two
+different denominators and quoting one as the other is the "159 field bosses"
+mistake. The control: `Serpent`/`Umihebi` are `Swim` while their
 land variants `Serpent_Ground` (Surfent Terra) and `Umihebi_Fire` (Jormuntide
 Ignis) are **explicitly reset to `GroundOnly`**.
 
