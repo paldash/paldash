@@ -131,6 +131,21 @@ def build() -> dict:
             "element": _bare(row.get("TargetElementType")) or "",
         }
 
+        # `AddMutationPal` — the game's own flag, true on exactly five rows.
+        # Carried only when set, so its absence stays the ordinary case rather
+        # than a `false` on 1,900 entries.
+        #
+        # **Four of the five have ids beginning `MutationPal_`; Skymarcher's is
+        # `RideJumpCount_Increase2`.** That mismatch is what makes this a data
+        # column worth reading rather than a rule anybody could have derived
+        # from the naming, and it is why the flag is read instead of the prefix.
+        #
+        # WHAT IT MEANS IS NOT CLAIMED HERE. "These can appear on a mutated Pal"
+        # fits the ids and the binary's `MutationPalAssignableSkillMap`, and no
+        # file states it. Callers must present the flag, never a drop rate.
+        if row.get("AddMutationPal") is True:
+            out[name]["addMutationPal"] = True
+
     return out
 
 

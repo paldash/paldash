@@ -1703,6 +1703,38 @@ export interface BreedingLimitRow {
     quote: string;
     cakeQuote: string;
     cakeItem: string;
+    /**
+     * The five passives the game flags with `AddMutationPal` — a real column,
+     * read from the flag rather than the id prefix because four are named
+     * `MutationPal_*` and the fifth (Skymarcher) is not.
+     *
+     * NOT a drop table and NOT weighted. What the flag means is stated in no
+     * game file, which is what `passivesNote` says.
+     */
+    passives?: {
+      id: string;
+      name: string;
+      /** The game's own prose. May be incomplete — see `descriptionIncomplete`. */
+      description: string;
+      rank?: number;
+      /** Structured effects, which is what to render when the prose is broken. */
+      effects?: { type: string; value: number; target?: string }[];
+      /**
+       * The archive shipped this row with an unsubstituted `{EffectValue1}`.
+       * Render the effects instead; do NOT fill the placeholder from
+       * `effects[0]`, which skips unused slots and so is not slot 1.
+       */
+      descriptionIncomplete?: boolean;
+      known?: boolean;
+    }[];
+    passivesNote?: string;
+    /**
+     * Always false. Mutation chance is a property of the breeding system, not
+     * of a species — every constant the game names is `Combi_*`, keyed on the
+     * parents' rank and IVs, with values compiled into the server binary.
+     */
+    perSpecies?: boolean;
+    perSpeciesNote?: string;
     /** That no game file says what produces one. The absence is the point. */
     note: string;
   };

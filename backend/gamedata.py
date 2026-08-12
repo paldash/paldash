@@ -1901,6 +1901,60 @@ def passive_effects_all() -> dict[str, Any]:
     return _passive_effects or {}
 
 
+def mutation_passives() -> list[dict[str, Any]]:
+    """
+    The passives the game flags with `AddMutationPal`, with their own prose.
+
+    Five of the 1,897, and the flag is read rather than the id prefix for a
+    reason worth keeping: four are named `MutationPal_*` and the fifth is
+    `RideJumpCount_Increase2` (Skymarcher). **The column therefore carries
+    information the naming convention does not**, which is what makes it a data
+    column rather than a rule anybody could have derived from ids.
+
+    **WHAT THE FLAG MEANS IS NOT CLAIMED.** "These can appear on a mutated Pal"
+    fits the ids and the binary's `MutationPalAssignableSkillMap`, and no game
+    file states it. Callers present the flag and the game's own descriptions —
+    never a rate, and never as a drop table. There is no per-species mutation
+    data anywhere: every term the binary names is `Combi_*`, i.e. the breeding
+    system keyed on the parents' rank and IVs, and those values are native
+    defaults this project cannot read.
+
+    Sorted by id so the order is stable across regenerations.
+    """
+    flagged = {
+        key for key, entry in (passive_effects_all() or {}).items()
+        if isinstance(entry, dict) and entry.get("addMutationPal")
+    }
+    if not flagged:
+        return []
+
+    out: list[dict[str, Any]] = []
+    # Walk the CATALOGUE, not the effects bundle: the latter is keyed lowercase
+    # for case-insensitive lookup, and the API speaks canonical ids everywhere.
+    for passive_id in sorted((load() or {}).get("passives") or {}):
+        if str(passive_id).lower() not in flagged:
+            continue
+        # `describe_passive` already resolves name, prose and the `known` flag.
+        # Reimplementing that is a second lookup path to drift from the first.
+        entry = describe_passive(passive_id)
+        effects = (passive_effects(passive_id) or {}).get("effects") or []
+        entry["effects"] = effects
+
+        # **THE PROSE IS BROKEN ON THREE OF THE FIVE**, carrying a literal
+        # `{EffectValue1}` the archive never substituted — a documented defect
+        # in this data, not a decode failure.
+        #
+        # DO NOT SUBSTITUTE FROM `effects` BY INDEX. That list skips unused and
+        # zero-valued slots, so `effects[0]` is not necessarily `EffectValue1`;
+        # filling the placeholder from it would print a real number in the wrong
+        # place, which reads as fact. The structured effects travel instead and
+        # the caller renders those.
+        if "{EffectValue" in (entry.get("description") or ""):
+            entry["descriptionIncomplete"] = True
+        out.append(entry)
+    return out
+
+
 def effigy_kind_name(kind: str) -> str:
     """
     A blueprint class like `BP_LevelObject_Relic_SheepBall` -> "Lamball Effigy".
