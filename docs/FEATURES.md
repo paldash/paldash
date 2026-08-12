@@ -16,6 +16,7 @@ Legend: ✅ works · 🟡 works with a caveat · 🔴 not built · ⚪ out of sc
 | Feature | State | Notes |
 |---|---|---|
 | Live server status | ✅ | REST API + TCP + save-mtime + process scan |
+| In-game day & clock | ✅ | 2026-08-12 (task #79). "Day 481 · 12:20" in the status strip, from `GameTimeSaveData` — **from the save**, so it survives the server being off. Units verified against a control: two backups 24 real hours apart put a game day at 29.2 real minutes. The **day** is plain; the **time** is marked, because it is not established whether the counter is seeded with `PalWorldTime_GameStartHour = 5`. No day/night indicator, deliberately — night is a four-hour window and a five-hour error could invert it |
 | Player count / online list | ✅ | via Palworld REST API |
 | Server settings viewer & editor | ✅ | `PalWorldSettings.ini`, CRLF-preserving |
 | Settings presets | ✅ | **Phase 9.** `boosted`, `small_server`, `punishing` and a derived `vanilla` reset, all checked against `DefaultPalWorldSettings.ini`'s 119 keys rather than against memory |

@@ -471,6 +471,35 @@ export default function Home() {
             {!store.backendOnline && (
               <span className="badge badge-warning">Save backend offline</span>
             )}
+            {store.backendOnline && store.cacheStatus?.worldClock && (
+              /* "Day 481 · 12:20" — the most human number here, and it comes
+                 from the save rather than the live API, so it stays true while
+                 the server is off.
+
+                 The time carries a tooltip because the five-hour epoch offset
+                 is unverified; the DAY is not hedged, since the ambiguity can
+                 only ever move a boundary. Deliberately no day/night icon — see
+                 backend/worldclock.py. */
+              <span
+                style={{ fontSize: 11, color: 'var(--text-muted)' }}
+                title={
+                  `${store.cacheStatus.worldClock.gameHours.toLocaleString()} in-game hours` +
+                  (store.cacheStatus.worldClock.serverUptimeHours
+                    ? ` · server up ${store.cacheStatus.worldClock.serverUptimeHours.toLocaleString()} h`
+                    : '') +
+                  (store.cacheStatus.worldClock.clockOffsetVerified
+                    ? ''
+                    : ` · ${store.cacheStatus.worldClock.clockOffsetNote}`)
+                }
+              >
+                Day {store.cacheStatus.worldClock.day.toLocaleString()}
+                {' · '}
+                {store.cacheStatus.worldClock.timeOfDay}
+                {!store.cacheStatus.worldClock.clockOffsetVerified && (
+                  <span style={{ opacity: 0.6 }}>?</span>
+                )}
+              </span>
+            )}
             {store.backendOnline && store.cacheStatus && (
               <>
                 {/* Three states, not two. "Re-parsing after an update" and
