@@ -999,7 +999,7 @@ and each has its protocol written down:
 
 | | Task | What settles it |
 |---|---|---|
-| #106 | Does the condenser change movement speed | one timed run, 0★ vs 4★, same species, no `MoveSpeed` passives |
+| #106 | Does the condenser change movement speed | **protocol rewritten 2026-08-12.** Not a yes/no run: **measure the ratio**, on foot *and* ridden, on **Melpaca** — #103 established 96 species carry rank-indexed partner skills that move these numbers, so Direhowl would measure the partner skill instead. Exactly 1.20 confirms the known `GenkaiToppa_PerAdd` and generalises to all 753; any other non-unity ratio means a second native constant and **nothing may be generalised**. Searching first was exhausted: `GenkaiToppa` appears in **1 of 153,951 packages** across both paks — its own declaration — so the arithmetic is native C++ |
 | #96 | Condenser 2nd/3rd suitability ordering | one 4-star Pal with 4+ suitabilities; 262 of 343 species are already fully determined without it |
 
 ### Phase 12 — Blocked or cheap-but-unverifiable

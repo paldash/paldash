@@ -4,8 +4,12 @@ What exists **today**, as of 2026-07-30 (Phases 0–9 complete). Written because
 roadmap in `AUDIT.md` tracks *gaps* — anything already working simply does not appear
 there, which makes finished features look missing.
 
-Evidence: 108 backend routes, 41 backend modules, 24 UI components,
-17,435 lines of backend Python against 11,571 lines of backend tests.
+Evidence, re-counted 2026-08-12: **145 backend routes, 67 backend modules,
+44 UI components, 34,756 lines of backend Python against 27,236 lines of backend
+tests.** The previous figures here (108/41/24, 17,435/11,571) were roughly half
+of these — a header labelled *evidence* that had not been re-measured since it
+was written. Re-count it when you change it; `grep -c '^@app\.'` and `wc -l` are
+the whole job.
 
 Legend: ✅ works · 🟡 works with a caveat · 🔴 not built · ⚪ out of scope
 
