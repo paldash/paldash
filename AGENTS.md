@@ -604,6 +604,97 @@ the breeding scope payload for the same reason scope itself does: the total
 legitimately exceeds the palbox, and an unexplained larger number reads as a
 miscount rather than as a fuller answer.
 
+## Who IS working, not who SHOULD — `WorkSaveData` was read by nothing
+
+`parser.extract_work_assignments` + `backend/workassign.py`. 160 entries on the
+reference world and 26 unread field paths beneath them. `baseassign.py` *infers*
+base work — structures from `DT_MapObjectAssignData`, then a ranking. This is
+the game's own record of what it actually assigned, and it is the question an
+operator asks first: not "who should mine" but **"who IS mining"**.
+
+**No byte offsets.** `.worldSaveData.WorkSaveData` is a palsav custom property,
+so `RawData` decodes to named fields — `extract_pal_storage`'s rule rather than
+`extract_base_workers`'. Every join was verified before anything was built:
+
+| Join | Resolves |
+|---|---:|
+| `owner_map_object_model_id` -> `Model.RawData.instance_id` | **160/160** |
+| `owner_map_object_concrete_model_id` -> `concrete_model_instance_id` | **160/160** |
+| `assigned_individual_id.instance_id` -> `CharacterSaveParameterMap` | 59/60 |
+| `base_camp_id_belong_to` -> `BaseCampSaveData` | 159/160 |
+
+**`MapObjectId` is a NAME, not a GUID** (`DamagableRock0002`). Joining on it
+resolves **0 of 160** and reads as the field being wrong; the GUID is one level
+down in `Model.RawData`.
+
+### The work type is reached two ways and they never disagree
+
+`assign_define_data_id` (`MonsterFarm_0`) has a stem that keys
+`DT_MapObjectAssignData` directly, and the structure reached by walking to the
+placed object keys the *same* table. 158/160 and 159/160 resolve, and **on all
+160 the two give the same work**. That agreement is the verification — a
+misaligned read does not produce two independent keys landing on one answer.
+The row count would never have shown it.
+
+### Three real states, all reported rather than smoothed away
+
+- **A stale assignment.** One of the 60 names a Pal that is in no
+  `CharacterSaveParameterMap` entry — a Ranch slot pointing at something gone.
+  Dropped from `assigned` and **counted**: a slot that looks occupied and is not
+  is worth telling somebody, and dropping it silently makes the base read as
+  merely under-staffed.
+- **A job with no base.** The 160th is a `RepairBuildObject_0` on a
+  world-placed chest carrying the all-zero GUID. `baseId` is empty, not wrong.
+- **`player_uid` is not usable as a player.** Two assignments carry
+  `00000000-…-0001` — neither the zero sentinel nor the Steam-ID32-then-zeros
+  shape this file pins as a real player uid — and both resolve to ordinary Pals.
+  The field is **not read**; `instance_id` is the key that resolves.
+
+### `assign_locations` IS NOT A CAPACITY, and the first draft said it was
+
+**20 of the 160 rows have more Pals assigned than positions.** The wandering
+job types (`MonsterFarm`, `OnlyJoinAndWalkAround`) have *none at all*, so a
+Ranch holding two Pals reads 0. They are fixed standing positions with a facing
+direction — where a Pal plants itself at a workbench. Named `fixedPositions`
+for that reason. `DT_MapObjectAssignData`'s `workerMax` is the capacity-shaped
+figure, and `baseassign` already records it as UNSET on 178 of 271 rows.
+
+### `Anyone` IS NOT A WORK TYPE, AND READING IT AS ONE SAID JETRAGON CANNOT BREED
+
+`EPalWorkSuitability::Anyone` is the game's pseudo-suitability meaning **no
+suitability is required**. This file already records it as the eleventh key in
+`WorkSuitabilityDefineDataMap`, a flat 100 at every rank; what settles it is
+that **0 of the 753 species carry a rank in it** while **8 structures ask for
+it** — the Breeding Farm, both booths, the hand-cranked generator.
+
+So every Pal's level for it is 0, and the first draft flagged all seven Pals on
+refworld's Breeding Farms as unfit for the job they were doing. Same shape as
+the `TowerLockBarrier` count and the `bLegalInGame` reading: **a category whose
+membership disagrees with what the game plainly does is wrong however plausible
+it reads.** It stays in `needs` — the UI should say "any Pal" — and is excluded
+from the suitability test, which is a different question.
+
+### The zero that needed a positive control
+
+With that fixed, the measured result is **zero unsuitable assignments** across
+the whole reference world. That is a fine answer and **indistinguishable from a
+checker that can never fire**, so `test_workassign.py` carries both controls: a
+Melpaca on a workbench must be caught, an Anubis must not. The integration test
+cites the control by name, because without it the zero asserts nothing.
+
+`unknown` is neither state: 99 of refworld's characters are NPCs with no work
+table, and they are skipped rather than flagged — `palcheck`'s restraint, one
+module over.
+
+**A second module rather than a wider `baseassign`** — the third time, after
+`palresist` beside `palstats`. The two have *opposite policies on the same
+data*: a recommender must exclude a Pal that cannot do a job, this must include
+it, and folding them makes one of those a blind spot.
+
+**Parse cost: +0.30s median on a 3.06s parse**, measured interleaved against a
+control because the naive A-then-B ordering produced a warmup artifact here
+immediately — the third run came out slower than the second.
+
 ## Bases own containers — via the object, not the guild
 
 Per-base inventory rests on one join, and it is exact rather than spatial:

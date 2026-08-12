@@ -984,12 +984,12 @@ each may end as a recorded negative, which is a real outcome and is why
 | #104 | Elemental resistance | **done** — `palresist.py`, badges on My Pals. **311 of refworld's 1,905 Pals** carry a resistance nothing computed, four times #94's figure. And `DamageRateIfDefender_*` is *offensive* despite its name — the audit table here listed it as a Pal buff |
 | #58 | CDO on `BP_BuildObject_PalFoodBox` | **done, and a recorded negative.** All four build-object CDOs decode and terminate four bytes short of the export end, and what comes out is presentation and placement — nothing about what a container accepts. `PalMapObjectFoodBoxParameterComponent` decodes to **zero properties**. `basesupply.py`'s refusal now rests on having looked |
 | #46 | Re-check what the client-pak wall ruled out | the server pak plus MapProperty changed the premises |
-| #87 | `WorkSaveData` | the game's own record of who works where; **already partly indexed** in `docs/savefields.json` |
+| #87 | `WorkSaveData` | **done** — `workassign.py`, `/api/bases/working`. 160 jobs, every one resolving to a placed structure, and the work type reached two independent ways that agree on **all 160**. Two claims the data refuted while building it: `assign_locations` is not a capacity (20 rows have more Pals than positions) and **`Anyone` is not a work type** — reading it as one flagged Jetragon as unfit to breed. The honest result is zero unsuitable assignments, which needed a positive control to mean anything |
 | #86 | `MapObjectSpawnerInStageSaveData` | 31,824 entries nothing reads |
 | #88 | `BaseCampSaveData` ModuleMap RawData | 46 constant bytes; a fixed width is a reason to look, not a promise |
 | #89 | Achievement progress | the game's own, not Steam's |
 
-**Three of the seven closed, and two closed as negatives** — which is the
+**Four of the seven closed, and two closed as negatives** — which is the
 outcome this phase was framed to allow. #58 in particular is worth reading as a
 success: "the technique works and the answer is not there" is a stronger
 statement than the refusal it replaced, which rested on nobody having tried.
