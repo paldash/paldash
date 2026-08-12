@@ -962,8 +962,20 @@ PUID/PGID so the shared bind mount is readable without root. `/app/cache` and
 `/app/backups` are chowned *in the image* because Docker seeds a named volume's
 ownership from it, and a non-root process cannot fix it afterwards.
 
-Still broken: `STOP_COMMAND`/`START_COMMAND` invoke `docker`, which is not
-installed in the runtime image.
+**`STOP_COMMAND`/`START_COMMAND` must not invoke `docker`** — the CLI is not in
+the runtime image, and a `docker …` command fails with
+`STOP_COMMAND not found: docker`. This line used to read "still broken", which
+overstated it: the *feature* works and only that default cannot.
+
+`docs/DEPLOYMENT.md` §4 has the working form — the socket proxy speaks the
+Docker HTTP API and the runtime is `node:20-bookworm-slim`, so `node -e
+"fetch(...)"` is already available and the healthcheck uses it. **A 304 is
+success**, because the API returns 204 when it stopped the container and 304
+when it was already stopped.
+
+With no command configured the buttons are **hidden rather than
+shown-and-broken**, which is the same rule the game-REST proxy follows by
+returning 405 with the right route named.
 
 ## The sixteen duplicate durability records were an artifact of one file
 
