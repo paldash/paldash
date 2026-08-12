@@ -134,6 +134,13 @@ NPCS_PATH = os.environ.get(
     os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "npcs.json.gz"),
 )
 
+BUILD_CAPABILITIES_PATH = os.environ.get(
+    "BUILD_CAPABILITIES_DATA_PATH",
+    os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "data", "build_capabilities.json.gz"
+    ),
+)
+
 PASSIVE_EFFECT_PATH = os.environ.get(
     "PASSIVE_EFFECT_DATA_PATH",
     os.path.join(
@@ -165,6 +172,7 @@ _invaders: Optional[dict[str, Any]] = None
 _worldpresets: Optional[dict[str, Any]] = None
 _npcs: Optional[dict[str, Any]] = None
 _guild: Optional[dict[str, Any]] = None
+_build_capabilities: Optional[dict[str, Any]] = None
 _indexes: dict[str, dict[str, Any]] = {}
 
 
@@ -1100,6 +1108,59 @@ def pal_drops(species_id: str) -> list[dict[str, Any]]:
                         "items": items})
     out.sort(key=lambda b: b["levelFrom"])
     return out
+
+
+def build_capabilities() -> dict[str, Any]:
+    """
+    What a STRUCTURE contributes to base output, from
+    `DA_PalBuildObjectCapabilityData` via `scripts/extract-build-capabilities.py`.
+
+    48 structures. `WorkSpeedAdditionalRate` runs BlastFurnace 1.0 to
+    AncientBlastFurnace 11.0, so an operator on a tier-1 bench is at a ninth of
+    what the same Pals would produce — a spread nothing here has ever shown.
+
+    This is only the structure's half. The Pal's half is its work rank indexing
+    `CraftSpeeds` (`workrank.py`), and **no game file states how the two
+    combine**, which is why `composesWithWorkRank` is False in the payload.
+
+    Empty dict when the bundle is absent, like every accessor here.
+    """
+    global _build_capabilities
+    if _build_capabilities is None:
+        try:
+            with gzip.open(BUILD_CAPABILITIES_PATH, "rt", encoding="utf-8") as f:
+                _build_capabilities = json.load(f)
+        except (OSError, json.JSONDecodeError) as e:
+            logger.warning(
+                "Build-object capability data unavailable (%s); structure "
+                "output multipliers will not be shown", e
+            )
+            _build_capabilities = {}
+    return _build_capabilities
+
+
+def structure_capability(structure_id: str) -> dict[str, float]:
+    """
+    `{capability: value}` for one structure id, or `{}` when it has none.
+
+    Most structures have none — only 48 of the game's ~1,000 build objects carry
+    a capability — so an empty result is the ordinary case and never an error.
+
+    Case-insensitive, for the reason every lookup in this module is: the save
+    and the game's own tables disagree about capitalisation on real ids, and an
+    exact match silently loses them.
+    """
+    structures = (build_capabilities() or {}).get("structures") or {}
+    if not structure_id:
+        return {}
+    hit = structures.get(structure_id)
+    if hit is None:
+        wanted = structure_id.casefold()
+        for key, value in structures.items():
+            if key.casefold() == wanted:
+                hit = value
+                break
+    return dict(hit) if isinstance(hit, dict) else {}
 
 
 def economy() -> dict[str, Any]:

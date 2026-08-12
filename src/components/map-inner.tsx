@@ -411,6 +411,42 @@ function escapeHtml(value: string): string {
   );
 }
 
+/** The game's own names for what a structure contributes. */
+const CAPABILITY_LABEL: Record<string, string> = {
+  WorkSpeedAdditionalRate: 'Work speed',
+  ReviveSpeedMultiplier: 'Revive speed',
+  GenerateEnergyRateByWorker: 'Power per worker',
+  AffectSanityRate: 'Sanity recovery',
+  MaxEnergyStorage: 'Power storage',
+};
+
+/**
+ * A structure's contribution, from `DA_PalBuildObjectCapabilityData`.
+ *
+ * Renders nothing when there is none, which is almost everything — only 48 of
+ * the game's build objects carry a capability, so an empty row on the other
+ * ~3,300 would read as data that failed to load.
+ *
+ * **The multiplier is shown alone, never folded into the occupying Pal's work
+ * rank.** They are two numbers from two files and no game file states how they
+ * compose; the backend ships `composesWithWorkRank: false` for that reason, and
+ * combining them here would invent the rule the data declines to give.
+ *
+ * An unrecognised capability key is printed by its raw name rather than
+ * dropped — a new one after a game update should look unfamiliar, not absent.
+ */
+function capabilityLine(capability?: Record<string, number>): string {
+  if (!capability) return '';
+  const parts = Object.entries(capability).map(([key, value]) => {
+    const label = CAPABILITY_LABEL[key] ?? key;
+    // MaxEnergyStorage is a capacity, not a rate, so it must not read "x1000000".
+    const shown = key === 'MaxEnergyStorage' ? value.toLocaleString() : `×${value}`;
+    return `${escapeHtml(label)} ${escapeHtml(shown)}`;
+  });
+  if (!parts.length) return '';
+  return `<div style="font-size:12px;color:#7fb069;margin-top:2px">${parts.join(' &middot; ')}</div>`;
+}
+
 export default function MapInner({
   players,
   bases,
@@ -648,6 +684,15 @@ export default function MapInner({
         { color: '#6d747e', size: 4, label: object.category };
       const coords = worldToGameMap(object.x, object.y);
       const name = object.name || object.kind;
+      // What the STRUCTURE contributes, from the game's own capability asset.
+      // Absent on almost everything — only 48 build objects carry one — so this
+      // renders nothing rather than an empty row for the other ~3,300.
+      //
+      // Deliberately NOT combined with the work rank of whatever Pal is standing
+      // here. No game file states how a structure's rate and a Pal's rank
+      // compose, and the backend ships `composesWithWorkRank: false` saying so;
+      // multiplying them in a popup would invent the rule the data refuses.
+      const capabilityHtml = capabilityLine(object.capability);
       // Colour says which kind, shape says which category. Circles stay on the
       // canvas renderer; anything else needs a DOM marker, which is why only
       // the sparse categories get one.
@@ -667,6 +712,7 @@ export default function MapInner({
             `<div style="min-width:150px">
                <div style="font-weight:600;margin-bottom:3px">${escapeHtml(name)}</div>
                <div style="font-size:12px;color:#a1a7b0">${escapeHtml(style.label)}</div>
+               ${capabilityHtml}
                <div style="font-size:11px;color:#6d747e;margin-top:4px">${coords.x}, ${coords.y}</div>
              </div>`
           )
@@ -686,6 +732,7 @@ export default function MapInner({
           `<div style="min-width:160px">
              <div style="font-weight:600;margin-bottom:3px">${escapeHtml(name)}</div>
              <div style="font-size:12px;color:#a1a7b0">${escapeHtml(style.label)}</div>
+             ${capabilityHtml}
              <div style="font-size:11px;color:#6d747e;margin-top:4px">${coords.x}, ${coords.y}` +
             (object.opened != null ? ` · ${object.opened ? 'opened' : 'unopened'}` : '') +
             (object.worldPlaced === false ? ' · in a base' : '') +
