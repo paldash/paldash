@@ -59,6 +59,12 @@ _NEEDED_CUSTOM_PROPERTIES = (
     # **+0.4s on a 5.0s parse** of the live world — the first measurement said
     # 1.5s and was warmup noise, which reversing the order exposed.
     ".worldSaveData.GuildExtraSaveDataMap.Value.Lab.RawData",
+    # Who the game has ACTUALLY assigned to each job (extract_work_assignments).
+    # Measured cost on refworld, interleaved against a control because the naive
+    # A-then-B ordering here already produced a warmup artifact once: **+0.30s
+    # median on a 3.06s parse**. Worth it — this is the only record of real
+    # assignments, and inferring them is a different and weaker answer.
+    ".worldSaveData.WorkSaveData",
 )
 # Only decoded when inventory detail is requested — noticeably heavier.
 _ITEM_CUSTOM_PROPERTIES = (
@@ -1254,6 +1260,188 @@ def extract_pal_storage(gvas: Any) -> dict[str, dict]:
             }
 
     return storage
+
+
+# `WorkAssignMap` states, from the save. Only two occur on the reference world
+# (3 on 53 assignments, 2 on 7) and the game does not name them anywhere this
+# project can read, so **the integer travels as an integer**. Naming them from
+# their distribution would be the `icon_type` mistake: inventing a legend from a
+# guessed ordering. The UI says the game does not name them.
+
+def _plain_int(value: Any, default: int = 0) -> int:
+    """
+    An already-unwrapped scalar out of a decoded `RawData` block.
+
+    Distinct from `_num`, which digs a value out of a *tagged* GVAS property and
+    has to know that a ByteProperty nests one level deeper than an Int.
+    `WorkSaveData`'s RawData is a plain dict of Python scalars, so the two must
+    not be confused — `_num` on one of these finds nothing and returns 0, which
+    reads as a real state rather than a wrong reader.
+    """
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _plain_float(value: Any, default: float = 0.0) -> float:
+    """The float half of `_plain_int`; same distinction, same reason."""
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def extract_work_assignments(gvas: Any) -> list[dict]:
+    """
+    Who the game has **actually** assigned to each job — `WorkSaveData`.
+
+    This is a different question from `baseassign.py`, which infers who *ought*
+    to work where by reading a base's structures out of `DT_MapObjectAssignData`
+    and ranking candidates. This is the save's own record, and it is the one an
+    operator asks first: not "who should mine" but "who IS mining".
+
+    Nothing read it until now. 160 entries on the reference world.
+
+    ## No byte offsets — the game names every field
+
+    `.worldSaveData.WorkSaveData` is a palsav custom property, so `RawData`
+    decodes to named fields. Same rule as `extract_pal_storage`: where the game
+    gives a name, take the name. The join is
+
+        WorkSaveData[].RawData.owner_map_object_model_id
+          -> MapObjectSaveData[].Model.RawData.instance_id     (the structure)
+        WorkSaveData[].WorkAssignMap[].value.RawData
+          .assigned_individual_id.instance_id
+          -> CharacterSaveParameterMap[].key.InstanceId        (the Pal)
+
+    **Both were verified before anything was built on them.** The structure join
+    is **160 of 160**, and so is the parallel one through
+    `owner_map_object_concrete_model_id` -> `concrete_model_instance_id`.
+
+    **`MapObjectId` is a NAME, not a GUID** (`DamagableRock0002`), so joining on
+    it resolves 0 of 160 and looks like the field is wrong. The GUID is one
+    level down in `Model.RawData`.
+
+    ## The work type is reached two independent ways and they never disagree
+
+    A row carries `assign_define_data_id` (`MonsterFarm_0`), whose stem joins
+    `DT_MapObjectAssignData` directly — and the structure reached through the
+    map-object join keys the *same* table. Measured: 158/160 and 159/160
+    resolve, and **on all 160 the two routes give the same work**. That
+    agreement is the check that the record means what it looks like; a
+    misaligned read does not produce two keys landing on one answer.
+
+    The structure route is used, because it is the one `baseassign` already
+    speaks and comparing the two is the point of having this at all.
+
+    ## Three things that are real states rather than failures
+
+    - **A stale assignment.** One of the 60 assignments names an instance id
+      that is in no `CharacterSaveParameterMap` entry — the Pal is gone and the
+      Ranch slot still points at it. It is **dropped from `assigned` and
+      counted in `staleAssignments`**, because a slot that looks occupied and
+      is not is worth telling somebody about, and silently dropping it would
+      make the base read as merely under-staffed.
+    - **A job with no base.** `base_camp_id_belong_to` resolves for 159 of 160;
+      the exception is a `RepairBuildObject_0` on a world-placed chest, with the
+      all-zero GUID. That is a repair job outside any base, so `baseId` is
+      empty rather than wrong.
+    - **`player_uid` is not usable as a player.** Two assignments carry
+      `00000000-…-0001`, which is neither the zero sentinel nor a Steam ID32
+      followed by zeros — the shape AGENTS.md pins as a real player uid. Both
+      resolve to ordinary Pals (a Manticore and a Sheepball), so the field is
+      **not read**: `instance_id` is the key that resolves and the one used.
+
+    Verification is the obligation every reader here carries: an id that does
+    not resolve is dropped, so a layout change yields nothing rather than a
+    confident wrong answer about which Pal is doing which job.
+    """
+    import gamedata
+
+    world = _world_save_data(gvas)
+
+    characters: set[str] = set()
+    for entry in _v(world, "CharacterSaveParameterMap", "value", default=[]) or []:
+        instance_id = str(_v(entry, "key", "InstanceId", "value") or "").lower()
+        if instance_id:
+            characters.add(instance_id)
+
+    # Structure GUID -> its MapObjectId, which is what `work_assign` keys on.
+    structures: dict[str, str] = {}
+    objects = _v(world, "MapObjectSaveData", "value", "values", default=[]) or []
+    for entry in objects if isinstance(objects, list) else []:
+        instance_id = str(
+            _v(entry, "Model", "value", "RawData", "value", "instance_id") or ""
+        ).lower()
+        if instance_id:
+            structures[instance_id] = str(_v(entry, "MapObjectId", "value") or "")
+
+    out: list[dict] = []
+    entries = _v(world, "WorkSaveData", "value", "values", default=[]) or []
+    for entry in entries if isinstance(entries, list) else []:
+        raw = _v(entry, "RawData", "value")
+        raw = raw if isinstance(raw, dict) else {}
+
+        owner = str(raw.get("owner_map_object_model_id") or "").lower()
+        structure_id = structures.get(owner)
+        if structure_id is None:
+            # No placed object for this job. Never observed; dropped rather
+            # than reported against a structure we cannot name.
+            continue
+
+        assigned: list[dict] = []
+        stale = 0
+        for slot in _v(entry, "WorkAssignMap", "value", default=[]) or []:
+            detail = _v(slot, "value", "RawData", "value")
+            detail = detail if isinstance(detail, dict) else {}
+            individual = detail.get("assigned_individual_id") or {}
+            instance_id = str(individual.get("instance_id") or "").lower()
+            if not instance_id or instance_id == ZERO_GUID:
+                continue
+            if instance_id not in characters:
+                stale += 1
+                continue
+            assigned.append({
+                "instanceId": instance_id,
+                # The game's own integer. Not named — see the note above.
+                "state": _plain_int(detail.get("state")),
+                "fixed": bool(detail.get("fixed")),
+            })
+
+        base_camp = str(raw.get("base_camp_id_belong_to") or "")
+        locations = raw.get("assign_locations")
+        out.append({
+            "workId": str(raw.get("id") or ""),
+            "baseId": "" if base_camp in ("", "None", ZERO_GUID) else base_camp,
+            "structureId": structure_id,
+            "structureName": gamedata.structure_name(structure_id),
+            # Kept beside the structure because it is the game's own label for
+            # the job and disambiguates two of the same structure at one base.
+            "defineId": str(raw.get("assign_define_data_id") or ""),
+            "workableType": str(
+                _v(entry, "WorkableType", "value", "value") or ""
+            ).rsplit("::", 1)[-1],
+            "assigned": assigned,
+            "staleAssignments": stale,
+            # **NOT A CAPACITY, AND THE FIRST VERSION OF THIS SAID IT WAS.**
+            # `assign_locations` is a list of fixed standing positions, each
+            # with a facing direction — where a Pal plants itself at a
+            # workbench. Jobs the Pal wanders (`MonsterFarm`,
+            # `OnlyJoinAndWalkAround`) have **none at all**, so a Ranch holding
+            # two Pals reads 0. Measured: **20 of the 160 rows have more Pals
+            # assigned than positions**, which is what refuted it.
+            #
+            # Named for what it is. `DT_MapObjectAssignData`'s `workerMax` is
+            # the capacity-shaped figure, and `baseassign` already notes it is
+            # UNSET (0) on 178 of 271 rows.
+            "fixedPositions": len(locations) if isinstance(locations, list) else 0,
+            "state": _plain_int(raw.get("current_state")),
+            "workAmount": _plain_float(raw.get("current_work_amount")),
+            "requiredWorkAmount": _plain_float(raw.get("required_work_amount")),
+        })
+
+    return out
 
 
 def summarise_base_storage(
