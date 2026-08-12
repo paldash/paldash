@@ -38,11 +38,11 @@ shared bind mount.
 ./scripts/setup-dev.sh
 
 # Tests
-.venv/bin/python -m pytest                       # backend, everything: 991 tests, ~21 min
-.venv/bin/python -m pytest -m "not integration"  # backend unit only: 931 tests, ~2 min
+.venv/bin/python -m pytest                       # backend, everything: 1,918 tests, ~25 min
+.venv/bin/python -m pytest -m "not integration"  # backend unit only: 1,802 tests, ~3 min
 .venv/bin/python -m pytest -m "not slow"         # skip full-world parses
 .venv/bin/python -m pytest backend/tests/test_safety.py -k read_only  # one test
-npm test                                          # frontend (vitest): 82 tests, <1s
+npm test                                          # frontend (vitest): 143 tests, <1s
 
 # Frontend
 npm run dev
@@ -60,7 +60,7 @@ python3 scripts/install-map-assets.py  # -> public/maps/{palpagos,worldtree}.web
 Integration tests skip automatically when `refworld/` or `palsav` is absent, so
 a clean checkout still runs green.
 
-**The 60 integration tests cost ~19 of those 21 minutes** — each parses a real
+**The 116 integration tests cost most of those 25 minutes** — each parses a real
 55 MB world, and the write paths take a full verified backup on top. `soloexport`
 is the most expensive single test in the suite because it walks the entire node
 tree for uid matches. Use `-m "not integration"` while iterating; run the whole
