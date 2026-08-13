@@ -167,6 +167,9 @@ const ROUTES: RouteRule[] = [
   // The item *catalogue* — what the game has. Not /items, which reports what
   // this world holds and is privacy-filtered per guild.
   { pattern: /^world\/items$/, methods: ['GET'], capability: CAPABILITIES.VIEW_BASIC, feature: FEATURES.SERVER_STATUS },
+  // Structures are not items — separate table, separate catalogue. Same gate:
+  // reference data about what the game has, needing no parsed world.
+  { pattern: /^world\/structures$/, methods: ['GET'], capability: CAPABILITIES.VIEW_BASIC, feature: FEATURES.SERVER_STATUS },
   // Where one item comes from — recipes, drops, chests, merchants. Same
   // catalogue, same gate: it describes the game, not this world.
   { pattern: /^world\/items\/[A-Za-z0-9_]+$/, methods: ['GET'], capability: CAPABILITIES.VIEW_BASIC, feature: FEATURES.SERVER_STATUS },

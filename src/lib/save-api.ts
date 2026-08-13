@@ -51,6 +51,7 @@ import type {
   ReachableTargets,
   BreedingLimits,
   CatalogueItem,
+  CatalogueStructure,
   CraftableReport,
   NpcPlacements,
   BossEncounters,
@@ -1343,6 +1344,21 @@ export async function getItemCatalogue(): Promise<{
   total: number;
 }> {
   return saveFetch('/world/items');
+}
+
+/**
+ * Every buildable structure and what it costs to place.
+ *
+ * **A structure is not an item.** Palboxes, furnaces and breeding farms live in
+ * their own game table with their own material columns, so the item catalogue
+ * has never listed one — which is why the crafting tree came back empty for
+ * every structure until the table was extracted.
+ */
+export async function getStructureCatalogue(): Promise<{
+  structures: CatalogueStructure[];
+  total: number;
+}> {
+  return saveFetch('/world/structures');
 }
 
 /**

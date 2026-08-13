@@ -1813,6 +1813,26 @@ export interface MapMarker {
  * holds. Carries `id` and `name` together because the API speaks ids (`AIcore`)
  * and people speak names ("AI Core"), and either must be searchable.
  */
+/**
+ * A buildable structure and what it costs to place.
+ *
+ * Deliberately NOT a `CatalogueItem`: it comes from a different game table, has
+ * no rarity, stack size or weight, and cannot be put in a chest. Reusing the
+ * item shape would have meant six fields that are always zero and one reader
+ * eventually believing them.
+ */
+export interface CatalogueStructure {
+  structureId: string;
+  name: string;
+  materials: { itemId: string; count: number }[];
+  /** The game's own work units, not a time. */
+  workAmount: number;
+  /** The game's own grouping, enum prefix stripped. */
+  typeA: string;
+  typeB: string;
+  rank: number;
+}
+
 export interface CatalogueItem {
   id: string;
   name: string;

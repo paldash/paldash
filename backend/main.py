@@ -2551,6 +2551,46 @@ def get_item_catalogue(request: Request) -> dict[str, Any]:
     return {"items": items, "total": len(items)}
 
 
+@app.get("/api/world/structures")
+def get_structure_catalogue(request: Request) -> dict[str, Any]:
+    """
+    Every buildable structure and what it costs to place.
+
+    The sibling of `/api/world/items`, and it exists because a structure is not
+    an item: a Palbox, a Furnace and a Breeding Farm live in
+    `DT_BuildObjectDataTable` with their own material columns, so the item
+    catalogue has never listed one. `crafting.tree()` can cost them — all 498 —
+    and until this route there was no way to ask, which is the shape this
+    project already records as "a verified layout is not a feature".
+
+    Reference data about what Palworld has, so `VIEW_BASIC` and no parsed world,
+    exactly like the item catalogue beside it.
+    """
+    authz.require(request, roles_module.VIEW_BASIC)
+    try:
+        build_objects = (gamedata.economy().get("buildObjects") or {})
+    except gamedata.GameDataUnavailable as e:
+        raise HTTPException(503, str(e))
+
+    rows = []
+    for key, row in build_objects.items():
+        rows.append({
+            "structureId": key,
+            "name": gamedata.structure_name(key),
+            # The material COUNT, not the expanded tree: this is a list, and
+            # expanding 498 trees to render one screen would be the shape
+            # `itemsource` already avoids by folding its index once.
+            "materials": row.get("materials") or [],
+            "workAmount": row.get("workAmount") or 0.0,
+            # The game's own grouping, so the UI does not invent categories.
+            "typeA": (row.get("typeA") or "").split("::")[-1],
+            "typeB": (row.get("typeB") or "").split("::")[-1],
+            "rank": row.get("rank") or 0,
+        })
+    rows.sort(key=lambda r: (r["typeA"], r["name"]))
+    return {"structures": rows, "total": len(rows)}
+
+
 @app.get("/api/world/research")
 def get_lab_research(request: Request, guild: Optional[str] = None) -> dict[str, Any]:
     """
