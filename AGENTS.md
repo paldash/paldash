@@ -2886,9 +2886,16 @@ and is not stored anywhere in the save — the live world ranges from 150 to
 table's value for `BOSS_IceHorse`** — an alpha Frostallion. The observation sat
 inside the answer.
 
-**Use `pal_exact`, not `pal`.** `BOSS_IceHorse` carries its own 620 against
-`IceHorse`'s 600, so stripping the prefix — right for names — gives an alpha the
-wrong ceiling. Same rule as stats.
+**Use `pal_exact`, not `pal` — but the reason is one species, not a pattern.**
+An earlier draft of this paragraph said "`BOSS_IceHorse` carries its own 620
+against `IceHorse`'s 600", which is wrong twice: both are 620, and 600 is
+Jetragon's. Measured: **302 of the 303 `BOSS_`/base pairs are identical**, and
+the sole exception is `BOSS_YakushimaBoss001` at 320 against 240.
+
+So the exact reader is still right and prefix-stripping would cost exactly one
+species. Stating it that way matters — "alphas have different fullness caps" is
+a far larger claim than the data supports, and it is the claim the wrong figure
+implied.
 
 **And the rank is not linear.**
 `WorkSuitabilityDefineData_<work>.CommonDefineData.CraftSpeeds` is 11 entries

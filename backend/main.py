@@ -958,6 +958,20 @@ def _enriched_pals() -> list[dict]:
                 # without a lookup table of its own.
                 "workSuitabilities": details.get("workSuitabilities") or {},
                 "rarity": details.get("rarity", 0),
+                # The denominator `fullStomach` never had. `MaxFullStomach` is a
+                # species column this project recorded as not existing; verified
+                # as a real cap (1,635 of refworld's Pals inside theirs, zero
+                # over, max ratio exactly 1.000).
+                #
+                # **`pal_exact`, not `pal`** — one of the 303 alpha/base pairs
+                # differs (`BOSS_YakushimaBoss001`, 320 against 240), so prefix
+                # stripping is right for names and wrong here.
+                #
+                # Absent rather than 0 for the 99 NPCs with no species row: a
+                # zero denominator renders as infinitely hungry.
+                "maxFullStomach": (
+                    gamedata.pal_exact(pal.get("speciesId") or "") or {}
+                ).get("maxFullStomach"),
                 # HP / Attack / Defense / Work Speed, and how far through the
                 # level. The save stores only the *inputs* — level, IVs,
                 # condenser rank, souls, trust — and the game computes the rest
