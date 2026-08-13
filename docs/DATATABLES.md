@@ -9,12 +9,13 @@ grepping this document rather than by concluding it is not.
 Two features shipped documented refusals that this index would have
 prevented — see the script's docstring. Check here first.
 
-**471 tables decode, 32 refuse.**
+**473 tables decode, 2 refuse.**
 
 ## Decodable
 
 | Table | Rows | Columns |
 |---|---:|---|
+| `CT_AmmoMesh` | 2 | `Keys`, `DefaultValue`, `PreInfinityExtrap`, `PostInfinityExtrap`, `ArrayProperty_255`, `ArrayProperty_3071`, `ArrayProperty_68`, `InterpMode` |
 | `DT_AchivementRewardNPC` | 26 | `RequireCount`, `AchivementCategory`, `RewardItemString`, `ExpBonusLevel` |
 | `DT_AreaFindBonusExpTableReferenceNum` | 198 | `ReferenceTableNum` |
 | `DT_ArenaNPCDataTable` | 99 | `NameTextID`, `RankPoint`, `Ranking1`, `Head_of_Village_12799`, `Head_of_Village_7`, `Head_of_Village_1` |
@@ -486,6 +487,7 @@ prevented — see the script's docstring. Check here first.
 | `DT_pal_test_ground_NewRow` | 211 | `FoliageTypeName`, `Location`, `Rotator`, `Scale3D` |
 | `DT_pal_test_ground_NewRow_0` | 239 | `FoliageTypeName`, `Location`, `Rotator`, `Scale3D` |
 | `DT_partnerSkillIconDataTable` | 309 | `TextureID_8_2B2F889C43EB586246BDB981B6462ACA`, `IsSquare_5_116F13E54A95BA260E4C56848C50332E`, `Umihebi`, `Alpaca_469762047` |
+| `DefaultGeometrySurfacePropertiesTable` | 61 | `AcousticTexture`, `TransmissionLoss` |
 
 ## Refused
 
@@ -495,35 +497,5 @@ distinction.
 
 | Table | Why |
 |---|---|
-| `DT_PPSC_Weather_Clear_01` | TableError: ../../../Pal/Content/PPSkyCreator/WeatherPresets/DT_PPSC_Weather_Clear_01.uasset: no row offset produced a w |
-| `DT_PPSC_Weather_Clear_02` | TableError: ../../../Pal/Content/PPSkyCreator/WeatherPresets/DT_PPSC_Weather_Clear_02.uasset: no row offset produced a w |
-| `DT_PPSC_Weather_Clear_03` | TableError: ../../../Pal/Content/PPSkyCreator/WeatherPresets/DT_PPSC_Weather_Clear_03.uasset: no row offset produced a w |
-| `DT_PPSC_Weather_Clear_04` | TableError: ../../../Pal/Content/PPSkyCreator/WeatherPresets/DT_PPSC_Weather_Clear_04.uasset: no row offset produced a w |
-| `DT_PPSC_Weather_Cloudy_01` | TableError: ../../../Pal/Content/PPSkyCreator/WeatherPresets/DT_PPSC_Weather_Cloudy_01.uasset: no row offset produced a  |
-| `DT_PPSC_Weather_Cloudy_02` | TableError: ../../../Pal/Content/PPSkyCreator/WeatherPresets/DT_PPSC_Weather_Cloudy_02.uasset: no row offset produced a  |
-| `DT_PPSC_Weather_Cloudy_03` | TableError: ../../../Pal/Content/PPSkyCreator/WeatherPresets/DT_PPSC_Weather_Cloudy_03.uasset: no row offset produced a  |
-| `DT_PPSC_Weather_Cloudy_04` | TableError: ../../../Pal/Content/PPSkyCreator/WeatherPresets/DT_PPSC_Weather_Cloudy_04.uasset: no row offset produced a  |
-| `DT_PPSC_Weather_Cloudy_05` | TableError: ../../../Pal/Content/PPSkyCreator/WeatherPresets/DT_PPSC_Weather_Cloudy_05.uasset: no row offset produced a  |
-| `DT_PPSC_Weather_Cloudy_06` | TableError: ../../../Pal/Content/PPSkyCreator/WeatherPresets/DT_PPSC_Weather_Cloudy_06.uasset: no row offset produced a  |
-| `DT_PPSC_Weather_Default` | TableError: ../../../Pal/Content/PPSkyCreator/WeatherPresets/DT_PPSC_Weather_Default.uasset: no row offset produced a wa |
-| `DT_PPSC_Weather_Fog_01` | TableError: ../../../Pal/Content/PPSkyCreator/WeatherPresets/DT_PPSC_Weather_Fog_01.uasset: no row offset produced a wal |
-| `DT_PPSC_Weather_Fog_02` | TableError: ../../../Pal/Content/PPSkyCreator/WeatherPresets/DT_PPSC_Weather_Fog_02.uasset: no row offset produced a wal |
-| `DT_PPSC_Weather_Fog_03` | TableError: ../../../Pal/Content/PPSkyCreator/WeatherPresets/DT_PPSC_Weather_Fog_03.uasset: no row offset produced a wal |
-| `DT_PPSC_Weather_Fog_04` | TableError: ../../../Pal/Content/PPSkyCreator/WeatherPresets/DT_PPSC_Weather_Fog_04.uasset: no row offset produced a wal |
-| `DT_PPSC_Weather_Overcast_01` | TableError: ../../../Pal/Content/PPSkyCreator/WeatherPresets/DT_PPSC_Weather_Overcast_01.uasset: no row offset produced  |
-| `DT_PPSC_Weather_Overcast_02` | TableError: ../../../Pal/Content/PPSkyCreator/WeatherPresets/DT_PPSC_Weather_Overcast_02.uasset: no row offset produced  |
-| `DT_PPSC_Weather_Overcast_03` | TableError: ../../../Pal/Content/PPSkyCreator/WeatherPresets/DT_PPSC_Weather_Overcast_03.uasset: no row offset produced  |
-| `DT_PPSC_Weather_Overcast_04` | TableError: ../../../Pal/Content/PPSkyCreator/WeatherPresets/DT_PPSC_Weather_Overcast_04.uasset: no row offset produced  |
-| `DT_PPSC_Weather_Rain_01` | TableError: ../../../Pal/Content/PPSkyCreator/WeatherPresets/DT_PPSC_Weather_Rain_01.uasset: no row offset produced a wa |
-| `DT_PPSC_Weather_Rain_02` | TableError: ../../../Pal/Content/PPSkyCreator/WeatherPresets/DT_PPSC_Weather_Rain_02.uasset: no row offset produced a wa |
-| `DT_PPSC_Weather_Rain_03` | TableError: ../../../Pal/Content/PPSkyCreator/WeatherPresets/DT_PPSC_Weather_Rain_03.uasset: no row offset produced a wa |
-| `DT_PPSC_Weather_Rain_04` | TableError: ../../../Pal/Content/PPSkyCreator/WeatherPresets/DT_PPSC_Weather_Rain_04.uasset: no row offset produced a wa |
-| `DT_PPSC_Weather_Snow_01` | TableError: ../../../Pal/Content/PPSkyCreator/WeatherPresets/DT_PPSC_Weather_Snow_01.uasset: no row offset produced a wa |
-| `DT_PPSC_Weather_Snow_02` | TableError: ../../../Pal/Content/PPSkyCreator/WeatherPresets/DT_PPSC_Weather_Snow_02.uasset: no row offset produced a wa |
-| `DT_PPSC_Weather_Snow_03` | TableError: ../../../Pal/Content/PPSkyCreator/WeatherPresets/DT_PPSC_Weather_Snow_03.uasset: no row offset produced a wa |
-| `DT_PPSC_Weather_Snow_04` | TableError: ../../../Pal/Content/PPSkyCreator/WeatherPresets/DT_PPSC_Weather_Snow_04.uasset: no row offset produced a wa |
-| `DT_PPSC_Weather_Storm_01` | TableError: ../../../Pal/Content/PPSkyCreator/WeatherPresets/DT_PPSC_Weather_Storm_01.uasset: no row offset produced a w |
-| `DT_PPSC_Weather_Storm_02` | TableError: ../../../Pal/Content/PPSkyCreator/WeatherPresets/DT_PPSC_Weather_Storm_02.uasset: no row offset produced a w |
-| `DT_PPSC_Weather_Storm_03` | TableError: ../../../Pal/Content/PPSkyCreator/WeatherPresets/DT_PPSC_Weather_Storm_03.uasset: no row offset produced a w |
-| `DT_PPSC_Weather_Storm_04` | TableError: ../../../Pal/Content/PPSkyCreator/WeatherPresets/DT_PPSC_Weather_Storm_04.uasset: no row offset produced a w |
 | `DT_SupplyIncident_NPC_Sakura01` | TableError: ../../../Pal/Content/Pal/DataTable/Incident/SupplyIncident/DT_SupplyIncident_NPC_Sakura01.uasset: no row off |
+| `DefaultReverbAssignmentTable` | TableError: ../../../Pal/Content/WwiseAudio/DefaultReverbAssignmentTable.uasset: no row offset produced a walk ending at |

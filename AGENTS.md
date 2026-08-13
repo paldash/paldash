@@ -2106,21 +2106,36 @@ not reachable. Globbing was the only tool available.
 | distinct export classes | **610** |
 | `DataTable` + `CompositeDataTable` + `CurveTable` | **907** |
 | …under a `/DataTable/` path | 900 |
-| **…outside it, which every glob missed** | **7** |
+| …outside it (the index already had 4 — see below) | **7** |
 | `/DataTable/` files that are *not* a table | 12 |
 
-So the table catalogue was very nearly complete — the honest answer to "are you
-missing tables" is **7**, not hundreds. They are `DT_PalRaidBoss`(+`_Common`),
-`DT_TalkCamera`, `DT_NPCAppearFlagDable`, `CT_AmmoMesh` and two Wwise tables.
+**"EVERY GLOB MISSED SEVEN" WAS WRONG — `mine-datatables.py` HAD FOUR OF THEM.**
+That script never used a path glob: it filters on the **filename** prefix
+`DT_`, which matches a table wherever it lives, so `DT_PalRaidBoss` under
+`Blueprint/RaidBoss/` was in the catalogue all along. Checked after asserting
+otherwise, which is the third time in one session a tool's behaviour was claimed
+without reading it.
 
-**And all seven were read rather than merely listed.** `DT_PalRaidBoss` was
+The real gap is **three**, and all three are tables not named `DT_*`:
+`CT_AmmoMesh` (the pak's only `CurveTable`) and two Wwise audio tables. **None
+is game data.**
+
+`mine-datatables.py` selects by **class** now rather than by prefix, and the
+value is not the three rows it gains — it is what the index can be *trusted* to
+say. An absence now means "no asset of this class", not "nothing matching a
+naming convention", which is what four separate misses came down to. Refusals
+also fell **32 → 2**: most of the old ones were `DT_`-named assets that are not
+tables at all (`C_PickingGame*` curves, `FPal*DataRow` struct definitions, a
+texture), attempted and refused. **473 tables, 183,025 rows, 2 refusals.**
+
+**And all the strays were read rather than merely listed.** `DT_PalRaidBoss` is
 already covered by `extract-raidbosses.py`; the Wwise pair is audio;
-`CT_AmmoMesh` is the pak's only `CurveTable` and holds weapon meshes. The two
-that looked promising are **dev leftovers**: `DT_NPCAppearFlagDable` (the typo is
-Pocketpair's) has two rows, `TestName` and `TestName001`, with a single
-`DummyValue` column of 0; `DT_TalkCamera` has seven rows led by `TestCamera01`
-and holds cutscene camera transforms. Nothing to build on, which is worth
-recording so the next person does not re-open them on the strength of the names.
+`CT_AmmoMesh` holds weapon meshes. The two whose names looked promising are
+**dev leftovers**: `DT_NPCAppearFlagDable` (the typo is Pocketpair's) has two
+rows, `TestName` and `TestName001`, with a single `DummyValue` column of 0;
+`DT_TalkCamera` has seven rows led by `TestCamera01` holding cutscene camera
+transforms. Nothing to build on — recorded so nobody re-opens them on the
+strength of the names.
 
 **The DataAssets were the real gap: 8 exist and 1 was read.** And the reason is
 not the one stated when this section was first written — see the correction
