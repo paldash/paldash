@@ -937,6 +937,40 @@ export interface WorldExportPlan {
   };
   warnings: string[];
   planHash: string;
+  /** Only when `keepGuilds` was sent. What a prune would remove. */
+  prune?: ExportPrunePlan;
+}
+
+/** One guild an export can keep or drop. */
+export interface ExportGuild {
+  guildId: string;
+  name: string;
+  adminUid: string;
+  playerUids: string[];
+  memberCount: number;
+}
+
+export interface ExportPrunePlan {
+  guilds: ExportGuild[];
+  keepGuildIds: string[];
+  dropGuildIds: string[];
+  removes: {
+    guilds: number;
+    bases: number;
+    mapObjects: number;
+    containers: number;
+    characters: number;
+    /**
+     * Proves the filter keyed on `group_id` rather than on ownership. A prune
+     * removing bases while reporting zero ownerless characters has used the
+     * wrong field and would strand every base worker.
+     */
+    ownerlessCharacters: number;
+    playerSaves: number;
+  };
+  playerUids: string[];
+  applyImplemented: boolean;
+  note: string;
 }
 
 export interface WorldExportResult {
@@ -949,6 +983,22 @@ export interface WorldExportResult {
   sizeBytes: number;
   warnings: string[];
   archive: { path: string; sizeBytes: number; sha256: string };
+  /**
+   * What the prune actually did. Present whenever `keepGuilds` was sent.
+   *
+   * **`pruned: false` with a `refused` reason is a SUCCESSFUL export that kept
+   * everything** — the design is that a prune which cannot complete cleanly
+   * leaves the full copy rather than a half-pruned world. A UI that reports
+   * plain success here tells the operator their world was pruned when it was
+   * not, which is worse than the refusal it hides.
+   */
+  prune?: {
+    requested: boolean;
+    pruned?: boolean;
+    refused?: string;
+    dropGuildIds?: string[];
+    removed?: Record<string, number>;
+  };
 }
 
 /** One recurring announcement. */

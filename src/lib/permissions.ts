@@ -363,6 +363,10 @@ const ROUTES: RouteRule[] = [
   { pattern: /^teleport\/destinations$/, methods: ['GET'], capability: CAPABILITIES.VIEW_DETAIL, feature: null },
   { pattern: /^export\/world-copy$/, methods: ['POST'], capability: CAPABILITIES.BACKUP_MANAGE, feature: null },
   { pattern: /^export\/world-copy\/preview$/, methods: ['POST'], capability: CAPABILITIES.BACKUP_MANAGE, feature: null },
+  // The guilds an export could keep or drop. Same capability as the export
+  // itself: the list names every guild on the server, which is the same
+  // disclosure the copy is.
+  { pattern: /^export\/world-copy\/guilds$/, methods: ['GET'], capability: CAPABILITIES.BACKUP_MANAGE, feature: null },
 ];
 
 export interface RouteVerdict {

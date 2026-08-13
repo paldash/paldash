@@ -68,6 +68,7 @@ import type {
   PaldeckListing,
   PaldeckDetail,
   PlayerRoster,
+  ExportGuild,
   WorldExportPlan,
   WorldExportResult,
   AnnouncementList,
@@ -1126,24 +1127,36 @@ export async function getStaticWorldSummary(): Promise<StaticWorldSummary> {
 // Reads the live world and writes a new directory, so unlike every other save
 // operation here it does not need the server stopped.
 
+/** The guilds an export could keep or drop, with what each owns. */
+export async function getWorldExportGuilds(): Promise<{ guilds: ExportGuild[] }> {
+  return saveFetch('/export/world-copy/guilds');
+}
+
+/**
+ * `keepGuilds` is guild ids to KEEP. **Undefined means keep everything** — the
+ * behaviour before the option existed, and the only safe reading of an absent
+ * field for something destructive.
+ */
 export async function previewWorldExport(
   sourceUid: string,
-  targetUid: string
+  targetUid: string,
+  keepGuilds?: string[]
 ): Promise<WorldExportPlan> {
   return saveFetch('/export/world-copy/preview', {
     method: 'POST',
-    body: JSON.stringify({ sourceUid, targetUid }),
+    body: JSON.stringify({ sourceUid, targetUid, keepGuilds }),
   });
 }
 
 export async function createWorldExport(
   sourceUid: string,
   targetUid: string,
-  planHash: string
+  planHash: string,
+  keepGuilds?: string[]
 ): Promise<WorldExportResult> {
   return saveFetch('/export/world-copy', {
     method: 'POST',
-    body: JSON.stringify({ sourceUid, targetUid, planHash }),
+    body: JSON.stringify({ sourceUid, targetUid, planHash, keepGuilds }),
   });
 }
 
