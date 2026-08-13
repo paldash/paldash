@@ -307,3 +307,61 @@ def test_a_garbage_map_header_refuses_instead_of_spinning():
     )
     assert isinstance(out, str) and out.startswith("<MapProperty")
     assert "NumKeysToRemove" in out or "undecoded" in out
+
+
+# ─── Refusing beats hanging ──────────────────────────────
+
+
+@pytest.mark.integration
+def test_a_property_walk_terminates_on_the_two_assets_that_used_to_hang(pak):
+    """
+    THE REGRESSION GUARD FOR A TWO-HOUR BUG.
+
+    `_properties` was an unbounded `while True` with no progress check and no
+    bounds check. On `BP_BuildObject_EnergyStorage_Electric` and
+    `BP_PalMonsterCaptureSet` it never terminated — a 10-minute run on those two
+    alone did not finish — and that is the entire reason `scripts/mine-assets.py`
+    had never completed a sweep or committed its index. Everything else about
+    that script is fast: 7,992 assets decode in about two seconds.
+
+    Second occurrence of the shape; the unchecked `NumKeysToRemove` is the
+    first. **A decoder that cannot make progress must refuse, not loop** — a
+    hang presents as slowness rather than as a bug, so it gets waited out.
+
+    Timed, not merely called: a return is not enough if it takes a minute.
+    """
+    import time
+
+    import upackage
+    from uassettable import _properties, _Reader
+
+    for path in (
+        "../../../Pal/Content/Pal/Blueprint/MapObject/BuildObject/"
+        "BP_BuildObject_EnergyStorage_Electric",
+        "../../../Pal/Content/Pal/Blueprint/UI/SceneCaptureWidget/"
+        "BP_PalMonsterCaptureSet",
+    ):
+        package = upackage.read(pak.read(path + ".uasset"))
+        uexp = pak.read(path + ".uexp")
+        export = next(e for e in package.exports if e.name.startswith("Default__"))
+
+        started = time.time()
+        props = _properties(_Reader(export.data(uexp), package.names))
+        elapsed = time.time() - started
+
+        assert elapsed < 5, f"{path} took {elapsed:.1f}s — the guard is gone"
+        assert props, "should decode real properties, not merely return"
+
+
+def test_a_property_that_consumes_nothing_refuses_rather_than_looping():
+    """
+    The progress guard, exercised directly rather than via an asset that
+    happens to trip it — so it keeps testing something if the pak changes.
+
+    A zero-length body has no `None` terminator, so the bounds guard fires
+    first; both paths must raise rather than spin.
+    """
+    from uassettable import TableError, _properties, _Reader
+
+    with pytest.raises(TableError):
+        _properties(_Reader(b"", []))
