@@ -159,13 +159,35 @@ def main() -> int:
         print("  No pak found; cannot extract.")
         return 2
 
+    bundled_preview = load_bundle("worldobjects.json.gz")
+    # THE TARGET LIST MUST COME FROM THE BUNDLE, NOT A LITERAL.
+    #
+    # This was hardcoded to "ore,treasure,fishing,oilrig" while the bundle
+    # carries THIRTEEN categories. The diff therefore re-extracted four, found
+    # the other nine missing, and reported 18,377 real world objects as
+    # "removed" — every Pal spawner, every NPC, every skill fruit — with `ore`
+    # and `treasure` sitting unchanged beside them. It then offered `--write`,
+    # which would have destroyed all nine.
+    #
+    # Categories going to EXACTLY zero while their neighbours are byte-identical
+    # is the tell: a game patch does not delete a category and leave the rest
+    # untouched. That is this repo's own rule — a count that disagrees with what
+    # the game plainly has is wrong however plausible it reads — and the
+    # dangerous part was that it failed loudly in the direction of "act on me".
+    targets = sorted((bundled_preview.get("groups") or {}).keys())
+    if not targets:
+        print("  ! the bundle names no categories; cannot diff safely")
+        return 2
+
     with tempfile.TemporaryDirectory() as tmp:
         fresh_path = os.path.join(tmp, "worldobjects.json")
         command = [
             sys.executable, os.path.join(ROOT, "scripts", "extract-world-objects.py"),
             "--pak", pak, "--out", fresh_path,
-            "--targets", "ore,treasure,fishing,oilrig",
+            "--targets", ",".join(targets),
         ]
+        print(f"  {len(targets)} categories, taken from the bundle: "
+              f"{', '.join(targets)}")
         print(f"  $ {' '.join(command[1:])}")
         result = subprocess.run(command, cwd=ROOT)
         if result.returncode != 0 or not os.path.exists(fresh_path):
@@ -193,6 +215,30 @@ def main() -> int:
             print(f"  ! cells parsed {old_cells:,} -> {new_cells:,}")
             print("    The streaming grid changed. Re-check src/lib/map-coordinates.ts —")
             print("    the World Tree extent was derived from this grid.")
+
+        # ── The guard that should have existed ────────────
+        #
+        # A category emptying completely is not a thing a content patch does,
+        # and it IS what every mis-invocation of this script looks like. So it
+        # refuses the write rather than reporting it, because the failure mode
+        # here is not a wrong number on a screen — it is a bundle overwritten
+        # with less than it had, from a source that cannot be recovered without
+        # the original pak.
+        emptied = [
+            name for name, group in (bundled_preview.get("groups") or {}).items()
+            if (group or {}).get("objects")
+            and not ((fresh.get("groups") or {}).get(name) or {}).get("objects")
+        ]
+        if emptied:
+            print(f"\n  ! {len(emptied)} categor(y/ies) came back EMPTY: "
+                  f"{', '.join(emptied)}")
+            print("    A patch does not delete a whole category and leave its")
+            print("    neighbours byte-identical. Check the extraction before")
+            print("    believing this — the pak still containing the assets is")
+            print("    one `palpak` listing away.")
+            if args.write:
+                print("    REFUSING to write.")
+                return 2
 
         if args.write and changed:
             out = os.path.join(DATA_DIR, "worldobjects.json.gz")
