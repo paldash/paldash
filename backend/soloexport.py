@@ -59,6 +59,7 @@ import tempfile
 import time
 from typing import Any, Optional
 
+import exportscope
 import savefiles
 
 logger = logging.getLogger(__name__)
@@ -509,6 +510,7 @@ def apply_export(
     world_dir: Optional[str] = None,
     destination: Optional[str] = None,
     expected_plan_hash: Optional[str] = None,
+    keep_guilds: Optional[list] = None,
 ) -> dict[str, Any]:
     """
     Write a remapped copy of the world. The source world is never modified.
@@ -543,10 +545,37 @@ def apply_export(
         os.makedirs(os.path.join(staging, "Players"), exist_ok=True)
 
         level_gvas, level_type = _load(os.path.join(root, "Level.sav"))
-        applied = _remap_level(_world_save_data(level_gvas), mapping)
+        world = _world_save_data(level_gvas)
+        applied = _remap_level(world, mapping)
+
+        # **The prune runs on the COPY's tree, after the remap and before the
+        # write.** Order matters: remapping first means the kept player already
+        # carries the target uid, so `keep_uid` matches whichever identity the
+        # export is producing.
+        #
+        # A refusal here is not an error the caller has to handle — the whole
+        # design is that the unpruned copy still gets written. A world missing
+        # half a reference loads and fails later; an untidy one just has other
+        # people's bases in it, which is what the export did before this option
+        # existed.
+        prune: dict[str, Any] = {"requested": keep_guilds is not None}
+        if keep_guilds is not None:
+            try:
+                prune.update(exportscope.apply(world, keep_guilds, keep_uid=target))
+            except exportscope.ExportScopeError as e:
+                prune.update({"pruned": False, "refused": str(e)})
+                logger.warning("Prune refused, writing the full copy: %s", e)
+            except Exception as e:  # noqa: BLE001 - same outcome, wider net
+                prune.update({"pruned": False, "refused": f"{type(e).__name__}: {e}"})
+                logger.warning("Prune failed, writing the full copy: %s", e)
+
         _write(level_gvas, level_type, os.path.join(staging, "Level.sav"))
 
-        _copy_players(root, staging, mapping)
+        # Only skip player files when the prune actually happened. A refused
+        # prune must leave the copy complete, and dropping saves for guilds that
+        # are still in `Level.sav` is the exact half-finished state this refuses.
+        skip = set(prune.get("playerUids") or []) if prune.get("pruned") else set()
+        _copy_players(root, staging, mapping, skip_uids=skip)
         for name in VERBATIM:
             src = os.path.join(root, name)
             if os.path.isfile(src):
@@ -571,6 +600,7 @@ def apply_export(
         "applied": applied,
         "verification": report,
         "warnings": plan["warnings"],
+        "prune": prune,
         "sizeBytes": _tree_size(out_root),
     }
 
@@ -584,13 +614,16 @@ def _default_destination(source: str, target: str) -> str:
     return os.path.join(base, f"world-{source[:8]}-to-{target[:8]}-{stamp}")
 
 
-def _copy_players(root: str, staging: str, mapping: dict[str, str]) -> None:
+def _copy_players(root: str, staging: str, mapping: dict[str, str],
+                  skip_uids: Optional[set] = None) -> None:
     """
     Copy every player save, rewriting and renaming the remapped ones.
 
-    Players not involved keep their files byte for byte: this is a copy of the
-    world, and dropping the others would be the destructive "solo extraction" this
-    module deliberately does not do.
+    Players not involved keep their files byte for byte **unless the caller is
+    pruning their guild**: this is a copy of the world, and dropping the others
+    uninvited would be the destructive "solo extraction" this module
+    deliberately does not do. `skip_uids` is that choice made explicitly, by
+    somebody who asked for it and saw the count first.
 
     Renames are computed into the staging directory, so a swap never has to worry
     about one rename clobbering the other's source — the classic bug in an in-place
@@ -615,6 +648,12 @@ def _copy_players(root: str, staging: str, mapping: dict[str, str]) -> None:
             # dropped: it is not ours to interpret, and losing it silently would be
             # worse than copying something unrecognised.
             shutil.copy2(src, os.path.join(staging, "Players", name))
+            continue
+
+        if skip_uids and dashed in skip_uids:
+            # Their guild was pruned, so their save would reference a group that
+            # no longer exists. Skipped for both the `.sav` and its `_dps`
+            # sibling, which is why this sits before the dps branch below.
             continue
 
         new_uid = mapping.get(dashed)
