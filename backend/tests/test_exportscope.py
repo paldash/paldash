@@ -101,11 +101,21 @@ def test_keeping_everything_removes_nothing():
     assert set(plan["removes"].values()) == {0}
 
 
-def test_the_plan_says_out_loud_that_it_does_not_apply():
+def test_the_plan_now_reports_that_apply_exists_and_says_how_it_fails():
     """
-    Deletion across six interlinked structures is not implemented, and a caller
-    must not present the plan as a completed operation.
+    A REFUSAL THAT GOT ANSWERED. This asserted `applyImplemented is False` and
+    "not implemented" in the note, because deletion across six interlinked
+    structures was the one thing here where a half-finished implementation
+    would be worse than none.
+
+    It is implemented now (`exportscope.apply`, `test_exportscope_apply.py`), so
+    the flag flips — but the note still has to carry the failure mode, because
+    that is what stops a caller presenting a refused prune as a completed one.
+
+    Rewritten rather than deleted: a refusal that expires should leave a trace,
+    or the next reader cannot tell it was answered from it being dropped.
     """
     plan = exportscope.plan(_world(), keep_uid=ME)
-    assert plan["applyImplemented"] is False
-    assert "not implemented" in plan["note"]
+    assert plan["applyImplemented"] is True
+    assert "refuses" in plan["note"]
+    assert "unpruned copy is written instead" in plan["note"]
