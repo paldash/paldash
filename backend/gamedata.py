@@ -134,6 +134,13 @@ NPCS_PATH = os.environ.get(
     os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "npcs.json.gz"),
 )
 
+NPC_REQUESTS_PATH = os.environ.get(
+    "NPC_REQUESTS_DATA_PATH",
+    os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "data", "npc_requests.json.gz"
+    ),
+)
+
 BUILD_CAPABILITIES_PATH = os.environ.get(
     "BUILD_CAPABILITIES_DATA_PATH",
     os.path.join(
@@ -173,6 +180,7 @@ _worldpresets: Optional[dict[str, Any]] = None
 _npcs: Optional[dict[str, Any]] = None
 _guild: Optional[dict[str, Any]] = None
 _build_capabilities: Optional[dict[str, Any]] = None
+_npc_requests: Optional[dict[str, Any]] = None
 _indexes: dict[str, dict[str, Any]] = {}
 
 
@@ -1108,6 +1116,37 @@ def pal_drops(species_id: str) -> list[dict[str, Any]]:
                         "items": items})
     out.sort(key=lambda b: b["levelFrom"])
     return out
+
+
+def npc_requests() -> dict[str, Any]:
+    """
+    The two NPC request chains, from `DA_PalDisplay` and `DA_ItemRequest` via
+    `scripts/extract-npc-requests.py`.
+
+    54 "show me this Pal" requests and 11 item requests, each with the reward
+    the NPC hands over.
+
+    **The two halves are not equally knowable and the bundle says which.**
+    `palDisplay.tracked` is True — the save records completion per player in
+    `RecordData.PalDisplayNPCDataTableProgress`, keyed by these RequestIDs.
+    `itemRequest.tracked` is False: no progress field for it has been observed
+    on any player, so that half is a catalogue of what exists and must never be
+    rendered as a checklist.
+
+    Empty dict when the bundle is absent, like every accessor here.
+    """
+    global _npc_requests
+    if _npc_requests is None:
+        try:
+            with gzip.open(NPC_REQUESTS_PATH, "rt", encoding="utf-8") as f:
+                _npc_requests = json.load(f)
+        except (OSError, json.JSONDecodeError) as e:
+            logger.warning(
+                "NPC request data unavailable (%s); the request chains will "
+                "not be shown", e
+            )
+            _npc_requests = {}
+    return _npc_requests
 
 
 def build_capabilities() -> dict[str, Any]:

@@ -1565,6 +1565,11 @@ _PROGRESS_FLAGS: list[tuple[str, str]] = [
     ("effigies", "RelicObtainForInstanceFlag"),
     ("areasFound", "FindAreaFlagMap"),
     ("dungeonsCleared", "FixedDungeonClearCount"),
+    # "Show me this Pal" requests, keyed by the RequestIDs in `DA_PalDisplay`.
+    # The binary calls the runtime state `Local_PalDisplayNPCDataTableProgress`
+    # and `Local_` reads as client-side — it is in the save, in exactly the
+    # `[{key, value}]` shape every other flag here uses.
+    ("palDisplay", "PalDisplayNPCDataTableProgress"),
 ]
 
 _PROGRESS_COUNTERS: list[tuple[str, str]] = [

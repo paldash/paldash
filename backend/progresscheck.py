@@ -278,6 +278,32 @@ def effigies(keys: list[str]) -> dict[str, Any]:
     return _checklist(keys, catalogue, limit=40)
 
 
+def pal_display(keys: list[str]) -> dict[str, Any]:
+    """
+    The "show me this Pal" requests, out of 54.
+
+    Keys come from `RecordData.PalDisplayNPCDataTableProgress` and are exactly
+    the `RequestID`s in `DA_PalDisplay` — a real checklist, unlike its item-request
+    sibling, whose progress no save has ever been seen to record.
+
+    **The species is named, not the request id.** `Area_F1_1` is meaningless to
+    a player; "Carbunclo, Area F1" is the answer, and `pal_name` is what turns
+    one into the other. An unresolvable species keeps its raw id rather than
+    being dropped — the same rule as everywhere else here.
+    """
+    requests = ((gamedata.npc_requests() or {}).get("palDisplay") or {}).get("requests") or {}
+    catalogue = {}
+    for request_id, entry in requests.items():
+        species = str(entry.get("speciesId") or "")
+        catalogue[str(request_id)] = {
+            "name": gamedata.pal_name(species) or species,
+            "speciesId": species,
+            "area": entry.get("category") or "",
+            "rewards": entry.get("rewards") or [],
+        }
+    return _checklist(keys, catalogue, limit=60)
+
+
 def describe(progress: dict[str, Any]) -> dict[str, Any]:
     """
     Named checklists for one player's progress, from `extract_player_progress`.
@@ -299,6 +325,7 @@ def describe(progress: dict[str, Any]) -> dict[str, Any]:
         "areasFound": areas_found(keys("areasFound")),
         "fastTravel": fast_travel(keys("fastTravel")),
         "effigies": effigies(keys("effigies")),
+        "palDisplay": pal_display(keys("palDisplay")),
     }
 
     # `dungeonsCleared` is deliberately absent rather than empty. On every save

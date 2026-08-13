@@ -2183,18 +2183,72 @@ Every one decodes cleanly, each walk ending 4 bytes from its export end.
 |---|---|---|
 | `DA_PalBuildObjectCapabilityData` | 48 structures -> output multipliers | **shipped**, see below |
 | `DA_AchivementReward` | the reward ITEMS for all 26 milestone tiers | **worth building** |
-| `DA_PalDisplay` | 22 KB of "show me a Pal" requests by area, with rewards | **worth building** |
-| `DA_ItemRequest` | NPC item requests -> rewards | **worth building** |
+| `DA_PalDisplay` | 54 "show me a Pal" requests by area, with rewards | **shipped** |
+| `DA_ItemRequest` | 11 NPC item requests -> rewards | **shipped, untracked** |
 | `DA_MultiProduct_LoggingMining` | Ancient multi-product station wiring | thin |
 | `DA_PalCaptureBallEffectSetting` | particle counts per Pal size | cosmetic |
 | `DA_BreedingItemEffectData` | the cakes | already read |
 | `DA_OneStrokeMinigameData` | a minigame | nothing |
 
-**`DA_AchivementReward` is the one that closes a gap already shipped.**
-`achievements.py` reads `DT_AchivementRewardNPC` for the 26 tiers and their
-thresholds, and has never been able to say what a tier *gives* —
-`BossDefeat_1` is `RequireCount 5` and `RewardItems: [ExpBoost_02 x3]`. The
-progression tab shows "unclaimed" against a reward it cannot name.
+**`DA_AchivementReward` WAS ALREADY READ, and the line above claiming otherwise
+was wrong.** It said `achievements.py` "has never been able to say what a tier
+gives". It has: `catalogue()` returns `rewards: [{itemId, count}]` and
+`expBonusLevel` per tier, and `progression.tsx` renders them in the tier
+tooltip. Nothing needed building.
+
+That is twice in one session that a task was written from *"this data exists,
+therefore nothing reads it"* without checking the consumer. Both times the check
+cost one command. **Read the consumer before writing the task, not after.**
+
+### The BossDefeat counter is still unidentified, and now it is measured
+
+Chasing that turned up something the index could not have shown: **`RecordData`
+carries `TowerBossDefeatCount`, `RaidBossDefeatCount`, `CampConqueredCount`,
+`OilrigClearCount` and `NormalBossDefeatFlag`**, and `docs/savefields.json`
+indexes **0 `RecordData` paths** — so that whole region of the save is
+uncatalogued and none of these were known.
+
+`achievements.py` ships `counter: null` for BossDefeat. Testing every RecordData
+counter against the rule it already uses — *no player may have claimed a tier
+their counter has not reached* — leaves **10 survivors**, including
+`PalCaptureBonusExpTableIndex`. That is not a shortlist, it is the test having no
+power: **one player on refworld has claimed one BossDefeat tier, the lowest
+(threshold 5)**, so almost anything clears it.
+
+Two things worth keeping from the attempt:
+
+- `TowerBossDefeatCount` and `RaidBossDefeatCount` are **absent on every
+  refworld player**, not zero. A first pass read absent as 0 and "refuted" them;
+  absent and zero are different facts, which is the trap this file records
+  about `-1` sentinels and empty ban lists.
+- The honest statement is now stronger than "no counter exists": the counters
+  exist, and **this world carries no data that can discriminate between them**.
+  A world where somebody has claimed a high BossDefeat tier would settle it.
+
+### The NPC request chains — and only one half is a checklist
+
+`scripts/extract-npc-requests.py` -> `npc_requests.json.gz`. 54 Pal-display
+requests (`Area_A1_1` -> show a Carbunclo -> 10 Pal Spheres and a key) and 11
+item requests.
+
+**The save records the Pal-display half, and the binary's own name argues
+against that.** The runtime state is called
+`Local_PalDisplayNPCDataTableProgress`, and `Local_` reads as client-side. It is
+in the save, on the player's `RecordData`, in the same `[{key, value}]` shape as
+every other progression flag, keyed by exactly this asset's `RequestID`s. So it
+is a real checklist and now sits beside effigies and tower bosses.
+
+**The item half is not tracked and says so.** `Local_ItemRequestCircumCountMap`
+is named in the binary and appears on **no player in any world examined**, so
+that half ships `tracked: false` — a catalogue of what exists, never rendered as
+progress. A test pins that `describe()` has no `itemRequest` key, because adding
+one would show every player at 0 of 11 forever.
+
+**AND `docs/savefields.json` COULD NOT HAVE ANSWERED EITHER WAY.** It indexes
+**0 `RecordData` paths**. AGENTS.md's rule is "grep the index before writing a
+negative"; the corollary this cost is that **an index only rules something out
+where it actually looked** — so a negative drawn from it needs its coverage
+checked first. Settled against the real saves instead.
 
 ### `DA_PalBuildObjectCapabilityData` — 48 structures, and nothing reads it
 
