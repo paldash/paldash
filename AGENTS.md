@@ -4819,8 +4819,43 @@ Three things it reports that a naive dump would not:
   **no single save has all of them**; `BossSpawnerSaveData` is in the oldest
   backup only. A one-world survey would have called it absent.
 
+**AN INDEX ONLY RULES SOMETHING OUT WHERE IT LOOKED, AND THIS ONE LOOKED AT ONE
+FILE.** The first committed version walked `Level.sav` alone, so it carried
+**zero `RecordData` paths** — the entire per-player progression-flag region —
+and two negatives were drawn from that silence in one session before anyone
+noticed. `PalDisplayNPCDataTableProgress`, `TowerBossDefeatCount`,
+`RaidBossDefeatCount`, `CampConqueredCount`, `OilrigClearCount`,
+`NPCTalkCountMap` and `MutationCount` are all in the save and were all absent
+from the index.
+
+Regenerated across `Level.sav` **and every player `.sav`**: 629 -> **873 field
+paths**, of which **97 are `RecordData`**. The corollary to "grep the index
+before writing a negative" is **check `worlds` first** — the index now says
+which files it walked, in its own `_note`.
+
+Two things the script got wrong and now does not:
+
+- **Every player collapsed into one entry.** The label was the parent directory
+  name, so all six files under `Players/` came out as `Players` and five were
+  silently overwritten. That is the other half of why `RecordData` never
+  appeared even when somebody did pass them.
+- **A player `.sav` is named after their uid.** Falling back to the filename
+  would have written real Steam IDs into a committed file. Players are numbered
+  by read order (`refworld:player1`) — the index is about which *paths* exist,
+  and whose save one came from is not part of that.
+
+`differsBetweenWorlds` compares **within a kind**, never across. A `Level.sav`
+and a player `.sav` have almost disjoint path sets, so intersecting them marked
+all 873 as differing — the check drowning rather than firing. Within kind it is
+267.
+
 **No values from a real world are in the committed index.** `refworld` holds real
 Steam IDs and player names, so anything name-shaped is counted and never printed.
+Re-verified after the RecordData expansion: **0 player-uid-shaped values** (a
+Palworld uid is a Steam ID32 then zeros, which is what distinguishes it from a
+full-entropy GUID) and no `76561`. Six new paths do carry GUID samples —
+fast-travel, relic and item-pickup instance ids — and those are world-object
+identifiers already published in `effigies.json.gz` and `gamedata.json.gz`.
 `test_savefields.py` pins that against the committed file rather than against the
 generator — a test of the extractor would pass beside an index built before the
 filter existed.
