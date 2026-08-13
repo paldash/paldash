@@ -38,14 +38,32 @@ itself is what counts.
 
 ## Third-party components
 
-| Component | Licence | Note |
+**This table is what actually ships.** A credit for something no longer used is
+not a harmless courtesy — it misdescribes which licence covers what. The rule
+is that an entry must name a thing present in the built image, and every such
+thing must have an entry.
+
+| Component | Licence | What it is here |
 |---|---|---|
-| `palsav` | GPL-3.0-or-later | The reason for all of the above |
-| `palooz` | see upstream | Oodle bindings; used for saves and the pak reader |
-| Next.js, React | MIT | No copyleft obligation |
-| FastAPI, uvicorn, pydantic | MIT / BSD | No copyleft obligation |
-| `lucide-react` icons | ISC | |
-| Game data in `backend/data/gamedata.json.gz` | see below | |
+| `palsav` | **GPL-3.0-or-later** | Reads `PlM` saves — the reason for all of the above |
+| `palooz` | see upstream | Oodle bindings, wrapping powzix/`ooz`; saves *and* the pak reader |
+| Next.js, React, react-dom | MIT | |
+| FastAPI, uvicorn, pydantic | MIT / BSD | |
+| `lucide-react` icons | ISC | Every icon in the chrome |
+| **Leaflet** | BSD-2-Clause | The map. Bundled, not CDN-loaded |
+| **Recharts** | MIT | The metrics charts |
+| **Zustand** | MIT | Client state |
+| **tylercamp/palcalc** | MIT | The 46,655-pair breeding table in `backend/data/`, and the reference samples `src/lib/map-coordinates.ts` fits against |
+| **PalworldSaveTools `resources/game_data/`** | MIT (© 2026 Pylar) | Icon paths, catalogue membership, the 174 fast-travel coordinates, and the stat formula `backend/palstats.py` transcribes — **not** the display names, which come from the game's own `L10N/` tables |
+| Game data in `backend/data/*.json.gz` | see below | Pocketpair's, whoever extracted it |
+
+Two credits in `README.md` are **lineage, not dependency**, and are phrased as
+such deliberately: cheahjs/`palworld-save-tools` (the GVAS reader this ecosystem
+descends from — the PyPI package cannot read 1.0 saves and is not installed) and
+RNZ01/`palworld-server-dashboard` (the inspiration). Neither ships.
+
+`backend/data/provenance.json` is the per-artifact answer and is the file to
+trust when this table and a docstring disagree.
 
 ## Game data and assets
 
