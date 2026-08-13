@@ -5,6 +5,8 @@ import { Package, Search, RefreshCw } from 'lucide-react';
 import { getItemTotals, getItemScopes } from '@/lib/save-api';
 import GameIcon from '@/components/game-icon';
 import ItemSourcePanel from '@/components/item-source';
+import { useLanguage } from '@/lib/use-language';
+import { localName, matchesQuery } from '@/lib/language';
 import type { ItemTotals } from '@/lib/types';
 
 /**
@@ -27,6 +29,25 @@ export default function ItemsView() {
   // '' means the default the backend picks for you — your own guilds below the
   // threshold, server-wide above it.
   const [guild, setGuild] = useState('');
+  const [langPack] = useLanguage();
+
+  /**
+   * The item's name in the chosen language, falling back to English.
+   *
+   * Feeds BOTH the list and the filter below, for the reason `my-pals` records:
+   * a localised list whose filter tests only English loses every query typed in
+   * the selected language.
+   *
+   * **Items are where a language selection is actually visible.** Pocketpair
+   * leaves most Pal names untranslated in Latin-script languages — 25 of 322
+   * differ in German — while 1,831 of 1,851 item names do. A switcher wired
+   * only to Pals reads as broken on exactly the languages most people pick.
+   */
+  const itemName = useCallback(
+    (i: { itemId: string; name: string }) =>
+      localName(langPack, 'items', i.itemId, i.name),
+    [langPack]
+  );
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -52,16 +73,19 @@ export default function ItemsView() {
     if (!data) return [];
     const q = query.trim().toLowerCase();
     if (!q) return data.items;
-    // Match on the display name, the internal ID and the category, so both
-    // "Ancient Civilization Part" and "AncientCivilizationParts" find it.
+    // Match on the English name, the localised name, the internal ID and the
+    // category, so "Ancient Civilization Part", "Teil einer alten Zivilisation"
+    // and "AncientCivilizationParts" all find it.
     return data.items.filter(
       (i) =>
-        i.name.toLowerCase().includes(q) ||
-        i.itemId.toLowerCase().includes(q) ||
+        matchesQuery(q, i.name, itemName(i), i.itemId) ||
         i.typeA.toLowerCase().includes(q) ||
         i.typeB.toLowerCase().includes(q)
     );
-  }, [data, query]);
+    // `itemName` closes over the language pack. Omitting it relabels the rows
+    // while leaving the filter on the previous language — the same stale-deps
+    // bug `my-pals` carries a comment about, twice.
+  }, [data, query, itemName]);
 
   if (error) {
     return (
@@ -164,9 +188,9 @@ export default function ItemsView() {
                 <td style={{ color: 'var(--text-primary)' }}>
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
                     {/* The path comes straight from the bundled game data. */}
-                    <GameIcon src={item.icon} title={item.name} />
+                    <GameIcon src={item.icon} title={itemName(item)} />
                     <span>
-                      {item.name}
+                      {itemName(item)}
                       {/* Keep the internal ID visible but secondary — it is what the
                           save actually stores, and it is what you search a wiki for. */}
                       <span
