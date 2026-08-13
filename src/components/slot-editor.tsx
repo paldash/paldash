@@ -8,6 +8,8 @@ import {
   getBaseStorage, getContainerContents, getItemCatalogue, previewSlotEdit, applySlotEdit,
   getSavePlayers, getPlayerContainers, type PlayerContainer,
 } from '@/lib/save-api';
+import { useLanguage } from '@/lib/use-language';
+import { localName, matchesQuery } from '@/lib/language';
 import type {
   BaseStorage, BaseContainer, CatalogueItem, InventorySlot, SlotPatch, SlotEditPlan,
   PlayerSaveData,
@@ -71,6 +73,20 @@ export default function SlotEditor({ canEdit }: { canEdit: boolean }) {
   const [done, setDone] = useState<string | null>(null);
   const [slotQuery, setSlotQuery] = useState('');
   const [emptyOnly, setEmptyOnly] = useState(false);
+  const [langPack] = useLanguage();
+
+  /**
+   * A slot's item name in the chosen language.
+   *
+   * **Display only.** Every write here keys on `itemId` and `slotIndex`, which
+   * are what the save stores — a localised name never reaches the patch, and
+   * the id stays visible beside it for exactly that reason.
+   */
+  const slotName = useCallback(
+    (s: { itemId?: string | null; itemName?: string | null }) =>
+      localName(langPack, 'items', s.itemId, s.itemName ?? s.itemId ?? ''),
+    [langPack]
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -210,12 +226,14 @@ export default function SlotEditor({ canEdit }: { canEdit: boolean }) {
       if (emptyOnly && !slot.isEmpty) return false;
       if (!q) return true;
       return (
-        (slot.itemName ?? '').toLowerCase().includes(q) ||
-        (slot.itemId ?? '').toLowerCase().includes(q) ||
+        // The slot INDEX is the other way in and is language-independent, which
+        // matters here more than elsewhere: this is the editor, and an index is
+        // what the writer keys on.
+        matchesQuery(q, slot.itemName ?? '', slotName(slot), slot.itemId ?? '') ||
         String(slot.slotIndex) === q
       );
     });
-  }, [slots, slotQuery, emptyOnly]);
+  }, [slots, slotQuery, emptyOnly, slotName]);
 
   const preview = async () => {
     setBusy(true); setError(null); setDone(null);
@@ -455,7 +473,7 @@ export default function SlotEditor({ canEdit }: { canEdit: boolean }) {
                     <>
                       <Lock size={12} style={{ color: 'var(--accent-amber)' }} />
                       <GameIcon src={slot.icon} size={20} />
-                      <span style={{ flex: 1 }}>{slot.itemName || slot.itemId}</span>
+                      <span style={{ flex: 1 }}>{slotName(slot) || slot.itemId}</span>
                       <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
                         has durability — cannot be overwritten without orphaning its record
                       </span>
@@ -614,9 +632,12 @@ export default function SlotEditor({ canEdit }: { canEdit: boolean }) {
                       <span className="mono" style={{ color: 'var(--text-muted)' }}>
                         slot {c.slotIndex}
                       </span>{' '}
-                      {c.before.itemName || c.before.itemId || '(empty)'} ×{c.before.stackCount}
+                      {/* Localised to match the list above. Showing "Charcoal"
+                          here beside "Holzkohle" there reads as the wrong slot
+                          at the exact moment somebody is confirming a write. */}
+                      {slotName(c.before) || c.before.itemId || '(empty)'} ×{c.before.stackCount}
                       {' → '}
-                      {c.after.itemName || c.after.itemId || '(empty)'} ×{c.after.stackCount}
+                      {slotName(c.after) || c.after.itemId || '(empty)'} ×{c.after.stackCount}
                     </div>
                   ))}
                   <button

@@ -5,6 +5,8 @@ import { getWorkTypes, orderedWork, type WorkType } from '@/lib/work-types';
 import { BookOpen, Search, RefreshCw, MapPin } from 'lucide-react';
 import { getPaldeck, getPaldeckEntry } from '@/lib/save-api';
 import GameIcon from '@/components/game-icon';
+import { useLanguage } from '@/lib/use-language';
+import { localName, matchesQuery } from '@/lib/language';
 
 /**
  * The raw stat keys read as code (`meleeAttack`, `craftSpeed`). These are the
@@ -55,6 +57,13 @@ export default function Paldeck() {
   const [query, setQuery] = useState('');
   const [onlyWithHabitat, setOnlyWithHabitat] = useState(false);
   const [workTypes, setWorkTypes] = useState<WorkType[]>([]);
+  const [langPack] = useLanguage();
+
+  /** The species name in the chosen language. Feeds the list AND the filter. */
+  const palName = useCallback(
+    (p: { id: string; name: string }) => localName(langPack, 'pals', p.id, p.name),
+    [langPack]
+  );
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -101,12 +110,14 @@ export default function Paldeck() {
       (p) =>
         (!onlyWithHabitat || p.hasHabitat) &&
         (!q ||
-          p.name.toLowerCase().includes(q) ||
-          p.id.toLowerCase().includes(q) ||
+          // English, localised and id together — dropping any one loses a query
+          // somebody will reasonably type. The Paldeck NUMBER is the other way
+          // in, and is the same in every language.
+          matchesQuery(q, p.name, palName(p), p.id) ||
           String(p.paldeckNumber) === q ||
           p.elements.some((e) => e.toLowerCase().includes(q)))
     );
-  }, [listing, query, onlyWithHabitat]);
+  }, [listing, query, onlyWithHabitat, palName]);
 
   // A habitat can span both landmasses, and the two map images have separate
   // framings — so they are split and drawn as two maps rather than one wrong one.
@@ -182,7 +193,7 @@ export default function Paldeck() {
                 {p.paldeckNumber}
               </span>
               <GameIcon src={p.icon} size={26} />
-              <span style={{ color: 'var(--text-primary)' }}>{p.name}</span>
+              <span style={{ color: 'var(--text-primary)' }}>{palName(p)}</span>
               {p.hasHabitat ? (
                 <span style={{ marginLeft: 'auto', color: 'var(--text-muted)', fontSize: 11 }}>
                   <MapPin size={10} style={{ verticalAlign: '-1px' }} /> {p.habitatCells}
@@ -225,7 +236,7 @@ export default function Paldeck() {
                     <span className="mono" style={{ color: 'var(--text-muted)', marginRight: 8 }}>
                       #{selected.paldeckNumber}
                     </span>
-                    {selected.name}
+                    {palName(selected)}
                   </div>
                   <div style={{ fontSize: 11, color: 'var(--text-muted)' }} className="mono">
                     {selected.id}
