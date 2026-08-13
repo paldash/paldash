@@ -508,6 +508,44 @@ Report them as weights, or as probabilities with that caveat attached; do not
 present "40% chance of inheriting one passive" as the game's own claim until
 somebody has bred enough eggs to say which end the array starts at.
 
+## The dashboard's OWN chrome cannot be translated from the game — measured
+
+The game's strings localise **its** vocabulary. "Bases", "Breeding planner",
+"Show the other 92 settings" and "Re-parsing after update" are ours, and
+Pocketpair never wrote them.
+
+Measured 2026-08-12 rather than assumed, because `DT_UI_Common_Text` ships
+2,970 rows per language and plainly contains generic chrome — `common_cancel`,
+`common_back`, `common_yes`. Against the **234 distinct chrome strings** in
+`src/components/*.tsx` and `src/app/*.tsx`:
+
+| | |
+|---|---:|
+| game UI rows with both an English and a German string | 2,642 |
+| our chrome strings they cover | **32 (14%)** |
+
+**And joining on the English VALUE is unsound, which the sample shows
+immediately.** Two of the first eight "matches":
+
+    Clear   -> "Abgeschlossen!"                        (= Completed! — a quest string)
+    Detail  -> "Siehe Details (nicht implementiert)"   ("not implemented", baked in)
+
+A word means different things on a filter button and in a quest log, so the
+usable coverage is below 14% and every match needs a human to confirm. That is
+the `UI_ALIASES` situation without the two-source agreement that made it safe
+there.
+
+**So the blocker on #109 is not a framework, it is provenance.** Machine-translating
+200 dashboard strings into fifteen languages and shipping them as the
+dashboard's German is precisely the failure this file refuses everywhere else —
+a sentence I wrote renders identically to one Pocketpair published and gets
+trusted the same way. The honest shapes are: extract the strings and ship
+English with the scaffolding for contributed translations, or leave the chrome
+in English and localise only the game's own nouns, which **#107 already does**.
+
+Localising the game's nouns while the buttons stay English is not a half
+measure — it is the split the data actually supports.
+
 ## Friendly names
 
 `backend/gamedata.py` resolves internal IDs (`Sheepball`, `AIcore`) to what
