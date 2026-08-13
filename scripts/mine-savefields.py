@@ -413,12 +413,56 @@ def compare(worlds: dict[str, dict[str, Any]]) -> list[str]:
     saves are different game versions, or one of them is a processed copy — the
     `refworld` problem, which is why more than one world is required to say
     anything durable.
+
+    **Compared within a KIND, never across kinds.** A `Level.sav` and a player
+    `.sav` have almost disjoint path sets — one holds `worldSaveData`, the other
+    `RecordData` — so intersecting them marks every path as differing and the
+    list stops meaning anything. The first run that included player saves
+    reported all 873 paths as disagreeing, which is the check drowning rather
+    than firing.
     """
-    if len(worlds) < 2:
-        return []
-    everywhere = set.intersection(*(set(v) for v in worlds.values()))
-    anywhere = set.union(*(set(v) for v in worlds.values()))
-    return sorted(anywhere - everywhere)
+    kinds: dict[str, list[set]] = {}
+    for label, fields in worlds.items():
+        kinds.setdefault("player" if ":player" in label else "level", []).append(set(fields))
+
+    out: set[str] = set()
+    for members in kinds.values():
+        if len(members) < 2:
+            continue
+        out |= set.union(*members) - set.intersection(*members)
+    return sorted(out)
+
+
+def _label(path: str, taken: dict) -> str:
+    """
+    A label for one save file that is unique and **never a player's uid**.
+
+    Two traps here, and the second is a privacy leak:
+
+    - The old rule was the parent directory name, so every file under
+      `<world>/Players/` came out as `Players` and **all but the last were
+      silently overwritten** in the `worlds` dict. That is why the committed
+      index has no `RecordData` paths: player saves were either never passed, or
+      passed and collapsed into one.
+    - A player `.sav` is **named after their uid** (uppercase undashed hex), so
+      falling back to the filename would write real Steam IDs into a committed
+      file. `refworld` holds real ones. Players are numbered by read order
+      instead — the index is about which *paths* exist, and whose save a path
+      came from is not part of that.
+    """
+    parent = os.path.basename(os.path.dirname(path))
+    if parent.lower() == "players":
+        world = os.path.basename(os.path.dirname(os.path.dirname(path))) or "world"
+        n = 1 + sum(1 for key in taken if key.startswith(f"{world}:player"))
+        return f"{world}:player{n}"
+
+    label = parent or os.path.basename(path)
+    if label not in taken:
+        return label
+    n = 2
+    while f"{label}#{n}" in taken:
+        n += 1
+    return f"{label}#{n}"
 
 
 def main() -> int:
@@ -437,7 +481,7 @@ def main() -> int:
         if not os.path.exists(path):
             print(f"missing: {path}", file=sys.stderr)
             return 2
-        label = os.path.basename(os.path.dirname(path)) or os.path.basename(path)
+        label = _label(path, worlds)
         print(f"reading {path} …", file=sys.stderr)
         gvas = load(path)
         index = Index()
@@ -478,7 +522,14 @@ def main() -> int:
             "name suggests a person or place. `readBy` is a STRING-LITERAL match "
             "against backend/*.py and is approximate: it cannot prove a module "
             "reads a name from THIS path, but a distinctive name appearing "
-            "nowhere really is unread, which is the list this exists to produce."
+            "nowhere really is unread, which is the list this exists to produce. "
+            "COVERAGE IS PART OF THE ANSWER: this index only rules a field out "
+            "where it actually looked, and it looks only at the save files "
+            "listed in `worlds`. The first committed version walked Level.sav "
+            "alone, so it indexed ZERO RecordData paths — the entire per-player "
+            "progression-flag region — and two negatives were drawn from that "
+            "silence before anyone noticed. Pass the player .sav files too, and "
+            "check `worlds` before trusting an absence."
         ),
         "worlds": list(worlds),
         "fields": merged,
