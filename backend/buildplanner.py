@@ -80,15 +80,30 @@ three honest numbers.
 
 ## What it will not say
 
-- **Whether a mount flies, swims or walks.** In no file. AGENTS.md establishes
-  that at length, and two further avenues were checked while building this and
-  changed nothing: the client pak has no `BP_Pal_<species>` blueprint, and the
-  213 per-species animation folders do not attribute it — Jetragon has no
-  fly-named animation and everything has an `Idle_Swim`. So **"fastest ride" is
-  answerable and "fastest flyer" is not**, and `mountMode` is null rather than
-  guessed from a name.
 - **How a speed converts to metres per second.** The column is the game's own
   unit and nothing states the scale.
+
+*(This list began with "Whether a mount flies, swims or walks. In no file." —
+see the correction below.)*
+
+## THE MOUNT MODE IS IN A FILE, AND `BP_Pal_*` WAS THE MISTAKE
+
+Retracted 2026-08-12. The avenues recorded above were all real dead ends: the
+client pak has no `BP_Pal_<species>` blueprint, and the 213 per-species
+animation folders attribute nothing. The conclusion drawn from them was wrong,
+because the **server** pak carries the species blueprints under a different
+name:
+
+    PalActorBP/<Species>/BP_<Species>  ->  StaticCharacterParameterComponent
+                                             MovementType = EPalMonsterMovementType::Fly
+
+`mountMode` is read from `gamedata.movement_mode` now, and `mountModeKnown` is
+True. **Fastest rideable flyer is Jetragon at 3,300**, which this module was
+built saying it could not answer.
+
+`GroundOnly` is still an **inference** — nothing states the native default, only
+that the 31 overrides are exactly the non-walking Pals — so every row carries
+`mountModeInferred` and a UI must not render the two alike.
 """
 
 from __future__ import annotations
@@ -170,6 +185,18 @@ def _build_species() -> list[dict[str, Any]]:
             "movement": dict(entry.get("movement") or {}),
             "rideable": bool(entry.get("rideable")),
             "mountGearItem": entry.get("mountGearItem"),
+            # Whether it flies, swims or walks. AGENTS.md recorded this as
+            # unavailable across five checked avenues; the sixth was never
+            # tried, because the search looked for `BP_Pal_*` and the game
+            # names its species blueprints `BP_<Species>`.
+            #
+            # `GroundOnly` is INFERRED — nothing states the native default — so
+            # `movementModeInferred` travels per row rather than only in the
+            # bundle, since a row is what a caller renders.
+            "movementMode": gamedata.movement_mode(species_id),
+            "movementModeInferred": (
+                species_id not in ((gamedata.movement_modes() or {}).get("species") or {})
+            ),
         })
     return out
 
@@ -577,9 +604,15 @@ def rank(metric: str, build: Optional[dict[str, Any]] = None,
             "icon": entry["icon"],
             "elements": entry["elements"],
             "rideable": entry["rideable"],
-            # Not in any file. Null rather than inferred from a name — see the
-            # module docstring.
-            "mountMode": None,
+            # **This used to be a hardcoded None with a comment saying the mode
+            # is "not in any file".** It is: `EPalMonsterMovementType`, on each
+            # species blueprint in the SERVER pak. The search that ruled it out
+            # looked for `BP_Pal_*` and the game names them `BP_<Species>`.
+            "mountMode": entry["movementMode"],
+            # `GroundOnly` is inferred from the overrides being exactly the
+            # non-walkers, not read. Carried per row because a row is what gets
+            # rendered, and the two must not look equally authoritative.
+            "mountModeInferred": entry["movementModeInferred"],
             "stamina": entry["movement"].get("stamina"),
             **row,
         })
@@ -627,8 +660,11 @@ def rank(metric: str, build: Optional[dict[str, Any]] = None,
         # own flag rather than being buried by the half that got answered.
         # Never "false" — see the module docstring.
         "condenserOnSpeedColumns": "unverified",
-        # "Fastest ride" is answerable; "fastest flyer" is not.
-        "mountModeKnown": False,
+        # **Both are answerable now.** This said "fastest flyer is not" and
+        # shipped False, on the strength of a search for `BP_Pal_*` — the game
+        # names its species blueprints `BP_<Species>` and puts them in the
+        # server pak, where `EPalMonsterMovementType` decodes.
+        "mountModeKnown": True,
         "speedUnitKnown": False,
         # The element half, stated rather than implied. `against` echoes back
         # canonicalised so a caller who typed "Ground" can see it became "Earth".
@@ -739,5 +775,6 @@ def compare(species_ids: list, build: Optional[dict[str, Any]] = None
         "condenserOnMovement": "viaPartnerSkill",
         "condenserOnSpeedColumns": "unverified",
         "partnerSkillMovementApplied": True,
-        "mountModeKnown": False,
+        # See `rank`: the mode is read from the species blueprints now.
+        "mountModeKnown": True,
     }
