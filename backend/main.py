@@ -70,6 +70,7 @@ import saveimport
 import itemclone
 import slotedit
 import teleport
+import exportscope
 import soloexport
 import schedule as schedule_module
 import settings_ini
@@ -4542,6 +4543,26 @@ class WorldExportRequest(BaseModel):
     sourceUid: str
     targetUid: str
     planHash: Optional[str] = None
+    # Guild ids to KEEP. `None` means keep everything, which is what the export
+    # did before this option existed and stays the default — an omitted field
+    # must never mean "delete the rest".
+    keepGuilds: Optional[list[str]] = None
+
+
+@app.get("/api/export/world-copy/guilds")
+def world_export_guilds(request: Request) -> dict[str, Any]:
+    """
+    The guilds an export could keep or drop, with what each owns. Reads only.
+
+    Separate from the preview because the operator needs the list before they
+    can choose, and a destructive option must never be offered without the
+    counts that say what it costs.
+    """
+    authz.require(request, roles_module.BACKUP_MANAGE)
+    try:
+        return {"guilds": exportscope.guilds(exportscope.load_world())}
+    except exportscope.ExportScopeError as e:
+        raise HTTPException(503, str(e))
 
 
 @app.post("/api/export/world-copy/preview")
@@ -4555,9 +4576,20 @@ def preview_world_export(req: WorldExportRequest, request: Request) -> dict[str,
     """
     authz.require(request, roles_module.BACKUP_MANAGE)
     try:
-        return soloexport.plan_export(req.sourceUid, req.targetUid)
+        plan = soloexport.plan_export(req.sourceUid, req.targetUid)
     except soloexport.SoloExportError as e:
         raise HTTPException(400, str(e))
+
+    # What a prune would remove, counted, alongside the remap. Shown BEFORE the
+    # choice rather than after — the counts are the whole safety story for a
+    # destructive option.
+    if req.keepGuilds is not None:
+        try:
+            plan["prune"] = exportscope.plan(
+                exportscope.load_world(), req.keepGuilds, keep_uid=req.targetUid)
+        except exportscope.ExportScopeError as e:
+            raise HTTPException(503, str(e))
+    return plan
 
 
 @app.post("/api/export/world-copy")
@@ -4574,7 +4606,8 @@ def create_world_export(req: WorldExportRequest, request: Request) -> dict[str, 
     user = authz.require_user(request, roles_module.BACKUP_MANAGE)
     try:
         result = soloexport.apply_export(
-            req.sourceUid, req.targetUid, expected_plan_hash=req.planHash
+            req.sourceUid, req.targetUid, expected_plan_hash=req.planHash,
+            keep_guilds=req.keepGuilds,
         )
         archive = soloexport.archive_export(result["destination"])
     except soloexport.SoloExportError as e:
@@ -4593,6 +4626,17 @@ def create_world_export(req: WorldExportRequest, request: Request) -> dict[str, 
             "referencesRemapped": result["applied"]["total"],
             "sha256": archive["sha256"][:16],
             "sizeBytes": archive["sizeBytes"],
+            # "Who pruned whose guilds out of an export" is the question asked
+            # afterwards, so the answer is one filter rather than a scan. A
+            # REFUSED prune is recorded too: the export succeeded and kept
+            # everything, and that is a different fact from not having asked.
+            **({"prune": {
+                "requested": True,
+                "pruned": bool(result["prune"].get("pruned")),
+                "dropGuildIds": result["prune"].get("dropGuildIds") or [],
+                "removed": result["prune"].get("removed") or {},
+                "refused": result["prune"].get("refused", ""),
+            }} if result["prune"].get("requested") else {}),
         },
         ip=authz.client_ip(request),
     )

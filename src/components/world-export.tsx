@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import { Copy, AlertTriangle, ShieldCheck, ArrowRight } from 'lucide-react';
-import { previewWorldExport, createWorldExport, getSavePlayers } from '@/lib/save-api';
-import type { WorldExportPlan, WorldExportResult, PlayerSaveData } from '@/lib/types';
+import { previewWorldExport, createWorldExport, getSavePlayers,
+  getWorldExportGuilds } from '@/lib/save-api';
+import type { WorldExportPlan, WorldExportResult, PlayerSaveData,
+  ExportGuild } from '@/lib/types';
 
 /**
  * Export a playable copy of the world with one player's uid remapped.
@@ -27,6 +29,11 @@ export default function WorldExport({ canManage }: { canManage: boolean }) {
   const [result, setResult] = useState<WorldExportResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [guilds, setGuilds] = useState<ExportGuild[] | null>(null);
+  // `null` means "keep everything", which is what the export did before this
+  // option existed. A Set would make "none selected" mean "drop everything",
+  // and an empty selection is far too easy to reach by accident.
+  const [keep, setKeep] = useState<Set<string> | null>(null);
 
   useEffect(() => {
     getSavePlayers()
@@ -40,10 +47,26 @@ export default function WorldExport({ canManage }: { canManage: boolean }) {
 
   if (!canManage) return null;
 
+  const loadGuilds = async () => {
+    setBusy(true); setError(null);
+    try {
+      const list = (await getWorldExportGuilds()).guilds;
+      setGuilds(list);
+      // Everything ticked to begin with. The operator unticks what they want
+      // gone, so the destructive direction is always a deliberate act.
+      setKeep(new Set(list.map((g) => g.guildId)));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not list guilds');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const preview = async () => {
     setBusy(true); setError(null); setResult(null); setPlan(null);
     try {
-      setPlan(await previewWorldExport(source, target));
+      setPlan(await previewWorldExport(source, target,
+        keep ? [...keep] : undefined));
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not preview');
     } finally {
@@ -55,7 +78,8 @@ export default function WorldExport({ canManage }: { canManage: boolean }) {
     if (!plan) return;
     setBusy(true); setError(null);
     try {
-      setResult(await createWorldExport(source, target, plan.planHash));
+      setResult(await createWorldExport(source, target, plan.planHash,
+        keep ? [...keep] : undefined));
       setPlan(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Export failed');
@@ -117,6 +141,55 @@ export default function WorldExport({ canManage }: { canManage: boolean }) {
         </button>
       </div>
 
+      {/* The prune. Opt-in, and the counts arrive before the choice is final —
+          a destructive option must never be offered without them. */}
+      <div style={{ marginTop: 12 }}>
+        {guilds === null ? (
+          <button className="btn" disabled={busy} onClick={loadGuilds}>
+            Choose which guilds to keep…
+          </button>
+        ) : (
+          <div>
+            <div style={{ fontSize: 12, marginBottom: 6 }}>
+              Guilds to keep — untick one to remove it and everything it owns.
+            </div>
+            {guilds.map((g) => {
+              const mine = g.adminUid === target || g.playerUids.includes(target);
+              const ticked = keep?.has(g.guildId) ?? true;
+              return (
+                <label
+                  key={g.guildId}
+                  style={{ display: 'flex', alignItems: 'center', gap: 8,
+                           fontSize: 12, padding: '3px 0' }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={ticked || mine}
+                    /* The exporting player's own guild is kept server-side by
+                       `keep_uid` whatever is sent. Disabling it here makes the
+                       UI agree with that rather than offering a choice the
+                       backend will quietly overrule. */
+                    disabled={busy || mine}
+                    onChange={(e) => {
+                      const next = new Set(keep ?? guilds.map((x) => x.guildId));
+                      if (e.target.checked) next.add(g.guildId);
+                      else next.delete(g.guildId);
+                      setKeep(next); setPlan(null); setResult(null);
+                    }}
+                  />
+                  <span>{g.name || 'Unnamed guild'}</span>
+                  <span className="mono" style={{ color: 'var(--text-muted)' }}>
+                    {g.guildId.slice(0, 8)} · {g.memberCount} member
+                    {g.memberCount === 1 ? '' : 's'}
+                  </span>
+                  {mine && <span className="badge">yours — always kept</span>}
+                </label>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
       {error && (
         <div className="notice notice-danger" style={{ fontSize: 12, marginTop: 12 }}>
           <AlertTriangle size={12} style={{ display: 'inline', verticalAlign: '-2px', marginRight: 5 }} />
@@ -148,6 +221,29 @@ export default function WorldExport({ canManage }: { canManage: boolean }) {
             ))}
           </div>
 
+          {plan.prune && plan.prune.dropGuildIds.length > 0 && (
+            <div className="notice notice-warn" style={{ fontSize: 12, marginTop: 10 }}>
+              <strong>
+                Removing {plan.prune.removes.guilds} guild
+                {plan.prune.removes.guilds === 1 ? '' : 's'} from the copy
+              </strong>
+              <div style={{ marginTop: 4 }}>
+                {plan.prune.removes.bases.toLocaleString()} bases,{' '}
+                {plan.prune.removes.mapObjects.toLocaleString()} structures,{' '}
+                {plan.prune.removes.containers.toLocaleString()} containers,{' '}
+                {plan.prune.removes.characters.toLocaleString()} Pals and characters
+                {plan.prune.removes.ownerlessCharacters
+                  ? ` (${plan.prune.removes.ownerlessCharacters.toLocaleString()} of them base workers)`
+                  : ''}
+                , and {plan.prune.removes.playerSaves} player save
+                {plan.prune.removes.playerSaves === 1 ? '' : 's'}.
+              </div>
+              <div style={{ marginTop: 6, color: 'var(--text-secondary)' }}>
+                Your live world is untouched — this only shapes the copy.
+              </div>
+            </div>
+          )}
+
           <button
             className="btn btn-primary"
             style={{ marginTop: 10 }}
@@ -167,6 +263,41 @@ export default function WorldExport({ canManage }: { canManage: boolean }) {
             {result.applied.total.toLocaleString()} references remapped ·{' '}
             {(result.archive.sizeBytes / 1024 / 1024).toFixed(1)} MB archive
           </div>
+
+          {/* **A REFUSED PRUNE IS A SUCCESSFUL EXPORT THAT KEPT EVERYTHING.**
+              The backend writes the full copy rather than a half-pruned world,
+              which is the right outcome and an easy one to hide: reporting
+              plain success here would tell the operator their world was pruned
+              when it was not. */}
+          {result.prune?.requested && !result.prune.pruned && (
+            <div className="notice notice-warn" style={{ fontSize: 12, marginTop: 8 }}>
+              <strong>Everything was kept.</strong> The copy is complete and
+              usable, but the guilds you unticked are still in it.
+              {result.prune.refused && (
+                <div style={{ marginTop: 4, color: 'var(--text-secondary)' }}>
+                  {result.prune.refused}
+                </div>
+              )}
+            </div>
+          )}
+
+          {result.prune?.pruned && (
+            <div style={{ marginTop: 5, color: 'var(--text-secondary)' }}>
+              Pruned {result.prune.dropGuildIds?.length ?? 0} guild
+              {(result.prune.dropGuildIds?.length ?? 0) === 1 ? '' : 's'}:{' '}
+              {(result.prune.removed?.bases ?? 0).toLocaleString()} bases and{' '}
+              {(result.prune.removed?.characters ?? 0).toLocaleString()} characters
+              removed from the copy.
+              {(result.prune.removed?.containerIdsDangling ?? 0) > 0 && (
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 3 }}>
+                  {result.prune.removed?.containerIdsDangling} container
+                  {result.prune.removed?.containerIdsDangling === 1 ? '' : 's'} referenced
+                  by those bases did not exist in the save to begin with — a
+                  property of the world, not of the export.
+                </div>
+              )}
+            </div>
+          )}
           <div className="mono" style={{ fontSize: 11, marginTop: 5, wordBreak: 'break-all' }}>
             {result.archive.path}
           </div>

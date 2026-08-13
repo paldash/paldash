@@ -46,9 +46,23 @@ reference this module exists to make visible.
 from __future__ import annotations
 
 import logging
+import os
 from typing import Any, Optional
 
+import savefiles
+
 logger = logging.getLogger(__name__)
+
+
+class ExportScopeError(Exception):
+    """
+    Raised when a prune cannot be completed cleanly.
+
+    **Every raise here means the caller writes the UNPRUNED copy.** That is the
+    whole safety argument: the export's defence is that a bad result is a folder
+    you delete, and it only holds if the bad result is *whole*. A half-pruned
+    world loads today and fails when somebody walks into the cell.
+    """
 
 
 def _v(node: Any, *keys: str, default: Any = None) -> Any:
@@ -63,6 +77,30 @@ def _guid(value: Any) -> str:
     """A GUID as a comparable lowercase string. `None` and '' both become ''."""
     text = str(value or "").strip().lower()
     return "" if text.startswith("00000000-0000-0000-0000") else text
+
+
+def load_world(world_dir: Optional[str] = None) -> dict[str, Any]:
+    """
+    The raw `worldSaveData` tree, for callers that only have a directory.
+
+    **This is a full `Level.sav` parse**, which is the heaviest thing this
+    dashboard can do to a machine also running a game server. It is acceptable
+    here only because the export preview is a deliberate, rare, operator-gated
+    click, and because `apply_export` pays the same cost moments later anyway.
+
+    The parsed cache cannot serve this: `savecache` holds extracted *sections*,
+    and every join below reads raw GVAS fields (`group_id_belong_to`,
+    `target_container_id`) that the extraction deliberately does not carry.
+    Deriving the plan from the sections would be a second, weaker source of
+    truth for a destructive operation.
+    """
+    import soloexport  # local: soloexport imports this module.
+
+    root = world_dir or savefiles.get_default_world_dir()
+    if not root:
+        raise ExportScopeError("No world directory configured")
+    gvas, _ = soloexport._load(os.path.join(root, "Level.sav"))
+    return soloexport._world_save_data(gvas)
 
 
 def guilds(world: dict[str, Any]) -> list[dict[str, Any]]:
@@ -196,17 +234,6 @@ def plan(world: dict[str, Any], keep_guilds: Optional[list] = None,
             "fails later, so a partial prune is never an outcome."
         ),
     }
-
-
-class ExportScopeError(Exception):
-    """
-    Raised when a prune cannot be completed cleanly.
-
-    **Every raise here means the caller writes the UNPRUNED copy.** That is the
-    whole safety argument: the export's defence is that a bad result is a folder
-    you delete, and it only holds if the bad result is *whole*. A half-pruned
-    world loads today and fails when somebody walks into the cell.
-    """
 
 
 def _dropped_ids(world: dict[str, Any], drop: set[str]) -> dict[str, set[str]]:
