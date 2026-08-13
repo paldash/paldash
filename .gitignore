@@ -79,3 +79,7 @@ refs/
 /refworld/
 # Claude Code writes these atomically and one got committed once.
 .claude/settings.local.json.tmp.*
+
+# Speed measurement runs (scripts/measure-speed.py) — local observations,
+# not source. Committing one would present one operator's reading as data.
+.speed-runs/
