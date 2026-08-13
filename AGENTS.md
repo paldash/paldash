@@ -522,7 +522,7 @@ Measured 2026-08-12 rather than assumed, because `DT_UI_Common_Text` ships
 | | |
 |---|---:|
 | game UI rows with both an English and a German string | 2,642 |
-| our chrome strings they cover | **32 (14%)** |
+| our chrome strings they cover **by value** | 32 (14%) — and see below, mostly spurious |
 
 **And joining on the English VALUE is unsound, which the sample shows
 immediately.** Two of the first eight "matches":
@@ -530,10 +530,28 @@ immediately.** Two of the first eight "matches":
     Clear   -> "Abgeschlossen!"                        (= Completed! — a quest string)
     Detail  -> "Siehe Details (nicht implementiert)"   ("not implemented", baked in)
 
-A word means different things on a filter button and in a quest log, so the
-usable coverage is below 14% and every match needs a human to confirm. That is
+A word means different things on a filter button and in a quest log. That is
 the `UI_ALIASES` situation without the two-source agreement that made it safe
 there.
+
+**So the join was redone by CONCEPT rather than by value**, which is the sound
+instrument: the game's 405 `common_*` rows are keyed by what they mean
+(`common_cancel`, `common_work_suitability`), so a match is checkable rather
+than coincidental.
+
+| | |
+|---|---:|
+| our distinct chrome strings | 239 |
+| matched to a `common_*` key | **8** |
+| **by occurrence** | **10 of 304 — 3%** |
+
+The eight are real and worth taking if anything here is ever localised: Cancel,
+Clear, Level, Attack, Defense, Total, Partner skill, Work suitability.
+
+**And the two numbers together are the point.** The value join claimed 32
+matches; the concept join finds 8. **Three quarters of them were spurious** —
+which measures how wrong the plausible instrument was, rather than leaving "14%"
+standing as though it were a coverage figure. The real answer is 3%.
 
 **So the blocker on #109 is not a framework, it is provenance.** Machine-translating
 200 dashboard strings into fifteen languages and shipping them as the
