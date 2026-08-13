@@ -8,6 +8,7 @@ import {
   login, loginAsGuest, logout, getSession,
 } from '@/lib/api';
 import { getBackendHealth, getBases, getGuilds, requestRefresh } from '@/lib/save-api';
+import { LanguagePicker } from '@/components/language-picker';
 import ItemsView from '@/components/items-view';
 import AccessSettings from '@/components/access-settings';
 import UserManager from '@/components/user-manager';
@@ -468,6 +469,9 @@ export default function Home() {
               an operator opens this on a phone — "is it up" — so they must not
               be the thing pushed off the right edge. */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+            {/* Renders nothing when the server has no language bundles, so an
+                install without them shows no dead control. */}
+            <LanguagePicker />
             {!store.backendOnline && (
               <span className="badge badge-warning">Save backend offline</span>
             )}

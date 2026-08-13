@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Search, RefreshCw, PawPrint, ArrowUpDown, Download } from 'lucide-react';
 import { getPals, downloadExport, type PalRecord } from '@/lib/save-api';
 import { useDashboardStore } from '@/lib/store';
+import { useLanguage } from '@/lib/use-language';
+import { localName, matchesQuery } from '@/lib/language';
 import { CAPABILITIES } from '@/lib/permissions';
 import GameIcon from '@/components/game-icon';
 import PalOptimiser from '@/components/pal-optimiser';
@@ -97,6 +99,21 @@ export default function MyPals() {
   const [error, setError] = useState<string | null>(null);
 
   const [query, setQuery] = useState('');
+  const [langPack] = useLanguage();
+
+  /**
+   * The species name in the chosen language, falling back to English.
+   *
+   * Used for BOTH display and search below. Keeping them in one helper is the
+   * point: a localised list whose filter still tests only the English name
+   * loses every query typed in the language the operator selected, and the
+   * reverse loses every English one.
+   */
+  const speciesName = useCallback(
+    (p: { speciesId?: string | null; speciesName?: string | null }) =>
+      localName(langPack, 'pals', p.speciesId, p.speciesName ?? p.speciesId ?? ''),
+    [langPack]
+  );
   const [minLevel, setMinLevel] = useState(0);
   const [gender, setGender] = useState('');
   const [element, setElement] = useState('');
@@ -211,10 +228,11 @@ export default function MyPals() {
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     const rows = pals.filter((p) => {
+      // English name, localised name, id AND the player's nickname. Dropping
+      // any one of the four loses a query somebody will reasonably type.
       if (q &&
-        !(p.speciesName ?? '').toLowerCase().includes(q) &&
-        !(p.nickname ?? '').toLowerCase().includes(q) &&
-        !(p.speciesId ?? '').toLowerCase().includes(q)) return false;
+        !matchesQuery(q, p.speciesName, speciesName(p), p.speciesId) &&
+        !(p.nickname ?? '').toLowerCase().includes(q)) return false;
       if (p.level < minLevel) return false;
       if (gender && p.gender !== gender) return false;
       if (element && !asArray(p.elements, 'pal elements').includes(element)) return false;
@@ -229,7 +247,9 @@ export default function MyPals() {
 
     const key = (p: PalRecord): number | string => {
       switch (sort) {
-        case 'name': return (p.speciesName ?? p.speciesId ?? '').toLowerCase();
+        // Sorted by what the reader SEES. Sorting a localised list by the
+        // English name produces an order that looks arbitrary on screen.
+        case 'name': return speciesName(p).toLowerCase();
         case 'rank': return p.rank ?? 1;
         case 'ivHp': return iv(p, 'hp');
         case 'ivAttack': return iv(p, 'attack');
@@ -264,7 +284,13 @@ export default function MyPals() {
     // selecting Palbox/Party/Base recomputed nothing and the table did not
     // change — a filter that renders, accepts a click and does nothing. Found
     // by exhaustive-deps, which is the argument for not blanket-silencing it.
-  }, [pals, query, minLevel, gender, element, minRank, minIv, passive, work, minWork, alphaOnly, where, sort, descending]);
+    //
+    // `speciesName` is here for the same reason and it is the same bug: it
+    // closes over the language pack, so without it, switching language would
+    // relabel the rows while leaving the filter and the sort on the previous
+    // language — visibly reordered wrongly, and searchable only in a language
+    // no longer shown.
+  }, [pals, query, minLevel, gender, element, minRank, minIv, passive, work, minWork, alphaOnly, where, sort, descending, speciesName]);
 
   if (error) {
     return (
@@ -435,11 +461,11 @@ export default function MyPals() {
                     <GameIcon src={p.icon} size={24} />
                     <span>
                       <span style={{ color: 'var(--text-primary)' }}>
-                        {p.nickname || p.speciesName || p.speciesId}
+                        {p.nickname || speciesName(p)}
                       </span>
-                      {p.nickname && p.speciesName && (
+                      {p.nickname && speciesName(p) && (
                         <span style={{ color: 'var(--text-muted)', fontSize: 11, marginLeft: 6 }}>
-                          {p.speciesName}
+                          {speciesName(p)}
                         </span>
                       )}
                       {p.isBoss && <span className="badge" style={{ marginLeft: 6 }}>Alpha</span>}
