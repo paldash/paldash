@@ -38,8 +38,8 @@ shared bind mount.
 ./scripts/setup-dev.sh
 
 # Tests
-.venv/bin/python -m pytest                       # backend, everything: 1,984 tests, ~25 min
-.venv/bin/python -m pytest -m "not integration"  # backend unit only: 1,854 tests, ~3 min
+.venv/bin/python -m pytest                       # backend, everything: 2,023 tests, ~25 min
+.venv/bin/python -m pytest -m "not integration"  # backend unit only: 1,883 tests, ~3 min
 .venv/bin/python -m pytest -m "not slow"         # skip full-world parses
 .venv/bin/python -m pytest backend/tests/test_safety.py -k read_only  # one test
 npm test                                          # frontend (vitest): 143 tests, <1s
@@ -60,7 +60,7 @@ python3 scripts/install-map-assets.py  # -> public/maps/{palpagos,worldtree}.web
 Integration tests skip automatically when `refworld/` or `palsav` is absent, so
 a clean checkout still runs green.
 
-**The 130 integration tests cost most of those 25 minutes** — each parses a real
+**The 140 integration tests cost most of those 25 minutes** — each parses a real
 55 MB world, and the write paths take a full verified backup on top. `soloexport`
 is the most expensive single test in the suite because it walks the entire node
 tree for uid matches. Use `-m "not integration"` while iterating; run the whole
@@ -2078,6 +2078,44 @@ and not a last resort. **Reach for it earlier.**
 *(This section used to end: "The `StatusCalculate_*` family is also complete and
 has no movement member … Seven, and four stats." The family is **ten**, and the
 word "complete" was the error. See directly below.)*
+
+## A DECODER THAT CANNOT PROGRESS MUST REFUSE — twice now, two hours each
+
+`uassettable._properties` was an unbounded `while True`: no progress check, no
+bounds check. On two real assets —
+`BP_BuildObject_EnergyStorage_Electric` and `BP_PalMonsterCaptureSet` — it never
+terminated at all.
+
+**That single defect is why `scripts/mine-assets.py` had never completed a run
+or committed an index**, and therefore why the tool built so that *"I could not
+find it stops being evidence that it is not there"* had never once been usable.
+The section below blames the naming convention for a whole class of misses; this
+is what blocked the fix for them.
+
+Everything else about that sweep is fast, which is the part worth internalising
+before optimising anything here:
+
+| | |
+|---|---:|
+| header reads, all 7,992 | 1 s |
+| `.uexp` reads, all 7,992 | 0 s |
+| decode of the first 600 | 0.1 s |
+| **the two that hang** | **> 10 min and counting** |
+
+**The whole sweep is now 2.0 seconds.** No selection strategy was changed —
+the task for this assumed prefix-vs-class selection was the cost and the
+measurement refuted it before a line was written.
+
+**Second occurrence of the shape**, after the unchecked `NumKeysToRemove` that
+"spins for hours instead of refusing". So it is a rule rather than an incident:
+**a hang is the worst failure available here, because it presents as slowness
+rather than as a bug and gets waited out instead of investigated.** Both times
+the cost was hours.
+
+The tell, if it helps next time: a hand-written diagnostic loop finished in
+0.2 ms while the shipped function hung on the same bytes. The difference was
+`while reader.o < len(body)` — written by reflex in the throwaway code and
+missing from the real one.
 
 ## ENUMERATE BY CLASS, NOT BY NAME — the root cause of all four misses
 
