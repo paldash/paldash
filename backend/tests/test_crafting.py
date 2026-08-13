@@ -267,3 +267,53 @@ def test_the_alternate_recipe_can_be_chosen_at_any_depth():
     chosen = crafting.tree("CarbonFiber", 1, prefer=[other])["tree"]
     assert chosen["recipeId"] == other
     assert chosen["recipeId"] != default["recipeId"]
+
+
+# ─── Structures ──────────────────────────────────────────
+#
+# Reported by the operator as "the tree view for build isn't working". It was
+# not a view bug: `DT_BuildObjectDataTable` was never extracted, so all 498
+# build objects returned `known: False` — which the UI renders as an empty
+# panel rather than an error, so a missing table read as a broken screen.
+
+
+def test_a_structure_has_a_tree():
+    """A Breeding Farm is not an item and must still expand to raw materials."""
+    tree = crafting.tree("BreedFarm", count=1)
+    assert tree["known"] is True
+    assert tree["craftable"] is True
+    raw = {r["itemId"]: r["count"] for r in tree["raw"]}
+    # 10 Processed Wood + 20 Stone + 50 Fiber, with wood and fibre expanded.
+    assert raw["Stone"] == 20
+    assert raw["Wood"] > 0
+
+
+def test_every_bundled_structure_expands():
+    """
+    All 498, not a sample. A partial join here is the failure mode that hid
+    for months: an empty tree is a legitimate-looking answer, so a structure
+    that silently stopped resolving would look exactly like one with no cost.
+    """
+    build_objects = gamedata.economy().get("buildObjects") or {}
+    assert len(build_objects) == 498
+    empty = [s for s in build_objects
+             if not (crafting.tree(s, count=1).get("raw") or [])]
+    assert not empty, f"{len(empty)} structures expand to nothing, e.g. {empty[:5]}"
+
+
+def test_the_torch_collision_resolves_to_the_item():
+    """
+    `Torch` is BOTH an item and a structure — the one collision in 498. Items
+    win, so nothing that resolved before this change resolves differently now.
+    Merging the two namespaces would have made the winner depend on dict
+    insertion order.
+    """
+    tree = crafting.tree("Torch")
+    assert tree["known"] is True
+    assert not tree.get("isStructure")
+
+
+def test_an_unknown_id_is_still_refused():
+    """The structure fallback must not turn a typo into a confident answer."""
+    tree = crafting.tree("NoSuchThingAtAll")
+    assert tree["known"] is False

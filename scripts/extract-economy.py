@@ -446,6 +446,59 @@ def _production(pak) -> dict:
     return out
 
 
+def _build_objects(pak) -> dict:
+    """
+    What a STRUCTURE costs to place — `DT_BuildObjectDataTable`, 498 rows.
+
+    **This was the gap behind "the tree view for build isn't working".**
+    `crafting.tree()` reads `recipes`, which comes from
+    `DT_ItemRecipeDataTable` and covers *items*. A Palbox, a Furnace and a
+    Breeding Farm are not items; they are build objects with their own table
+    and their own `Material1..4_Id/Count` columns, and nothing extracted them.
+    So every one of the 1,088 structures returned an empty tree — not an
+    error, which is why it read as a broken view rather than as missing data.
+
+    Shaped like a recipe row deliberately, so `crafting.py` can walk a
+    structure's materials with the code it already has instead of growing a
+    second traversal. The differences that are real are kept and named:
+    a structure has no output *count* (you place one) and its work column is
+    `RequiredBuildWorkAmount` rather than `WorkAmount`.
+
+    `BlueprintItemID` is carried and **not interpreted**. It reads like "the
+    schematic that unlocks this", and the technology join in `techUnlocks` is
+    the thing that actually answers that — asserting it from a column name is
+    the `TowerLockBarrier` mistake.
+    """
+    out: dict[str, dict] = {}
+    for key, row in _read(pak, "DT_BuildObjectDataTable").items():
+        materials = []
+        for n in range(1, MATERIAL_SLOTS + 1):
+            item_id = str(row.get(f"Material{n}_Id") or "")
+            count = int(row.get(f"Material{n}_Count") or 0)
+            if item_id not in UNSET and count > 0:
+                materials.append({"itemId": item_id, "count": count})
+        if not materials:
+            # MEASURED: this never fires — all 498 rows carry at least one
+            # material. Kept as a guard rather than removed, because a costless
+            # row would otherwise render as a buildable thing that is free,
+            # which is the more misleading of the two readings. Stated as an
+            # observation and not as a filter that does something, so nobody
+            # later cites it as evidence that uncosted structures exist.
+            continue
+        blueprint = str(row.get("BlueprintItemID") or "")
+        out[str(key)] = {
+            "mapObjectId": str(row.get("MapObjectId") or key),
+            "materials": materials,
+            "workAmount": float(row.get("RequiredBuildWorkAmount") or 0.0),
+            "typeA": str(row.get("TypeA") or ""),
+            "typeB": str(row.get("TypeB") or ""),
+            "rank": int(row.get("Rank") or 0),
+            "buildCapacity": int(row.get("BuildCapacity") or 0),
+            "blueprintItemId": "" if blueprint in UNSET else blueprint,
+        }
+    return out
+
+
 def build(pak=None) -> tuple[dict, dict]:
     pak = pak or palpak.Pak()
     food, food_refused = _food(pak)
@@ -453,6 +506,7 @@ def build(pak=None) -> tuple[dict, dict]:
     recipe_rows = {r["recipeId"] for rows in recipes.values() for r in rows}
     data = {
         "recipes": recipes,
+        "buildObjects": _build_objects(pak),
         "drops": _drops(pak),
         "lottery": _lottery(pak),
         "shops": _shops(pak),
@@ -485,6 +539,15 @@ def verify(data: dict) -> list[str]:
         (m["itemId"] for rows in data["recipes"].values()
          for r in rows for m in r["materials"]),
         "recipe materials",
+    )
+    # A structure's build cost is spent in ITEMS, so every material must
+    # resolve in the item catalogue. This is the acceptance criterion for the
+    # new section: 498 rows landing on 58 real materials is evidence the
+    # columns were read correctly, in a way the row count alone is not.
+    check_items(
+        (m["itemId"] for row in data["buildObjects"].values()
+         for m in row["materials"]),
+        "build object materials",
     )
     check_items(
         (i["itemId"] for rows in data["drops"].values() for r in rows for i in r["items"]),
@@ -614,6 +677,11 @@ def main() -> int:
     print(f"  {len(conversions)} of those convert rather than produce — "
           "dismantling and Pal Soul trading; excluding exactly these leaves a "
           "graph with no cycles, which is what accepts the test")
+    bo_mats = {m["itemId"] for row in data["buildObjects"].values()
+               for m in row["materials"]}
+    print(f"  {len(data['buildObjects'])} STRUCTURES with a build cost, over "
+          f"{len(bo_mats)} distinct materials — the table `crafting.tree()` "
+          "could not see, which is why every structure returned an empty tree")
     print(f"  {len(data['drops'])} species with drop tables")
     print(f"  {len(data['lottery'])} loot fields, "
           f"{sum(len(v) for v in data['lottery'].values())} entries")
