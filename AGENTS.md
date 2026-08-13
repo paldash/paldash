@@ -2303,6 +2303,32 @@ packages, and it must be held just as firmly. A `UPROPERTY`'s default is
 assigned in compiled constructor code, so this index proves a constant *exists*
 and can never say what it equals.
 
+### Every recorded negative, re-checked against it — one fell
+
+Done 2026-08-12 rather than left as an intention. Thirteen claims this project
+has written down as "in no file", each searched against the 100,368 identifiers,
+1,800 enums and 2,224 types.
+
+**One was wrong and it is `MaxFullStomach`** — see the fullness section, which
+had already written "a reason to go and look again" beside the claim.
+
+**The rest hold, and three now hold for a better reason than before:**
+
+| Claim | After the sweep |
+|---|---|
+| the element effectiveness chart | **holds.** One hit, `IsElementWeak` — a *function*, no table. The relation is C++, as recorded |
+| what a container ACCEPTS | **holds.** `ItemFilterPreference` looks like it and is the player's own chest-search filter — it sits in `WBP_ItemSearch_Filter`, a UI widget. `PalItemContainerFilter` has **0 hits in the pak** |
+| condenser -> movement speed | **holds, now by enumeration.** 0 hits, against two hits each for the work-suitability equivalents |
+| a recommended level for a boss | narrows — `GetBossBattleRecommendLevelPlus` exists, `RecommendLevelPlus` has 0 pak hits, so the name is native and the value is not readable |
+| speed -> metres per second | holds; every `SpeedScale` hit is engine movement plumbing |
+| guild marker `icon_type` vocabulary | **holds, 0 hits.** No enum names those integers |
+| player facing in the REST payload | holds; `CachedPlayerRotation` is internal state, not the documented API shape |
+
+**The expected outcome was "the name exists, the value does not", and that is
+what most of these are.** A narrowed claim is worth writing down: "no file
+states the number" is a much smaller admission than "the game has no such
+concept", and only one of the two should stop the next person looking.
+
 ### `BP_PalGameSetting`'s 347 constants are the OVERRIDDEN SUBSET
 
 This is the finding that generalises, and it invalidates a whole class of
@@ -2823,8 +2849,31 @@ called every alpha flyer a ground Pal — `pal_exact`'s lesson, one asset type
 over. Resolve `BOSS_`/variant to the base species first, exactly as
 `gamedata.pal()` already does for names.
 
-`fullStomach` is still unbounded — that one genuinely has no constant, and the
-lesson above is a reason to go and look again rather than to assume it does.
+**"`fullStomach` IS STILL UNBOUNDED — THAT ONE GENUINELY HAS NO CONSTANT" WAS
+WRONG, AND THE SENTENCE AFTER IT SAID SO.** It continued "…and the lesson above
+is a reason to go and look again rather than to assume it does." Looked,
+2026-08-12, and it is a column in the species table this project has read since
+the optimiser shipped:
+
+    DT_PalMonsterParameter.MaxFullStomach   753 of 753 rows, 45 distinct values
+                                            Lamball 100 · Melpaca 150 · Jetragon 600
+                                            range 100–730
+
+**Verified as a CAP, not a base.** Across refworld's 1,905 Pals, 1,635 have both
+a fullness and a species row, and **every one is inside its cap with zero
+exceptions and a maximum ratio of exactly 1.000** — a Pal at full sits precisely
+on the table value. That is what a ceiling looks like; a base would overshoot.
+
+**`editschema` measured the right thing and drew the wrong conclusion**, which
+is the interesting part. Its note read *"the ceiling is per species and per level
+and is not stored anywhere in the save — the live world ranges from 150 to
+620"*. Every clause is true except the middle one, and **620 is exactly the
+table's value for `BOSS_IceHorse`** — an alpha Frostallion. The observation sat
+inside the answer.
+
+**Use `pal_exact`, not `pal`.** `BOSS_IceHorse` carries its own 620 against
+`IceHorse`'s 600, so stripping the prefix — right for names — gives an alpha the
+wrong ceiling. Same rule as stats.
 
 **And the rank is not linear.**
 `WorkSuitabilityDefineData_<work>.CommonDefineData.CraftSpeeds` is 11 entries

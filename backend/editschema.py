@@ -457,9 +457,24 @@ PAL_FIELDS: dict[str, Field] = {
     ),
     "fullStomach": Field(
         "fullStomach", "float", label="Fullness", minimum=0,
-        note="No maximum is enforced because the ceiling is per species and per "
-             "level and is not stored anywhere in the save — the live world "
-             "ranges from 150 to 620. The game clamps an overshoot itself.",
+        note="No maximum is enforced yet. The ceiling is per species and the "
+             "game clamps an overshoot itself.",
+        # **"IS NOT STORED ANYWHERE" WAS WRONG.** This note used to say the
+        # ceiling "is not stored anywhere in the save — the live world ranges
+        # from 150 to 620". Only the first half is true: it is not in the SAVE,
+        # and it is a column in `DT_PalMonsterParameter` — `MaxFullStomach`, on
+        # all 753 species, range 100-730. The 620 that was measured is exactly
+        # that table's value for `BOSS_IceHorse`, an alpha Frostallion, so the
+        # observation was sitting inside the answer.
+        #
+        # Verified as a cap rather than a base: 1,635 of refworld's Pals have
+        # both a fullness and a species row, and every one is inside its cap
+        # with a maximum ratio of exactly 1.000.
+        #
+        # The bound is not enforced here yet because `gamedata.json.gz` does not
+        # carry the column — see the task. When it does, read it through
+        # `pal_exact`: `BOSS_IceHorse` is 620 against `IceHorse`'s 600, so
+        # stripping the prefix gives an alpha the wrong ceiling.
     ),
     "favoriteIndex": Field(
         "favoriteIndex", "int", label="Favourite slot", minimum=0, maximum=9,
