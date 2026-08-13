@@ -425,14 +425,49 @@ def _value(r: _Reader, typ: str, size: int, extra: dict) -> Any:
 
 
 def _properties(r: _Reader) -> dict:
-    """Tagged properties up to the `None` terminator."""
+    """
+    Tagged properties up to the `None` terminator.
+
+    **THIS USED TO BE AN UNBOUNDED `while True` AND IT HUNG FOREVER ON TWO REAL
+    ASSETS.** `BP_BuildObject_EnergyStorage_Electric` and
+    `BP_PalMonsterCaptureSet` never terminate under the old loop, and that alone
+    is why `scripts/mine-assets.py` has never completed a run — a sweep that
+    decodes 7,992 assets in **7 seconds** was measured at over two hours, all of
+    it spent in a handful of these. Its index has consequently never been
+    committed, so the tool built to end "I could not find it" has never once
+    been usable.
+
+    Second occurrence of this exact failure: the unchecked `NumKeysToRemove`
+    that "spins for hours instead of refusing" is recorded in the history. **A
+    decoder that cannot make progress must refuse, not loop** — a hang is the
+    worst possible failure here, because it looks like slowness rather than like
+    a bug and so gets waited out rather than investigated.
+
+    Two guards, and both are needed:
+
+    - **Progress.** A tag that leaves the offset where it found it repeats
+      forever. This is the one that actually fires.
+    - **Bounds.** Reading past the end must stop rather than interpret whatever
+      follows, which is how a drifted walk invents properties.
+    """
     out: dict[str, Any] = {}
     while True:
+        if r.o >= len(r.b):
+            raise TableError(
+                f"property list ran past the end of a {len(r.b)}-byte export "
+                "without a None terminator"
+            )
+        before = r.o
         tag = _tag(r)
         if tag is None:
             return out
         name, typ, size, extra = tag
         out[name] = _value(r, typ, size, extra)
+        if r.o <= before:
+            raise TableError(
+                f"property {name!r} ({typ}, size {size}) consumed no bytes at "
+                f"offset {before} — refusing rather than looping"
+            )
 
 
 def _walk_rows(body: bytes, names: list[str], start: int) -> Optional[dict]:
