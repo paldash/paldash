@@ -69,6 +69,7 @@ import type {
   PaldeckDetail,
   PlayerRoster,
   ExportGuild,
+  LanguageNames,
   WorldExportPlan,
   WorldExportResult,
   AnnouncementList,
@@ -1126,6 +1127,23 @@ export async function getStaticWorldSummary(): Promise<StaticWorldSummary> {
 //
 // Reads the live world and writes a new directory, so unlike every other save
 // operation here it does not need the server stopped.
+
+/** Language codes with a bundle on this server. */
+export async function getLanguages(): Promise<{ languages: string[]; default: string }> {
+  return saveFetch('/world/languages');
+}
+
+/**
+ * The game's own display names for one language, keyed by id.
+ *
+ * An overlay, not a replacement: the English `name` on every payload stays, and
+ * search must test both — see `src/lib/language.ts`.
+ */
+export async function getLanguagePack(
+  code: string
+): Promise<{ lang: string; names: LanguageNames; searchNeedsEnglishToo: boolean }> {
+  return saveFetch(`/world/language/${encodeURIComponent(code)}`);
+}
 
 /** The guilds an export could keep or drop, with what each owns. */
 export async function getWorldExportGuilds(): Promise<{ guilds: ExportGuild[] }> {

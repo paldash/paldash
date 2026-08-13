@@ -1126,6 +1126,107 @@ def pal_drops(species_id: str) -> list[dict[str, Any]]:
     return out
 
 
+LANG_DIR = os.environ.get(
+    "LANG_DATA_DIR",
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "lang"),
+)
+
+#: Loaded languages, keyed by code. **Not a single slot** — the whole point of
+#: per-language files is that a server holds the one its operator chose, and a
+#: dict keeps a second one from evicting the first on a mixed-language team.
+_languages: dict[str, dict[str, Any]] = {}
+
+
+def languages() -> list[str]:
+    """
+    Language codes with a bundle on disk, plus `en`.
+
+    English is deliberately not a file: it is already inside `gamedata.json.gz`,
+    and a second copy would be a second source of truth for the names every
+    other bundle is keyed against.
+    """
+    try:
+        found = sorted(
+            f[: -len(".json.gz")] for f in os.listdir(LANG_DIR)
+            if f.endswith(".json.gz")
+        )
+    except OSError:
+        found = []
+    return ["en", *found]
+
+
+def language(code: str) -> dict[str, Any]:
+    """
+    One language's names and descriptions, loaded on demand and kept.
+
+    ~215 KB gzipped each, which is why these are separate files — see
+    `scripts/extract-language.py`. Returns `{}` for `en` (already bundled) and
+    for anything unknown, so a caller falls back to English rather than failing.
+
+    **Keys are localisation ROW NAMES, lowercased** — `pal_name_sheepball`, not
+    `SheepBall`. A caller resolving a species id must go through the same row
+    naming the English overlay uses; indexing this by id silently finds nothing.
+    """
+    code = str(code or "").strip()
+    if not code or code == "en":
+        return {}
+    if code in _languages:
+        return _languages[code]
+    # A path built from user input, so it is confined to the directory rather
+    # than trusted: `../` in a language code must not read an arbitrary file.
+    if code not in languages():
+        return {}
+    path = os.path.join(LANG_DIR, f"{code}.json.gz")
+    try:
+        with gzip.open(path, "rt", encoding="utf-8") as f:
+            _languages[code] = json.load(f)
+    except (OSError, json.JSONDecodeError) as e:
+        logger.warning("Language %s unavailable (%s); falling back to English", code, e)
+        _languages[code] = {}
+    return _languages[code]
+
+
+#: Row-name prefix per section. `pal_name_sheepball` -> `sheepball`, which is
+#: the lowercased id every lookup in this module already keys on.
+_LANG_PREFIX = {
+    "pals": "pal_name_",
+    "items": "item_name_",
+    "structures": "mapobject_name_",
+}
+
+
+def language_names(code: str) -> dict[str, dict[str, str]]:
+    """
+    `{section: {lowercased_id: localised_name}}` for one language.
+
+    The bundles are keyed on **localisation row names**; this is the resolution
+    into ids, done once per language on the server rather than shipped as a
+    convention the client has to reimplement.
+
+    Stripping the prefix is exact, not a guess: `item_name_accessory_normalresist_1`
+    is the item `Accessory_NormalResist_1`, so the **tier survives** — which is
+    the thing a sloppier rule would flatten, and `gametext` already records that
+    the accessory tiers are the case where the game distinguishes what the
+    third-party archive does not.
+
+    `skills` is deliberately absent: its rows are `passive_craftspeed_up1`,
+    which is not `<prefix><id>`, and inventing a mapping for it would be the
+    guess this avoids everywhere else.
+    """
+    raw = (language(code) or {}).get("names") or {}
+    out: dict[str, dict[str, str]] = {}
+    for section, prefix in _LANG_PREFIX.items():
+        rows = raw.get(section) or {}
+        resolved = {
+            key[len(prefix):]: value
+            for key, value in rows.items()
+            if key.startswith(prefix) and value
+        }
+        if resolved:
+            out[section] = resolved
+    return out
+
+
 def movement_modes() -> dict[str, Any]:
     """
     `EPalMonsterMovementType` per species, from the server pak's own

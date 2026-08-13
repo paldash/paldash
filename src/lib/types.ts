@@ -941,6 +941,13 @@ export interface WorldExportPlan {
   prune?: ExportPrunePlan;
 }
 
+/** The game's own display names for one language, keyed by lowercased id. */
+export interface LanguageNames {
+  pals?: Record<string, string>;
+  items?: Record<string, string>;
+  structures?: Record<string, string>;
+}
+
 /** One guild an export can keep or drop. */
 export interface ExportGuild {
   guildId: string;
