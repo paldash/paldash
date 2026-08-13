@@ -367,6 +367,10 @@ const ROUTES: RouteRule[] = [
   // itself: the list names every guild on the server, which is the same
   // disclosure the copy is.
   { pattern: /^export\/world-copy\/guilds$/, methods: ['GET'], capability: CAPABILITIES.BACKUP_MANAGE, feature: null },
+  // The game's own display names. Reference data like the catalogues beside
+  // it — what Palworld has, not what this world holds — so VIEW_BASIC.
+  { pattern: /^world\/languages$/, methods: ['GET'], capability: CAPABILITIES.VIEW_BASIC, feature: null },
+  { pattern: /^world\/language\/[A-Za-z-]+$/, methods: ['GET'], capability: CAPABILITIES.VIEW_BASIC, feature: null },
 ];
 
 export interface RouteVerdict {

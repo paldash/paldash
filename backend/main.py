@@ -2492,6 +2492,42 @@ def _fast_travel_progress(found: set[str]) -> list[dict]:
     ]
 
 
+@app.get("/api/world/languages")
+def get_languages(request: Request) -> dict[str, Any]:
+    """Language codes with a bundle. Reference data, like the catalogues."""
+    authz.require(request, roles_module.VIEW_BASIC)
+    return {"languages": gamedata.languages(), "default": "en"}
+
+
+@app.get("/api/world/language/{code}")
+def get_language(code: str, request: Request) -> dict[str, Any]:
+    """
+    The game's own display names for one language, keyed by id.
+
+    Served to the client rather than applied to every payload, and that is the
+    design rather than a shortcut. Localising `name` server-side would mean
+    touching every endpoint that returns one, and it would break search: the Pal
+    and item boxes are a client-side substring match, so a German payload stops
+    an English query matching a Pal that is on screen. The client keeps the
+    English `name` it already has, renders the localised one, and searches both.
+
+    ~125 KB for a language, once, and immutable for a given code — so it is
+    `Cache-Control: immutable` rather than re-sent per navigation.
+
+    An unknown code returns empty rather than 404: the caller falls back to
+    English, which is the same outcome as asking for `en`.
+    """
+    authz.require(request, roles_module.VIEW_BASIC)
+    names = viewcache.per_file(
+        os.path.join(gamedata.LANG_DIR, f"{code}.json.gz"),
+        lambda: gamedata.language_names(code),
+    ) if code != "en" else {}
+    return {"lang": code, "names": names or {},
+            # Stated so the client is told rather than expected to know. See
+            # the search note above.
+            "searchNeedsEnglishToo": True}
+
+
 @app.get("/api/world/items")
 def get_item_catalogue(request: Request) -> dict[str, Any]:
     """
