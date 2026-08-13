@@ -70,6 +70,7 @@ if HERE not in sys.path:
 
 import palpak            # noqa: E402
 import uassettable       # noqa: E402
+import upackage          # noqa: E402
 
 ROOT = os.path.dirname(HERE)
 MD_OUT = os.path.join(ROOT, "docs", "DATATABLES.md")
@@ -105,6 +106,25 @@ def _columns(rows: dict) -> list[str]:
     return [name for name, _ in counts.most_common()]
 
 
+TABLE_CLASSES = ("DataTable", "CompositeDataTable", "CurveTable")
+
+
+def _is_table(pak, path: str) -> bool:
+    """
+    Whether a package's primary export is a table, read from the import map.
+
+    Cheap — header only, no `.uexp` — so this costs a header parse per asset
+    rather than a decode, and `upackage.read` does ~5,000 a second.
+
+    A package that will not parse is not a table for our purposes; the decode
+    below would refuse it anyway and record why.
+    """
+    try:
+        return upackage.read(pak.read(path)).export_class() in TABLE_CLASSES
+    except Exception:  # noqa: BLE001 - unreadable is not a table
+        return False
+
+
 def sweep(pak) -> tuple[list[dict], list[dict]]:
     seen: set[str] = set()
     decoded: list[dict] = []
@@ -112,7 +132,19 @@ def sweep(pak) -> tuple[list[dict], list[dict]]:
 
     for path in sorted(pak.files):
         name = path.split("/")[-1]
-        if not name.startswith("DT_") or not name.endswith(".uasset"):
+        if not name.endswith(".uasset"):
+            continue
+        # **Selected by CLASS, not by the `DT_` filename prefix.** The prefix
+        # rule was nearly right — it matches a table wherever it lives, so
+        # `DT_PalRaidBoss` under `Blueprint/RaidBoss/` was always in here — but
+        # it cannot see a table that is not named `DT_*`, and the pak has three:
+        # `CT_AmmoMesh` (its only CurveTable) and two Wwise audio tables.
+        #
+        # None of those is game data, so this barely changes the index. It
+        # changes what the index can be TRUSTED to say: an absence now means
+        # "no asset of this class", not "nothing matching a naming convention".
+        # That distinction is what four separate misses came down to.
+        if not _is_table(pak, path):
             continue
         # The pak ships localised duplicates of many tables under L10N/. One
         # entry per table name: the schema is identical and 20 copies of
@@ -173,7 +205,19 @@ def sweep_client(pak) -> tuple[list[dict], list[dict]]:
 
     for path in sorted(pak.files):
         name = path.split("/")[-1]
-        if not name.startswith("DT_") or not name.endswith(".uasset"):
+        if not name.endswith(".uasset"):
+            continue
+        # **Selected by CLASS, not by the `DT_` filename prefix.** The prefix
+        # rule was nearly right — it matches a table wherever it lives, so
+        # `DT_PalRaidBoss` under `Blueprint/RaidBoss/` was always in here — but
+        # it cannot see a table that is not named `DT_*`, and the pak has three:
+        # `CT_AmmoMesh` (its only CurveTable) and two Wwise audio tables.
+        #
+        # None of those is game data, so this barely changes the index. It
+        # changes what the index can be TRUSTED to say: an absence now means
+        # "no asset of this class", not "nothing matching a naming convention".
+        # That distinction is what four separate misses came down to.
+        if not _is_table(pak, path):
             continue
         if name in seen:
             continue

@@ -6,7 +6,7 @@
    ],
    "path": "../../../Pal/Content/L10N/de/Pal/DataTable/Text/DT_BuildObjectCategoryText.uasset",
    "rows": 82,
-   "sample": "{\"TextData\": \"<TextProperty 88B>\"}",
+   "sample": "{\"TextData\": {\"namespace\": \"DT_BuildObjectCategoryText\", \"key\": \"CATEGORY_TYPE_A_Product_TextData\", \"source\": \"Produktion\", \"flags\": 0}}",
    "sampleKey": "CATEGORY_TYPE_A_Product",
    "table": "DT_BuildObjectCategoryText.uasset"
   },
@@ -16,7 +16,7 @@
    ],
    "path": "../../../Pal/Content/L10N/de/Pal/DataTable/Text/DT_BuildObjectDescText_Common.uasset",
    "rows": 549,
-   "sample": "{\"TextData\": \"<TextProperty 446B>\"}",
+   "sample": "{\"TextData\": {\"namespace\": \"DT_BuildObjectDescText_Common\", \"key\": \"BUILDOBJECT_DESC_BlastFurnace_TextData\", \"source\": \"Eine Anlage, in der <itemName id=|CopperIngot|/> raffiniert werden kann.\\r\\nDie Qualit\\u00e4t ist nicht besonders gut und der Prozess langsam.\\r\\nMuss von einem Feuer-Pal angefacht",
    "sampleKey": "BUILDOBJECT_DESC_BlastFurnace",
    "table": "DT_BuildObjectDescText_Common.uasset"
   },
@@ -26,7 +26,7 @@
    ],
    "path": "../../../Pal/Content/L10N/de/Pal/DataTable/Text/DT_CharacterTeamMissionText.uasset",
    "rows": 18,
-   "sample": "{\"TextData\": \"<TextProperty 98B>\"}",
+   "sample": "{\"TextData\": {\"namespace\": \"DT_CharacterTeamMissionText\", \"key\": \"DUNGEON_GRASS_TextData\", \"source\": \"Grasland-H\\u00f6hle\", \"flags\": 0}}",
    "sampleKey": "DUNGEON_GRASS",
    "table": "DT_CharacterTeamMissionText.uasset"
   },
@@ -36,7 +36,7 @@
    ],
    "path": "../../../Pal/Content/L10N/de/Pal/DataTable/Text/DT_DungeonNameText.uasset",
    "rows": 42,
-   "sample": "{\"TextData\": \"<TextProperty 68B>\"}",
+   "sample": "{\"TextData\": {\"namespace\": \"DT_DungeonNameText\", \"key\": \"NAME_Dungeon01_TextData\", \"source\": \"de_Text\", \"flags\": 0}}",
    "sampleKey": "NAME_Dungeon01",
    "table": "DT_DungeonNameText.uasset"
   },
@@ -46,7 +46,7 @@
    ],
    "path": "../../../Pal/Content/L10N/de/Pal/DataTable/Text/DT_FishPondTargetTypeNameText.uasset",
    "rows": 3,
-   "sample": "{\"TextData\": \"<TextProperty 97B>\"}",
+   "sample": "{\"TextData\": {\"namespace\": \"DT_FishPondTargetTypeNameText\", \"key\": \"NAME_SHADOW_SMALL_TextData\", \"source\": \"Kleine Fischsilhouette\", \"flags\": 0}}",
    "sampleKey": "NAME_SHADOW_SMALL",
    "table": "DT_FishPondTargetTypeNameText.uasset"
   },
@@ -56,7 +56,7 @@
    ],
    "path": "../../../Pal/Content/L10N/de/Pal/DataTable/Text/DT_HelpGuideDescText.uasset",
    "rows": 47,
-   "sample": "{\"TextData\": \"<TextProperty 2486B>\"}",
+   "sample": "{\"TextData\": {\"namespace\": \"DT_HelpGuideDescText\", \"key\": \"Help_1_TextData\", \"source\": \"Steuerung (Tastatur)\\r\\n\\r\\nMaus\\u3000Kamerasteuerung\\r\\n<keyGuideIcon id=|W_ForHelp|/><keyGuideIcon id=|A_ForHelp|/><keyGuideIcon id=|S_ForHelp|/><keyGuideIcon id=|D_ForHelp|/>\\u3000Bewegen\\r\\n<keyGuideIcon id=|",
    "sampleKey": "Help_1",
    "table": "DT_HelpGuideDescText.uasset"
   },
@@ -66,7 +66,7 @@
    ],
    "path": "../../../Pal/Content/L10N/de/Pal/DataTable/Text/DT_HumanNameText_Common.uasset",
    "rows": 132,
-   "sample": "{\"TextData\": \"<TextProperty 72B>\"}",
+   "sample": "{\"TextData\": {\"namespace\": \"DT_HumanNameText_Common\", \"key\": \"NAME_TEST_NPC_TextData\", \"source\": \"de_Text\", \"flags\": 0}}",
    "sampleKey": "NAME_TEST_NPC",
    "table": "DT_HumanNameText_Common.uasset"
   },
@@ -76,7 +76,7 @@
    ],
    "path": "../../../Pal/Content/L10N/de/Pal/DataTable/Text/DT_ItemDescriptionText_Common.uasset",
    "rows": 1924,
-   "sample": "{\"TextData\": \"<TextProperty 85B>\"}",
+   "sample": "{\"TextData\": {\"namespace\": \"DT_ItemDescriptionText_Common\", \"key\": \"ITEM_DESC_AnimalSkin_TextData\", \"source\": \"de_Text\", \"flags\": 0}}",
    "sampleKey": "ITEM_DESC_AnimalSkin",
    "table": "DT_ItemDescriptionText_Common.uasset"
   },
@@ -86,7 +86,7 @@
    ],
    "path": "../../../Pal/Content/L10N/de/Pal/DataTable/Text/DT_ItemNameText_Common.uasset",
    "rows": 1994,
-   "sample": "{\"TextData\": \"<TextProperty 102B>\"}",
+   "sample": "{\"TextData\": {\"namespace\": \"DT_ItemNameText_Common\", \"key\": \"ITEM_NAME_Accessory_NormalResist_1_TextData\", \"source\": \"Neutralschutzring\", \"flags\": 0}}",
    "sampleKey": "ITEM_NAME_Accessory_NormalResist_1",
    "table": "DT_ItemNameText_Common.uasset"
   },
@@ -96,7 +96,7 @@
    ],
    "path": "../../../Pal/Content/L10N/de/Pal/DataTable/Text/DT_LabResearchText.uasset",
    "rows": 204,
-   "sample": "{\"TextData\": \"<TextProperty 82B>\"}",
+   "sample": "{\"TextData\": {\"namespace\": \"DT_LabResearchText\", \"key\": \"NAME_HANDCRAFT1_TextData\", \"source\": \"Handwerkstempo Lv. 1\", \"flags\": 0}}",
    "sampleKey": "NAME_HANDCRAFT1",
    "table": "DT_LabResearchText.uasset"
   },
@@ -106,7 +106,7 @@
    ],
    "path": "../../../Pal/Content/L10N/de/Pal/DataTable/Text/DT_MapObjectNameText_Common.uasset",
    "rows": 616,
-   "sample": "{\"TextData\": \"<TextProperty 87B>\"}",
+   "sample": "{\"TextData\": {\"namespace\": \"DT_MapObjectNameText_Common\", \"key\": \"MAPOBJECT_NAME_DummyFoliage_TextData\", \"source\": \"Baum\", \"flags\": 0}}",
    "sampleKey": "MAPOBJECT_NAME_DummyFoliage",
    "table": "DT_MapObjectNameText_Common.uasset"
   },
@@ -116,7 +116,7 @@
    ],
    "path": "../../../Pal/Content/L10N/de/Pal/DataTable/Text/DT_MapRespawnPointInfoText.uasset",
    "rows": 199,
-   "sample": "{\"TextData\": \"<TextProperty 324B>\"}",
+   "sample": "{\"TextData\": {\"namespace\": \"DT_MapRespawnPointInfoText\", \"key\": \"SpawnPoint_1_TextData\", \"source\": \"Kuppe eines kleinen H\\u00fcgels.\\r\\nAufgrund der guten \\u00dcbersichtlichkeit und der reichhaltigen\\r\\nRessourcen f\\u00fcr Einsteiger zu empfehlen.\", \"flags\": 0}}",
    "sampleKey": "SpawnPoint_1",
    "table": "DT_MapRespawnPointInfoText.uasset"
   },
@@ -126,7 +126,7 @@
    ],
    "path": "../../../Pal/Content/L10N/de/Pal/DataTable/Text/DT_NamePrefixText_Common.uasset",
    "rows": 369,
-   "sample": "{\"TextData\": \"<TextProperty 78B>\"}",
+   "sample": "{\"TextData\": {\"namespace\": \"DT_NamePrefixText_Common\", \"key\": \"PREFIX_NAME_LONELY_TextData\", \"source\": \"de_Text\", \"flags\": 0}}",
    "sampleKey": "PREFIX_NAME_LONELY",
    "table": "DT_NamePrefixText_Common.uasset"
   },
@@ -136,7 +136,7 @@
    ],
    "path": "../../../Pal/Content/L10N/de/Pal/DataTable/Text/DT_NoteDescText.uasset",
    "rows": 67,
-   "sample": "{\"TextData\": \"<TextProperty 1267B>\"}",
+   "sample": "{\"TextData\": {\"namespace\": \"DT_NoteDescText\", \"key\": \"Day-xx_TextData\", \"source\": \"Notizen eines Schiffbr\\u00fcchigen \\u2013 Tag -xx\\r\\n\\r\\nDiese Welt birgt Geheimnisse.\\r\\nZu dieser \\u00dcberzeugung gelangte ich Ende letzten Jahres, als ich mir f\\u00fcr meine Forschungen die Topografie der Welt ans",
    "sampleKey": "Day-xx",
    "table": "DT_NoteDescText.uasset"
   },
@@ -146,7 +146,7 @@
    ],
    "path": "../../../Pal/Content/L10N/de/Pal/DataTable/Text/DT_NpcTalkText_Common.uasset",
    "rows": 869,
-   "sample": "{\"TextData\": \"<TextProperty 62B>\"}",
+   "sample": "{\"TextData\": {\"namespace\": \"DT_NpcTalkText_Common\", \"key\": \"CHOICE_YES_TextData\", \"source\": \"Ja\", \"flags\": 0}}",
    "sampleKey": "CHOICE_YES",
    "table": "DT_NpcTalkText_Common.uasset"
   },
@@ -156,7 +156,7 @@
    ],
    "path": "../../../Pal/Content/L10N/de/Pal/DataTable/Text/DT_PalFirstActivatedInfoText.uasset",
    "rows": 305,
-   "sample": "{\"TextData\": \"<TextProperty 703B>\"}",
+   "sample": "{\"TextData\": {\"namespace\": \"DT_PalFirstActivatedInfoText\", \"key\": \"PAL_FIRST_SPAWN_DESC_Alpaca_TextData\", \"source\": \"Kann als Reittier genutzt werden.\\r\\nWenn dieser Pal im Team ist, erh\\u00f6hen sich die Verteidigung und das Bewegungstempo von <characterName id=|KingAlpaca|/>.\\r\\nSetze <characterNa",
    "sampleKey": "PAL_FIRST_SPAWN_DESC_Alpaca",
    "table": "DT_PalFirstActivatedInfoText.uasset"
   },
@@ -166,7 +166,7 @@
    ],
    "path": "../../../Pal/Content/L10N/de/Pal/DataTable/Text/DT_PalLongDescriptionText.uasset",
    "rows": 310,
-   "sample": "{\"TextData\": \"<TextProperty 345B>\"}",
+   "sample": "{\"TextData\": {\"namespace\": \"DT_PalLongDescriptionText\", \"key\": \"PAL_LONG_DESC_Alpaca_TextData\", \"source\": \"Der flauschige Schein tr\\u00fcgt:\\r\\nEin ultraschneller Tritt seiner Hufe\\r\\nkann den unvorsichtigen Empf\\u00e4nger\\r\\nbis um die halbe Welt bef\\u00f6rdern.\", \"flags\": 0}}",
    "sampleKey": "PAL_LONG_DESC_Alpaca",
    "table": "DT_PalLongDescriptionText.uasset"
   },
@@ -176,7 +176,7 @@
    ],
    "path": "../../../Pal/Content/L10N/de/Pal/DataTable/Text/DT_PalNameText_Common.uasset",
    "rows": 322,
-   "sample": "{\"TextData\": \"<TextProperty 72B>\"}",
+   "sample": "{\"TextData\": {\"namespace\": \"DT_PalNameText_Common\", \"key\": \"PAL_NAME_Alpaca_TextData\", \"source\": \"Melpaca\", \"flags\": 0}}",
    "sampleKey": "PAL_NAME_Alpaca",
    "table": "DT_PalNameText_Common.uasset"
   },
@@ -186,7 +186,7 @@
    ],
    "path": "../../../Pal/Content/L10N/de/Pal/DataTable/Text/DT_PartnerSkillAppendText.uasset",
    "rows": 160,
-   "sample": "{\"TextData\": \"<TextProperty 71B>\"}",
+   "sample": "{\"TextData\": {\"namespace\": \"DT_PartnerSkillAppendText\", \"key\": \"TEST_TEXT_RANK_1_TextData\", \"source\": \"-\", \"flags\": 0}}",
    "sampleKey": "TEST_TEXT_RANK_1",
    "table": "DT_PartnerSkillAppendText.uasset"
   },
@@ -196,7 +196,7 @@
    ],
    "path": "../../../Pal/Content/L10N/de/Pal/DataTable/Text/DT_SkillDescText_Common.uasset",
    "rows": 439,
-   "sample": "{\"TextData\": \"<TextProperty 171B>\"}",
+   "sample": "{\"TextData\": {\"namespace\": \"DT_SkillDescText_Common\", \"key\": \"ACTION_SKILL_Human_Punch_TextData\", \"source\": \"Vertraut auf die eigenen F\\u00e4uste und schl\\u00e4gt zu.\", \"flags\": 0}}",
    "sampleKey": "ACTION_SKILL_Human_Punch",
    "table": "DT_SkillDescText_Common.uasset"
   },
@@ -206,7 +206,7 @@
    ],
    "path": "../../../Pal/Content/L10N/de/Pal/DataTable/Text/DT_SkillNameText_Common.uasset",
    "rows": 1157,
-   "sample": "{\"TextData\": \"<TextProperty 77B>\"}",
+   "sample": "{\"TextData\": {\"namespace\": \"DT_SkillNameText_Common\", \"key\": \"PASSIVE_TestSkill1_TextData\", \"source\": \"de_Text\", \"flags\": 0}}",
    "sampleKey": "PASSIVE_TestSkill1",
    "table": "DT_SkillNameText_Common.uasset"
   },
@@ -216,7 +216,7 @@
    ],
    "path": "../../../Pal/Content/L10N/de/Pal/DataTable/Text/DT_TechnologyDescText_Common.uasset",
    "rows": 587,
-   "sample": "{\"TextData\": \"<TextProperty 82B>\"}",
+   "sample": "{\"TextData\": {\"namespace\": \"DT_TechnologyDescText_Common\", \"key\": \"DESC_RECIPE_COPPER_TextData\", \"source\": \"de_Text\", \"flags\": 0}}",
    "sampleKey": "DESC_RECIPE_COPPER",
    "table": "DT_TechnologyDescText_Common.uasset"
   },
@@ -226,7 +226,7 @@
    ],
    "path": "../../../Pal/Content/L10N/de/Pal/DataTable/Text/DT_TechnologyNameText_Common.uasset",
    "rows": 835,
-   "sample": "{\"TextData\": \"<TextProperty 90B>\"}",
+   "sample": "{\"TextData\": {\"namespace\": \"DT_TechnologyNameText_Common\", \"key\": \"NAME_RECIPE_COPPER_TextData\", \"source\": \"Copper Smelting\", \"flags\": 0}}",
    "sampleKey": "NAME_RECIPE_COPPER",
    "table": "DT_TechnologyNameText_Common.uasset"
   },
@@ -236,7 +236,7 @@
    ],
    "path": "../../../Pal/Content/L10N/de/Pal/DataTable/Text/DT_TutorialMessage_Text.uasset",
    "rows": 35,
-   "sample": "{\"TextData\": \"<TextProperty 180B>\"}",
+   "sample": "{\"TextData\": {\"namespace\": \"DT_TutorialMessage_Text\", \"key\": \"TUTORIAL_SP_1_TextData\", \"source\": \"Hebe Gegenst\\u00e4nde mit <keyGuideIcon id=|Interact_1|/> auf.\", \"flags\": 0}}",
    "sampleKey": "TUTORIAL_SP_1",
    "table": "DT_TutorialMessage_Text.uasset"
   },
@@ -246,7 +246,7 @@
    ],
    "path": "../../../Pal/Content/L10N/de/Pal/DataTable/Text/DT_UI_Common_Text_Common.uasset",
    "rows": 3143,
-   "sample": "{\"TextData\": \"<TextProperty 77B>\"}",
+   "sample": "{\"TextData\": {\"namespace\": \"DT_UI_Common_Text_Common\", \"key\": \"COMMON_BACK_TextData\", \"source\": \"Zur\\u00fcck\", \"flags\": 0}}",
    "sampleKey": "COMMON_BACK",
    "table": "DT_UI_Common_Text_Common.uasset"
   },
@@ -256,7 +256,7 @@
    ],
    "path": "../../../Pal/Content/L10N/de/Pal/DataTable/Text/DT_UniqueNPCText_Common.uasset",
    "rows": 167,
-   "sample": "{\"TextData\": \"<TextProperty 71B>\"}",
+   "sample": "{\"TextData\": {\"namespace\": \"DT_UniqueNPCText_Common\", \"key\": \"NAME_JOHNSON_TextData\", \"source\": \"de_Text\", \"flags\": 0}}",
    "sampleKey": "NAME_JOHNSON",
    "table": "DT_UniqueNPCText_Common.uasset"
   },
@@ -266,7 +266,7 @@
    ],
    "path": "../../../Pal/Content/L10N/de/Pal/DataTable/Text/DT_WorldMap_Common_Text_Common.uasset",
    "rows": 156,
-   "sample": "{\"TextData\": \"<TextProperty 87B>\"}",
+   "sample": "{\"TextData\": {\"namespace\": \"DT_WorldMap_Common_Text_Common\", \"key\": \"REGION_Grass_1_TextData\", \"source\": \"Windstieginsel\", \"flags\": 0}}",
    "sampleKey": "REGION_Grass_1",
    "table": "DT_WorldMap_Common_Text_Common.uasset"
   },
@@ -325,6 +325,23 @@
    "sample": "{\"DummyValue\": 0}",
    "sampleKey": "TestName",
    "table": "DT_NPCAppearFlagDable.uasset"
+  },
+  {
+   "columns": [
+    "Keys",
+    "DefaultValue",
+    "PreInfinityExtrap",
+    "PostInfinityExtrap",
+    "ArrayProperty_255",
+    "ArrayProperty_3071",
+    "ArrayProperty_68",
+    "InterpMode"
+   ],
+   "path": "../../../Pal/Content/Pal/Blueprint/Weapon/Component/CT_AmmoMesh.uasset",
+   "rows": 2,
+   "sample": "{\"ArrayProperty_255\": \"<ArrayProperty_2047 0B>\", \"ArrayProperty_3071\": \"<ArrayProperty_1791 0B>\", \"ArrayProperty_68\": \"<ArrayProperty_14 0B>\", \"Keys\": {\"_opaque\": \"SimpleCurveKey 16B\"}, \"DefaultValue\": 3.4028234663852886e+38, \"PreInfinityExtrap\": \"RCCE_Constant\", \"PostInfinityExtrap\": \"RCCE_Constant",
+   "sampleKey": "ArrayProperty_1535",
+   "table": "CT_AmmoMesh.uasset"
   },
   {
    "columns": [
@@ -492,7 +509,7 @@
    ],
    "path": "../../../Pal/Content/Pal/DataTable/CharacteCreation/DT_CharacterCreationMakeInfoPreset.uasset",
    "rows": 12,
-   "sample": "{\"MakeInfo\": {\"BodyMeshName\": \"TypeA\", \"HeadMeshName\": \"Type1\", \"HairMeshName\": \"Type1\", \"EquipmentBodyMeshName\": \"Default_EquipBody\", \"EquipmentHeadMeshName\": \"Default_EquipHead\", \"OverrideEquipmentInfo\": {\"Head\": \"None\", \"Body\": \"None\", \"Glider\": \"None\", \"Weapon\": \"<MapProperty 8B>\", \"Pal\": \"<MapP",
+   "sample": "{\"MakeInfo\": {\"BodyMeshName\": \"TypeA\", \"HeadMeshName\": \"Type1\", \"HairMeshName\": \"Type1\", \"EquipmentBodyMeshName\": \"Default_EquipBody\", \"EquipmentHeadMeshName\": \"Default_EquipHead\", \"OverrideEquipmentInfo\": {\"Head\": \"None\", \"Body\": \"None\", \"Glider\": \"None\", \"Weapon\": {}, \"Pal\": {}}, \"DisableHeadDress",
    "sampleKey": "TypeA_000",
    "table": "DT_CharacterCreationMakeInfoPreset.uasset"
   },
@@ -526,7 +543,7 @@
    ],
    "path": "../../../Pal/Content/Pal/DataTable/CharacteCreation/DT_CharacterCreationMeshPresetTable_Equipments.uasset",
    "rows": 330,
-   "sample": "{\"SkeletalMeshMap\": \"<MapProperty 64B>\", \"ABPAssetMap\": \"<MapProperty 64B>\", \"IsHairAttachAccessory\": false, \"HairAttachSocketNameMap\": \"<MapProperty 8B>\", \"bUseCustomDepthPass\": false, \"bIsFullBodyEquipment\": false, \"OverrideBodyType\": \"None\", \"BodyShape\": \"EPalPlayerBodyShape::Normal\"}",
+   "sample": "{\"SkeletalMeshMap\": \"<MapProperty 64B, undecoded: unhandled map element type 'SoftObjectProperty'>\", \"ABPAssetMap\": \"<MapProperty 64B, undecoded: unhandled map element type 'SoftObjectProperty'>\", \"IsHairAttachAccessory\": false, \"HairAttachSocketNameMap\": {}, \"bUseCustomDepthPass\": false, \"bIsFullBo",
    "sampleKey": "Default_EquipBody",
    "table": "DT_CharacterCreationMeshPresetTable_Equipments.uasset"
   },
@@ -7498,7 +7515,7 @@
    ],
    "path": "../../../Pal/Content/Pal/DataTable/Skin/DT_SkinAssetMapTable.uasset",
    "rows": 29,
-   "sample": "{\"SkeletalMesh\": \"<MapProperty 8B>\", \"Materials\": [], \"StaticMesh\": \"<SoftObjectProperty 20B>\", \"AnimBP\": \"<MapProperty 8B>\", \"BaseCharacterClass\": \"<SoftObjectProperty 20B>\", \"BossCharacterClass\": \"<SoftObjectProperty 20B>\", \"HairAttachSocketNameMap\": \"<MapProperty 8B>\"}",
+   "sample": "{\"SkeletalMesh\": {}, \"Materials\": [], \"StaticMesh\": \"<SoftObjectProperty 20B>\", \"AnimBP\": {}, \"BaseCharacterClass\": \"<SoftObjectProperty 20B>\", \"BossCharacterClass\": \"<SoftObjectProperty 20B>\", \"HairAttachSocketNameMap\": {}}",
    "sampleKey": "PinkCat_Skin001",
    "table": "DT_SkinAssetMapTable.uasset"
   },
@@ -7514,7 +7531,7 @@
    ],
    "path": "../../../Pal/Content/Pal/DataTable/Skin/DT_SkinAssetMapTable_Common.uasset",
    "rows": 29,
-   "sample": "{\"SkeletalMesh\": \"<MapProperty 8B>\", \"Materials\": [], \"StaticMesh\": \"<SoftObjectProperty 20B>\", \"AnimBP\": \"<MapProperty 8B>\", \"BaseCharacterClass\": \"<SoftObjectProperty 20B>\", \"BossCharacterClass\": \"<SoftObjectProperty 20B>\", \"HairAttachSocketNameMap\": \"<MapProperty 8B>\"}",
+   "sample": "{\"SkeletalMesh\": {}, \"Materials\": [], \"StaticMesh\": \"<SoftObjectProperty 20B>\", \"AnimBP\": {}, \"BaseCharacterClass\": \"<SoftObjectProperty 20B>\", \"BossCharacterClass\": \"<SoftObjectProperty 20B>\", \"HairAttachSocketNameMap\": {}}",
    "sampleKey": "PinkCat_Skin001",
    "table": "DT_SkinAssetMapTable_Common.uasset"
   },
@@ -7696,7 +7713,7 @@
    ],
    "path": "../../../Pal/Content/Pal/DataTable/Text/DT_BaseCampWorkerEventText.uasset",
    "rows": 9,
-   "sample": "{\"TextData\": \"<TextProperty 120B>\"}",
+   "sample": "{\"TextData\": {\"namespace\": \"DT_BaseCampWorkerEventTex\", \"key\": \"NOTIFY_EVENT_ESCAPE_TextData\", \"source\": \"{CharacterName}\\u304c\\u8131\\u8d70\\u3057\\u307e\\u3057\\u305f\\uff01\", \"flags\": 0}}",
    "sampleKey": "NOTIFY_EVENT_ESCAPE",
    "table": "DT_BaseCampWorkerEventText.uasset"
   },
@@ -7706,7 +7723,7 @@
    ],
    "path": "../../../Pal/Content/Pal/DataTable/Text/DT_BuildObjectDescText.uasset",
    "rows": 549,
-   "sample": "{\"TextData\": \"<TextProperty 238B>\"}",
+   "sample": "{\"TextData\": {\"namespace\": \"DT_BuildObjectDescText_Common\", \"key\": \"BUILDOBJECT_DESC_BlastFurnace_TextData\", \"source\": \"<itemName id=|CopperIngot|/>\\u3092\\u88fd\\u932c\\u3059\\u308b\\u3053\\u3068\\u304c\\u3067\\u304d\\u308b\\u3002\\r\\n\\u3042\\u307e\\u308a\\u8cea\\u306f\\u826f\\u304f\\u306a\\u304f\\u3001\\u901f\\u5ea6\\u30",
    "sampleKey": "BUILDOBJECT_DESC_BlastFurnace",
    "table": "DT_BuildObjectDescText.uasset"
   },
@@ -7716,7 +7733,7 @@
    ],
    "path": "../../../Pal/Content/Pal/DataTable/Text/DT_HumanNameText.uasset",
    "rows": 132,
-   "sample": "{\"TextData\": \"<TextProperty 66B>\"}",
+   "sample": "{\"TextData\": {\"namespace\": \"DT_HumanNameText_Common\", \"key\": \"NAME_TEST_NPC_TextData\", \"source\": \"-\", \"flags\": 0}}",
    "sampleKey": "NAME_TEST_NPC",
    "table": "DT_HumanNameText.uasset"
   },
@@ -7726,7 +7743,7 @@
    ],
    "path": "../../../Pal/Content/Pal/DataTable/Text/DT_ItemDescriptionText.uasset",
    "rows": 1924,
-   "sample": "{\"TextData\": \"<TextProperty 79B>\"}",
+   "sample": "{\"TextData\": {\"namespace\": \"DT_ItemDescriptionText_Common\", \"key\": \"ITEM_DESC_AnimalSkin_TextData\", \"source\": \"-\", \"flags\": 0}}",
    "sampleKey": "ITEM_DESC_AnimalSkin",
    "table": "DT_ItemDescriptionText.uasset"
   },
@@ -7736,7 +7753,7 @@
    ],
    "path": "../../../Pal/Content/Pal/DataTable/Text/DT_ItemNameText.uasset",
    "rows": 1994,
-   "sample": "{\"TextData\": \"<TextProperty 98B>\"}",
+   "sample": "{\"TextData\": {\"namespace\": \"DT_ItemNameText_Common\", \"key\": \"ITEM_NAME_Accessory_NormalResist_1_TextData\", \"source\": \"\\u7121\\u5c01\\u3058\\u306e\\u6307\\u8f2a\", \"flags\": 0}}",
    "sampleKey": "ITEM_NAME_Accessory_NormalResist_1",
    "table": "DT_ItemNameText.uasset"
   },
@@ -7746,7 +7763,7 @@
    ],
    "path": "../../../Pal/Content/Pal/DataTable/Text/DT_MapObjectNameText.uasset",
    "rows": 616,
-   "sample": "{\"TextData\": \"<TextProperty 86B>\"}",
+   "sample": "{\"TextData\": {\"namespace\": \"DT_MapObjectNameText_Common\", \"key\": \"MAPOBJECT_NAME_DummyFoliage_TextData\", \"source\": \"\\u6728\", \"flags\": 0}}",
    "sampleKey": "MAPOBJECT_NAME_DummyFoliage",
    "table": "DT_MapObjectNameText.uasset"
   },
@@ -7756,7 +7773,7 @@
    ],
    "path": "../../../Pal/Content/Pal/DataTable/Text/DT_NamePrefixText.uasset",
    "rows": 369,
-   "sample": "{\"TextData\": \"<TextProperty 72B>\"}",
+   "sample": "{\"TextData\": {\"namespace\": \"DT_NamePrefixText_Common\", \"key\": \"PREFIX_NAME_LONELY_TextData\", \"source\": \"-\", \"flags\": 0}}",
    "sampleKey": "PREFIX_NAME_LONELY",
    "table": "DT_NamePrefixText.uasset"
   },
@@ -7766,7 +7783,7 @@
    ],
    "path": "../../../Pal/Content/Pal/DataTable/Text/DT_NpcTalkText.uasset",
    "rows": 869,
-   "sample": "{\"TextData\": \"<TextProperty 65B>\"}",
+   "sample": "{\"TextData\": {\"namespace\": \"DT_NpcTalkText_Common\", \"key\": \"CHOICE_YES_TextData\", \"source\": \"\\u306f\\u3044\", \"flags\": 0}}",
    "sampleKey": "CHOICE_YES",
    "table": "DT_NpcTalkText.uasset"
   },
@@ -7776,7 +7793,7 @@
    ],
    "path": "../../../Pal/Content/Pal/DataTable/Text/DT_PalNameText.uasset",
    "rows": 322,
-   "sample": "{\"TextData\": \"<TextProperty 74B>\"}",
+   "sample": "{\"TextData\": {\"namespace\": \"DT_PalNameText_Common\", \"key\": \"PAL_NAME_Alpaca_TextData\", \"source\": \"\\u30e1\\u30eb\\u30d1\\u30ab\", \"flags\": 0}}",
    "sampleKey": "PAL_NAME_Alpaca",
    "table": "DT_PalNameText.uasset"
   },
@@ -7786,7 +7803,7 @@
    ],
    "path": "../../../Pal/Content/Pal/DataTable/Text/DT_PalShortDescriptionText.uasset",
    "rows": 113,
-   "sample": "{\"TextData\": \"<TextProperty 173B>\"}",
+   "sample": "{\"TextData\": {\"namespace\": \"DT_PalShortDescriptionText\", \"key\": \"PAL_SHORT_DESC_Anubis_TextData\", \"source\": \"\\u4e00\\u7dd2\\u306b\\u3044\\u308b\\u3068\\r\\n\\u30ac\\u30c1\\u30ac\\u30c1\\u306b\\u901e\\u3057\\u3044\\u3000\\u30d1\\u30ef\\u30fc\\u304c\\u307f\\u306a\\u304e\\u308a\\r\\n\\u653b\\u6483\\u304c\\u3000\\u30b4\\u30ea\\u30b4\\u3",
    "sampleKey": "PAL_SHORT_DESC_Anubis",
    "table": "DT_PalShortDescriptionText.uasset"
   },
@@ -7796,7 +7813,7 @@
    ],
    "path": "../../../Pal/Content/Pal/DataTable/Text/DT_SkillDescText.uasset",
    "rows": 439,
-   "sample": "{\"TextData\": \"<TextProperty 105B>\"}",
+   "sample": "{\"TextData\": {\"namespace\": \"DT_SkillDescText_Common\", \"key\": \"ACTION_SKILL_Human_Punch_TextData\", \"source\": \"\\u5df1\\u306e\\u62f3\\u3092\\u4fe1\\u3058\\u3066\\u3001\\u30d1\\u30f3\\u30c1\\u3059\\u308b\\u3002\", \"flags\": 0}}",
    "sampleKey": "ACTION_SKILL_Human_Punch",
    "table": "DT_SkillDescText.uasset"
   },
@@ -7806,7 +7823,7 @@
    ],
    "path": "../../../Pal/Content/Pal/DataTable/Text/DT_SkillNameText.uasset",
    "rows": 1157,
-   "sample": "{\"TextData\": \"<TextProperty 71B>\"}",
+   "sample": "{\"TextData\": {\"namespace\": \"DT_SkillNameText_Common\", \"key\": \"PASSIVE_TestSkill1_TextData\", \"source\": \"-\", \"flags\": 0}}",
    "sampleKey": "PASSIVE_TestSkill1",
    "table": "DT_SkillNameText.uasset"
   },
@@ -7816,7 +7833,7 @@
    ],
    "path": "../../../Pal/Content/Pal/DataTable/Text/DT_SystemLocalize.uasset",
    "rows": 4,
-   "sample": "{\"TextData\": \"<TextProperty 72B>\"}",
+   "sample": "{\"TextData\": {\"namespace\": \"DT_TestLocalize\", \"key\": \"F51045784D9B46A5523064AD6900B5B9\", \"source\": \"\\u306f\\u3044\", \"flags\": 0}}",
    "sampleKey": "Yes",
    "table": "DT_SystemLocalize.uasset"
   },
@@ -7826,7 +7843,7 @@
    ],
    "path": "../../../Pal/Content/Pal/DataTable/Text/DT_TechnologyDescText.uasset",
    "rows": 587,
-   "sample": "{\"TextData\": \"<TextProperty 76B>\"}",
+   "sample": "{\"TextData\": {\"namespace\": \"DT_TechnologyDescText_Common\", \"key\": \"DESC_RECIPE_COPPER_TextData\", \"source\": \"-\", \"flags\": 0}}",
    "sampleKey": "DESC_RECIPE_COPPER",
    "table": "DT_TechnologyDescText.uasset"
   },
@@ -7836,7 +7853,7 @@
    ],
    "path": "../../../Pal/Content/Pal/DataTable/Text/DT_TechnologyNameText.uasset",
    "rows": 835,
-   "sample": "{\"TextData\": \"<TextProperty 76B>\"}",
+   "sample": "{\"TextData\": {\"namespace\": \"DT_TechnologyNameText_Common\", \"key\": \"NAME_RECIPE_COPPER_TextData\", \"source\": \"-\", \"flags\": 0}}",
    "sampleKey": "NAME_RECIPE_COPPER",
    "table": "DT_TechnologyNameText.uasset"
   },
@@ -7846,7 +7863,7 @@
    ],
    "path": "../../../Pal/Content/Pal/DataTable/Text/DT_UI_Common_Text.uasset",
    "rows": 3143,
-   "sample": "{\"TextData\": \"<TextProperty 69B>\"}",
+   "sample": "{\"TextData\": {\"namespace\": \"DT_UI_Common_Text_Common\", \"key\": \"COMMON_BACK_TextData\", \"source\": \"\\u623b\\u308b\", \"flags\": 0}}",
    "sampleKey": "COMMON_BACK",
    "table": "DT_UI_Common_Text.uasset"
   },
@@ -7856,7 +7873,7 @@
    ],
    "path": "../../../Pal/Content/Pal/DataTable/Text/DT_UniqueNPCText.uasset",
    "rows": 167,
-   "sample": "{\"TextData\": \"<TextProperty 65B>\"}",
+   "sample": "{\"TextData\": {\"namespace\": \"DT_UniqueNPCText_Common\", \"key\": \"NAME_JOHNSON_TextData\", \"source\": \"-\", \"flags\": 0}}",
    "sampleKey": "NAME_JOHNSON",
    "table": "DT_UniqueNPCText.uasset"
   },
@@ -7866,7 +7883,7 @@
    ],
    "path": "../../../Pal/Content/Pal/DataTable/Text/DT_WorldMap_Common_Text.uasset",
    "rows": 156,
-   "sample": "{\"TextData\": \"<TextProperty 84B>\"}",
+   "sample": "{\"TextData\": {\"namespace\": \"DT_WorldMap_Common_Text_Common\", \"key\": \"REGION_Grass_1_TextData\", \"source\": \"\\u98a8\\u7acb\\u3061\\u306e\\u5cf6\", \"flags\": 0}}",
    "sampleKey": "REGION_Grass_1",
    "table": "DT_WorldMap_Common_Text.uasset"
   },
@@ -7957,7 +7974,7 @@
    ],
    "path": "../../../Pal/Content/Pal/DataTable/UI/DT_LocationUIData.uasset",
    "rows": 1,
-   "sample": "{\"locationUIDataMap\": \"<MapProperty 1793B>\", \"mapObjectIconMap\": \"<MapProperty 428B>\", \"levelObjectIconMap\": \"<MapProperty 344B>\"}",
+   "sample": "{\"locationUIDataMap\": {\"EPalLocationType::PointFastTravel\": {\"icon\": \"<SoftObjectProperty 20B>\", \"compassIconWidget\": \"<ObjectProperty 4B>\", \"displayLength\": 300.0}, \"EPalLocationType::PointBaseCamp\": {\"icon\": \"<SoftObjectProperty 20B>\", \"compassIconWidget\": \"<ObjectProperty 4B>\", \"displayLength\": 3",
    "sampleKey": "MainSet",
    "table": "DT_LocationUIData.uasset"
   },
@@ -8029,7 +8046,7 @@
    ],
    "path": "../../../Pal/Content/Pal/DataTable/UI/DT_UIInputAction.uasset",
    "rows": 244,
-   "sample": "{\"DisplayName\": \"<TextProperty 9B>\", \"HoldDisplayName\": \"<TextProperty 9B>\", \"NavBarPriority\": 0, \"KeyboardInputTypeInfo\": {\"Key\": {\"KeyName\": \"Escape\"}, \"OverrrideState\": \"EInputActionState::Enabled\", \"bActionRequiresHold\": false, \"HoldTime\": 0.5, \"OverrideBrush\": {\"bIsDynamicallyLoaded\": false, \"D",
+   "sample": "{\"DisplayName\": {\"_text\": \"history -1\"}, \"HoldDisplayName\": {\"_text\": \"history -1\"}, \"NavBarPriority\": 0, \"KeyboardInputTypeInfo\": {\"Key\": {\"KeyName\": \"Escape\"}, \"OverrrideState\": \"EInputActionState::Enabled\", \"bActionRequiresHold\": false, \"HoldTime\": 0.5, \"OverrideBrush\": {\"bIsDynamicallyLoaded\": f",
    "sampleKey": "UIEscape",
    "table": "DT_UIInputAction.uasset"
   },
@@ -8177,7 +8194,7 @@
    ],
    "path": "../../../Pal/Content/Pal/DataTable/WorldMapUIData/DT_WorldMapUIData.uasset",
    "rows": 2,
-   "sample": "{\"minMapTextureBlockSize\": {\"_opaque\": \"Vector2D 16B\"}, \"mapBlockNum\": {\"_opaque\": \"Vector2D 16B\"}, \"MaskTextureSize\": {\"_opaque\": \"Vector2D 16B\"}, \"landScapeRealPositionMin\": {\"_opaque\": \"Vector 24B\"}, \"landScapeRealPositionMax\": {\"_opaque\": \"Vector 24B\"}, \"textureDataMap\": \"<MapProperty 232B>\", \"D",
+   "sample": "{\"minMapTextureBlockSize\": {\"_opaque\": \"Vector2D 16B\"}, \"mapBlockNum\": {\"_opaque\": \"Vector2D 16B\"}, \"MaskTextureSize\": {\"_opaque\": \"Vector2D 16B\"}, \"landScapeRealPositionMin\": {\"_opaque\": \"Vector 24B\"}, \"landScapeRealPositionMax\": {\"_opaque\": \"Vector 24B\"}, \"textureDataMap\": {\"FirstRegion\": {\"textur",
    "sampleKey": "MainMap",
    "table": "DT_WorldMapUIData.uasset"
   },
@@ -8237,168 +8254,29 @@
    "sample": "{\"StaticMeshName\": \"Wood\", \"StaticMeshPath\": \"<SoftObjectProperty 20B>\"}",
    "sampleKey": "Wood",
    "table": "DT_ItemStaticMeshDataTable.uasset"
+  },
+  {
+   "columns": [
+    "AcousticTexture",
+    "TransmissionLoss"
+   ],
+   "path": "../../../Pal/Content/WwiseAudio/DefaultGeometrySurfacePropertiesTable.uasset",
+   "rows": 61,
+   "sample": "{\"AcousticTexture\": \"<SoftObjectProperty 20B>\", \"TransmissionLoss\": 1.0}",
+   "sampleKey": "/Engine/EngineMaterials/DefaultDestructiblePhysicalMaterial.DefaultDestructiblePhysicalMaterial",
+   "table": "DefaultGeometrySurfacePropertiesTable.uasset"
   }
  ],
  "refused": [
   {
-   "error": "TableError: ../../../Pal/Content/PPSkyCreator/WeatherPresets/DT_PPSC_Weather_Clear_01.uasset: no row offset produced a walk ending at the buffer end. This is a refusal, not an empty table \u2014 a partial decode of tagged properties reads as real data and must never be returned.",
-   "path": "../../../Pal/Content/PPSkyCreator/WeatherPresets/DT_PPSC_Weather_Clear_01.uasset",
-   "table": "DT_PPSC_Weather_Clear_01.uasset"
-  },
-  {
-   "error": "TableError: ../../../Pal/Content/PPSkyCreator/WeatherPresets/DT_PPSC_Weather_Clear_02.uasset: no row offset produced a walk ending at the buffer end. This is a refusal, not an empty table \u2014 a partial decode of tagged properties reads as real data and must never be returned.",
-   "path": "../../../Pal/Content/PPSkyCreator/WeatherPresets/DT_PPSC_Weather_Clear_02.uasset",
-   "table": "DT_PPSC_Weather_Clear_02.uasset"
-  },
-  {
-   "error": "TableError: ../../../Pal/Content/PPSkyCreator/WeatherPresets/DT_PPSC_Weather_Clear_03.uasset: no row offset produced a walk ending at the buffer end. This is a refusal, not an empty table \u2014 a partial decode of tagged properties reads as real data and must never be returned.",
-   "path": "../../../Pal/Content/PPSkyCreator/WeatherPresets/DT_PPSC_Weather_Clear_03.uasset",
-   "table": "DT_PPSC_Weather_Clear_03.uasset"
-  },
-  {
-   "error": "TableError: ../../../Pal/Content/PPSkyCreator/WeatherPresets/DT_PPSC_Weather_Clear_04.uasset: no row offset produced a walk ending at the buffer end. This is a refusal, not an empty table \u2014 a partial decode of tagged properties reads as real data and must never be returned.",
-   "path": "../../../Pal/Content/PPSkyCreator/WeatherPresets/DT_PPSC_Weather_Clear_04.uasset",
-   "table": "DT_PPSC_Weather_Clear_04.uasset"
-  },
-  {
-   "error": "TableError: ../../../Pal/Content/PPSkyCreator/WeatherPresets/DT_PPSC_Weather_Cloudy_01.uasset: no row offset produced a walk ending at the buffer end. This is a refusal, not an empty table \u2014 a partial decode of tagged properties reads as real data and must never be returned.",
-   "path": "../../../Pal/Content/PPSkyCreator/WeatherPresets/DT_PPSC_Weather_Cloudy_01.uasset",
-   "table": "DT_PPSC_Weather_Cloudy_01.uasset"
-  },
-  {
-   "error": "TableError: ../../../Pal/Content/PPSkyCreator/WeatherPresets/DT_PPSC_Weather_Cloudy_02.uasset: no row offset produced a walk ending at the buffer end. This is a refusal, not an empty table \u2014 a partial decode of tagged properties reads as real data and must never be returned.",
-   "path": "../../../Pal/Content/PPSkyCreator/WeatherPresets/DT_PPSC_Weather_Cloudy_02.uasset",
-   "table": "DT_PPSC_Weather_Cloudy_02.uasset"
-  },
-  {
-   "error": "TableError: ../../../Pal/Content/PPSkyCreator/WeatherPresets/DT_PPSC_Weather_Cloudy_03.uasset: no row offset produced a walk ending at the buffer end. This is a refusal, not an empty table \u2014 a partial decode of tagged properties reads as real data and must never be returned.",
-   "path": "../../../Pal/Content/PPSkyCreator/WeatherPresets/DT_PPSC_Weather_Cloudy_03.uasset",
-   "table": "DT_PPSC_Weather_Cloudy_03.uasset"
-  },
-  {
-   "error": "TableError: ../../../Pal/Content/PPSkyCreator/WeatherPresets/DT_PPSC_Weather_Cloudy_04.uasset: no row offset produced a walk ending at the buffer end. This is a refusal, not an empty table \u2014 a partial decode of tagged properties reads as real data and must never be returned.",
-   "path": "../../../Pal/Content/PPSkyCreator/WeatherPresets/DT_PPSC_Weather_Cloudy_04.uasset",
-   "table": "DT_PPSC_Weather_Cloudy_04.uasset"
-  },
-  {
-   "error": "TableError: ../../../Pal/Content/PPSkyCreator/WeatherPresets/DT_PPSC_Weather_Cloudy_05.uasset: no row offset produced a walk ending at the buffer end. This is a refusal, not an empty table \u2014 a partial decode of tagged properties reads as real data and must never be returned.",
-   "path": "../../../Pal/Content/PPSkyCreator/WeatherPresets/DT_PPSC_Weather_Cloudy_05.uasset",
-   "table": "DT_PPSC_Weather_Cloudy_05.uasset"
-  },
-  {
-   "error": "TableError: ../../../Pal/Content/PPSkyCreator/WeatherPresets/DT_PPSC_Weather_Cloudy_06.uasset: no row offset produced a walk ending at the buffer end. This is a refusal, not an empty table \u2014 a partial decode of tagged properties reads as real data and must never be returned.",
-   "path": "../../../Pal/Content/PPSkyCreator/WeatherPresets/DT_PPSC_Weather_Cloudy_06.uasset",
-   "table": "DT_PPSC_Weather_Cloudy_06.uasset"
-  },
-  {
-   "error": "TableError: ../../../Pal/Content/PPSkyCreator/WeatherPresets/DT_PPSC_Weather_Default.uasset: no row offset produced a walk ending at the buffer end. This is a refusal, not an empty table \u2014 a partial decode of tagged properties reads as real data and must never be returned.",
-   "path": "../../../Pal/Content/PPSkyCreator/WeatherPresets/DT_PPSC_Weather_Default.uasset",
-   "table": "DT_PPSC_Weather_Default.uasset"
-  },
-  {
-   "error": "TableError: ../../../Pal/Content/PPSkyCreator/WeatherPresets/DT_PPSC_Weather_Fog_01.uasset: no row offset produced a walk ending at the buffer end. This is a refusal, not an empty table \u2014 a partial decode of tagged properties reads as real data and must never be returned.",
-   "path": "../../../Pal/Content/PPSkyCreator/WeatherPresets/DT_PPSC_Weather_Fog_01.uasset",
-   "table": "DT_PPSC_Weather_Fog_01.uasset"
-  },
-  {
-   "error": "TableError: ../../../Pal/Content/PPSkyCreator/WeatherPresets/DT_PPSC_Weather_Fog_02.uasset: no row offset produced a walk ending at the buffer end. This is a refusal, not an empty table \u2014 a partial decode of tagged properties reads as real data and must never be returned.",
-   "path": "../../../Pal/Content/PPSkyCreator/WeatherPresets/DT_PPSC_Weather_Fog_02.uasset",
-   "table": "DT_PPSC_Weather_Fog_02.uasset"
-  },
-  {
-   "error": "TableError: ../../../Pal/Content/PPSkyCreator/WeatherPresets/DT_PPSC_Weather_Fog_03.uasset: no row offset produced a walk ending at the buffer end. This is a refusal, not an empty table \u2014 a partial decode of tagged properties reads as real data and must never be returned.",
-   "path": "../../../Pal/Content/PPSkyCreator/WeatherPresets/DT_PPSC_Weather_Fog_03.uasset",
-   "table": "DT_PPSC_Weather_Fog_03.uasset"
-  },
-  {
-   "error": "TableError: ../../../Pal/Content/PPSkyCreator/WeatherPresets/DT_PPSC_Weather_Fog_04.uasset: no row offset produced a walk ending at the buffer end. This is a refusal, not an empty table \u2014 a partial decode of tagged properties reads as real data and must never be returned.",
-   "path": "../../../Pal/Content/PPSkyCreator/WeatherPresets/DT_PPSC_Weather_Fog_04.uasset",
-   "table": "DT_PPSC_Weather_Fog_04.uasset"
-  },
-  {
-   "error": "TableError: ../../../Pal/Content/PPSkyCreator/WeatherPresets/DT_PPSC_Weather_Overcast_01.uasset: no row offset produced a walk ending at the buffer end. This is a refusal, not an empty table \u2014 a partial decode of tagged properties reads as real data and must never be returned.",
-   "path": "../../../Pal/Content/PPSkyCreator/WeatherPresets/DT_PPSC_Weather_Overcast_01.uasset",
-   "table": "DT_PPSC_Weather_Overcast_01.uasset"
-  },
-  {
-   "error": "TableError: ../../../Pal/Content/PPSkyCreator/WeatherPresets/DT_PPSC_Weather_Overcast_02.uasset: no row offset produced a walk ending at the buffer end. This is a refusal, not an empty table \u2014 a partial decode of tagged properties reads as real data and must never be returned.",
-   "path": "../../../Pal/Content/PPSkyCreator/WeatherPresets/DT_PPSC_Weather_Overcast_02.uasset",
-   "table": "DT_PPSC_Weather_Overcast_02.uasset"
-  },
-  {
-   "error": "TableError: ../../../Pal/Content/PPSkyCreator/WeatherPresets/DT_PPSC_Weather_Overcast_03.uasset: no row offset produced a walk ending at the buffer end. This is a refusal, not an empty table \u2014 a partial decode of tagged properties reads as real data and must never be returned.",
-   "path": "../../../Pal/Content/PPSkyCreator/WeatherPresets/DT_PPSC_Weather_Overcast_03.uasset",
-   "table": "DT_PPSC_Weather_Overcast_03.uasset"
-  },
-  {
-   "error": "TableError: ../../../Pal/Content/PPSkyCreator/WeatherPresets/DT_PPSC_Weather_Overcast_04.uasset: no row offset produced a walk ending at the buffer end. This is a refusal, not an empty table \u2014 a partial decode of tagged properties reads as real data and must never be returned.",
-   "path": "../../../Pal/Content/PPSkyCreator/WeatherPresets/DT_PPSC_Weather_Overcast_04.uasset",
-   "table": "DT_PPSC_Weather_Overcast_04.uasset"
-  },
-  {
-   "error": "TableError: ../../../Pal/Content/PPSkyCreator/WeatherPresets/DT_PPSC_Weather_Rain_01.uasset: no row offset produced a walk ending at the buffer end. This is a refusal, not an empty table \u2014 a partial decode of tagged properties reads as real data and must never be returned.",
-   "path": "../../../Pal/Content/PPSkyCreator/WeatherPresets/DT_PPSC_Weather_Rain_01.uasset",
-   "table": "DT_PPSC_Weather_Rain_01.uasset"
-  },
-  {
-   "error": "TableError: ../../../Pal/Content/PPSkyCreator/WeatherPresets/DT_PPSC_Weather_Rain_02.uasset: no row offset produced a walk ending at the buffer end. This is a refusal, not an empty table \u2014 a partial decode of tagged properties reads as real data and must never be returned.",
-   "path": "../../../Pal/Content/PPSkyCreator/WeatherPresets/DT_PPSC_Weather_Rain_02.uasset",
-   "table": "DT_PPSC_Weather_Rain_02.uasset"
-  },
-  {
-   "error": "TableError: ../../../Pal/Content/PPSkyCreator/WeatherPresets/DT_PPSC_Weather_Rain_03.uasset: no row offset produced a walk ending at the buffer end. This is a refusal, not an empty table \u2014 a partial decode of tagged properties reads as real data and must never be returned.",
-   "path": "../../../Pal/Content/PPSkyCreator/WeatherPresets/DT_PPSC_Weather_Rain_03.uasset",
-   "table": "DT_PPSC_Weather_Rain_03.uasset"
-  },
-  {
-   "error": "TableError: ../../../Pal/Content/PPSkyCreator/WeatherPresets/DT_PPSC_Weather_Rain_04.uasset: no row offset produced a walk ending at the buffer end. This is a refusal, not an empty table \u2014 a partial decode of tagged properties reads as real data and must never be returned.",
-   "path": "../../../Pal/Content/PPSkyCreator/WeatherPresets/DT_PPSC_Weather_Rain_04.uasset",
-   "table": "DT_PPSC_Weather_Rain_04.uasset"
-  },
-  {
-   "error": "TableError: ../../../Pal/Content/PPSkyCreator/WeatherPresets/DT_PPSC_Weather_Snow_01.uasset: no row offset produced a walk ending at the buffer end. This is a refusal, not an empty table \u2014 a partial decode of tagged properties reads as real data and must never be returned.",
-   "path": "../../../Pal/Content/PPSkyCreator/WeatherPresets/DT_PPSC_Weather_Snow_01.uasset",
-   "table": "DT_PPSC_Weather_Snow_01.uasset"
-  },
-  {
-   "error": "TableError: ../../../Pal/Content/PPSkyCreator/WeatherPresets/DT_PPSC_Weather_Snow_02.uasset: no row offset produced a walk ending at the buffer end. This is a refusal, not an empty table \u2014 a partial decode of tagged properties reads as real data and must never be returned.",
-   "path": "../../../Pal/Content/PPSkyCreator/WeatherPresets/DT_PPSC_Weather_Snow_02.uasset",
-   "table": "DT_PPSC_Weather_Snow_02.uasset"
-  },
-  {
-   "error": "TableError: ../../../Pal/Content/PPSkyCreator/WeatherPresets/DT_PPSC_Weather_Snow_03.uasset: no row offset produced a walk ending at the buffer end. This is a refusal, not an empty table \u2014 a partial decode of tagged properties reads as real data and must never be returned.",
-   "path": "../../../Pal/Content/PPSkyCreator/WeatherPresets/DT_PPSC_Weather_Snow_03.uasset",
-   "table": "DT_PPSC_Weather_Snow_03.uasset"
-  },
-  {
-   "error": "TableError: ../../../Pal/Content/PPSkyCreator/WeatherPresets/DT_PPSC_Weather_Snow_04.uasset: no row offset produced a walk ending at the buffer end. This is a refusal, not an empty table \u2014 a partial decode of tagged properties reads as real data and must never be returned.",
-   "path": "../../../Pal/Content/PPSkyCreator/WeatherPresets/DT_PPSC_Weather_Snow_04.uasset",
-   "table": "DT_PPSC_Weather_Snow_04.uasset"
-  },
-  {
-   "error": "TableError: ../../../Pal/Content/PPSkyCreator/WeatherPresets/DT_PPSC_Weather_Storm_01.uasset: no row offset produced a walk ending at the buffer end. This is a refusal, not an empty table \u2014 a partial decode of tagged properties reads as real data and must never be returned.",
-   "path": "../../../Pal/Content/PPSkyCreator/WeatherPresets/DT_PPSC_Weather_Storm_01.uasset",
-   "table": "DT_PPSC_Weather_Storm_01.uasset"
-  },
-  {
-   "error": "TableError: ../../../Pal/Content/PPSkyCreator/WeatherPresets/DT_PPSC_Weather_Storm_02.uasset: no row offset produced a walk ending at the buffer end. This is a refusal, not an empty table \u2014 a partial decode of tagged properties reads as real data and must never be returned.",
-   "path": "../../../Pal/Content/PPSkyCreator/WeatherPresets/DT_PPSC_Weather_Storm_02.uasset",
-   "table": "DT_PPSC_Weather_Storm_02.uasset"
-  },
-  {
-   "error": "TableError: ../../../Pal/Content/PPSkyCreator/WeatherPresets/DT_PPSC_Weather_Storm_03.uasset: no row offset produced a walk ending at the buffer end. This is a refusal, not an empty table \u2014 a partial decode of tagged properties reads as real data and must never be returned.",
-   "path": "../../../Pal/Content/PPSkyCreator/WeatherPresets/DT_PPSC_Weather_Storm_03.uasset",
-   "table": "DT_PPSC_Weather_Storm_03.uasset"
-  },
-  {
-   "error": "TableError: ../../../Pal/Content/PPSkyCreator/WeatherPresets/DT_PPSC_Weather_Storm_04.uasset: no row offset produced a walk ending at the buffer end. This is a refusal, not an empty table \u2014 a partial decode of tagged properties reads as real data and must never be returned.",
-   "path": "../../../Pal/Content/PPSkyCreator/WeatherPresets/DT_PPSC_Weather_Storm_04.uasset",
-   "table": "DT_PPSC_Weather_Storm_04.uasset"
-  },
-  {
    "error": "TableError: ../../../Pal/Content/Pal/DataTable/Incident/SupplyIncident/DT_SupplyIncident_NPC_Sakura01.uasset: no row offset produced a walk ending at the buffer end. This is a refusal, not an empty table \u2014 a partial decode of tagged properties reads as real data and must never be returned.",
    "path": "../../../Pal/Content/Pal/DataTable/Incident/SupplyIncident/DT_SupplyIncident_NPC_Sakura01.uasset",
    "table": "DT_SupplyIncident_NPC_Sakura01.uasset"
+  },
+  {
+   "error": "TableError: ../../../Pal/Content/WwiseAudio/DefaultReverbAssignmentTable.uasset: no row offset produced a walk ending at the buffer end. This is a refusal, not an empty table \u2014 a partial decode of tagged properties reads as real data and must never be returned.",
+   "path": "../../../Pal/Content/WwiseAudio/DefaultReverbAssignmentTable.uasset",
+   "table": "DefaultReverbAssignmentTable.uasset"
   }
  ]
 }
