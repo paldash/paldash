@@ -527,10 +527,20 @@ This project stands on other people's work:
   - The `palsav` / `palooz` packages that read Palworld 1.0's Oodle-compressed
     `PlM` saves. Licensed **GPL-3.0-or-later** and used here as a library; if you
     redistribute this project, that licence applies to your distribution.
-  - Its `resources/game_data/` tables (**MIT**, © 2026 Pylar), which this project
-    compiles into `backend/data/gamedata.json.gz` — every item, Pal, passive,
-    active skill, technology and structure name, plus all 174 fast-travel points
-    with world coordinates. Regenerate with `scripts/build-gamedata.py`.
+  - Its `resources/game_data/` tables (**MIT**, © 2026 Pylar), which supply
+    **the icon paths and which ids exist at all** — plus the 174 fast-travel
+    points with world coordinates, and the stat formula in its
+    `.opencode/skills/pst-stat-formula/` that `backend/palstats.py`
+    transcribes. Regenerate with `scripts/build-gamedata.py`.
+
+    **This credit used to say "every item, Pal, passive, active skill,
+    technology and structure name", and that is no longer what the archive
+    supplies.** Display names and descriptions now come from the game's own
+    `L10N/` tables via `scripts/l10n.py` and `scripts/gametext.py`, and the
+    numeric columns from the server pak. Overcrediting is not a harmless
+    courtesy — it misdescribes which licence covers what, and it points the
+    next reader at the wrong source when a name is wrong.
+    `backend/data/provenance.json` is the precise, per-artifact answer.
 - **[ooz](https://github.com/powzix/ooz)** by powzix — the open-source Kraken
   decompressor that `palooz` wraps.
 - **[palcalc](https://github.com/tylercamp/palcalc)** by tylercamp (**MIT**) —
@@ -547,7 +557,15 @@ This project stands on other people's work:
   game data here that was hand-entered rather than extracted; see "Element
   matchups". Damage multipliers are *not* taken from it, since it presents those
   as an image.
+- **[Palworld Wiki](https://palworld.fandom.com)** — used twice, both documented
+  where they land: the seven map-marker icons in `public/icons/map/` (see the
+  `PROVENANCE.md` beside them — the game's own compass HUD art, which a headless
+  server install does not ship pixels for), and the condenser progression table
+  that `backend/condenser.py` tests against the game's own files.
 - Palworld is © Pocketpair, Inc. This project is unofficial and unaffiliated.
+  **Nothing here is credited that the built image does not contain** —
+  `docs/LICENSING.md` holds the shipped-dependency table, and the two credits
+  above that are lineage rather than dependency say so there.
 
 [rps]: https://www.rockpapershotgun.com/palworld-element-chart
 

@@ -29,6 +29,12 @@ exactly by the game's own files** — `CharacterRankUpRequiredNumMap = {1:4, 2:8
 3:12, 4:24}` and `StatusCalculate_GenkaiToppa_PerAdd = 0.05` — which is why it
 was worth testing rather than dismissing.
 
+That table is the Palworld community wiki's, https://palworld.fandom.com. Named
+rather than left as "a community table": this module's whole claim is that an
+unverifiable source was checked against the game's own files, and a citation
+nobody can follow cannot be checked by the next reader either. Same obligation
+`elements.py` carries for the Rock Paper Shotgun element chart.
+
 ## Observations (operator's own world, 2026-08-07)
 
 | Pal | Base | Stars | Observed | Predicted |
