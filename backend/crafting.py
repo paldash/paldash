@@ -84,7 +84,8 @@ def _index() -> dict[str, Any]:
 
 
 def _build_index() -> dict[str, Any]:
-    recipes = (gamedata.economy().get("recipes") or {})
+    economy = gamedata.economy()
+    recipes = (economy.get("recipes") or {})
     by_product: dict[str, list] = {}
     by_row: dict[str, dict] = {}
     for product, rows in recipes.items():
@@ -94,11 +95,48 @@ def _build_index() -> dict[str, Any]:
         by_product[product.lower()] = list(rows)
         for row in rows:
             by_row[str(row.get("recipeId") or "").lower()] = row
-    return {"byProduct": by_product, "byRow": by_row}
+
+    # ── Structures ────────────────────────────────────────
+    #
+    # A build object's cost is shaped like a recipe — materials in, one thing
+    # out — so it is projected into the same row shape and the existing
+    # traversal walks it unchanged. Before this, `DT_BuildObjectDataTable` was
+    # not extracted at all and every one of the 1,088 structures returned an
+    # EMPTY tree rather than an error, which is why it was reported as a broken
+    # view rather than as missing data.
+    #
+    # **A SEPARATE NAMESPACE, and that is not tidiness.** `Torch` is both an
+    # item and a structure — the one collision in 498 — so merging the two maps
+    # would make one silently shadow the other, and which one won would depend
+    # on dict insertion order. Items are consulted first so nothing that
+    # resolved before resolves differently now.
+    by_structure: dict[str, list] = {}
+    for key, row in (economy.get("buildObjects") or {}).items():
+        by_structure[str(key).lower()] = [{
+            "recipeId": f"build:{key}",
+            "productId": str(key),
+            # You place one. There is no batch size for a structure, and
+            # inventing one would change the arithmetic in `_batches`.
+            "count": 1,
+            "workAmount": float(row.get("workAmount") or 0.0),
+            "materials": list(row.get("materials") or []),
+            "unlockItemId": str(row.get("blueprintItemId") or ""),
+            "craftExpRate": 0.0,
+            # A structure is never a conversion: nothing dismantles into one,
+            # so it cannot take part in the cycles `_mark_conversions` breaks.
+            "isConversion": False,
+            "isStructure": True,
+        }]
+        for r in by_structure[str(key).lower()]:
+            by_row[r["recipeId"].lower()] = r
+    return {"byProduct": by_product, "byRow": by_row, "byStructure": by_structure}
 
 
 def _recipes_for(item_id: str) -> list[dict]:
-    return _index()["byProduct"].get(str(item_id or "").lower(), [])
+    key = str(item_id or "").lower()
+    index = _index()
+    # Items first — see `_build_index` on the `Torch` collision.
+    return index["byProduct"].get(key) or index["byStructure"].get(key, [])
 
 
 def _production_recipes(item_id: str) -> list[dict]:
@@ -110,12 +148,34 @@ def _conversion_recipes(item_id: str) -> list[dict]:
     return [r for r in _recipes_for(item_id) if r.get("isConversion")]
 
 
+def _is_structure(thing_id: str) -> bool:
+    """True for a build object that is not also an item — `Torch` is both."""
+    key = str(thing_id or "").lower()
+    return (not gamedata.item(thing_id)) and key in _index()["byStructure"]
+
+
 def _item_ref(item_id: str) -> dict[str, Any]:
     entry = gamedata.item(item_id) or {}
+    if entry:
+        return {
+            "itemId": item_id,
+            "name": entry.get("name") or gamedata.humanize(item_id),
+            "icon": entry.get("icon"),
+        }
+    # A structure is not in the item catalogue, so it needs its own name
+    # lookup. `structure_name` falls back to `humanize` itself, so an id the
+    # tables do not carry still renders as words rather than as a raw id.
+    if _is_structure(item_id):
+        return {
+            "itemId": item_id,
+            "name": gamedata.structure_name(item_id),
+            "icon": None,
+            "isStructure": True,
+        }
     return {
         "itemId": item_id,
-        "name": entry.get("name") or gamedata.humanize(item_id),
-        "icon": entry.get("icon"),
+        "name": gamedata.humanize(item_id),
+        "icon": None,
     }
 
 
@@ -174,10 +234,14 @@ def tree(item_id: str, count: int = 1, prefer: Optional[list[str]] = None,
     Fibre from Charcoal" is a statement about how you play, not about one node.
     """
     item_id = str(item_id or "")
-    entry = gamedata.item(item_id)
-    if not entry:
+    # A STRUCTURE is a legitimate root, and rejecting one here is what made the
+    # build tree look broken: `gamedata.item()` is None for all 498 build
+    # objects, so every structure returned `known: False` — which the UI
+    # renders as an empty panel rather than as an error, so it read as a view
+    # that did not work rather than as an id that was refused.
+    if not gamedata.item(item_id) and not _is_structure(item_id):
         return {"itemId": item_id, "known": False,
-                "note": "No such item in the catalogue."}
+                "note": "No such item or structure in the catalogue."}
 
     count = max(1, int(count or 1))
     chosen: dict[str, str] = {}

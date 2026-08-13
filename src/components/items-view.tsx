@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import { Package, Search, RefreshCw } from 'lucide-react';
 import { getItemTotals, getItemScopes } from '@/lib/save-api';
 import GameIcon from '@/components/game-icon';
@@ -152,12 +152,6 @@ export default function ItemsView() {
         </button>
       </div>
 
-      {selected && (
-        // Keyed on the item so a different row remounts the panel rather than
-        // reusing one still holding the previous item's answer.
-        <ItemSourcePanel key={selected} itemId={selected} onClose={() => setSelected(null)} />
-      )}
-
       {data?.truncated && (
         <div className="notice" style={{ fontSize: 12 }}>
           Showing the top {data.items.length} item types by quantity.
@@ -175,8 +169,8 @@ export default function ItemsView() {
           </thead>
           <tbody>
             {filtered.map((item) => (
+              <Fragment key={item.itemId}>
               <tr
-                key={item.itemId}
                 title={item.description || undefined}
                 onClick={() => setSelected(item.itemId === selected ? null : item.itemId)}
                 style={{
@@ -207,6 +201,29 @@ export default function ItemsView() {
                 </td>
                 <td className="mono">{item.count.toLocaleString()}</td>
               </tr>
+              {/*
+                The panel opens AT the row that was clicked, not above the
+                table. It used to render above, which on a list of hundreds put
+                it off-screen — so clicking a row appeared to do nothing, and
+                the crafting tree inside it was reported as broken when it had
+                simply never been scrolled to. One bug, two symptoms, and the
+                invisible one cost more.
+
+                Keyed on the item so a different row remounts the panel rather
+                than reusing one still holding the previous item's answer.
+              */}
+              {selected === item.itemId && (
+                <tr>
+                  <td colSpan={3} style={{ padding: 0, background: 'var(--bg-surface)' }}>
+                    <ItemSourcePanel
+                      key={item.itemId}
+                      itemId={item.itemId}
+                      onClose={() => setSelected(null)}
+                    />
+                  </td>
+                </tr>
+              )}
+              </Fragment>
             ))}
           </tbody>
         </table>
