@@ -1,10 +1,12 @@
 'use client';
 
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
-import { Package, Search, RefreshCw } from 'lucide-react';
-import { getItemTotals, getItemScopes } from '@/lib/save-api';
+import { Package, Search, RefreshCw, Hammer } from 'lucide-react';
+import { getItemTotals, getItemScopes, getStructureCatalogue } from '@/lib/save-api';
 import GameIcon from '@/components/game-icon';
 import ItemSourcePanel from '@/components/item-source';
+import CraftingTree from '@/components/crafting-tree';
+import type { CatalogueStructure } from '@/lib/types';
 import { useLanguage } from '@/lib/use-language';
 import { localName, matchesQuery } from '@/lib/language';
 import type { ItemTotals } from '@/lib/types';
@@ -30,6 +32,30 @@ export default function ItemsView() {
   // threshold, server-wide above it.
   const [guild, setGuild] = useState('');
   const [langPack] = useLanguage();
+
+  /**
+   * Items or structures. Two different game tables, two different questions.
+   *
+   * Structures are here rather than on their own tab because the question is
+   * the same one — "what does this cost and where do the parts come from" —
+   * and because the crafting tree is the answer in both cases. What differs is
+   * that a structure has no sources panel: it is not an item, so it has no
+   * drops, no loot table and no merchant, and `itemsource.describe()` returns
+   * `known: false` for every one of them.
+   */
+  const [mode, setMode] = useState<'items' | 'structures'>('items');
+  const [structures, setStructures] = useState<CatalogueStructure[] | null>(null);
+  const [structureError, setStructureError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (mode !== 'structures' || structures) return;
+    getStructureCatalogue()
+      .then((r) => setStructures(r.structures))
+      // Let it show. An empty structure list and a failed fetch look identical,
+      // which is the mistake this repo already records for the map layers.
+      .catch((e: unknown) =>
+        setStructureError(e instanceof Error ? e.message : 'Could not load structures'));
+  }, [mode, structures]);
 
   /**
    * The item's name in the chosen language, falling back to English.
@@ -152,12 +178,41 @@ export default function ItemsView() {
         </button>
       </div>
 
-      {data?.truncated && (
+      <div style={{ display: 'flex', gap: 6 }}>
+        <button
+          className={mode === 'items' ? 'btn' : 'btn btn-ghost'}
+          style={{ padding: '3px 10px', fontSize: 12 }}
+          onClick={() => { setMode('items'); setSelected(null); }}
+        >
+          <Package size={12} /> Items
+        </button>
+        <button
+          className={mode === 'structures' ? 'btn' : 'btn btn-ghost'}
+          style={{ padding: '3px 10px', fontSize: 12 }}
+          onClick={() => { setMode('structures'); setSelected(null); }}
+          title="What each buildable structure costs, expanded to raw materials"
+        >
+          <Hammer size={12} /> Structures
+        </button>
+      </div>
+
+      {mode === 'structures' && (
+        <StructureList
+          structures={structures}
+          error={structureError}
+          query={query}
+          selected={selected}
+          onSelect={setSelected}
+        />
+      )}
+
+      {mode === 'items' && data?.truncated && (
         <div className="notice" style={{ fontSize: 12 }}>
           Showing the top {data.items.length} item types by quantity.
         </div>
       )}
 
+      {mode === 'items' && (
       <div className="glass-card" style={{ padding: 0, overflowX: 'auto' }}>
         <table className="table">
           <thead>
@@ -237,7 +292,9 @@ export default function ItemsView() {
           </p>
         )}
       </div>
+      )}
 
+      {mode === 'items' && (
       <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>
         {data && !data.namesResolved
           ? 'Bundled game data is missing, so items show their internal IDs. Run scripts/build-gamedata.py. '
@@ -246,6 +303,113 @@ export default function ItemsView() {
           ? 'Totals cover every container in the world: base chests, guild chests, player inventories and palboxes.'
           : 'Totals cover the base storage of your guild(s). Player inventories and palboxes are not included — those containers belong to a person rather than a base, so folding them in would make a guild total include things nobody put in guild storage.'}
       </p>
+      )}
     </div>
+  );
+}
+
+/**
+ * Every buildable structure, and its cost expanded to raw materials on click.
+ *
+ * Separate from the item table rather than folded into it: a structure has no
+ * quantity in this world (it is a catalogue, not a census), no category column
+ * worth the same width, and — importantly — **no sources panel**. It is not an
+ * item, so it has no drops, no loot table and no merchant, and asking
+ * `/api/world/items/{id}` about one returns `known: false`. The crafting tree
+ * is the whole answer, so it is rendered directly.
+ */
+function StructureList({
+  structures, error, query, selected, onSelect,
+}: {
+  structures: CatalogueStructure[] | null;
+  error: string | null;
+  query: string;
+  selected: string | null;
+  onSelect: (id: string | null) => void;
+}) {
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return structures ?? [];
+    return (structures ?? []).filter(
+      (s) =>
+        s.name.toLowerCase().includes(q) ||
+        s.structureId.toLowerCase().includes(q) ||
+        s.typeB.toLowerCase().includes(q),
+    );
+  }, [structures, query]);
+
+  if (error) {
+    return (
+      <div className="notice notice-warn" style={{ fontSize: 12 }}>
+        <strong>Structures unavailable</strong>
+        <div style={{ marginTop: 6 }}>{error}</div>
+      </div>
+    );
+  }
+  if (!structures) {
+    return <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>Loading…</p>;
+  }
+
+  return (
+    <>
+      <div className="glass-card" style={{ padding: 0, overflowX: 'auto' }}>
+        <table className="table">
+          <thead>
+            <tr>
+              <th style={{ width: '45%' }}>Structure &mdash; click for the full cost</th>
+              <th style={{ width: '20%' }}>Category</th>
+              <th>Materials</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.map((s) => (
+              <Fragment key={s.structureId}>
+                <tr
+                  onClick={() => onSelect(s.structureId === selected ? null : s.structureId)}
+                  style={{
+                    cursor: 'pointer',
+                    background: s.structureId === selected ? 'var(--bg-surface)' : undefined,
+                  }}
+                >
+                  <td style={{ color: 'var(--text-primary)' }}>
+                    {s.name}
+                    <span className="mono" style={{ color: 'var(--text-muted)', fontSize: 11, marginLeft: 8 }}>
+                      {s.structureId}
+                    </span>
+                  </td>
+                  <td style={{ color: 'var(--text-muted)', fontSize: 12 }}>
+                    {s.typeB || s.typeA || '—'}
+                  </td>
+                  {/* The DIRECT cost. The tree below expands it; showing the
+                      expansion here would make every row a paragraph. */}
+                  <td style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+                    {s.materials.map((m) => `${m.count}× ${m.itemId}`).join(', ') || '—'}
+                  </td>
+                </tr>
+                {selected === s.structureId && (
+                  <tr>
+                    <td colSpan={3} style={{ padding: 10, background: 'var(--bg-surface)' }}>
+                      <CraftingTree itemId={s.structureId} />
+                    </td>
+                  </tr>
+                )}
+              </Fragment>
+            ))}
+          </tbody>
+        </table>
+
+        {!filtered.length && (
+          <p style={{ padding: 20, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
+            No structures matched.
+          </p>
+        )}
+      </div>
+
+      <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+        {filtered.length} of {structures.length} buildable structures, from the
+        game&rsquo;s own build table. This is the catalogue — it does not say
+        what you have built or what you can afford.
+      </p>
+    </>
   );
 }
