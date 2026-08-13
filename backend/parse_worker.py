@@ -39,7 +39,7 @@ logger = logging.getLogger(__name__)
 # update, with nothing anywhere saying why. `savecache` now discards a cache
 # whose schema does not match this, so the worst case is one re-parse instead of
 # a wrong number.
-SCHEMA_VERSION = 14
+SCHEMA_VERSION = 15
 
 
 def lower_priority() -> None:

@@ -2224,6 +2224,10 @@ export interface ChecklistEntry {
   levelMax?: number | null;
   x?: number;
   y?: number;
+  /** Pal requests only — the game's own area label, e.g. `Area_F1`. */
+  area?: string;
+  /** Pal requests only — what the NPC hands over. */
+  rewards?: { itemId: string; count: number }[];
 }
 
 export interface Checklist {
@@ -2263,6 +2267,15 @@ export interface PlayerProgressDetail {
   areasFound: Checklist;
   fastTravel: Checklist;
   effigies: Checklist;
+  /**
+   * "Show me this Pal" requests, 54 of them, from `DA_PalDisplay`.
+   *
+   * A real checklist: the save records completion per player in
+   * `RecordData.PalDisplayNPCDataTableProgress`, keyed by the same RequestIDs.
+   * Its item-request sibling is deliberately NOT here — no save has been seen
+   * to record that half, so it is a catalogue rather than progress.
+   */
+  palDisplay: Checklist;
   /** `available: false` with a reason — no save has ever written the flag. */
   dungeonsCleared: { available: boolean; reason: string };
   achievements: AchievementSummary;

@@ -163,6 +163,17 @@ export default function Progression() {
             list={lists.effigies}
             note="Positions only — a relic has no name of its own. The map draws them."
           />
+          {/* "Show me this Pal" requests. A real checklist — the save records
+              each RequestID — so it belongs beside the others rather than in a
+              reference tab. The species is what a player recognises; the raw
+              `Area_F1_1` is the join key and never the label. */}
+          <ChecklistCard
+            icon={<Sparkles size={14} />}
+            title="Pal requests"
+            list={lists.palDisplay}
+            label={(e) => (e.area ? `${e.name} — ${e.area.replace('Area_', '')}` : e.name)}
+            note="NPCs who want to be shown a particular Pal."
+          />
           <Unavailable detail={lists.dungeonsCleared} />
         </div>
       )}
