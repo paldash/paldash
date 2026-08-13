@@ -78,38 +78,95 @@ export default function BuildBanner() {
         <div style={{ flex: 1 }}>
           <strong>
             {stale
-              ? 'Bundled world data is out of date'
+              ? 'Palworld updated — some new content may not be named yet'
               : status.buildDirection === 'down'
                 ? 'Palworld was rolled back to an older build'
                 : 'Palworld has updated'}
           </strong>
-          <div style={{ marginTop: 4, lineHeight: 1.6 }}>{status.reason}</div>
 
-          {status.artifacts.some((a) => a.state === 'stale') && (
-            <div style={{ marginTop: 8 }}>
-              {status.artifacts
-                .filter((a) => a.state === 'stale')
-                .map((artifact) => (
-                  <div key={artifact.artifact} style={{ marginBottom: 4 }}>
-                    <span className="mono" style={{ fontSize: 11 }}>{artifact.artifact}</span>
-                    {artifact.regenerateWith && (
-                      <div style={{ fontSize: 11, color: 'var(--text-muted)' }} className="mono">
-                        {artifact.regenerateWith}
-                      </div>
-                    )}
-                  </div>
-                ))}
-            </div>
-          )}
+          {/*
+            WHAT AN OPERATOR CAN ACTUALLY DO, WHICH IS USUALLY NOTHING.
 
-          {/* The diff is the actionable step, and it is deliberately a command
-              rather than a button: it walks 9,977 cell packages and takes minutes,
-              which is not something to start from a web page next to a live game
-              server. */}
-          <div style={{ marginTop: 8, fontSize: 11, color: 'var(--text-muted)' }}>
-            To see what actually moved:{' '}
-            <span className="mono">python3 scripts/check-game-build.py --extract</span>
+            This used to read "Bundled world data is out of date" in red, above
+            27 filenames and four `python3 scripts/…` commands. For the person
+            who actually sees it — someone running the container beside a game
+            server for friends — that is unactionable and alarming in equal
+            measure: the runtime image ships no `scripts/` directory and no
+            4.8 GB game install, so not one of those commands can be run where
+            the banner is being read.
+
+            A warning nobody can act on is the failure this repo already
+            records for the empty map layer and the empty work-suitability
+            panel: it reads as breakage rather than as a caveat. So the banner
+            now leads with what still works, names what might be missing, and
+            reserves the commands for the person rebuilding the dashboard.
+          */}
+          <div style={{ marginTop: 6, lineHeight: 1.6 }}>
+            Everything already on screen is still correct — Pal and item names,
+            the map, and every figure come from the previous build and did not
+            change. What the update <em>may</em> have added is content this
+            dashboard has not seen: a new Pal, item or structure would show its
+            internal id instead of a name, and would not appear on the map.
           </div>
+          <div style={{ marginTop: 6, lineHeight: 1.6 }}>
+            <strong>Nothing for you to do.</strong> This is fixed by a dashboard
+            update that bundles the new build&rsquo;s data, not by anything on
+            this server. Save editing, backups and moderation are unaffected.
+          </div>
+
+          {/* Everything below is for whoever rebuilds the dashboard, and says
+              so — it is behind the same "Why?" toggle rather than shown to
+              everyone by default. */}
+          <button
+            className="btn btn-ghost"
+            style={{ padding: '2px 8px', fontSize: 11, marginTop: 8 }}
+            onClick={() => setDetail((d) => !d)}
+          >
+            {detail ? 'Hide' : 'Details for whoever builds the dashboard'}
+          </button>
+
+          {detail && (
+            <>
+              <div style={{ marginTop: 6, lineHeight: 1.6, fontSize: 11 }}>
+                {status.reason}
+              </div>
+
+              {status.artifacts.some((a) => a.state === 'stale') && (
+                <div style={{ marginTop: 8 }}>
+                  {status.artifacts
+                    .filter((a) => a.state === 'stale')
+                    .map((artifact) => (
+                      <div key={artifact.artifact} style={{ marginBottom: 4 }}>
+                        <span className="mono" style={{ fontSize: 11 }}>{artifact.artifact}</span>
+                        {artifact.regenerateWith && (
+                          <div style={{ fontSize: 11, color: 'var(--text-muted)' }} className="mono">
+                            {artifact.regenerateWith}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                </div>
+              )}
+
+              {/* The diff is the actionable step, and it is deliberately a command
+                  rather than a button: it walks 9,977 cell packages and takes minutes,
+                  which is not something to start from a web page next to a live game
+                  server.
+
+                  IT NEEDS THE NEW BUILD'S FILES. Run against an install that has
+                  not been updated it compares the bundle against the same pak it
+                  was built from, which can only ever report "unchanged" — that is
+                  a statement about the local copy, not about the patch. */}
+              <div style={{ marginTop: 8, fontSize: 11, color: 'var(--text-muted)' }}>
+                Update the reference install first, then:{' '}
+                <span className="mono">python3 scripts/check-game-build.py --extract</span>
+                <div style={{ marginTop: 2 }}>
+                  Against a stale copy of the game this can only report
+                  &ldquo;unchanged&rdquo;, which says nothing about the patch.
+                </div>
+              </div>
+            </>
+          )}
 
           {/* THE STEP THAT COMES FIRST, and the only thing that can spot content
               the dashboard does not know about yet.
@@ -123,14 +180,16 @@ export default function BuildBanner() {
 
               A changed column is the dangerous one: an extractor reading a
               renamed column gets nothing and writes a silent zero. */}
-          <div style={{ marginTop: 6, fontSize: 11, color: 'var(--text-muted)' }}>
-            Before regenerating, check whether the update <em>added</em> anything:{' '}
-            <span className="mono">python3 scripts/mine-datatables.py --check</span>
-            <div style={{ marginTop: 2 }}>
-              It names new, removed and changed tables. Regenerating alone only
-              reproduces what is already known.
+          {detail && (
+            <div style={{ marginTop: 6, fontSize: 11, color: 'var(--text-muted)' }}>
+              Before regenerating, check whether the update <em>added</em> anything:{' '}
+              <span className="mono">python3 scripts/mine-datatables.py --check</span>
+              <div style={{ marginTop: 2 }}>
+                It names new, removed and changed tables. Regenerating alone only
+                reproduces what is already known.
+              </div>
             </div>
-          </div>
+          )}
 
           {canAcknowledge && (
             <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
