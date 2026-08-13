@@ -457,24 +457,26 @@ PAL_FIELDS: dict[str, Field] = {
     ),
     "fullStomach": Field(
         "fullStomach", "float", label="Fullness", minimum=0,
-        note="No maximum is enforced yet. The ceiling is per species and the "
-             "game clamps an overshoot itself.",
+        note="The ceiling is per species — the game's own MaxFullStomach, which "
+             "ranges from 100 to 730. The game clamps an overshoot itself.",
+        # **No `maximum` here, and that is a shape problem rather than a data
+        # problem.** `Field.maximum` is an int or a zero-argument callable — the
+        # schema describes a FIELD, and this ceiling is per species, so there is
+        # nothing for a per-field bound to read. Threading the Pal through
+        # validation is a larger change than this finding justifies; the value
+        # travels on the Pal instead, where the editor can bound the input and
+        # the welfare panel can show a denominator.
+        #
         # **"IS NOT STORED ANYWHERE" WAS WRONG.** This note used to say the
         # ceiling "is not stored anywhere in the save — the live world ranges
         # from 150 to 620". Only the first half is true: it is not in the SAVE,
-        # and it is a column in `DT_PalMonsterParameter` — `MaxFullStomach`, on
-        # all 753 species, range 100-730. The 620 that was measured is exactly
-        # that table's value for `BOSS_IceHorse`, an alpha Frostallion, so the
-        # observation was sitting inside the answer.
+        # and it is a column in `DT_PalMonsterParameter` — on all 753 species.
+        # The 620 that was measured is exactly that table's value for an alpha
+        # Frostallion, so the observation was sitting inside the answer.
         #
         # Verified as a cap rather than a base: 1,635 of refworld's Pals have
         # both a fullness and a species row, and every one is inside its cap
         # with a maximum ratio of exactly 1.000.
-        #
-        # The bound is not enforced here yet because `gamedata.json.gz` does not
-        # carry the column — see the task. When it does, read it through
-        # `pal_exact`: `BOSS_IceHorse` is 620 against `IceHorse`'s 600, so
-        # stripping the prefix gives an alpha the wrong ceiling.
     ),
     "favoriteIndex": Field(
         "favoriteIndex", "int", label="Favourite slot", minimum=0, maximum=9,

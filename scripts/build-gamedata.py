@@ -622,7 +622,8 @@ def apply_species_fields(data: dict) -> dict[str, int]:
     mounts = _mounts(pak, uassettable)
 
     counts = {"total": len(data.get("pals") or {}), "resolved": 0, "unmatched": 0,
-              "variants": 0, "noBreeding": 0, "movement": 0, "rideable": 0}
+              "variants": 0, "noBreeding": 0, "movement": 0, "rideable": 0,
+              "maxFullStomach": 0}
     for ident, entry in (data.get("pals") or {}).items():
         row = lowered.get(ident.lower())
         if row is None:
@@ -633,6 +634,27 @@ def apply_species_fields(data: dict) -> dict[str, int]:
         if movement:
             entry["movement"] = movement
             counts["movement"] += 1
+
+        # **The fullness ceiling, which this project recorded as not existing.**
+        # AGENTS.md said "fullStomach is still unbounded — that one genuinely
+        # has no constant"; `editschema` said it "is not stored anywhere in the
+        # save". Only the second is true, and it was read as a general absence:
+        # the cap is a column on this very row, on all 753 species.
+        #
+        # Verified as a CAP rather than a base — 1,635 of refworld's Pals sit
+        # inside theirs with zero exceptions and a maximum ratio of exactly
+        # 1.000.
+        #
+        # It is per-FORM, but only just: **302 of the 303 `BOSS_`/base pairs are
+        # identical**, and the one that differs is `BOSS_YakushimaBoss001` (320
+        # against 240). So `pal_exact` is still the correct reader and the cost
+        # of `pal` would be one species — which is worth stating precisely,
+        # because "alphas have different caps" would be a much bigger claim than
+        # the data supports.
+        stomach = row.get("MaxFullStomach")
+        if isinstance(stomach, (int, float)) and stomach > 0:
+            entry["maxFullStomach"] = int(stomach)
+            counts["maxFullStomach"] += 1
         gear = mounts.get(ident.lower())
         if gear:
             entry["rideable"] = True

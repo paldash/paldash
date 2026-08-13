@@ -363,8 +363,19 @@ export interface PalRecord {
 
   /** Mood, 0–100. Below ~50 a Pal starts refusing to work. */
   sanity?: number | null;
-  /** Fullness. The ceiling is per species and per level and is not stored. */
+  /** Fullness. See `maxFullStomach` for the ceiling. */
   fullStomach?: number | null;
+  /**
+   * The species' fullness ceiling — the game's own `MaxFullStomach`, 100 to 730.
+   *
+   * This comment used to say the ceiling "is not stored". It is: a column on
+   * all 753 species, verified as a real cap (1,635 of the reference world's
+   * Pals inside theirs, zero over, maximum ratio exactly 1.000).
+   *
+   * **Absent, not zero, for NPCs** — 99 of the reference world's characters
+   * have no species row, and a zero denominator renders as infinitely hungry.
+   */
+  maxFullStomach?: number | null;
   /** `Hunger` or `Starvation`. Null when fed. */
   hungerType?: string | null;
   /** Depression, sprain, fracture, weakness, bulimia. Null when well. */
