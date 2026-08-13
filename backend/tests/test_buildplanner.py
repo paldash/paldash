@@ -213,13 +213,41 @@ def test_the_raw_figure_is_never_hidden_behind_the_sort():
 
 def test_what_it_refuses_to_claim_travels_in_the_payload():
     result = buildplanner.rank("attack", limit=1, against="Grass")
-    assert result["mountModeKnown"] is False
+    # `mountModeKnown` used to be here and was False. It is True now — the mode
+    # IS in the server pak, on each `BP_<Species>` blueprint, and the search
+    # that ruled it out looked for `BP_Pal_*`. Moved to its own test below
+    # rather than deleted, because a refusal that gets ANSWERED should leave a
+    # trace: the next reader needs to see that this one expired rather than was
+    # quietly dropped.
     assert result["speedUnitKnown"] is False
     assert result["stackingKnown"] is False
     assert result["chartIsHandEntered"] is True
     # Empty is the healthy state: a content update adding an element shows up
     # here rather than as a confident "neutral".
     assert result["unknownElements"] == []
+
+
+def test_the_mount_mode_refusal_expired_and_the_flag_says_so():
+    """
+    A REFUSAL THAT GOT ANSWERED. This module shipped `mountModeKnown: False` and
+    a docstring saying "fastest flyer is not answerable", on the strength of a
+    search for `BP_Pal_*`. The game names its species blueprints `BP_<Species>`
+    and ships them in the server pak, where `EPalMonsterMovementType` decodes.
+
+    Pinned so the flag cannot drift back, and so the mode reaching the rows is
+    checked rather than assumed from the flag alone.
+    """
+    result = buildplanner.rank("rideSprint", rideable_only=True, limit=300)
+    assert result["mountModeKnown"] is True
+
+    airborne = [r for r in result["rows"] if r["mountMode"] in ("Fly", "FlyAndLanding")]
+    assert airborne[0]["name"] == "Jetragon"
+
+    # `GroundOnly` is inferred from the overrides being exactly the non-walkers,
+    # so it must not read as authoritatively as the 52 the game states.
+    ground = next(r for r in result["rows"] if r["mountMode"] == "GroundOnly")
+    assert ground["mountModeInferred"] is True
+    assert airborne[0]["mountModeInferred"] is False
 
 
 # ─── Refusals ───

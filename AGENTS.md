@@ -2798,6 +2798,19 @@ ground legendaries, not flyers.
 So fastest rideable flyer is now answerable and it is **Jetragon at 3,300**,
 with Shaolong 2,800 and Eidrolon 2,750 behind it.
 
+**Shipped as `movement_modes.json.gz`** (`scripts/extract-movement-modes.py`,
+`gamedata.movement_mode`). `buildplanner.rank` had `mountMode` hardcoded to
+`None` beside a comment saying the mode is "not in any file", and
+`mountModeKnown: False` beside "fastest flyer is not answerable". Both are now
+read and True. **The old refusal's test was rewritten rather than deleted** — a
+refusal that gets *answered* should leave a trace, or the next reader cannot
+tell it expired from it having been quietly dropped.
+
+The extractor **refuses the build** on three controls: the two swimmer/land-variant
+pairs must disagree, twelve known flyers must resolve airborne, and four known
+ground mounts — Necromus and Paladius among them — must carry no override at
+all.
+
 **`GroundOnly` for a base species is an INFERENCE, and it is the one soft spot.**
 The native default is not stated anywhere readable; it is inferred from Melpaca
 and every other walking Pal declining to override, and from the overrides being

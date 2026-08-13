@@ -2050,8 +2050,24 @@ export interface BuildRankRow {
   icon?: string | null;
   elements?: string[];
   rideable?: boolean;
-  /** Not in any game file. Null rather than inferred from a name. */
-  mountMode: null;
+  /**
+   * `Fly`, `FlyAndLanding`, `Swim` or `GroundOnly` — from the game's own
+   * `EPalMonsterMovementType`, on each species blueprint in the server pak.
+   *
+   * This was typed `null` with a comment saying the mode is "not in any game
+   * file". It is; the search that concluded otherwise looked for `BP_Pal_*`
+   * and the game names them `BP_<Species>`.
+   *
+   * Null only when the bundle is missing — which is distinct from `GroundOnly`
+   * and must not be rendered the same way.
+   */
+  mountMode: 'Fly' | 'FlyAndLanding' | 'Swim' | 'SwimGroundDamage' | 'GroundOnly' | null;
+  /**
+   * True when the mode was inherited rather than read. `GroundOnly` is an
+   * inference — nothing states the native default — so a UI must not give it
+   * the same authority as the 52 species the game overrides explicitly.
+   */
+  mountModeInferred?: boolean;
   stamina?: number | null;
   value: number;
   /** The species column, before any passive multiplier. Movement metrics only. */

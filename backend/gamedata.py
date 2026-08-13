@@ -134,6 +134,13 @@ NPCS_PATH = os.environ.get(
     os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "npcs.json.gz"),
 )
 
+MOVEMENT_MODES_PATH = os.environ.get(
+    "MOVEMENT_MODES_DATA_PATH",
+    os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "data", "movement_modes.json.gz"
+    ),
+)
+
 NPC_REQUESTS_PATH = os.environ.get(
     "NPC_REQUESTS_DATA_PATH",
     os.path.join(
@@ -181,6 +188,7 @@ _npcs: Optional[dict[str, Any]] = None
 _guild: Optional[dict[str, Any]] = None
 _build_capabilities: Optional[dict[str, Any]] = None
 _npc_requests: Optional[dict[str, Any]] = None
+_movement_modes: Optional[dict[str, Any]] = None
 _indexes: dict[str, dict[str, Any]] = {}
 
 
@@ -1116,6 +1124,57 @@ def pal_drops(species_id: str) -> list[dict[str, Any]]:
                         "items": items})
     out.sort(key=lambda b: b["levelFrom"])
     return out
+
+
+def movement_modes() -> dict[str, Any]:
+    """
+    `EPalMonsterMovementType` per species, from the server pak's own
+    `BP_<Species>` blueprints via `scripts/extract-movement-modes.py`.
+
+    AGENTS.md recorded this as unavailable for months. It was not: the search
+    that "proved" it looked for `BP_Pal_*` and the game names them
+    `BP_<Species>`.
+
+    Only the 52 non-ground species are stored; everything else is `default`.
+    """
+    global _movement_modes
+    if _movement_modes is None:
+        try:
+            with gzip.open(MOVEMENT_MODES_PATH, "rt", encoding="utf-8") as f:
+                _movement_modes = json.load(f)
+        except (OSError, json.JSONDecodeError) as e:
+            logger.warning(
+                "Movement-mode data unavailable (%s); flyers cannot be "
+                "distinguished from ground mounts", e
+            )
+            _movement_modes = {}
+    return _movement_modes
+
+
+def movement_mode(species_id: str) -> Optional[str]:
+    """
+    `Fly`, `FlyAndLanding`, `Swim` or `GroundOnly` — or None with no bundle.
+
+    **`GroundOnly` is INFERRED, not read.** Nothing states the native default;
+    it rests on the 31 overrides being exactly the non-walking Pals. Callers
+    presenting this to a player should not give it the authority of a read
+    value — `movement_modes()["defaultIsInferred"]` says so in the payload.
+
+    A `BOSS_` form has no blueprint of its own and **inherits** its base
+    species' mode. The bundle already resolved that, so this is a plain lookup;
+    the note is here because reading the raw override table instead would call
+    every alpha flyer a ground Pal.
+    """
+    data = movement_modes()
+    if not data:
+        return None
+    species = (data.get("species") or {}).get(str(species_id or ""))
+    return species or data.get("default") or None
+
+
+def is_airborne(species_id: str) -> bool:
+    """True for `Fly` and `FlyAndLanding`. False for a missing bundle."""
+    return movement_mode(species_id) in ("Fly", "FlyAndLanding")
 
 
 def npc_requests() -> dict[str, Any]:
