@@ -235,6 +235,23 @@ server pak"→1,831 blueprints under `BP_<Species>`.
 
 ---
 
+## 4b. What could be built next — data already mined, nothing reads it
+
+Ranked by value over effort; every source named is already indexed or bundled.
+
+| Candidate | Source, already in hand | Effort |
+|---|---|---|
+| **Dungeon guide** — per-dungeon enemies, loot and rewards | `DT_Dungeon*` (59/32/162 rows, catalogued, unread) + the 33 bundled dungeon names | medium |
+| **Respawn-timer map pins** — "this ore/chest comes back in N hours" | The save's 31,824-slot spawner state (verified); blocked on capturing instance GUIDs in `extract-world-objects.py` the way `extract-effigies.py` does — per-class byte offsets, real work | large |
+| **Player-buff passives on the player page** — the 50 effect types targeting the trainer (`Fishing_*`, step attacks…) | `passive_effects.json.gz`, 273 effects currently rendered nowhere | small |
+| **Per-player oddments** — `NPCTalkCountMap`, `MutationCount`, oil-rig/camp counters | `RecordData`, indexed since #117 | small |
+| **Egg-move surfacing** (#64's open half) | breeding tables + `moves.json.gz` | medium |
+| **Sortable Players roster and Items catalogue** | UI only — the two remaining unsortable tables (`my-pals` is the pattern to copy) | small |
+| **Chrome translations** (#109) | `docs/chrome-strings.json` (631 strings) + `docs/TRANSLATING.md`; waits on a human translation, not a framework | contributor-gated |
+| **Names from the server pak** — drop the 40 GB client-pak dependency | The server pak carries the same 27 `L10N/<lang>/` text tables, tagged (found 2026-08-17); point `l10n.py`/`gametext.py` at it and names refresh with every server update | medium |
+
+---
+
 ## 5. Open items
 
 ### Needs the operator
@@ -261,7 +278,7 @@ Run on 2026-08-16 against the current tree:
 | Check | Result |
 |---|---|
 | `pytest -m "not integration"` (backend unit) | **all passed, 0 failed** (~3 min) |
-| `pytest` (full, incl. integration against a real world) | see §6.1 note |
+| `pytest` (full, incl. integration against a real world) | **2,043 passed, 0 failed** |
 | `npm test` (vitest) | **153 passed** |
 | `npx tsc --noEmit` | clean |
 | Full GET sweep, every route, real worlds | **100 requests, 0 failures, 0 skipped** |
@@ -299,3 +316,28 @@ updating the reference install first); `docs/CROSSPLAY.md` extended with the
 community-verified operational facts (Steam uid = low 32 bits of SteamID64;
 console admin actions key on the in-game UID; `CrossplayPlatforms` +
 `-publiclobby` + community-list requirements).
+
+### 6.2 The v1.0.3 refresh (2026-08-17) — the runbook's first real run
+
+The operator supplied the v1.0.3 server pak (build **24575149**, public
+2026-08-12) and the UPGRADING.md procedure ran end to end:
+
+- **File listing:** 18 added / 10 removed of 158,452 — case renames, a
+  mod-crash dialog, Holy Water sounds. No new tables, species or map cells.
+- **DataTable byte-diff:** 771 files changed in place, 754 of them
+  localisation text; **17 mechanics tables** (raid boss, item, loot, recipe,
+  build-object, base-camp task).
+- **Positions:** 59,396 of 59,396 world objects unchanged — no map
+  recalibration.
+- **`regenerate-bundles.py`:** 22 bundles byte-identical, 6 changed. The real
+  changes: OilPump build cost halved and output 120→150/s, Yakushima raid
+  rewards rebalanced, World Tree loot tables +1 entry each,
+  `SkillCard_Psychokinesis` became legal (which failed the 575-item legality
+  pin exactly as designed — now 574, with the story in the test).
+- **Language packs lag deliberately:** `Pal-Windows.pak` has not updated, so
+  v1.0.3's new strings are not in the 16 language bundles yet. Note the server
+  pak turns out to carry the same 27 `L10N/<lang>/` text tables — switching
+  `l10n.py` to read them would end the client-pak dependency for names
+  entirely; recorded as a candidate in §4b.
+- Unit suite green against the new bundles; the full 2,043-test suite was
+  green immediately before the refresh.

@@ -88,6 +88,15 @@ def load_plan() -> list[tuple[str, str]]:
             # quietly — an undocumented bundle is one nobody can rebuild.
             steps.append((bundle, ""))
             continue
+        if not command.split()[0].endswith(("python", "python3")) and \
+                not command.startswith((".venv/", "python", "scripts/")):
+            # A hand-maintained bundle documents its provenance in prose
+            # ("hand-edited; …", "no script; re-derive by …"). Executing that
+            # as a shell command turned two honest notes into two FAILED rows
+            # on the first run after they were written. Prose is a real state,
+            # not a failure — report it as manual and move on.
+            steps.append((bundle, f"MANUAL: {command}"))
+            continue
         if bundle in LAST or command in seen:
             continue
         seen.add(command)
