@@ -25,6 +25,28 @@ rather than something to infer from a uid that looks unusual.
 digits, zeros after — `11a11a01-0000-0000-0000-000000000000`. That is 5 of 5 on the
 reference world.
 
+## What the community documents (checked 2026-08-16)
+
+Nothing online states the console uid byte format either — the unknowns below
+survive a search, not just our own reading. What the hosting guides and admin
+docs do agree on:
+
+- **A Steam player's uid is the low 32 bits of their SteamID64** (cheahjs'
+  converter and several hosting tools implement exactly this), which confirms
+  the Steam-ID32-then-zeros shape this project observed independently.
+- **Admin actions on console players key on the in-game UID**, never a Steam
+  ID — the game's own player list is the authority. That is already how this
+  dashboard works: kick/ban travel by uid.
+- **Console players only reach a server through the community-server list**:
+  the server needs `CrossplayPlatforms=(Steam,Xbox,PS5,Mac)` in
+  `PalWorldSettings.ini` plus the `-publiclobby` launch flag. Note the game's
+  own `DefaultPalWorldSettings.ini` ships all four platforms enabled, and the
+  key is one of the ones Pocketpair's settings docs do not describe — it shows
+  in the Settings tab's "other settings" with no tooltip.
+- Game Pass **save files** are CNK-wrapped and need conversion before a
+  dedicated server can read them — a storage detail for imports, not an
+  identity one.
+
 ## What is unknown
 
 **What a non-Steam `PlayerUId` looks like.** It could be the platform's own account
