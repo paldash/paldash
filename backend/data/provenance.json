@@ -46,6 +46,12 @@
   "regenerateWith": "python3 scripts/extract-effigies.py",
   "source": "Pal-LinuxServer.pak (MainGrid_L15_X0_Y0)"
  },
+ "env_equivalents.json": {
+  "gameBuild": null,
+  "note": "IniKey -> env var per server image; 119 keys, 118 covered by both. Not game data (no build id) — it tracks the images, and should be re-fetched when either image changes its template.",
+  "regenerateWith": "python3 scripts/extract-env-equivalents.py",
+  "source": "thijsvanloef/palworld-server-docker scripts/files/PalWorldSettings.ini.template + jammsen/docker-palworld-dedicated-server configs/PalWorldSettings.ini.template (each image's own envsubst input)"
+ },
  "game_settings.json.gz": {
   "gameBuild": "24575149",
   "note": "Pocketpair's own 347 tuning constants — damage rates, sanity and hunger thresholds, capture rates, base-camp ranges. Decoded from a Blueprint CDO rather than a DataTable, which is a capability nothing else here had. Self-verifying: the walk must terminate at the end of the export (41,416 of 41,420 bytes) AND reproduce CharacterMaxLevel=80 and CharacterMaxRank=5, two constants previously held from sources that could not be checked against the install. Run with --verify after a game update. Grew from 6.4 KB to 15.7 KB on 2026-08-07 when uassettable learned to decode MapProperty: WorkSuitabilityDefineDataMap now yields the per-work-type CraftSpeeds curves for the ten types that had been assumed to share the three stated ones — eight of them do not, and Handcraft reaches 5,400 at rank 10 against Mining's 1,000. The decode's own check is that the map's keys minus the pseudo-entry 'Anyone', plus the three standalone types, are exactly the 13 work suitabilities the species table ships.",

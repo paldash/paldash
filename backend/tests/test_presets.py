@@ -146,7 +146,7 @@ def test_vanilla_resets_rates_but_not_the_servers_identity():
     changes = settings_ini._vanilla_changes()
     assert changes, "vanilla should reset something"
 
-    forbidden = set(settings_ini.ENV_MANAGED) | set(settings_ini.SECRET_KEYS)
+    forbidden = settings_ini.ENV_MANAGED_KEYS | set(settings_ini.SECRET_KEYS)
     assert not (set(changes) & forbidden)
 
 
@@ -162,7 +162,7 @@ def test_vanilla_covers_what_the_other_presets_change():
     is the one thing a reset must not do.
     """
     changes = set(settings_ini._vanilla_changes())
-    forbidden = set(settings_ini.ENV_MANAGED) | set(settings_ini.SECRET_KEYS)
+    forbidden = settings_ini.ENV_MANAGED_KEYS | set(settings_ini.SECRET_KEYS)
     defaults = settings_ini.game_defaults()
 
     for preset in settings_ini.PRESETS:
