@@ -29,6 +29,7 @@ import type {
   DropBand,
 } from '@/lib/types';
 import { asArray } from '@/lib/arrays';
+import { t } from '@/lib/chrome';
 
 /**
  * The Paldeck: every Pal in the game, with where it spawns.
@@ -132,7 +133,7 @@ export default function Paldeck() {
   if (error) {
     return (
       <div className="notice notice-warn">
-        <strong>Paldeck unavailable</strong>
+        <strong>{t('Paldeck unavailable')}</strong>
         <div style={{ marginTop: 6 }}>{error}</div>
         <button className="btn btn-ghost" style={{ marginTop: 12 }} onClick={load}>
           <RefreshCw size={13} /> Retry
@@ -153,7 +154,7 @@ export default function Paldeck() {
           <input
             className="input"
             style={{ paddingLeft: 30 }}
-            placeholder="Search by name, number, element…"
+            placeholder={t('Search by name, number, element…')}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
@@ -218,11 +219,11 @@ export default function Paldeck() {
         <div className="glass-card" style={{ padding: 16, flex: '1 1 300px', minHeight: 200 }}>
           {detailError ? (
             <div className="notice notice-warn" style={{ fontSize: 12 }}>
-              <strong>Could not load that Pal</strong>
+              <strong>{t('Could not load that Pal')}</strong>
               <div style={{ marginTop: 6 }} className="mono">{detailError}</div>
             </div>
           ) : detailLoading && !selected ? (
-            <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>Loading…</p>
+            <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>{t('Loading…')}</p>
           ) : !selected ? (
             <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>
               Pick a Pal to see its details and where it spawns.
@@ -253,7 +254,7 @@ export default function Paldeck() {
               )}
 
               {detailLoading ? (
-                <div style={{ color: 'var(--text-muted)', fontSize: 12 }}>Loading…</div>
+                <div style={{ color: 'var(--text-muted)', fontSize: 12 }}>{t('Loading…')}</div>
               ) : selected.habitat?.known ? (
                 <>
                   <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
@@ -264,7 +265,7 @@ export default function Paldeck() {
                     {byLandmass.palpagos.length > 0 && (
                       <div>
                         <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>
-                          Palpagos Islands
+                          {t('Palpagos Islands')}
                         </div>
                         <HabitatMap regions={byLandmass.palpagos} region="palpagos" />
                       </div>
@@ -272,7 +273,7 @@ export default function Paldeck() {
                     {byLandmass.worldtree.length > 0 && (
                       <div>
                         <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>
-                          World Tree
+                          {t('World Tree')}
                         </div>
                         <HabitatMap regions={byLandmass.worldtree} region="worldtree" />
                       </div>
@@ -598,7 +599,7 @@ function PartnerSkillRanks({ entry }: {
       {varies && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 5,
                       fontSize: 11, color: 'var(--text-muted)' }}>
-          <span>Condenser</span>
+          <span>{t('Condenser')}</span>
           {[1, 2, 3, 4, 5].map((r) => (
             <button
               key={r}

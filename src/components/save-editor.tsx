@@ -17,6 +17,7 @@ import GuildMove from './guild-move';
 import PalCheck from './pal-check';
 import PalImport from './pal-import';
 import WorldExport from './world-export';
+import { t } from '@/lib/chrome';
 
 /**
  * Save Tools.
@@ -116,7 +117,7 @@ export default function SaveEditor() {
   if (!backendOnline) {
     return (
       <div className="notice notice-warn">
-        <strong>Save backend offline.</strong> The Python backend must be running
+        <strong>{t('Save backend offline.')}</strong> The Python backend must be running
         to use save tools.
       </div>
     );
@@ -215,7 +216,7 @@ docker compose start palworld    # bring it back`}
           disabled={busy !== null}
           style={{ maxWidth: 420 }}
         >
-          <option value="">Every container in the world</option>
+          <option value="">{t('Every container in the world')}</option>
           {bases.map((base) => (
             <option key={base.id} value={base.id}>
               {base.name} — {base.guildName}
@@ -239,8 +240,8 @@ docker compose start palworld    # bring it back`}
           disabled={busy !== null}
           style={{ maxWidth: 420 }}
         >
-          <option value="category">By category, in the game’s own order</option>
-          <option value="id">By internal item id (alphabetical)</option>
+          <option value="category">{t('By category, in the game’s own order')}</option>
+          <option value="id">{t('By internal item id (alphabetical)')}</option>
         </select>
         <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 8, lineHeight: 1.6 }}>
           {order === 'category'
@@ -253,7 +254,7 @@ docker compose start palworld    # bring it back`}
       <div className="dashboard-grid grid-2">
         <OperationCard
           icon={<ArrowUpDown size={14} />}
-          title="Sort chests — stackables only"
+          title={t('Sort chests — stackables only')}
           description="Tidies and merges plain stackable items (ore, wood, food). Anything with durability — weapons, armour, tools — is left exactly where it is, so nothing can be orphaned."
           badge="Safest"
           allowed={has(CAPABILITIES.SAVE_SORT_STACKABLES)}
@@ -264,7 +265,7 @@ docker compose start palworld    # bring it back`}
 
         <OperationCard
           icon={<ArrowUpDown size={14} />}
-          title="Sort chests — all items"
+          title={t('Sort chests — all items')}
           description="Also relocates equipment and durability items, carrying their internal references along. More thorough, and touches more of the save."
           badge="Higher risk"
           allowed={has(CAPABILITIES.SAVE_SORT_ALL)}
@@ -298,14 +299,14 @@ docker compose start palworld    # bring it back`}
         <div className="glass-card" style={{ padding: 16, opacity: 0.75 }}>
           <div className="section-title" style={{ marginBottom: 8 }}>
             <PenLine size={14} /> Character editor
-            <span className="badge" style={{ marginLeft: 'auto' }}>Locked</span>
+            <span className="badge" style={{ marginLeft: 'auto' }}>{t('Locked')}</span>
           </div>
           <p style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.7 }}>
             Editing Pal and player levels, experience, condenser rank and IVs needs the{' '}
             <span className="mono">save.edit.full</span> capability, which exists only at
             security level <strong>full</strong>. Servers default to <strong>safe</strong>,
             so this stays hidden until someone deliberately raises it — even for an Owner.
-            Set <span className="mono">SECURITY_LEVEL=full</span> in your{' '}
+            Set <span className="mono">{t('SECURITY_LEVEL=full')}</span> in your{' '}
             <span className="mono">.env</span>, or raise it on the Access tab if the
             environment ceiling already permits it.
           </p>
@@ -326,7 +327,7 @@ docker compose start palworld    # bring it back`}
       {has(CAPABILITIES.BACKUP_MANAGE) && (
         <div className="notice" style={{ fontSize: 12 }}>
           Every operation above takes a full backup first. Browse, verify and
-          restore them on the <strong>Backups</strong> tab.
+          restore them on the <strong>{t('Backups')}</strong> tab.
         </div>
       )}
     </div>

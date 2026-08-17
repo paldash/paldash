@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { getLanguagePack } from './save-api';
+import { loadChromeLanguage } from './chrome';
 import { DEFAULT_LANG, type LanguagePack } from './language';
 
 const STORAGE_KEY = 'palworld-dashboard-lang';
@@ -24,6 +25,10 @@ function notify() {
 
 export function setLanguage(code: string) {
   current = code || DEFAULT_LANG;
+  // One picker drives both halves: the game's nouns (below) and our own
+  // chrome (the labelled-beta packs). Chrome falls back to English on its own
+  // when no pack exists, so this never gates the noun switch.
+  loadChromeLanguage(current);
   try {
     window.localStorage.setItem(STORAGE_KEY, current);
   } catch {

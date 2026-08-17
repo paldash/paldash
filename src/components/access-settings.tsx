@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Building2, Compass, Egg, Eye, Lock, Package, Pickaxe, RefreshCw, ShieldCheck } from 'lucide-react';
 import { getAccessPolicy, setAccessPolicy, type AccessPolicyInfo } from '@/lib/save-api';
 import { asArray } from '@/lib/arrays';
+import { t } from '@/lib/chrome';
 
 /**
  * Access control: how much may be changed, and what guests may see.
@@ -63,7 +64,7 @@ export default function AccessSettings() {
   if (error) {
     return (
       <div className="notice notice-warn">
-        <strong>Access policy unavailable</strong>
+        <strong>{t('Access policy unavailable')}</strong>
         <div style={{ marginTop: 6 }}>{error}</div>
         <button className="btn btn-ghost" style={{ marginTop: 12 }} onClick={load}>
           <RefreshCw size={13} /> Retry
@@ -73,7 +74,7 @@ export default function AccessSettings() {
   }
 
   if (!policy) {
-    return <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>Loading…</div>;
+    return <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>{t('Loading…')}</div>;
   }
 
   const ceilingIndex = ['readonly', 'safe', 'full'].indexOf(policy.envCeiling);
@@ -237,7 +238,7 @@ export default function AccessSettings() {
       {/* ─── Undiscovered content ─── */}
       <div className="glass-card" style={{ padding: 16 }}>
         <div className="section-title" style={{ marginBottom: 4 }}>
-          <Compass size={14} /> Undiscovered locations
+          <Compass size={14} /> {t('Undiscovered locations')}
         </div>
         <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 12 }}>
           The dashboard knows where all 174 fast-travel points and 396 effigies are,
@@ -271,7 +272,7 @@ export default function AccessSettings() {
                   {category.inherited && (
                     <span
                       className="badge"
-                      title="No override set — this follows the default above."
+                      title={t('No override set — this follows the default above.')}
                     >
                       inherited
                     </span>
@@ -359,7 +360,7 @@ export default function AccessSettings() {
             files — every one that exists, not just the ones your save has touched.
             Set separately per category, because a complete chest map is close to a
             loot solution while a fishing-spot map is a convenience.
-            {' '}<strong>A category someone may not see is not listed to them either</strong>,
+            {' '}<strong>{t('A category someone may not see is not listed to them either')}</strong>,
             so they are not told what they are missing.
           </p>
           <p style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 12 }}>
@@ -369,7 +370,7 @@ export default function AccessSettings() {
                 the GUIDs saves record, and governed above. */}
             Fast-travel points and Lifmunk effigies are not here: they are
             discovery content — the save records which ones you personally found —
-            so they are governed by <strong>Undiscovered locations</strong> above.
+            so they are governed by <strong>{t('Undiscovered locations')}</strong> above.
           </p>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -411,7 +412,7 @@ export default function AccessSettings() {
 
       {/* ─── Effective capabilities ─── */}
       <div className="glass-card" style={{ padding: 16 }}>
-        <div className="section-title" style={{ marginBottom: 8 }}>Currently permitted writes</div>
+        <div className="section-title" style={{ marginBottom: 8 }}>{t('Currently permitted writes')}</div>
         {policy.allowedCapabilities.length === 0 ? (
           <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>
             None — the dashboard cannot modify anything at this level.

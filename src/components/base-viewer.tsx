@@ -14,6 +14,7 @@ import BaseSupplyPanel from '@/components/base-supply';
 import BaseAssignPanel from '@/components/base-assign';
 import BaseWorkingPanel from '@/components/base-working';
 import LabResearchPanel from '@/components/lab-research';
+import { t } from '@/lib/chrome';
 
 /** A base this full is about to start dropping what its Pals produce. */
 const NEARLY_FULL = 90;
@@ -69,7 +70,7 @@ export default function BaseViewer() {
     return (
       <div className="glass-card" style={{ padding: 40, textAlign: 'center' }}>
         <Building2 size={40} style={{ color: 'var(--text-muted)', marginBottom: 12 }} />
-        <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 4 }}>Save Backend Offline</h3>
+        <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 4 }}>{t('Save Backend Offline')}</h3>
         <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>
           The Python backend must be running to view base camp data from save files.
         </p>
@@ -138,7 +139,7 @@ export default function BaseViewer() {
                 worker container, so nothing is counted twice. */}
             {deployedPals.toLocaleString()}
           </div>
-          <div className="stat-label" title="Pals assigned to work at a base. Pals in a palbox are counted under guild Pals instead.">
+          <div className="stat-label" title={t('Pals assigned to work at a base. Pals in a palbox are counted under guild Pals instead.')}>
             {maySeeDetail ? 'Pals Working at Bases' : 'Pals Working at Your Bases'}
           </div>
         </div>
@@ -212,7 +213,7 @@ export default function BaseViewer() {
               style={{ padding: '2px 6px', fontSize: 10, textTransform: 'uppercase' }}
               disabled={busy}
               onClick={() => runExport(() => downloadExport('world'))}
-              title="Structured JSON export with a checksum, for archiving or transfer"
+              title={t('Structured JSON export with a checksum, for archiving or transfer')}
             >
               json
             </button>
@@ -235,7 +236,7 @@ export default function BaseViewer() {
                     {base.playerNamed === false && (
                       <span
                         style={{ fontSize: 10, color: 'var(--text-muted)', marginLeft: 6, fontWeight: 400 }}
-                        title="This base has never been renamed in game, so the dashboard numbers it by position."
+                        title={t('This base has never been renamed in game, so the dashboard numbers it by position.')}
                       >
                         unnamed
                       </span>
@@ -283,7 +284,7 @@ export default function BaseViewer() {
               {store && store.totalSlots > 0 && (
                 <div style={{ marginTop: 12 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>
-                    <span>Storage used</span>
+                    <span>{t('Storage used')}</span>
                     <span>{store.usedSlots} / {store.totalSlots} slots ({store.fillPercent}%)</span>
                   </div>
                   <div style={{ height: 6, background: 'var(--bg-input)', borderRadius: 3, overflow: 'hidden' }}>
@@ -430,7 +431,7 @@ function BaseContents({
           style={{ marginLeft: 'auto', padding: '2px 6px', fontSize: 10 }}
           disabled={busy}
           onClick={() => onExport('base-items', 'csv', store.baseId)}
-          title="Export every item in this base as CSV"
+          title={t('Export every item in this base as CSV')}
         >
           <Download size={10} /> CSV
         </button>

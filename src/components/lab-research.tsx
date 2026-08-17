@@ -6,6 +6,7 @@ import { useDashboardStore } from '@/lib/store';
 import { asArray } from '@/lib/arrays';
 import { num } from '@/lib/format';
 import GameIcon from '@/components/game-icon';
+import { t } from '@/lib/chrome';
 
 /**
  * The Pal Lab research tree, and how far a guild has got through it.
@@ -122,7 +123,7 @@ export default function LabResearchPanel() {
           >
             {/* Empty means the catalogue with no progress, which is a real and
                 useful view rather than a placeholder. */}
-            <option value="">The tree (no guild)</option>
+            <option value="">{t('The tree (no guild)')}</option>
             {guilds.map((g) => (
               <option key={g.id} value={g.id}>{g.name || g.id.slice(0, 8)}</option>
             ))}
@@ -135,7 +136,7 @@ export default function LabResearchPanel() {
           onChange={(e) => setWork(e.target.value)}
           style={{ fontSize: 12, padding: '3px 6px' }}
         >
-          <option value="">All work types</option>
+          <option value="">{t('All work types')}</option>
           {workTypes.map(([id, label]) => (
             <option key={id} value={id}>{label}</option>
           ))}
@@ -150,7 +151,7 @@ export default function LabResearchPanel() {
 
         <button className="btn btn-ghost" onClick={() => load(guildId)} disabled={loading}
                 style={{ padding: '3px 10px', fontSize: 11 }}>
-          <RefreshCw size={11} /> Refresh
+          <RefreshCw size={11} /> {t('Refresh')}
         </button>
       </div>
 

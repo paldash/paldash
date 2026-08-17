@@ -5,6 +5,7 @@ import { RefreshCw, ScrollText, ChevronLeft, ChevronRight } from 'lucide-react';
 import { getAuditLog } from '@/lib/save-api';
 import type { AuditPage } from '@/lib/types';
 import { asArray } from '@/lib/arrays';
+import { t } from '@/lib/chrome';
 
 const PAGE_SIZE = 100;
 
@@ -60,7 +61,7 @@ export default function AuditLog() {
           value={action}
           onChange={(e) => { setOffset(0); setAction(e.target.value); }}
         >
-          <option value="">All actions</option>
+          <option value="">{t('All actions')}</option>
           {asArray(page?.actions, 'audit actions').map((a) => (
             <option key={a} value={a}>{a}</option>
           ))}
@@ -72,16 +73,16 @@ export default function AuditLog() {
           value={result}
           onChange={(e) => { setOffset(0); setResult(e.target.value); }}
         >
-          <option value="">Any outcome</option>
-          <option value="ok">Succeeded</option>
-          <option value="failed">Failed</option>
-          <option value="denied">Denied</option>
+          <option value="">{t('Any outcome')}</option>
+          <option value="ok">{t('Succeeded')}</option>
+          <option value="failed">{t('Failed')}</option>
+          <option value="denied">{t('Denied')}</option>
         </select>
 
         <input
           className="input"
           style={{ maxWidth: 180 }}
-          placeholder="Filter by user…"
+          placeholder={t('Filter by user…')}
           value={username}
           onChange={(e) => { setOffset(0); setUsername(e.target.value); }}
         />
@@ -99,11 +100,11 @@ export default function AuditLog() {
         <table className="table">
           <thead>
             <tr>
-              <th style={{ width: 165 }}>When</th>
-              <th style={{ width: 130 }}>Who</th>
-              <th style={{ width: 150 }}>Action</th>
-              <th>Detail</th>
-              <th style={{ width: 110 }}>From</th>
+              <th style={{ width: 165 }}>{t('When')}</th>
+              <th style={{ width: 130 }}>{t('Who')}</th>
+              <th style={{ width: 150 }}>{t('Action')}</th>
+              <th>{t('Detail')}</th>
+              <th style={{ width: 110 }}>{t('From')}</th>
             </tr>
           </thead>
           <tbody>

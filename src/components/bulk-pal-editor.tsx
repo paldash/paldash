@@ -7,6 +7,7 @@ import {
 } from '@/lib/save-api';
 import type { EditSchema, BulkEditPlan } from '@/lib/types';
 import { asArray } from '@/lib/arrays';
+import { t } from '@/lib/chrome';
 
 /** Fields worth offering across many Pals at once. */
 const BULK_FIELDS = ['level', 'rank', 'ivs.hp', 'ivs.shot', 'ivs.defense'] as const;
@@ -138,7 +139,7 @@ export default function BulkPalEditor({ canEdit }: { canEdit: boolean }) {
   };
 
   if (error && !schema) return <div className="notice notice-warn">{error}</div>;
-  if (!schema) return <div className="notice">Loading…</div>;
+  if (!schema) return <div className="notice">{t('Loading…')}</div>;
 
   return (
     <div className="glass-card" style={{ padding: 16 }}>
@@ -317,7 +318,7 @@ function BulkPlanView({
   if (!plan.ok) {
     return (
       <div className="notice notice-warn" style={{ marginTop: 12 }}>
-        <strong>Nothing would be applied.</strong> One rejected Pal refuses the whole
+        <strong>{t('Nothing would be applied.')}</strong> One rejected Pal refuses the whole
         batch — a partial bulk edit leaves no record of where it stopped.
         <ul style={{ margin: '6px 0 0 16px', fontSize: 11, lineHeight: 1.6 }}>
           {plan.problems.slice(0, 6).map((p, i) => (

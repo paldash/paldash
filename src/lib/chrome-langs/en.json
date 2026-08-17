@@ -1,0 +1,11 @@
+{
+ "language": "en",
+ "provenance": "game",
+ "verified": true,
+ "strings": {
+  "Fast travel": "Fast Travel",
+  "Items": "Items",
+  "Paldeck": "Palpedia",
+  "Party": "Party"
+ }
+}

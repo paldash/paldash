@@ -8,6 +8,7 @@ import type { CatalogueItem } from '@/lib/types';
 import GameIcon from './game-icon';
 import { asArray } from '@/lib/arrays';
 import { resolveItem, shadowedByName } from '@/lib/item-lookup';
+import { t } from '@/lib/chrome';
 
 /**
  * Create one piece of equipment or one egg into an empty slot.
@@ -149,7 +150,7 @@ export default function ItemCreator({
           className="input"
           list="slot-editor-items"
           style={{ flex: '1 1 200px', fontSize: 12, padding: '4px 7px' }}
-          placeholder="Item id or name — e.g. Katana, or Large Fire Egg"
+          placeholder={t('Item id or name — e.g. Katana, or Large Fire Egg')}
           value={typed}
           onChange={(e) => setTyped(e.target.value)}
           disabled={busy}
@@ -160,7 +161,7 @@ export default function ItemCreator({
           min={0}
           style={{ width: 110, fontSize: 12, padding: '4px 7px' }}
           placeholder="durability"
-          title="Leave blank for factory-fresh, which is what the game gives a new item."
+          title={t('Leave blank for factory-fresh, which is what the game gives a new item.')}
           value={durability ?? ''}
           onChange={(e) =>
             setDurability(e.target.value === '' ? undefined : e.target.valueAsNumber)

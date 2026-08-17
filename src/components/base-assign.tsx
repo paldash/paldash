@@ -8,6 +8,7 @@ import {
   type AssignNeed,
   type AssignCandidate,
 } from '@/lib/save-api';
+import { t } from '@/lib/chrome';
 
 /**
  * What work each base needs, and who to put there.
@@ -199,9 +200,9 @@ export default function BaseAssignPanel() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <HardHat size={15} style={{ color: 'var(--accent-cyan)' }} />
-        <strong style={{ fontSize: 13, flex: '1 1 auto' }}>Work assignment</strong>
+        <strong style={{ fontSize: 13, flex: '1 1 auto' }}>{t('Work assignment')}</strong>
         <button className="btn btn-ghost" onClick={() => void load()} disabled={busy}>
-          <RefreshCw size={12} className={busy ? 'spin' : undefined} /> Refresh
+          <RefreshCw size={12} className={busy ? 'spin' : undefined} /> {t('Refresh')}
         </button>
       </div>
 

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Users, ArrowRight, AlertTriangle, ShieldCheck } from 'lucide-react';
 import { getGuilds, previewGuildMove, applyGuildMove } from '@/lib/save-api';
 import type { GuildInfo, GuildMovePlan } from '@/lib/types';
+import { t } from '@/lib/chrome';
 
 /**
  * Move a player from one guild to another.
@@ -119,7 +120,7 @@ export default function GuildMove({ canEdit }: { canEdit: boolean }) {
           onChange={(e) => { setPlayerUid(e.target.value); setTargetGuildId(''); reset(); }}
           disabled={busy}
         >
-          <option value="">Pick a player…</option>
+          <option value="">{t('Pick a player…')}</option>
           {players.map((p) => (
             <option key={p.uid} value={p.uid}>{p.name} — {p.guildName}</option>
           ))}
@@ -134,7 +135,7 @@ export default function GuildMove({ canEdit }: { canEdit: boolean }) {
           onChange={(e) => { setTargetGuildId(e.target.value); reset(); }}
           disabled={busy || !playerUid}
         >
-          <option value="">Pick a destination guild…</option>
+          <option value="">{t('Pick a destination guild…')}</option>
           {destinations.map((g) => (
             <option key={g.id} value={g.id}>
               {g.name} ({g.members.length} member{g.members.length === 1 ? '' : 's'})
@@ -163,7 +164,7 @@ export default function GuildMove({ canEdit }: { canEdit: boolean }) {
           disabled={busy}
         />
         <span>
-          <strong>Bring their bases along if the old guild empties.</strong> Needed
+          <strong>{t('Bring their bases along if the old guild empties.')}</strong> Needed
           whenever the player is the only member — otherwise the move is refused,
           because it would leave their bases and the Pals working at them in a
           guild with nobody in it. The emptied guild is then removed;{' '}

@@ -7,6 +7,7 @@ import {
 } from '@/lib/save-api';
 import type { PalContainer, PalImportPlan, IgnoredField } from '@/lib/types';
 import { asArray } from '@/lib/arrays';
+import { t } from '@/lib/chrome';
 
 type Mode = 'overwrite' | 'create';
 
@@ -193,8 +194,8 @@ export default function PalImport({ canEdit }: { canEdit: boolean }) {
             value={mode}
             onChange={(e) => { setMode(e.target.value as Mode); setPlan(null); }}
           >
-            <option value="overwrite">Overwrite existing</option>
-            <option value="create">Add as a new Pal</option>
+            <option value="overwrite">{t('Overwrite existing')}</option>
+            <option value="create">{t('Add as a new Pal')}</option>
           </select>
         </div>
 
@@ -209,7 +210,7 @@ export default function PalImport({ canEdit }: { canEdit: boolean }) {
               value={containerId}
               onChange={(e) => { setContainerId(e.target.value); setPlan(null); }}
             >
-              <option value="">Pick a container…</option>
+              <option value="">{t('Pick a container…')}</option>
               {containers.map((c) => (
                 <option key={c.containerId} value={c.containerId} disabled={c.free === 0}>
                   {c.containerId.slice(0, 8)}… — {c.used}/{c.capacity} used, {c.free} free
@@ -250,7 +251,7 @@ function PlanSummary({
   if (!plan.ok) {
     return (
       <div className="notice notice-warn" style={{ marginTop: 10 }}>
-        <div style={{ fontWeight: 600, marginBottom: 4 }}>Nothing applied</div>
+        <div style={{ fontWeight: 600, marginBottom: 4 }}>{t('Nothing applied')}</div>
         <ul style={{ margin: 0, paddingLeft: 16, fontSize: 12 }}>
           {asArray(plan.problems, 'import problems').slice(0, 8).map((p, i) => (
             <li key={i}>{p.field ? `${p.field}: ` : ''}{p.problem}</li>

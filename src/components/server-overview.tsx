@@ -15,6 +15,7 @@ import { useState } from 'react';
 import {
   XAxis, YAxis, ResponsiveContainer, Tooltip, Area, AreaChart
 } from 'recharts';
+import { t } from '@/lib/chrome';
 
 function formatUptime(seconds: number): string {
   const d = Math.floor(seconds / 86400);
@@ -127,7 +128,7 @@ export default function ServerOverview() {
         <div className="stat-card">
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
             <div style={{ color: 'var(--accent-cyan)' }}><Activity size={18} /></div>
-            <span className="stat-label" style={{ marginTop: 0 }}>Server FPS</span>
+            <span className="stat-label" style={{ marginTop: 0 }}>{t('Server FPS')}</span>
           </div>
           <div className="stat-value" style={{ color: serverMetrics && serverMetrics.serverfps < 15 ? 'var(--accent-red)' : 'var(--accent-cyan)' }}>
             {serverMetrics?.serverfps ?? '—'}
@@ -137,7 +138,7 @@ export default function ServerOverview() {
         <div className="stat-card">
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
             <div style={{ color: 'var(--accent-purple)' }}><Users size={18} /></div>
-            <span className="stat-label" style={{ marginTop: 0 }}>Players Online</span>
+            <span className="stat-label" style={{ marginTop: 0 }}>{t('Players Online')}</span>
           </div>
           <div className="stat-value" style={{ color: 'var(--accent-purple)' }}>
             {typeof serverMetrics?.currentplayernum === 'number'
@@ -149,7 +150,7 @@ export default function ServerOverview() {
         <div className="stat-card">
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
             <div style={{ color: 'var(--accent-emerald)' }}><Clock size={18} /></div>
-            <span className="stat-label" style={{ marginTop: 0 }}>Uptime</span>
+            <span className="stat-label" style={{ marginTop: 0 }}>{t('Uptime')}</span>
           </div>
           <div className="stat-value" style={{ color: 'var(--accent-emerald)', fontSize: '1.6rem' }}>
             {typeof serverMetrics?.uptime === 'number' ? formatUptime(serverMetrics.uptime) : '—'}
@@ -159,7 +160,7 @@ export default function ServerOverview() {
         <div className="stat-card">
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
             <div style={{ color: 'var(--accent-amber)' }}><Gauge size={18} /></div>
-            <span className="stat-label" style={{ marginTop: 0 }}>Frame Time</span>
+            <span className="stat-label" style={{ marginTop: 0 }}>{t('Frame Time')}</span>
           </div>
           <div className="stat-value" style={{ color: 'var(--accent-amber)', fontSize: '1.6rem' }}>
             {typeof serverMetrics?.frametime === 'number'
@@ -173,7 +174,7 @@ export default function ServerOverview() {
       <div className="glass-card" style={{ padding: 20 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
           <TrendingUp size={16} style={{ color: 'var(--accent-cyan)' }} />
-          <h3 style={{ fontSize: 14, fontWeight: 600 }}>FPS History</h3>
+          <h3 style={{ fontSize: 14, fontWeight: 600 }}>{t('FPS History')}</h3>
           <span style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 'auto' }}>
             {chartData.length} samples
           </span>
@@ -237,7 +238,7 @@ export default function ServerOverview() {
         <div className="glass-card" style={{ padding: 20 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
             <Server size={16} style={{ color: 'var(--accent-purple)' }} />
-            <h3 style={{ fontSize: 14, fontWeight: 600 }}>Server Information</h3>
+            <h3 style={{ fontSize: 14, fontWeight: 600 }}>{t('Server Information')}</h3>
           </div>
           {serverInfo ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -256,7 +257,7 @@ export default function ServerOverview() {
               ))}
             </div>
           ) : (
-            <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>Server info unavailable</p>
+            <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>{t('Server info unavailable')}</p>
           )}
         </div>
 
@@ -265,7 +266,7 @@ export default function ServerOverview() {
           <div className="glass-card" style={{ padding: 20 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
               <Cpu size={16} style={{ color: 'var(--accent-amber)' }} />
-              <h3 style={{ fontSize: 14, fontWeight: 600 }}>Admin Controls</h3>
+              <h3 style={{ fontSize: 14, fontWeight: 600 }}>{t('Admin Controls')}</h3>
             </div>
 
             {/* Announce */}
@@ -278,7 +279,7 @@ export default function ServerOverview() {
                   className="input"
                   value={announceText}
                   onChange={e => setAnnounceText(e.target.value)}
-                  placeholder="Message to all players..."
+                  placeholder={t('Message to all players...')}
                   onKeyDown={e => e.key === 'Enter' && handleAnnounce()}
                 />
                 <button className="btn btn-primary" onClick={handleAnnounce}>
@@ -332,7 +333,7 @@ export default function ServerOverview() {
         <div className="glass-card" style={{ padding: 20 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
             <Users size={16} style={{ color: 'var(--accent-emerald)' }} />
-            <h3 style={{ fontSize: 14, fontWeight: 600 }}>Online Players</h3>
+            <h3 style={{ fontSize: 14, fontWeight: 600 }}>{t('Online Players')}</h3>
             <span className="badge badge-online" style={{ marginLeft: 8 }}>{onlinePlayers.length}</span>
           </div>
           {/* The count above the fold is the game's own `currentplayernum` and

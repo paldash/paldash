@@ -12,6 +12,7 @@ import {
 import { useDashboardStore } from '@/lib/store';
 import { ROLE_RANK, type Role } from '@/lib/auth-types';
 import type { ManagedUser, RolePreset } from '@/lib/types';
+import { t } from '@/lib/chrome';
 
 /**
  * Account management.
@@ -100,7 +101,7 @@ export default function UserManager() {
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <button className="btn" onClick={() => setShowCreate((v) => !v)} disabled={busy}>
-          <UserPlus size={13} /> New account
+          <UserPlus size={13} /> {t('New account')}
         </button>
         <button className="btn btn-ghost" onClick={load} disabled={busy}>
           <RefreshCw size={13} /> {busy ? 'Working…' : 'Reload'}
@@ -112,10 +113,10 @@ export default function UserManager() {
 
       {showCreate && (
         <form className="glass-card" style={{ padding: 16 }} onSubmit={submitCreate}>
-          <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>New account</h3>
+          <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>{t('New account')}</h3>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 10 }}>
             <label style={{ fontSize: 12 }}>
-              Username
+              {t('Username')}
               <input
                 className="input"
                 value={draft.username}
@@ -137,7 +138,7 @@ export default function UserManager() {
               />
             </label>
             <label style={{ fontSize: 12 }}>
-              Role
+              {t('Role')}
               <select
                 className="input"
                 value={draft.role}
@@ -149,7 +150,7 @@ export default function UserManager() {
               </select>
             </label>
             <label style={{ fontSize: 12 }}>
-              Display name
+              {t('Display name')}
               <input
                 className="input"
                 value={draft.displayName}
@@ -162,14 +163,14 @@ export default function UserManager() {
                 className="input"
                 value={draft.steamUid}
                 onChange={(e) => setDraft({ ...draft, steamUid: e.target.value })}
-                placeholder="Links this login to a character in the save"
+                placeholder={t('Links this login to a character in the save')}
               />
             </label>
           </div>
           <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '10px 0' }}>
             {assignableRoles.find((r) => r.id === draft.role)?.description}
           </p>
-          <button className="btn" type="submit" disabled={busy}>Create</button>
+          <button className="btn" type="submit" disabled={busy}>{t('Create')}</button>
         </form>
       )}
 
@@ -177,10 +178,10 @@ export default function UserManager() {
         <table className="table">
           <thead>
             <tr>
-              <th>Account</th>
-              <th>Role</th>
-              <th>Linked character</th>
-              <th>Last sign-in</th>
+              <th>{t('Account')}</th>
+              <th>{t('Role')}</th>
+              <th>{t('Linked character')}</th>
+              <th>{t('Last sign-in')}</th>
               <th style={{ width: 140 }}></th>
             </tr>
           </thead>
@@ -255,7 +256,7 @@ export default function UserManager() {
                           className="btn btn-ghost"
                           style={{ padding: '3px 7px', fontSize: 11 }}
                           disabled={busy}
-                          title="Set a new password"
+                          title={t('Set a new password')}
                           onClick={() => {
                             const next = window.prompt(
                               `New password for ${u.username} (min 10 characters).\nThis signs them out everywhere.`
@@ -273,7 +274,7 @@ export default function UserManager() {
                           className="btn btn-ghost"
                           style={{ padding: '3px 7px', fontSize: 11, color: 'var(--accent-red, #c25757)' }}
                           disabled={busy}
-                          title="Delete this account"
+                          title={t('Delete this account')}
                           onClick={() => {
                             if (window.confirm(`Delete the account ${u.username}? This cannot be undone.`)) {
                               act(`Deleted ${u.username}`, () => deleteUser(u.username));
@@ -299,7 +300,7 @@ export default function UserManager() {
       </div>
 
       <div className="glass-card" style={{ padding: 16 }}>
-        <h3 style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>What each role can do</h3>
+        <h3 style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>{t('What each role can do')}</h3>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {roles.map((r) => (
             <div key={r.id} style={{ fontSize: 12 }}>

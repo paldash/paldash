@@ -15,6 +15,7 @@ import type {
   BackupListing, BackupVerification, RestorePreview, BackupSchedule,
 } from '@/lib/types';
 import { asArray } from '@/lib/arrays';
+import { t } from '@/lib/chrome';
 
 function bytes(n: number): string {
   if (!n) return '0 B';
@@ -147,11 +148,11 @@ export default function BackupManager() {
 
       {/* ─── Create ─── */}
       <div className="glass-card" style={{ padding: 16 }}>
-        <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 10 }}>Take a backup</h3>
+        <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 10 }}>{t('Take a backup')}</h3>
         <div style={{ display: 'flex', gap: 8 }}>
           <input
             className="input"
-            placeholder="What is this backup for? (optional)"
+            placeholder={t('What is this backup for? (optional)')}
             value={description}
             onChange={(e) => setDescription(e.target.value)}
           />
@@ -185,7 +186,7 @@ export default function BackupManager() {
         <div className="glass-card" style={{ padding: 16 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
             <Clock size={15} style={{ color: 'var(--text-muted)' }} />
-            <h3 style={{ fontSize: 14, fontWeight: 600 }}>Automatic backups</h3>
+            <h3 style={{ fontSize: 14, fontWeight: 600 }}>{t('Automatic backups')}</h3>
           </div>
           <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
             <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
@@ -353,10 +354,10 @@ export default function BackupManager() {
         <table className="table">
           <thead>
             <tr>
-              <th>When</th>
-              <th>Description</th>
-              <th>Reason</th>
-              <th>Size</th>
+              <th>{t('When')}</th>
+              <th>{t('Description')}</th>
+              <th>{t('Reason')}</th>
+              <th>{t('Size')}</th>
               <th style={{ width: 180 }}></th>
             </tr>
           </thead>
@@ -396,15 +397,15 @@ export default function BackupManager() {
                   <td>
                     <div style={{ display: 'flex', gap: 3 }}>
                       <button className="btn btn-ghost" style={{ padding: '3px 6px' }}
-                        disabled={busy} title="Verify checksums" onClick={() => runVerify(b.id)}>
+                        disabled={busy} title={t('Verify checksums')} onClick={() => runVerify(b.id)}>
                         <ShieldCheck size={12} />
                       </button>
                       <button className="btn btn-ghost" style={{ padding: '3px 6px' }}
-                        disabled={busy} title="Preview a restore" onClick={() => openPreview(b.id)}>
+                        disabled={busy} title={t('Preview a restore')} onClick={() => openPreview(b.id)}>
                         <RotateCcw size={12} />
                       </button>
                       <a className="btn btn-ghost" style={{ padding: '3px 6px' }}
-                        href={backupDownloadUrl(b.id)} title="Download this archive">
+                        href={backupDownloadUrl(b.id)} title={t('Download this archive')}>
                         <Download size={12} />
                       </a>
                       <button className="btn btn-ghost" style={{ padding: '3px 6px' }}

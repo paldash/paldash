@@ -8,6 +8,7 @@ import {
   type ActualJob,
   type WorkMismatch,
 } from '@/lib/save-api';
+import { t } from '@/lib/chrome';
 
 /**
  * Who the game has ACTUALLY assigned to each job.
@@ -98,7 +99,7 @@ function Job({ job }: { job: ActualJob }) {
       {job.staleAssignments > 0 && (
         <span
           style={{ fontSize: 11, color: 'var(--accent-amber)', display: 'flex', gap: 4 }}
-          title="The save has this slot assigned to a Pal that no longer exists. The game will not fill it until something clears it."
+          title={t('The save has this slot assigned to a Pal that no longer exists. The game will not fill it until something clears it.')}
         >
           <Ghost size={12} style={{ alignSelf: 'center' }} />
           {job.staleAssignments} stale

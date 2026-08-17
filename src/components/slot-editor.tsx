@@ -16,6 +16,7 @@ import type {
 } from '@/lib/types';
 import { asArray } from '@/lib/arrays';
 import { resolveItem as resolveItemShared } from '@/lib/item-lookup';
+import { t } from '@/lib/chrome';
 
 /**
  * Inventory slot editor.
@@ -329,7 +330,7 @@ export default function SlotEditor({ canEdit }: { canEdit: boolean }) {
               onChange={(e) => { setPlayerUid(e.target.value); loadContainer(''); }}
               disabled={busy}
             >
-              <option value="">Pick a player…</option>
+              <option value="">{t('Pick a player…')}</option>
               {players.map((p) => (
                 <option key={p.uid} value={p.uid}>
                   {p.name || p.uid.slice(0, 8)} — Lv {p.level}
@@ -363,7 +364,7 @@ export default function SlotEditor({ canEdit }: { canEdit: boolean }) {
                   the reference world: every weapon and armour slot carries a
                   dynamic_id; not one key item does. */}
               Weapons and armour carry durability records and are shown read-only.{' '}
-              <strong>Saddles, harnesses and key spheres are editable</strong> — they
+              <strong>{t('Saddles, harnesses and key spheres are editable')}</strong> — they
               carry no durability record.
             </p>
           )}
@@ -379,7 +380,7 @@ export default function SlotEditor({ canEdit }: { canEdit: boolean }) {
           onChange={(e) => { setBaseId(e.target.value); loadContainer(''); }}
           disabled={busy}
         >
-          <option value="">Pick a base…</option>
+          <option value="">{t('Pick a base…')}</option>
           {bases.map((base) => (
             <option key={base.baseId} value={base.baseId}>
               {/* Guild first. Most bases have never been renamed in game, so
@@ -428,7 +429,7 @@ export default function SlotEditor({ canEdit }: { canEdit: boolean }) {
               <input
                 className="input"
                 style={{ paddingLeft: 30 }}
-                placeholder="Filter slots by item or slot number…"
+                placeholder={t('Filter slots by item or slot number…')}
                 value={slotQuery}
                 onChange={(e) => setSlotQuery(e.target.value)}
               />
@@ -530,7 +531,7 @@ export default function SlotEditor({ canEdit }: { canEdit: boolean }) {
                         <button
                           className="btn btn-ghost"
                           style={{ padding: '2px 6px' }}
-                          title="Create equipment or an egg here"
+                          title={t('Create equipment or an egg here')}
                           onClick={() =>
                             setCreateSlot(
                               createSlot === slot.slotIndex ? null : slot.slotIndex
@@ -543,7 +544,7 @@ export default function SlotEditor({ canEdit }: { canEdit: boolean }) {
                       <button
                         className="btn btn-ghost"
                         style={{ padding: '2px 6px' }}
-                        title="Clear this slot"
+                        title={t('Clear this slot')}
                         onClick={() => patch(slot.slotIndex, { itemId: '', stackCount: 0 })}
                       >
                         <Trash2 size={12} />
@@ -610,7 +611,7 @@ export default function SlotEditor({ canEdit }: { canEdit: boolean }) {
             <div style={{ marginTop: 12 }}>
               {!plan.ok ? (
                 <div className="notice notice-warn">
-                  <strong>Cannot apply:</strong>
+                  <strong>{t('Cannot apply:')}</strong>
                   <ul style={{ margin: '6px 0 0 16px', fontSize: 12, lineHeight: 1.6 }}>
                     {plan.problems.map((p, i) => (
                       <li key={i}>

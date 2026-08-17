@@ -19,6 +19,7 @@ import type {
   StaticWorldObject, StaticWorldSummary, NpcPlacement,
 } from '@/lib/types';
 import { asArray } from '@/lib/arrays';
+import { t } from '@/lib/chrome';
 
 const MapComponent = dynamic(() => import('./map-inner'), { ssr: false });
 
@@ -433,7 +434,7 @@ export default function InteractiveMap() {
           <input
             className="input"
             style={{ paddingLeft: 30 }}
-            placeholder="Find a fast travel point or base…"
+            placeholder={t('Find a fast travel point or base…')}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
@@ -556,7 +557,7 @@ export default function InteractiveMap() {
       {discoveryError && (
         <div className="notice notice-warn" style={{ fontSize: 12 }}>
           <Info size={13} style={{ display: 'inline', verticalAlign: '-2px', marginRight: 5 }} />
-          <strong>Fast-travel and effigy layers unavailable.</strong>{' '}
+          <strong>{t('Fast-travel and effigy layers unavailable.')}</strong>{' '}
           {discoveryError}
         </div>
       )}
@@ -640,14 +641,14 @@ export default function InteractiveMap() {
       {saveDataError && (
         <div className="notice notice-warn" style={{ fontSize: 12 }}>
           <Info size={13} style={{ display: 'inline', verticalAlign: '-2px', marginRight: 5 }} />
-          <strong>Base layer unavailable.</strong> {saveDataError}
+          <strong>{t('Base layer unavailable.')}</strong> {saveDataError}
         </div>
       )}
 
       {!mapObjects.length && !loading && (
         <div className="notice" style={{ fontSize: 12 }}>
           No map objects loaded. Save data is parsed on demand — press{' '}
-          <strong>Refresh</strong> on the Overview tab to parse the world, then
+          <strong>{t('Refresh')}</strong> on the Overview tab to parse the world, then
           reload here.
         </div>
       )}
