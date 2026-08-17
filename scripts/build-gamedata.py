@@ -679,6 +679,128 @@ def apply_species_fields(data: dict) -> dict[str, int]:
     return counts
 
 
+def apply_item_stats(data: dict) -> dict[str, int]:
+    """
+    The numeric item columns, from `DT_ItemDataTable` rather than the archive.
+
+    **The archive goes stale the moment Pocketpair rebalances, and v1.0.3 is
+    the proof**: it changed `WorldTreeHolyWater.Weight` 1.0 -> 0.1 and the
+    bundle kept saying 1.0, because weight/rarity/stack/price/sortId all came
+    from the PST archive while only names and legality were read from the pak.
+    The operator noticed the weight in game before this script did — same rule
+    as everywhere: where the game has an opinion, the game wins.
+
+    Only same-unit numerics are overlaid; `typeA`/`typeB` stay archive-shaped
+    (the pak spells them `EPalItemTypeA::Consume` and every consumer of the
+    bundle speaks the archive's `Consumable`). `dynamic.durability` is updated
+    only where the bundle already carries one — creating a `dynamic` entry
+    would change `dynamic.type`, which the sorter keys eggs on.
+    """
+    import palpak
+    import uassettable
+
+    pak = palpak.Pak()
+    path = next(
+        (f for f in pak.files if f.endswith("DT_ItemDataTable.uasset")), None
+    )
+    if path is None:
+        raise SystemExit("!! DT_ItemDataTable not in the server pak")
+    rows = {str(k).lower(): r for k, r in uassettable.read_table(pak, path).items()}
+
+    COLUMNS = (
+        ("weight", "Weight", float),
+        ("rarity", "Rarity", int),
+        ("maxStack", "MaxStackCount", int),
+        ("price", "Price", int),
+        ("sortId", "SortID", int),
+    )
+    counts = {"total": 0, "unmatched": 0, "corrected": 0, "durability": 0}
+    for ident, entry in (data.get("items") or {}).items():
+        counts["total"] += 1
+        row = rows.get(ident.lower())
+        if row is None:
+            counts["unmatched"] += 1
+            continue
+        for field, column, cast in COLUMNS:
+            value = row.get(column)
+            if value is None:
+                continue
+            value = cast(value)
+            if entry.get(field) != value:
+                entry[field] = value
+                counts["corrected"] += 1
+        # Factory durability, where the bundle already tracks one.
+        dyn = entry.get("dynamic")
+        if isinstance(dyn, dict) and "durability" in dyn:
+            durability = row.get("Durability")
+            if isinstance(durability, (int, float)) and durability > 0 \
+                    and dyn.get("durability") != durability:
+                dyn["durability"] = durability
+                counts["durability"] += 1
+    return counts
+
+
+def apply_tech_levels(data: dict) -> dict[str, int]:
+    """
+    `levelCap`/`cost`/`tier`/`isBossTech` from `DT_TechnologyRecipeUnlock_Common`.
+
+    Same staleness, same patch, same discovery path: v1.0.3 moved the Jetragon
+    saddle from level 79 to 70 (and WaterBuildKit 66 -> 23, cost 4 -> 1), the
+    operator saw it on the in-game tech tree, and the bundle kept the archive's
+    79. The join is case-folded like every other pak join here — the technology
+    join in extract-economy.py is where that lesson was first paid for.
+    """
+    import palpak
+    import uassettable
+
+    pak = palpak.Pak()
+    path = next(
+        (f for f in pak.files
+         if f.endswith("DT_TechnologyRecipeUnlock_Common.uasset")), None
+    )
+    if path is None:
+        raise SystemExit("!! DT_TechnologyRecipeUnlock_Common not in the server pak")
+    rows = {str(k).lower(): r for k, r in uassettable.read_table(pak, path).items()}
+
+    COLUMNS = (
+        ("levelCap", "LevelCap", int),
+        ("cost", "Cost", int),
+        ("tier", "Tier", int),
+    )
+    counts = {"total": 0, "unmatched": 0, "corrected": 0}
+    for ident, entry in (data.get("technology") or {}).items():
+        counts["total"] += 1
+        row = rows.get(str(ident).lower())
+        if row is None:
+            counts["unmatched"] += 1
+            continue
+        for field, column, cast in COLUMNS:
+            value = row.get(column)
+            if value is None:
+                continue
+            value = cast(value)
+            if entry.get(field) != value:
+                entry[field] = value
+                counts["corrected"] += 1
+        boss = bool(row.get("IsBossTechnology"))
+        if entry.get("isBossTech") != boss:
+            entry["isBossTech"] = boss
+            counts["corrected"] += 1
+
+    # The totals were summed from the archive before this overlay ran, so a
+    # corrected cost silently un-syncs them — which is exactly the drift
+    # `test_technology_costs_sum_to_the_totals` exists to catch, and it caught
+    # this function's first run (v1.0.3 cut WaterBuildKit 4 -> 1, ancient
+    # total 185 -> 182). Re-derive them from the final records instead.
+    tech = data.get("technology") or {}
+    totals = data.get("totals") or {}
+    totals["technologyPoints"] = sum(
+        t["cost"] for t in tech.values() if not t.get("isBossTech"))
+    totals["ancientTechnologyPoints"] = sum(
+        t["cost"] for t in tech.values() if t.get("isBossTech"))
+    return counts
+
+
 def apply_item_legality(data: dict) -> dict[str, int]:
     """
     `DT_ItemDataTable.bLegalInGame`, and the one claim it actually supports.
@@ -780,6 +902,8 @@ def main() -> int:
     # before this runs those are the third-party archive's rather than the
     # game's. Reordering these two silently changes which items pair up.
     legality = apply_item_legality(data)
+    stats = apply_item_stats(data)
+    tech = apply_tech_levels(data)
     icons = resolve_icons(data)
 
     os.makedirs(os.path.dirname(OUT_PATH), exist_ok=True)
@@ -823,6 +947,19 @@ def main() -> int:
         f" are bLegalInGame=false; {legality['twin']} badged with a live twin"
         f" ({legality['noTwin']} have no legal namesake and are NOT badged,"
         f" {legality['ambiguous']} ambiguous)"
+    )
+    # `corrected` counts values where the pak disagreed with the archive. A
+    # large number here right after a game update is the update; a large number
+    # with no update means the archive was stale all along.
+    print(
+        f"  item stats (pak wins): {stats['corrected']:,} values corrected"
+        f" across {stats['total']:,} items ({stats['unmatched']} not in"
+        f" DT_ItemDataTable, {stats['durability']} durability updates)"
+    )
+    print(
+        f"  tech levels (pak wins): {tech['corrected']:,} values corrected"
+        f" across {tech['total']:,} technologies ({tech['unmatched']} not in"
+        f" DT_TechnologyRecipeUnlock_Common)"
     )
     # Per section, because one aggregate is unreadable here. `technology` and
     # `structures` are ~100% "missing" **by design** — `scripts/install-icons.py`

@@ -12,7 +12,7 @@
     "  fastTravel = 174   (was listed here as unverified)",
     "  paldeck    = 303   (was 299; a save's PaldeckUnlockFlag keys on forms, not",
     "                      Paldeck numbers, and 303 forms carry a Paldeck entry)",
-    "  technology = 1413 points over 537 techs; 185 ancient over 51 boss techs",
+    "  technology = 1413 points over 537 techs; 182 ancient over 51 boss techs (185 before v1.0.3 cut WaterBuildKit 4 -> 1)",
     "",
     "REMOVED \u2014 fieldBosses was 65. Players on the reference server have between",
     "them defeated 82 distinct field bosses, so 65 was simply wrong (it predates",

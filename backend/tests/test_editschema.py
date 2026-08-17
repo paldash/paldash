@@ -44,7 +44,7 @@ def test_bounds_come_from_the_bundled_data_not_constants():
     tech = editschema.PLAYER_FIELDS["technologyPoints"]
 
     assert tech.maximum == 1413          # gamedata.totals()
-    assert editschema.PLAYER_FIELDS["ancientTechnologyPoints"].maximum == 185
+    assert editschema.PLAYER_FIELDS["ancientTechnologyPoints"].maximum == 182  # 185 before v1.0.3 cut WaterBuildKit 4 -> 1
 
 
 def test_the_level_cap_is_the_playable_one_not_the_exp_table_length():
