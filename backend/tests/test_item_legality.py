@@ -35,10 +35,17 @@ def _twinned():
 
 
 def test_the_flag_is_written_only_when_it_says_something():
-    """1,891 legal items carry no key at all, matching `zukanSuffix`'s rule."""
-    assert len(_illegal()) == 575
+    """
+    Legal items carry no key at all, matching `zukanSuffix`'s rule.
+
+    575 -> 574 with v1.0.3 (build 24575149): the patch flipped
+    `SkillCard_Psychokinesis` legal — the single `bLegalInGame` change in the
+    whole update, caught by this pin exactly as intended. If this number moves
+    again, diff `_illegal()` against git history and name the item here.
+    """
+    assert len(_illegal()) == 574
     legal = [k for k, v in BUNDLE.items() if "legalInGame" not in v]
-    assert len(legal) == len(BUNDLE) - 575
+    assert len(legal) == len(BUNDLE) - 574
     assert all(v.get("legalInGame") is not True for v in BUNDLE.values())
 
 
