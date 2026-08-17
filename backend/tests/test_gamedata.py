@@ -182,11 +182,18 @@ def test_character_name_covers_pals_and_npcs():
 def test_technology_totals_are_exact():
     """
     Computed from the game's data tables, not sourced from a wiki:
-    537 standard technologies worth 1,413 points, 51 boss technologies worth 185.
+    537 standard technologies worth 1,413 points, 51 boss technologies worth
+    182 ancient points.
+
+    185 -> 182 with v1.0.3 (build 24575149): the patch cut WaterBuildKit's
+    ancient cost 4 -> 1, alongside its unlock level 66 -> 23 and the Jetragon
+    saddle 79 -> 70. The costs now come from the pak's own
+    `DT_TechnologyRecipeUnlock_Common` (`apply_tech_levels`), so the next
+    rebalance moves this number in the same commit that regenerates the bundle.
     """
     totals = gamedata.totals()
     assert totals["technologyPoints"] == 1413
-    assert totals["ancientTechnologyPoints"] == 185
+    assert totals["ancientTechnologyPoints"] == 182
     assert totals["technologyCount"] == 537
     assert totals["ancientTechnologyCount"] == 51
 

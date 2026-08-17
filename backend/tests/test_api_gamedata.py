@@ -164,7 +164,7 @@ def test_fast_travel_respects_discovery_visibility(client):
 def test_reference_endpoint_exposes_exact_totals(client, staff):
     body = client.get("/api/world/reference", headers=staff).json()
     assert body["totals"]["technologyPoints"] == 1413
-    assert body["totals"]["ancientTechnologyPoints"] == 185
+    assert body["totals"]["ancientTechnologyPoints"] == 182  # 185 before v1.0.3 cut WaterBuildKit 4 -> 1
     assert body["workSuitability"]
 
 
