@@ -1316,6 +1316,14 @@ export interface IniOption {
    */
   envManaged?: string;
   /**
+   * The env var each server image uses for this key, parsed from the image's
+   * own INI template ({thijsvanloef: "EXP_RATE", jammsen: "EXP_RATE"}).
+   * Present for ~119 keys; ABSENT for an image means that image has no
+   * variable for the key — on a regenerating deployment it resets to the
+   * image default every start.
+   */
+  envEquivalents?: Record<string, string>;
+  /**
    * What this key does. **Absent for 19 of the 119** — Pocketpair does not
    * document them and the game's own settings screen does not name them, so
    * there is nothing to show. Render nothing rather than a heading with no body.

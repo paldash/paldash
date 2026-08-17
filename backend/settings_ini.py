@@ -148,13 +148,12 @@ SECRET_KEYS = ("AdminPassword", "ServerPassword")
 # where thijsvanloef uses `REST_API_PORT`. Both spellings are listed so the
 # warning names something the operator will actually find in their compose file.
 #
-# **The list below is thijsvanloef's surface, and it is a floor rather than a
-# ceiling.** jammsen exposes ~119 environment variables — effectively every INI
-# setting — so under `SERVER_SETTINGS_MODE=auto` *everything* here is env-managed,
-# not just these keys. Enumerating both images' full surfaces would be a second
-# schema to keep in sync with two upstreams, so the UI instead flags the keys that
-# are env-backed on any common image and says plainly that a server configured to
-# generate its INI may revert others too.
+# **Both images' full surfaces ARE enumerated now** — `ENV_EQUIVALENTS`, 119
+# keys, generated from each image's own INI template by
+# `scripts/extract-env-equivalents.py`. The old objection here ("a second
+# schema to keep in sync with two upstreams") applied to a hand-written list
+# and expired when the list became generated from the upstreams' own files —
+# and its first build caught two stale names in the hand map it replaced.
 # thijsvanloef 0.24.0+ has `DISABLE_GENERATE_SETTINGS=true`, which stops it
 # regenerating the INI and makes everything below moot on that image. jammsen has
 # `SERVER_SETTINGS_MODE=manual` (its default). The official
@@ -170,23 +169,59 @@ SETTINGS_OWNERSHIP_FLAGS = {
     "ghcr.io/pocketpairjp/palserver": "nothing to disable — it never rewrites it",
 }
 
-ENV_MANAGED = {
-    "ServerName": "SERVER_NAME",
-    "ServerDescription": "SERVER_DESCRIPTION",
-    "AdminPassword": "ADMIN_PASSWORD",
-    "ServerPassword": "SERVER_PASSWORD",
-    "PublicPort": "PORT",
-    "PublicIP": "PUBLIC_IP",
-    "ServerPlayerMaxNum": "PLAYERS",
-    "RCONEnabled": "RCON_ENABLED",
-    "RCONPort": "RCON_PORT",
-    "RESTAPIEnabled": "REST_API_ENABLED",
-    # thijsvanloef spells it REST_API_PORT; jammsen spells it RESTAPI_PORT.
-    "RESTAPIPort": "REST_API_PORT / RESTAPI_PORT",
-    "Region": "REGION",
-    "bUseAuth": "USE_AUTH",
-    "BanListURL": "BAN_LIST_URL",
-}
+#: Keys worth a LOUD badge even before the deployment is measured — the
+#: server-identity settings that are env-driven on effectively every compose
+#: file. The full per-key mapping lives in `ENV_EQUIVALENTS` below; this set
+#: only decides which rows carry the always-on badge, so the other hundred
+#: keys do not all shout at once.
+ENV_MANAGED_KEYS = frozenset({
+    "ServerName", "ServerDescription", "AdminPassword", "ServerPassword",
+    "PublicPort", "PublicIP", "ServerPlayerMaxNum", "RCONEnabled", "RCONPort",
+    "RESTAPIEnabled", "RESTAPIPort", "Region", "bUseAuth", "BanListURL",
+})
+
+
+def _load_env_equivalents() -> dict[str, dict[str, str]]:
+    """
+    `{IniKey: {image: ENV_NAME}}`, generated from each image's own INI
+    template by `scripts/extract-env-equivalents.py`.
+
+    This replaced a hand-written 14-entry map whose objection to enumerating
+    the full surface was "a second schema to keep in sync with two upstreams".
+    Generated from the upstreams' own templates, it is not a second schema —
+    and its first build caught two errors in the hand map: thijsvanloef's
+    variable for `ServerPlayerMaxNum` is `SERVER_PLAYER_MAX_NUM` (not
+    `PLAYERS`) and for `bUseAuth` is `USEAUTH` (not `USE_AUTH`). A stale env
+    name here sends an operator to edit a variable their container never
+    reads, which is the same silent revert this feature exists to prevent.
+
+    Missing bundle -> empty map: rows lose their env hints rather than the
+    settings tab failing to load.
+    """
+    path = os.path.join(os.path.dirname(__file__), "data", "env_equivalents.json")
+    try:
+        with open(path, encoding="utf-8") as f:
+            return json.load(f).get("keys") or {}
+    except (OSError, ValueError):
+        return {}
+
+
+ENV_EQUIVALENTS = _load_env_equivalents()
+
+
+def _env_display(key: str) -> Optional[str]:
+    """One string for the badge: the env name, or both when the images differ
+    (`REST_API_PORT / RESTAPI_PORT`). thijsvanloef first — the bundled compose
+    file uses it, so its spelling is the one most operators will grep for."""
+    equiv = ENV_EQUIVALENTS.get(key)
+    if not equiv:
+        return None
+    names: list[str] = []
+    for image in ("thijsvanloef", "jammsen"):
+        name = equiv.get(image)
+        if name and name not in names:
+            names.append(name)
+    return " / ".join(names) if names else None
 
 
 def read_ini(path: Optional[str] = None, reveal: bool = False) -> dict[str, Any]:
@@ -223,8 +258,17 @@ def read_ini(path: Optional[str] = None, reveal: bool = False) -> dict[str, Any]
             key = key.strip()
             value_type, value = _classify(raw)
             entry = {"value": value, "type": value_type, "raw": raw.strip()}
-            if key in ENV_MANAGED:
-                entry["envManaged"] = ENV_MANAGED[key]
+            equiv = ENV_EQUIVALENTS.get(key)
+            if equiv:
+                # Per-image env names for every key both templates cover. A key
+                # WITHOUT this on a regenerating image resets to the image's
+                # default each start with no variable to reach for —
+                # bEnableFastTravelOnlyBaseCamp on thijsvanloef is the one case.
+                entry["envEquivalents"] = equiv
+            if key in ENV_MANAGED_KEYS:
+                display = _env_display(key)
+                if display:
+                    entry["envManaged"] = display
             if key in SECRET_KEYS and not reveal:
                 entry = {
                     **entry,
@@ -680,16 +724,18 @@ def _vanilla_changes() -> dict[str, Any]:
     The rate and difficulty keys, back at the game's own values.
 
     Scoped to the keys the presets and the highlight groups can change rather than
-    all 117, and then **`ENV_MANAGED` is subtracted**. Those are the server's
+    all 117, and then **`ENV_MANAGED_KEYS` is subtracted**. Those are the server's
     identity — name, ports, player cap, RCON and REST toggles, passwords — and
     resetting them is not what "undo my tinkering" means: it would rename the
     server, close the REST API the dashboard talks to, and on the popular images be
     reverted from environment variables at the next restart anyway.
 
-    Reusing `ENV_MANAGED` rather than writing a second exclusion list is deliberate.
-    The two questions — "is this the server's identity" and "does the image rewrite
-    this from the environment" — have the same answer for every key here, and one
-    list cannot drift from itself.
+    Reusing `ENV_MANAGED_KEYS` rather than writing a second exclusion list is
+    deliberate. The two questions — "is this the server's identity" and "does the
+    image rewrite this from the environment" — have the same answer for every key
+    here, and one list cannot drift from itself. (`ENV_EQUIVALENTS` covers all
+    119 keys and is NOT the right subtraction: on a regenerating image everything
+    is env-managed, and subtracting everything leaves no reset at all.)
     """
     defaults = game_defaults()
     keys: set[str] = set()
@@ -699,7 +745,7 @@ def _vanilla_changes() -> dict[str, Any]:
     for group in HIGHLIGHT_GROUPS:
         keys.update(group.get("keys") or [])
 
-    keys -= set(ENV_MANAGED)
+    keys -= ENV_MANAGED_KEYS
     keys -= set(SECRET_KEYS)
     return {k: defaults[k] for k in sorted(keys) if k in defaults}
 

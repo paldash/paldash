@@ -1,0 +1,490 @@
+{
+ "_comment": [
+  "IniKey -> env var per server image, parsed from each image's own",
+  "INI template (the file its container envsubst's on boot).",
+  "A key absent for an image means that image has NO env var for it:",
+  "on a regenerating deployment it resets to the default every start."
+ ],
+ "sources": {
+  "thijsvanloef": "https://raw.githubusercontent.com/thijsvanloef/palworld-server-docker/main/scripts/files/PalWorldSettings.ini.template",
+  "jammsen": "https://raw.githubusercontent.com/jammsen/docker-palworld-dedicated-server/master/configs/PalWorldSettings.ini.template"
+ },
+ "fetched": "2026-08-17",
+ "keys": {
+  "AdditionalDropItemNumWhenPlayerKillingInPvPMode": {
+   "thijsvanloef": "ADDITIONAL_DROP_ITEM_NUM_WHEN_PLAYER_KILLING_IN_PVP_MODE",
+   "jammsen": "ADDITIONAL_DROP_ITEM_NUM_WHEN_PLAYER_KILLING_IN_PVP_MODE"
+  },
+  "AdditionalDropItemWhenPlayerKillingInPvPMode": {
+   "thijsvanloef": "ADDITIONAL_DROP_ITEM_WHEN_PLAYER_KILLING_IN_PVP_MODE",
+   "jammsen": "ADDITIONAL_DROP_ITEM_WHEN_PLAYER_KILLING_IN_PVP_MODE"
+  },
+  "AdminPassword": {
+   "thijsvanloef": "ADMIN_PASSWORD",
+   "jammsen": "ADMIN_PASSWORD"
+  },
+  "AutoResetGuildTimeNoOnlinePlayers": {
+   "thijsvanloef": "AUTO_RESET_GUILD_TIME_NO_ONLINE_PLAYERS",
+   "jammsen": "AUTO_RESET_GUILD_TIME_NO_ONLINE_PLAYERS"
+  },
+  "AutoSaveSpan": {
+   "thijsvanloef": "AUTO_SAVE_SPAN",
+   "jammsen": "AUTO_SAVE_SPAN"
+  },
+  "AutoTransferMasterCheckIntervalSeconds": {
+   "thijsvanloef": "AUTO_TRANSFER_MASTER_CHECK_INTERVAL_SECONDS",
+   "jammsen": "AUTO_TRANSFER_MASTER_CHECK_INTERVAL_SECONDS"
+  },
+  "AutoTransferMasterThresholdDays": {
+   "thijsvanloef": "AUTO_TRANSFER_MASTER_THRESHOLD_DAYS",
+   "jammsen": "AUTO_TRANSFER_MASTER_THRESHOLD_DAYS"
+  },
+  "BanListURL": {
+   "thijsvanloef": "BAN_LIST_URL",
+   "jammsen": "BAN_LIST_URL"
+  },
+  "BaseCampMaxNum": {
+   "thijsvanloef": "BASE_CAMP_MAX_NUM",
+   "jammsen": "BASE_CAMP_MAX_NUM"
+  },
+  "BaseCampMaxNumInGuild": {
+   "thijsvanloef": "BASE_CAMP_MAX_NUM_IN_GUILD",
+   "jammsen": "BASE_CAMP_MAX_NUM_IN_GUILD"
+  },
+  "BaseCampWorkerMaxNum": {
+   "thijsvanloef": "BASE_CAMP_WORKER_MAX_NUM",
+   "jammsen": "BASE_CAMP_WORKER_MAXNUM"
+  },
+  "BlockRespawnTime": {
+   "thijsvanloef": "BLOCK_RESPAWN_TIME",
+   "jammsen": "BLOCK_RESPAWN_TIME"
+  },
+  "BuildObjectDamageRate": {
+   "thijsvanloef": "BUILD_OBJECT_DAMAGE_RATE",
+   "jammsen": "BUILD_OBJECT_DAMAGE_RATE"
+  },
+  "BuildObjectDeteriorationDamageRate": {
+   "thijsvanloef": "BUILD_OBJECT_DETERIORATION_DAMAGE_RATE",
+   "jammsen": "BUILD_OBJECT_DETERIORATION_DAMAGE_RATE"
+  },
+  "BuildObjectHpRate": {
+   "thijsvanloef": "BUILD_OBJECT_HP_RATE",
+   "jammsen": "BUILD_OBJECT_HP_RATE"
+  },
+  "BuildingNameDisplayCacheTTLSeconds": {
+   "thijsvanloef": "BUILDING_NAME_DISPLAY_CACHE_TTL_SECONDS",
+   "jammsen": "BUILDING_NAME_DISPLAY_CACHE_TTL_SECONDS"
+  },
+  "ChatPostLimitPerMinute": {
+   "thijsvanloef": "CHAT_POST_LIMIT_PER_MINUTE",
+   "jammsen": "CHAT_POST_LIMIT_PER_MINUTE"
+  },
+  "CollectionDropRate": {
+   "thijsvanloef": "COLLECTION_DROP_RATE",
+   "jammsen": "COLLECTION_DROP_RATE"
+  },
+  "CollectionObjectHpRate": {
+   "thijsvanloef": "COLLECTION_OBJECT_HP_RATE",
+   "jammsen": "COLLECTION_OBJECT_HP_RATE"
+  },
+  "CollectionObjectRespawnSpeedRate": {
+   "thijsvanloef": "COLLECTION_OBJECT_RESPAWN_SPEED_RATE",
+   "jammsen": "COLLECTION_OBJECT_RESPAWN_SPEED_RATE"
+  },
+  "CoopPlayerMaxNum": {
+   "thijsvanloef": "COOP_PLAYER_MAX_NUM",
+   "jammsen": "COOP_PLAYER_MAX_NUM"
+  },
+  "CrossplayPlatforms": {
+   "thijsvanloef": "CROSSPLAY_PLATFORMS",
+   "jammsen": "CROSSPLAY_PLATFORMS"
+  },
+  "DayTimeSpeedRate": {
+   "thijsvanloef": "DAYTIME_SPEEDRATE",
+   "jammsen": "DAYTIME_SPEEDRATE"
+  },
+  "DeathPenalty": {
+   "thijsvanloef": "DEATH_PENALTY",
+   "jammsen": "DEATH_PENALTY"
+  },
+  "DenyTechnologyList": {
+   "thijsvanloef": "DENY_TECHNOLOGY_LIST",
+   "jammsen": "DENY_TECHNOLOGY_LIST"
+  },
+  "Difficulty": {
+   "thijsvanloef": "DIFFICULTY",
+   "jammsen": "DIFFICULTY"
+  },
+  "DropItemAliveMaxHours": {
+   "thijsvanloef": "DROP_ITEM_ALIVE_MAX_HOURS",
+   "jammsen": "DROP_ITEM_ALIVE_MAX_HOURS"
+  },
+  "DropItemMaxNum": {
+   "thijsvanloef": "DROP_ITEM_MAX_NUM",
+   "jammsen": "DROP_ITEM_MAX_NUM"
+  },
+  "DropItemMaxNum_UNKO": {
+   "thijsvanloef": "DROP_ITEM_MAX_NUM_UNKO",
+   "jammsen": "DROP_ITEM_MAX_NUM_UNKO"
+  },
+  "EnablePredatorBossPal": {
+   "thijsvanloef": "ENABLE_PREDATOR_BOSS_PAL",
+   "jammsen": "ENABLE_PREDATOR_BOSS_PAL"
+  },
+  "EnemyDropItemRate": {
+   "thijsvanloef": "ENEMY_DROP_ITEM_RATE",
+   "jammsen": "ENEMY_DROP_ITEM_RATE"
+  },
+  "EquipmentDurabilityDamageRate": {
+   "thijsvanloef": "EQUIPMENT_DURABILITY_DAMAGE_RATE",
+   "jammsen": "EQUIPMENT_DURABILITY_DAMAGE_RATE"
+  },
+  "ExpRate": {
+   "thijsvanloef": "EXP_RATE",
+   "jammsen": "EXP_RATE"
+  },
+  "GuildPlayerMaxNum": {
+   "thijsvanloef": "GUILD_PLAYER_MAX_NUM",
+   "jammsen": "GUILD_PLAYER_MAX_NUM"
+  },
+  "GuildRejoinCooldownMinutes": {
+   "thijsvanloef": "GUILD_REJOIN_COOLDOWN_MINUTES",
+   "jammsen": "GUILD_REJOIN_COOLDOWN_MINUTES"
+  },
+  "ItemContainerForceMarkDirtyInterval": {
+   "thijsvanloef": "ITEM_CONTAINER_FORCE_MARK_DIRTY_INTERVAL",
+   "jammsen": "ITEM_CONTAINER_FORCE_MARK_DIRTY_INTERVAL"
+  },
+  "ItemCorruptionMultiplier": {
+   "thijsvanloef": "ITEM_CORRUPTION_MULTIPLIER",
+   "jammsen": "ITEM_CORRUPTION_MULTIPLIER"
+  },
+  "ItemWeightRate": {
+   "thijsvanloef": "ITEM_WEIGHT_RATE",
+   "jammsen": "ITEM_WEIGHT_RATE"
+  },
+  "LogFormatType": {
+   "thijsvanloef": "LOG_FORMAT_TYPE",
+   "jammsen": "LOG_FORMAT_TYPE"
+  },
+  "MaxBuildingLimitNum": {
+   "thijsvanloef": "MAX_BUILDING_LIMIT_NUM",
+   "jammsen": "MAX_BUILDING_LIMIT_NUM"
+  },
+  "MaxGuildsPerFrame": {
+   "thijsvanloef": "MAX_GUILDS_PER_FRAME",
+   "jammsen": "MAX_GUILDS_PER_FRAME"
+  },
+  "MonsterFarmActionSpeedRate": {
+   "thijsvanloef": "MONSTER_FARM_ACTION_SPEED_RATE",
+   "jammsen": "MONSTER_FARM_ACTION_SPEED_RATE"
+  },
+  "NightTimeSpeedRate": {
+   "thijsvanloef": "NIGHTTIME_SPEEDRATE",
+   "jammsen": "NIGHTTIME_SPEEDRATE"
+  },
+  "PalAutoHPRegeneRate": {
+   "thijsvanloef": "PAL_AUTO_HP_REGEN_RATE",
+   "jammsen": "PAL_AUTO_HP_REGENE_RATE"
+  },
+  "PalAutoHpRegeneRateInSleep": {
+   "thijsvanloef": "PAL_AUTO_HP_REGEN_RATE_IN_SLEEP",
+   "jammsen": "PAL_AUTO_HP_REGENE_RATE_IN_SLEEP"
+  },
+  "PalCaptureRate": {
+   "thijsvanloef": "PAL_CAPTURE_RATE",
+   "jammsen": "PAL_CAPTURE_RATE"
+  },
+  "PalDamageRateAttack": {
+   "thijsvanloef": "PAL_DAMAGE_RATE_ATTACK",
+   "jammsen": "PAL_DAMAGE_RATE_ATTACK"
+  },
+  "PalDamageRateDefense": {
+   "thijsvanloef": "PAL_DAMAGE_RATE_DEFENSE",
+   "jammsen": "PAL_DAMAGE_RATE_DEFENSE"
+  },
+  "PalEggDefaultHatchingTime": {
+   "thijsvanloef": "PAL_EGG_DEFAULT_HATCHING_TIME",
+   "jammsen": "PAL_EGG_DEFAULT_HATCHING_TIME"
+  },
+  "PalSpawnNumRate": {
+   "thijsvanloef": "PAL_SPAWN_NUM_RATE",
+   "jammsen": "PAL_SPAWN_NUM_RATE"
+  },
+  "PalStaminaDecreaceRate": {
+   "thijsvanloef": "PAL_STAMINA_DECREASE_RATE",
+   "jammsen": "PAL_STAMINA_DECREACE_RATE"
+  },
+  "PalStomachDecreaceRate": {
+   "thijsvanloef": "PAL_STOMACH_DECREASE_RATE",
+   "jammsen": "PAL_STOMACH_DECREACE_RATE"
+  },
+  "PhysicsActiveDropItemMaxNum": {
+   "thijsvanloef": "PHYSICS_ACTIVE_DROP_ITEM_MAX_NUM",
+   "jammsen": "PHYSICS_ACTIVE_DROP_ITEM_MAX_NUM"
+  },
+  "PlayerAutoHPRegeneRate": {
+   "thijsvanloef": "PLAYER_AUTO_HP_REGEN_RATE",
+   "jammsen": "PLAYER_AUTO_HP_REGENE_RATE"
+  },
+  "PlayerAutoHpRegeneRateInSleep": {
+   "thijsvanloef": "PLAYER_AUTO_HP_REGEN_RATE_IN_SLEEP",
+   "jammsen": "PLAYER_AUTO_HP_REGENE_RATE_IN_SLEEP"
+  },
+  "PlayerDamageRateAttack": {
+   "thijsvanloef": "PLAYER_DAMAGE_RATE_ATTACK",
+   "jammsen": "PLAYER_DAMAGE_RATE_ATTACK"
+  },
+  "PlayerDamageRateDefense": {
+   "thijsvanloef": "PLAYER_DAMAGE_RATE_DEFENSE",
+   "jammsen": "PLAYER_DAMAGE_RATE_DEFENSE"
+  },
+  "PlayerDataPalStorageUpdateCheckTickInterval": {
+   "thijsvanloef": "PLAYER_DATA_PAL_STORAGE_UPDATE_CHECK_TICK_INTERVAL",
+   "jammsen": "PLAYER_DATA_PAL_STORAGE_UPDATE_CHECK_TICK_INTERVAL"
+  },
+  "PlayerStaminaDecreaceRate": {
+   "thijsvanloef": "PLAYER_STAMINA_DECREASE_RATE",
+   "jammsen": "PLAYER_STAMINA_DECREACE_RATE"
+  },
+  "PlayerStomachDecreaceRate": {
+   "thijsvanloef": "PLAYER_STOMACH_DECREASE_RATE",
+   "jammsen": "PLAYER_STOMACH_DECREASE_RATE"
+  },
+  "PublicIP": {
+   "thijsvanloef": "PUBLIC_IP",
+   "jammsen": "PUBLIC_IP"
+  },
+  "PublicPort": {
+   "thijsvanloef": "PUBLIC_PORT",
+   "jammsen": "PUBLIC_PORT"
+  },
+  "RCONEnabled": {
+   "thijsvanloef": "RCON_ENABLED",
+   "jammsen": "RCON_ENABLED"
+  },
+  "RCONPort": {
+   "thijsvanloef": "RCON_PORT",
+   "jammsen": "RCON_PORT"
+  },
+  "RESTAPIEnabled": {
+   "thijsvanloef": "REST_API_ENABLED",
+   "jammsen": "RESTAPI_ENABLED"
+  },
+  "RESTAPIPort": {
+   "thijsvanloef": "REST_API_PORT",
+   "jammsen": "RESTAPI_PORT"
+  },
+  "RandomizerSeed": {
+   "thijsvanloef": "RANDOMIZER_SEED",
+   "jammsen": "RANDOMIZER_SEED"
+  },
+  "RandomizerType": {
+   "thijsvanloef": "RANDOMIZER_TYPE",
+   "jammsen": "RANDOMIZER_TYPE"
+  },
+  "Region": {
+   "thijsvanloef": "REGION",
+   "jammsen": "REGION"
+  },
+  "RespawnPenaltyDurationThreshold": {
+   "thijsvanloef": "RESPAWN_PENALTY_DURATION_THRESHOLD",
+   "jammsen": "RESPAWN_PENALTY_DURATION_THRESHOLD"
+  },
+  "RespawnPenaltyTimeScale": {
+   "thijsvanloef": "RESPAWN_PENALTY_TIME_SCALE",
+   "jammsen": "RESPAWN_PENALTY_TIME_SCALE"
+  },
+  "ServerDescription": {
+   "thijsvanloef": "SERVER_DESCRIPTION",
+   "jammsen": "SERVER_DESCRIPTION"
+  },
+  "ServerName": {
+   "thijsvanloef": "SERVER_NAME",
+   "jammsen": "SERVER_NAME"
+  },
+  "ServerPassword": {
+   "thijsvanloef": "SERVER_PASSWORD",
+   "jammsen": "SERVER_PASSWORD"
+  },
+  "ServerPlayerMaxNum": {
+   "thijsvanloef": "SERVER_PLAYER_MAX_NUM",
+   "jammsen": "MAX_PLAYERS"
+  },
+  "ServerReplicatePawnCullDistance": {
+   "thijsvanloef": "SERVER_REPLICATE_PAWN_CULL_DISTANCE",
+   "jammsen": "SERVER_REPLICATE_PAWN_CULL_DISTANCE"
+  },
+  "SupplyDropSpan": {
+   "thijsvanloef": "SUPPLY_DROP_SPAN",
+   "jammsen": "SUPPLY_DROP_SPAN"
+  },
+  "VoiceChatMaxVolumeDistance": {
+   "thijsvanloef": "VOICE_CHAT_MAX_VOLUME_DISTANCE",
+   "jammsen": "VOICE_CHAT_MAX_VOLUME_DISTANCE"
+  },
+  "VoiceChatZeroVolumeDistance": {
+   "thijsvanloef": "VOICE_CHAT_ZERO_VOLUME_DISTANCE",
+   "jammsen": "VOICE_CHAT_ZERO_VOLUME_DISTANCE"
+  },
+  "WorkSpeedRate": {
+   "thijsvanloef": "WORK_SPEED_RATE",
+   "jammsen": "WORK_SPEED_RATE"
+  },
+  "bActiveUNKO": {
+   "thijsvanloef": "ACTIVE_UNKO",
+   "jammsen": "ACTIVE_UNKO"
+  },
+  "bAdditionalDropItemWhenPlayerKillingInPvPMode": {
+   "thijsvanloef": "ADDITIONAL_DROP_ITEM_WHEN_PLAYER_KILLING_IN_PVP_MODE_ENABLED",
+   "jammsen": "ENABLE_ADDITIONAL_DROP_ITEM_WHEN_PLAYER_KILLING_IN_PVP_MODE"
+  },
+  "bAllowClientMod": {
+   "thijsvanloef": "ALLOW_CLIENT_MOD",
+   "jammsen": "ALLOW_CLIENT_MOD"
+  },
+  "bAllowEnhanceStat_Attack": {
+   "thijsvanloef": "ALLOW_ENHANCE_STAT_ATTACK",
+   "jammsen": "ALLOW_ENHANCE_STAT_ATTACK"
+  },
+  "bAllowEnhanceStat_Health": {
+   "thijsvanloef": "ALLOW_ENHANCE_STAT_HEALTH",
+   "jammsen": "ALLOW_ENHANCE_STAT_HEALTH"
+  },
+  "bAllowEnhanceStat_Stamina": {
+   "thijsvanloef": "ALLOW_ENHANCE_STAT_STAMINA",
+   "jammsen": "ALLOW_ENHANCE_STAT_STAMINA"
+  },
+  "bAllowEnhanceStat_Weight": {
+   "thijsvanloef": "ALLOW_ENHANCE_STAT_WEIGHT",
+   "jammsen": "ALLOW_ENHANCE_STAT_WEIGHT"
+  },
+  "bAllowEnhanceStat_WorkSpeed": {
+   "thijsvanloef": "ALLOW_ENHANCE_STAT_WORK_SPEED",
+   "jammsen": "ALLOW_ENHANCE_STAT_WORK_SPEED"
+  },
+  "bAllowGlobalPalboxExport": {
+   "thijsvanloef": "ALLOW_GLOBAL_PALBOX_EXPORT",
+   "jammsen": "ALLOW_GLOBAL_PALBOX_EXPORT"
+  },
+  "bAllowGlobalPalboxImport": {
+   "thijsvanloef": "ALLOW_GLOBAL_PALBOX_IMPORT",
+   "jammsen": "ALLOW_GLOBAL_PALBOX_IMPORT"
+  },
+  "bAutoResetGuildNoOnlinePlayers": {
+   "thijsvanloef": "AUTO_RESET_GUILD_NO_ONLINE_PLAYERS",
+   "jammsen": "AUTO_RESET_GUILD_NO_ONLINE_PLAYERS"
+  },
+  "bBuildAreaLimit": {
+   "thijsvanloef": "BUILD_AREA_LIMIT",
+   "jammsen": "BUILD_AREA_LIMIT"
+  },
+  "bCanPickupOtherGuildDeathPenaltyDrop": {
+   "thijsvanloef": "CAN_PICKUP_OTHER_GUILD_DEATH_PENALTY_DROP",
+   "jammsen": "CAN_PICKUP_OTHER_GUILD_DEATH_PENALTY_DROP"
+  },
+  "bCharacterRecreateInHardcore": {
+   "thijsvanloef": "CHARACTER_RECREATE_IN_HARDCORE",
+   "jammsen": "CHARACTER_RECREATE_IN_HARDCORE"
+  },
+  "bDisplayPvPItemNumOnWorldMap_BaseCamp": {
+   "thijsvanloef": "DISPLAY_PVP_ITEM_NUM_ON_WORLD_MAP_BASE_CAMP",
+   "jammsen": "DISPLAY_PVP_ITEM_NUM_ON_WORLD_MAP_BASE_CAMP"
+  },
+  "bDisplayPvPItemNumOnWorldMap_Player": {
+   "thijsvanloef": "DISPLAY_PVP_ITEM_NUM_ON_WORLD_MAP_PLAYER",
+   "jammsen": "DISPLAY_PVP_ITEM_NUM_ON_WORLD_MAP_PLAYER"
+  },
+  "bEnableAimAssistKeyboard": {
+   "thijsvanloef": "ENABLE_AIM_ASSIST_KEYBOARD",
+   "jammsen": "ENABLE_AIM_ASSIST_KEYBOARD"
+  },
+  "bEnableAimAssistPad": {
+   "thijsvanloef": "ENABLE_AIM_ASSIST_PAD",
+   "jammsen": "ENABLE_AIM_ASSIST_PAD"
+  },
+  "bEnableBuildingPlayerUIdDisplay": {
+   "thijsvanloef": "ENABLE_BUILDING_PLAYER_UID_DISPLAY",
+   "jammsen": "ENABLE_BUILDING_PLAYER_UID_DISPLAY"
+  },
+  "bEnableDefenseOtherGuildPlayer": {
+   "thijsvanloef": "ENABLE_DEFENSE_OTHER_GUILD_PLAYER",
+   "jammsen": "ENABLE_DEFENSE_OTHER_GUILD_PLAYER"
+  },
+  "bEnableFastTravel": {
+   "thijsvanloef": "ENABLE_FAST_TRAVEL",
+   "jammsen": "ENABLE_FAST_TRAVEL"
+  },
+  "bEnableFastTravelOnlyBaseCamp": {
+   "jammsen": "ENABLE_FAST_TRAVEL_ONLY_BASE_CAMP"
+  },
+  "bEnableFriendlyFire": {
+   "thijsvanloef": "ENABLE_FRIENDLY_FIRE",
+   "jammsen": "ENABLE_FRIENDLY_FIRE"
+  },
+  "bEnableInvaderEnemy": {
+   "thijsvanloef": "ENABLE_INVADER_ENEMY",
+   "jammsen": "ENABLE_INVADER_ENEMY"
+  },
+  "bEnableNonLoginPenalty": {
+   "thijsvanloef": "ENABLE_NON_LOGIN_PENALTY",
+   "jammsen": "ENABLE_NON_LOGIN_PENALTY"
+  },
+  "bEnablePlayerToPlayerDamage": {
+   "thijsvanloef": "ENABLE_PLAYER_TO_PLAYER_DAMAGE",
+   "jammsen": "ENABLE_PLAYER_TO_PLAYER_DAMAGE"
+  },
+  "bEnableVoiceChat": {
+   "thijsvanloef": "ENABLE_VOICE_CHAT",
+   "jammsen": "ENABLE_VOICE_CHAT"
+  },
+  "bExistPlayerAfterLogout": {
+   "thijsvanloef": "EXIST_PLAYER_AFTER_LOGOUT",
+   "jammsen": "EXIST_PLAYER_AFTER_LOGOUT"
+  },
+  "bHardcore": {
+   "thijsvanloef": "HARDCORE",
+   "jammsen": "HARDCORE"
+  },
+  "bInvisibleOtherGuildBaseCampAreaFX": {
+   "thijsvanloef": "INVISIBLE_OTHER_GUILD_BASE_CAMP_AREA_FX",
+   "jammsen": "INVISBIBLE_OTHER_GUILD_BASE_CAMP_AREA_FX"
+  },
+  "bIsMultiplay": {
+   "thijsvanloef": "IS_MULTIPLAY",
+   "jammsen": "IS_MULTIPLAY"
+  },
+  "bIsPvP": {
+   "thijsvanloef": "IS_PVP",
+   "jammsen": "IS_PVP"
+  },
+  "bIsRandomizerPalLevelRandom": {
+   "thijsvanloef": "IS_RANDOMIZER_PAL_LEVEL_RANDOM",
+   "jammsen": "IS_RANDOMIZER_PAL_LEVEL_RANDOM"
+  },
+  "bIsShowJoinLeftMessage": {
+   "thijsvanloef": "IS_SHOW_JOIN_LEFT_MESSAGE",
+   "jammsen": "IS_SHOW_JOIN_LEFT_MESSAGE"
+  },
+  "bIsStartLocationSelectByMap": {
+   "thijsvanloef": "IS_START_LOCATION_SELECT_BY_MAP",
+   "jammsen": "IS_START_LOCATION_SELECT_BY_MAP"
+  },
+  "bIsUseBackupSaveData": {
+   "thijsvanloef": "USE_BACKUP_SAVE_DATA",
+   "jammsen": "ENABLE_WORLD_BACKUP"
+  },
+  "bPalLost": {
+   "thijsvanloef": "PAL_LOST",
+   "jammsen": "PAL_LOST"
+  },
+  "bShowPlayerList": {
+   "thijsvanloef": "SHOW_PLAYER_LIST",
+   "jammsen": "SHOW_PLAYER_LIST"
+  },
+  "bUseAuth": {
+   "thijsvanloef": "USEAUTH",
+   "jammsen": "USEAUTH"
+  }
+ }
+}

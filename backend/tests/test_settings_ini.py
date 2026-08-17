@@ -409,5 +409,5 @@ def test_masking_does_not_drop_the_env_flag(real_ini):
 def test_every_env_managed_key_exists_in_a_real_server_config(real_ini):
     """A flag on a key that does not exist would never be shown to anyone."""
     options = settings_ini.read_ini(real_ini)["options"]
-    missing = [k for k in settings_ini.ENV_MANAGED if k not in options]
+    missing = [k for k in settings_ini.ENV_MANAGED_KEYS if k not in options]
     assert not missing, f"ENV_MANAGED names settings a 1.0 server does not have: {missing}"

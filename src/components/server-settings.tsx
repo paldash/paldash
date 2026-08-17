@@ -454,6 +454,7 @@ export default function ServerSettings() {
                   name={key}
                   option={settings.options[key]}
                   pending={pending[key]}
+                  regenerated={settings.iniWatch?.verdict === 'regenerated'}
                   onChange={(v) => stage(key, v)}
                 />
               ))}
@@ -519,6 +520,7 @@ export default function ServerSettings() {
                     name={key}
                     option={settings.options[key]}
                     pending={pending[key]}
+                    regenerated={settings.iniWatch?.verdict === 'regenerated'}
                     onChange={(v) => stage(key, v)}
                   />
                 ))}
@@ -616,11 +618,14 @@ export default function ServerSettings() {
 }
 
 function SettingRow({
-  name, option, pending, onChange,
+  name, option, pending, regenerated, onChange,
 }: {
   name: string;
   option: IniOption;
   pending: string | number | boolean | undefined;
+  /** iniwatch measured this deployment rewriting the INI on start — the
+   *  moment every key's env name stops being trivia and becomes the fix. */
+  regenerated?: boolean;
   onChange: (v: string | number | boolean) => void;
 }) {
   const current = pending ?? option.value;
@@ -643,14 +648,47 @@ function SettingRow({
         <div className="mono" style={{ fontSize: 12, color: changed ? 'var(--accent)' : 'var(--text-secondary)' }}>
           {name}
           {changed && <Check size={11} style={{ marginLeft: 6, verticalAlign: '-1px' }} />}
-          {option.envManaged && (
-            <span
-              style={{ marginLeft: 6, fontSize: 10, color: 'var(--accent-amber)' }}
-              title={`Commonly set by the server container from ${option.envManaged}. If yours does, a change here is reverted on the next restart — edit .env instead.`}
-            >
-              ${option.envManaged}
-            </span>
-          )}
+          {(() => {
+            /* Three states, quietest first:
+               - identity keys always badge (envManaged);
+               - once iniwatch has MEASURED this deployment regenerating, every
+                 key badges with its own env name — the badge stops being a
+                 caution and becomes the fix ("set EXP_RATE instead");
+               - a regenerating deployment with NO env var for the key is the
+                 worst case and says so: the value resets every start and
+                 nothing in compose can hold it. */
+            const equiv = option.envEquivalents;
+            const names = equiv
+              ? [...new Set(['thijsvanloef', 'jammsen']
+                  .map((img) => equiv[img]).filter(Boolean))].join(' / ')
+              : '';
+            const perImage = equiv
+              ? Object.entries(equiv).map(([img, v]) => `${img}: ${v}`).join(', ')
+              : '';
+            if (option.envManaged || (regenerated && names)) {
+              return (
+                <span
+                  style={{ marginLeft: 6, fontSize: 10, color: 'var(--accent-amber)' }}
+                  title={regenerated
+                    ? `This server rebuilds the INI from environment variables on start, so set the variable instead of editing here (${perImage}).`
+                    : `Commonly set by the server container from ${option.envManaged || names}. If yours does, a change here is reverted on the next restart — edit .env instead.`}
+                >
+                  ${option.envManaged || names}
+                </span>
+              );
+            }
+            if (regenerated && !equiv) {
+              return (
+                <span
+                  style={{ marginLeft: 6, fontSize: 10, color: 'var(--accent-red)' }}
+                  title="This server rebuilds the INI on start and neither common image has an environment variable for this key — it resets to the image default on every restart. DISABLE_GENERATE_SETTINGS=true (thijsvanloef) is the only way to hold it."
+                >
+                  no env var
+                </span>
+              );
+            }
+            return null;
+          })()}
         </div>
         {option.secret && (
           <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>
