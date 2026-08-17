@@ -63,6 +63,7 @@ container traps that only show up on a real build.
 | `docs/CONFIGURATION.md` | Every environment variable, every option, and what each means |
 | `docs/ROLES.md` | Who can do what: roles, capabilities, visibility settings, privacy |
 | `docs/ARCHITECTURE.md` | How the codebase is put together, and why |
+| `docs/TESTING.md` | How to run and write tests, and the traps that have fired |
 | `docs/FEATURES.md` | What exists today — read before concluding something is unbuilt |
 | `docs/STATUS.md` | Current state, measured numbers, open items |
 | `docs/AUDIT.md` | The gap analysis and phased roadmap |
