@@ -55,11 +55,18 @@ nothing, which is the "not all Pals" half of the observation. Which *figure*
 moves also varies — Azurobe's is `SwimSpeed`, Dazemu's the terrain-gated
 `MoveSpeed_Ground` — which is the other half.
 
-**Two questions, and only one is now answered.** Whether
-`GenkaiToppa_PerAdd` *also* multiplies the speed columns is untouched by this
-and still needs a timing run, so it keeps its own flag
-(`condenserOnSpeedColumns`) rather than being buried by the half that got
-resolved. Collapsing the two would be how a partial answer becomes a wrong one.
+**Two questions, and both are now answered — at different strengths.** Whether
+`GenkaiToppa_PerAdd` *also* multiplies the speed columns is **absent by
+enumeration** (2026-08-17): five file-side surfaces, each enumerable, each with
+zero movement members — `EPalCharacterStatusOperationName` is exactly
+{Attack, Defence, HP, WorkSpeed}, the condenser screen binds Atk/Def/HP text
+blocks only, the `*WithCharacterRank` function family has only the two
+work-suitability members, `StatusCalculate_*` has no movement member, and no
+condenser data asset exists to hide one in. It keeps its own flag
+(`condenserOnSpeedColumns`) rather than being folded into the partner-skill
+answer, and the flag says "absentByEnumeration", never False — names are not
+values, and one measured ratio of 1.0 on a rank-skill-free Pal is the remaining
+confirmation, not the deciding instrument it used to be.
 
 **Passives demonstrably do change movement.** `MoveSpeed`, `SwimSpeed` and
 friends are real effect types on real passives — Legend is +20% — so that route
@@ -657,11 +664,29 @@ def rank(metric: str, build: Optional[dict[str, Any]] = None,
         # `partnerBonus` on each row.
         "condenserOnMovement": "viaPartnerSkill",
         # Which is NOT the same question as whether `GenkaiToppa_PerAdd` also
-        # multiplies the speed columns the way it multiplies HP and Attack. That
-        # half is still unsettled and still needs a timing run, so it keeps its
-        # own flag rather than being buried by the half that got answered.
-        # Never "false" — see the module docstring.
-        "condenserOnSpeedColumns": "unverified",
+        # multiplies the speed columns the way it multiplies HP and Attack.
+        # **That half is now absent by ENUMERATION, not merely unverified**
+        # (2026-08-17). Five independent file-side surfaces, each enumerable
+        # and each with zero movement members:
+        #   1. `EPalCharacterStatusOperationName` — the game's own enum for
+        #      character-status operations — is exactly {Attack, Defence, HP,
+        #      WorkSpeed}: the four stats the rank bonus is validated to touch.
+        #      Movement is not in the vocabulary at all.
+        #   2. The condenser screen (`WBP_IngameMenu_PalCondense`, 893 names)
+        #      binds exactly six before/after text blocks: Atk, Def, HP.
+        #   3. The rank-scaling function family (`*WithCharacterRank`,
+        #      `GetRankBased*`) has only the two work-suitability members.
+        #   4. The `StatusCalculate_*` constant family has no movement member.
+        #   5. No condenser DataTable or DataAsset exists to carry a hidden
+        #      term (16 pak hits: the widget, sounds, textures).
+        # Still never "false": these are names, and native code could in
+        # principle ignore its own vocabulary — but that is the same strength
+        # of negative `elements.py` ships the chart on, and every observed
+        # condenser speedup (Direhowl and friends) is fully explained by the
+        # partner-skill mechanism above. A measured ratio of exactly 1.0 on a
+        # rank-skill-free Pal would close even that gap; it is a confirmation
+        # now, not the deciding instrument.
+        "condenserOnSpeedColumns": "absentByEnumeration",
         # **Both are answerable now.** This said "fastest flyer is not" and
         # shipped False, on the strength of a search for `BP_Pal_*` — the game
         # names its species blueprints `BP_<Species>` and puts them in the
@@ -775,7 +800,7 @@ def compare(species_ids: list, build: Optional[dict[str, Any]] = None
         # moves a speed would be the worse kind of wrong, since both are on
         # screen together.
         "condenserOnMovement": "viaPartnerSkill",
-        "condenserOnSpeedColumns": "unverified",
+        "condenserOnSpeedColumns": "absentByEnumeration",
         "partnerSkillMovementApplied": True,
         # See `rank`: the mode is read from the species blueprints now.
         "mountModeKnown": True,

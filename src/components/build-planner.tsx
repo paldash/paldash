@@ -15,17 +15,17 @@ import type { BuildRanking } from '@/lib/types';
  * the work and combat rankings under Bases rank the Pals somebody owns.
  *
  * **The build form deliberately greys out for a movement metric**, because
- * level, IVs, condenser stars and soul ranks do not change a speed. That is
- * measured rather than assumed (`buildAffectsMetric` comes off the payload),
- * and it is the single most surprising thing here: a four-star Jetragon is not
- * faster than a one-star one. Passives are the only thing that move it.
+ * level, IVs and soul ranks do not enter a speed (`buildAffectsMetric` comes
+ * off the payload, never re-derived here). Condenser stars DO move some
+ * speeds — through rank-indexed partner skills, applied per row as
+ * `partnerBonus` — and the files say that is the only condenser speed term
+ * (`condenserOnSpeedColumns: "absentByEnumeration"`). This paragraph has been
+ * corrected twice; the history lives in the notice below and in AGENTS.md.
  *
- * Two refusals carried straight through from the backend rather than decided
- * here:
- *
- * - **Mode is not known.** Whether a mount flies, swims or walks is in no game
- *   file, so this ranks *rides* and never claims a flyer leaderboard.
- * - **A speed has no unit.** The column is the game's own number.
+ * One refusal carried straight through from the backend rather than decided
+ * here: **a speed has no unit.** The column is the game's own number. (Mount
+ * mode, once refused here too, is now read from the species blueprints —
+ * `EPalMonsterMovementType` — so the flyer leaderboard is real.)
  */
 
 const METRICS: { id: string; label: string; group: string }[] = [
@@ -146,10 +146,11 @@ export default function BuildPlanner() {
             have a partner skill that scales with condenser rank, so a 4-star
             Direhowl rides 20% faster while most Pals gain nothing. That term is
             applied here and shown per row.{' '}
-            Whether the condenser <em>also</em> multiplies the underlying species
-            figure the way it multiplies HP and Attack is still unverified — it
-            would be applied at load and invisible in every file, so only a
-            timed run on a 0-star and a 4-star settles it.
+            The game&apos;s own files say that is the <em>only</em> condenser
+            speed term: its status-operation vocabulary is exactly Attack,
+            Defence, HP and Work Speed, and the condenser screen previews no
+            speed — so no hidden flat bonus is applied here, and none is
+            claimed to exist.
           </span>
         </div>
       )}
