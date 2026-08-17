@@ -192,6 +192,8 @@
   "Storage used",
   "Structured JSON export with a checksum, for archiving or transfer",
   "Succeeded",
+  "Switch to the dark theme",
+  "Switch to the light theme",
   "Take a backup",
   "The save has this slot assigned to a Pal that no longer exists. The game will not fill it until something clears it.",
   "The server has not come back.",

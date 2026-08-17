@@ -188,6 +188,8 @@
   "Storage used": "Dung lượng đã dùng",
   "Structured JSON export with a checksum, for archiving or transfer": "Xuất JSON có cấu trúc kèm checksum, để lưu trữ hoặc chuyển",
   "Succeeded": "Thành công",
+  "Switch to the dark theme": "Chuyển sang giao diện tối",
+  "Switch to the light theme": "Chuyển sang giao diện sáng",
   "The save has this slot assigned to a Pal that no longer exists. The game will not fill it until something clears it.": "Tệp lưu gán ô này cho một Pal không còn tồn tại. Trò chơi sẽ không lấp nó cho đến khi có gì đó dọn trống.",
   "The server has not come back.": "Máy chủ chưa trở lại.",
   "The tree (no guild)": "Cây (không guild)",

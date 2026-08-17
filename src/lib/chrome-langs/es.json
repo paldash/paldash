@@ -187,6 +187,8 @@
   "Storage used": "Almacenamiento usado",
   "Structured JSON export with a checksum, for archiving or transfer": "Exportación JSON estructurada con suma de verificación, para archivar o transferir",
   "Succeeded": "Correcto",
+  "Switch to the dark theme": "Cambiar al tema oscuro",
+  "Switch to the light theme": "Cambiar al tema claro",
   "The save has this slot assigned to a Pal that no longer exists. The game will not fill it until something clears it.": "La partida tiene esta ranura asignada a un Pal que ya no existe. El juego no la rellenará hasta que algo la vacíe.",
   "The server has not come back.": "El servidor no ha vuelto.",
   "The tree (no guild)": "El árbol (sin gremio)",

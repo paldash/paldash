@@ -207,5 +207,7 @@
  "World size & Pals": "Tamaño del mundo y Pals",
  "You already own this Pal.": "Ya posees este Pal.",
  "Your live world is never modified": "Tu mundo en vivo nunca se modifica",
- "Your settings persist across restarts.": "Tu configuración persiste entre reinicios."
+ "Your settings persist across restarts.": "Tu configuración persiste entre reinicios.",
+ "Switch to the light theme": "Cambiar al tema claro",
+ "Switch to the dark theme": "Cambiar al tema oscuro"
 }

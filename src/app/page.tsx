@@ -10,6 +10,7 @@ import {
 import { getBackendHealth, getBases, getGuilds, requestRefresh } from '@/lib/save-api';
 import { t, useChromePack } from '@/lib/chrome';
 import { LanguagePicker } from '@/components/language-picker';
+import { ThemeToggle } from '@/components/theme-toggle';
 import ItemsView from '@/components/items-view';
 import AccessSettings from '@/components/access-settings';
 import UserManager from '@/components/user-manager';
@@ -478,6 +479,7 @@ export default function Home() {
             {/* Renders nothing when the server has no language bundles, so an
                 install without them shows no dead control. */}
             <LanguagePicker />
+            <ThemeToggle />
             {!store.backendOnline && (
               <span className="badge badge-warning">{t('Save backend offline')}</span>
             )}

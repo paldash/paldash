@@ -187,6 +187,8 @@
   "Storage used": "Kullanılan depolama",
   "Structured JSON export with a checksum, for archiving or transfer": "Arşivleme veya aktarma için sağlama toplamlı yapılandırılmış JSON dışa aktarımı",
   "Succeeded": "Başarılı",
+  "Switch to the dark theme": "Koyu temaya geç",
+  "Switch to the light theme": "Açık temaya geç",
   "The save has this slot assigned to a Pal that no longer exists. The game will not fill it until something clears it.": "Kayıt bu yuvayı artık var olmayan bir Pal'a atamış. Bir şey onu boşaltana dek oyun doldurmayacak.",
   "The server has not come back.": "Sunucu geri gelmedi.",
   "The tree (no guild)": "Ağaç (lonca yok)",
