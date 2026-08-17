@@ -99,9 +99,21 @@ def derived(key: str, build: Callable[[], Any]) -> Any:
     return value
 
 
-def per_file(path: str, build: Callable[[], Any]) -> Any:
+def per_file(key: str, path: str, build: Callable[[], Any]) -> Any:
     """
     A value computed from one file, rebuilt when the file changes.
+
+    **`key` names the value, and it is not optional** — the same rule
+    `per_files` already states, learned here the harder way. This function used
+    to key on the path alone, and two pairs of callers were sharing an entry
+    without knowing it: `crafting` and `itemsource` both cache an index built
+    from `economy.json.gz`, and `buildplanner`'s species table shared
+    `gamedata.json.gz` with the item catalogue. Whichever ran first seeded the
+    entry and the other was handed a dict of the wrong shape — which surfaced
+    as a 500 on every crafting tree once the Items panel had loaded, and as a
+    *silently corrupt* item catalogue in the opposite order. A collision keyed
+    on the file is invisible in isolation and certain in production, because
+    real pages call both.
 
     An unstattable path is built and *not* cached: without a stamp there is no
     way to notice the file changing, and serving a value that can never go stale
@@ -111,10 +123,11 @@ def per_file(path: str, build: Callable[[], Any]) -> Any:
     if stamp is None:
         return build()
 
+    entry_key = f"{key}\0{path}"
     with _lock:
-        hit = _files.get(path)
+        hit = _files.get(entry_key)
         if hit is not None and hit[0] == stamp:
-            _files.move_to_end(path)
+            _files.move_to_end(entry_key)
             return hit[1]
 
     value = build()
@@ -124,8 +137,8 @@ def per_file(path: str, build: Callable[[], Any]) -> Any:
         # while we were parsing it, the value describes neither version reliably,
         # so cache nothing and let the next request try again.
         if _stamp(path) == stamp:
-            _files[path] = (stamp, value)
-            _files.move_to_end(path)
+            _files[entry_key] = (stamp, value)
+            _files.move_to_end(entry_key)
             while len(_files) > MAX_FILES:
                 _files.popitem(last=False)
     return value

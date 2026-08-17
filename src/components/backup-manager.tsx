@@ -134,6 +134,16 @@ export default function BackupManager() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       {error && <div className="notice notice-warn">{error}</div>}
       {status && <div className="notice">{status}</div>}
+      {data?.available === false && (
+        /* An unmounted or read-only backup volume — "we could not look" is a
+           different answer from "no backups yet", and taking one would fail
+           too, so say so before the button teaches that lesson. */
+        <div className="notice notice-warn">
+          {data.reason || 'The backup directory is not usable.'}
+          {data.directory ? ` (${data.directory})` : ''}{' '}
+          Check that the backup volume is mounted and writable by the dashboard.
+        </div>
+      )}
 
       {/* ─── Create ─── */}
       <div className="glass-card" style={{ padding: 16 }}>
@@ -302,7 +312,7 @@ export default function BackupManager() {
       {/* ─── Browser ─── */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
         <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-          {data?.usage.count ?? 0} backups · {bytes(data?.usage.totalBytes ?? 0)}
+          {data?.usage?.count ?? 0} backups · {bytes(data?.usage?.totalBytes ?? 0)}
         </span>
         <label style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
           Restore scope

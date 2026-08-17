@@ -139,7 +139,9 @@ def _build_index() -> dict[str, dict[str, list]]:
 
 def _index() -> dict[str, dict[str, list]]:
     """The reverse index, rebuilt when the economy bundle on disk changes."""
-    return viewcache.per_file(gamedata.ECONOMY_PATH, _build_index)
+    # `crafting` builds a *different* index from this same file — the key is
+    # what keeps the two from trading shapes. See `viewcache.per_file`.
+    return viewcache.per_file("itemsource:index", gamedata.ECONOMY_PATH, _build_index)
 
 
 _EMPTY: dict[str, list] = {

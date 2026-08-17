@@ -106,16 +106,16 @@ def test_nested_per_file_would_miss_the_inner_change(files):
     calls = []
 
     def nested():
-        return viewcache.per_file(inner, lambda: (calls.append(1), "v")[1])
+        return viewcache.per_file("in", inner, lambda: (calls.append(1), "v")[1])
 
-    viewcache.per_file(outer, nested)
+    viewcache.per_file("out", outer, nested)
 
     with open(inner, "w") as f:
         f.write("inner changed substantially")
     stat = os.stat(inner)
     os.utime(inner, (stat.st_atime + 10, stat.st_mtime + 10))
 
-    viewcache.per_file(outer, nested)
+    viewcache.per_file("out", outer, nested)
     assert len(calls) == 1, "nesting noticed the inner change; the docstring is now wrong"
 
     # per_files, given the same two inputs, does notice.

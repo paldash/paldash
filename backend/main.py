@@ -2519,6 +2519,7 @@ def get_language(code: str, request: Request) -> dict[str, Any]:
     """
     authz.require(request, roles_module.VIEW_BASIC)
     names = viewcache.per_file(
+        "language:names",
         os.path.join(gamedata.LANG_DIR, f"{code}.json.gz"),
         lambda: gamedata.language_names(code),
     ) if code != "en" else {}
@@ -2545,7 +2546,10 @@ def get_item_catalogue(request: Request) -> dict[str, Any]:
     """
     authz.require(request, roles_module.VIEW_BASIC)
     try:
-        items = viewcache.per_file(gamedata.DATA_PATH, gamedata.all_items)
+        # `buildplanner` caches its species table from this same file — the key
+        # is what keeps the two from trading shapes. See `viewcache.per_file`.
+        items = viewcache.per_file("catalogue:items", gamedata.DATA_PATH,
+                                   gamedata.all_items)
     except gamedata.GameDataUnavailable as e:
         raise HTTPException(503, str(e))
     return {"items": items, "total": len(items)}
@@ -3259,7 +3263,8 @@ def get_players() -> list[dict]:
         uid = (player.get("uid") or "").replace("-", "")
         path = get_player_sav_path(uid) if uid else None
         if path:
-            entry.update(viewcache.per_file(path, lambda p=path, u=uid: _read_player_sav(p, u)))
+            entry.update(viewcache.per_file(
+                "player:sav", path, lambda p=path, u=uid: _read_player_sav(p, u)))
         enriched.append(entry)
 
     return enriched
@@ -4153,11 +4158,27 @@ def apply_settings_preset(preset_id: str, request: Request) -> dict:
 @app.get("/api/backups")
 def get_backups(request: Request) -> dict[str, Any]:
     authz.require(request, roles_module.BACKUP_MANAGE)
+    try:
+        backups = backup_module.list_backups()
+        usage = backup_module.storage_usage()
+    except OSError as e:
+        # An unmounted, read-only or mispermissioned backup volume must read as
+        # what it is, not as a 500 — the ban-list rule: "we could not look" and
+        # "there are none" are different answers. The tab renders the reason.
+        return {
+            "backups": [], "usage": None,
+            "scopes": backup_module.RESTORE_SCOPES,
+            "retention": backup_module.DEFAULT_RETENTION,
+            "available": False,
+            "reason": f"Backup directory is not usable: {e}",
+            "directory": backup_module.BACKUP_DIR,
+        }
     return {
-        "backups": backup_module.list_backups(),
-        "usage": backup_module.storage_usage(),
+        "backups": backups,
+        "usage": usage,
         "scopes": backup_module.RESTORE_SCOPES,
         "retention": backup_module.DEFAULT_RETENTION,
+        "available": True,
     }
 
 

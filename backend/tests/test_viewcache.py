@@ -97,7 +97,7 @@ def test_a_parse_finishing_mid_build_is_not_cached(monkeypatch):
     assert viewcache.derived("k", lambda: "fresh") == "fresh"   # but it was not kept
 
 
-# ─── per_file(): keyed on the file ───────────────────────────────
+# ─── per_file(): keyed on the value AND the file ─────────────────
 
 
 def test_a_file_view_is_built_once(tmp_path):
@@ -109,9 +109,29 @@ def test_a_file_view_is_built_once(tmp_path):
         calls.append(1)
         return path.read_bytes()
 
-    assert viewcache.per_file(str(path), build) == b"one"
-    assert viewcache.per_file(str(path), build) == b"one"
+    assert viewcache.per_file("k", str(path), build) == b"one"
+    assert viewcache.per_file("k", str(path), build) == b"one"
     assert len(calls) == 1
+
+
+def test_two_views_of_one_file_do_not_collide(tmp_path):
+    """
+    THE REGRESSION THAT MADE `key` REQUIRED. `crafting` and `itemsource` both
+    cached an index built from `economy.json.gz`, keyed on the path alone —
+    whichever endpoint ran first seeded the entry and the other was handed a
+    dict of the wrong shape. In production that was a 500 on every crafting
+    tree once the Items panel had loaded; in isolation both passed.
+    """
+    path = tmp_path / "economy.json.gz"
+    path.write_bytes(b"shared source")
+
+    assert viewcache.per_file("crafting", str(path), lambda: {"byProduct": 1}) \
+        == {"byProduct": 1}
+    assert viewcache.per_file("itemsource", str(path), lambda: {"recipes": 2}) \
+        == {"recipes": 2}
+    # And each key keeps its own value on the second read.
+    assert viewcache.per_file("crafting", str(path), lambda: "REBUILT") \
+        == {"byProduct": 1}
 
 
 def test_rewriting_the_file_invalidates_it(tmp_path):
@@ -124,13 +144,13 @@ def test_rewriting_the_file_invalidates_it(tmp_path):
     path.write_bytes(b"one")
     build = lambda: path.read_bytes()  # noqa: E731
 
-    assert viewcache.per_file(str(path), build) == b"one"
+    assert viewcache.per_file("k", str(path), build) == b"one"
 
     time.sleep(0.01)
     path.write_bytes(b"two!")          # different size as well as mtime
     os.utime(path, (time.time() + 1, time.time() + 1))
 
-    assert viewcache.per_file(str(path), build) == b"two!"
+    assert viewcache.per_file("k", str(path), build) == b"two!"
 
 
 def test_a_missing_file_is_built_but_never_cached(tmp_path):
@@ -139,8 +159,8 @@ def test_a_missing_file_is_built_but_never_cached(tmp_path):
     calls = []
     build = lambda: (calls.append(1), None)[1]  # noqa: E731
 
-    viewcache.per_file(missing, build)
-    viewcache.per_file(missing, build)
+    viewcache.per_file("k", missing, build)
+    viewcache.per_file("k", missing, build)
     assert len(calls) == 2
     assert viewcache.stats()["cachedFiles"] == 0
 
@@ -151,7 +171,7 @@ def test_the_file_cache_is_bounded(tmp_path, monkeypatch):
     for i in range(10):
         p = tmp_path / f"{i}.sav"
         p.write_bytes(b"x")
-        viewcache.per_file(str(p), lambda: i)
+        viewcache.per_file("k", str(p), lambda: i)
     assert viewcache.stats()["cachedFiles"] == 4
 
 

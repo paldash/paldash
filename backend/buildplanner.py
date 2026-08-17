@@ -169,7 +169,9 @@ def _species() -> list[dict[str, Any]]:
     """
     # Keyed on the bundle rather than on the parse generation: this describes
     # the game, so it changes when `gamedata.json.gz` does and at no other time.
-    return viewcache.per_file(gamedata.DATA_PATH, _build_species)
+    # `/api/world/items` caches the item catalogue from this same file — the
+    # key is what keeps this species table from being replaced by it.
+    return viewcache.per_file("buildplanner:species", gamedata.DATA_PATH, _build_species)
 
 
 def _build_species() -> list[dict[str, Any]]:
