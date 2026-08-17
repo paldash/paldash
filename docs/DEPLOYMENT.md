@@ -263,6 +263,8 @@ that auto-updated the game and restarted. If the install directory is not visibl
 rather than a reassuring "current".
 
 `scripts/check-game-build.py` runs the same check from a shell.
+`docs/UPGRADING.md` is the full runbook — the order matters, and step 0 is
+updating the reference install *before* diffing anything against it.
 
 **Never commit anything from `refs/palworld/`.** Besides the size, its
 `PalWorldSettings.ini` holds live server passwords.

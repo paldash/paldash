@@ -2,6 +2,15 @@
 
 **Date:** 2026-07-28 · **Auditor:** Claude (Opus 5) · **Status:** for approval, no code changed
 
+> **2026-08-17 — this audit is now a historical document.** The roadmap in §6/§6b
+> is essentially complete (tasks #34–#123), and the *current* state, measured
+> numbers and open items live in `docs/STATUS.md` (snapshot 2026-08-16), with the
+> feature inventory in `docs/FEATURES.md`. What remains open from this file:
+> **S7** (CSRF tokens, mitigated), **S11** (dependency scanning), task **#33**
+> (non-Steam players — `docs/CROSSPLAY.md`), task **#106** (condenser vs
+> movement ratio) and task **#109** (chrome translations — `docs/TRANSLATING.md`).
+> Read the rest as the record of how the plan was made, not as a list of gaps.
+
 Every number below was measured against the real save in `refworld/` (2.0 MB compressed,
 55.6 MB decompressed, 1,910 characters, 11,639 containers, 5 players) or read out of the
 actual source. Where something is an estimate or an assumption, it says so.
