@@ -6,6 +6,7 @@ import { getGameBuildStatus, acknowledgeGameBuild, reloadWorldPacks } from '@/li
 import { useDashboardStore } from '@/lib/store';
 import { CAPABILITIES } from '@/lib/permissions';
 import type { GameBuildStatus } from '@/lib/types';
+import { t } from '@/lib/chrome';
 
 /**
  * "The game updated; the bundled positions may be wrong."
@@ -218,7 +219,7 @@ export default function BuildBanner() {
                     setBusy(false);
                   }
                 }}
-                title="Re-reads the bundled data files from disk. Use after replacing them; no restart needed."
+                title={t('Re-reads the bundled data files from disk. Use after replacing them; no restart needed.')}
               >
                 <RefreshCw size={11} /> Reload data packs
               </button>

@@ -7,6 +7,7 @@ import { kickPlayer, banPlayer, unbanPlayer } from '@/lib/api';
 import { getPlayerRoster, createUser } from '@/lib/save-api';
 import { CAPABILITIES } from '@/lib/permissions';
 import type { PlayerRoster as Roster, RosterPlayer } from '@/lib/types';
+import { t } from '@/lib/chrome';
 
 /**
  * Everyone who has played here, online or not.
@@ -89,7 +90,7 @@ export default function PlayerRoster() {
   if (error) {
     return (
       <div className="notice notice-warn">
-        <strong>Roster unavailable</strong>
+        <strong>{t('Roster unavailable')}</strong>
         <div style={{ marginTop: 6 }}>{error}</div>
         <button className="btn btn-ghost" style={{ marginTop: 12 }} onClick={load}>
           <RefreshCw size={13} /> Retry
@@ -106,7 +107,7 @@ export default function PlayerRoster() {
           <input
             className="input"
             style={{ paddingLeft: 30 }}
-            placeholder="Search by name or Steam ID…"
+            placeholder={t('Search by name or Steam ID…')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -114,7 +115,7 @@ export default function PlayerRoster() {
         <span className="badge badge-online">{roster?.onlineCount ?? 0} online</span>
         <span className="badge">{roster?.players.length ?? 0} known</span>
         <button className="btn btn-ghost" onClick={load} disabled={loading}>
-          <RefreshCw size={13} /> Refresh
+          <RefreshCw size={13} /> {t('Refresh')}
         </button>
       </div>
 
@@ -131,10 +132,10 @@ export default function PlayerRoster() {
         <table className="table">
           <thead>
             <tr>
-              <th>Player</th>
-              <th>Steam ID</th>
+              <th>{t('Player')}</th>
+              <th>{t('Steam ID')}</th>
               <th>Level</th>
-              <th style={{ textAlign: 'right' }}>Actions</th>
+              <th style={{ textAlign: 'right' }}>{t('Actions')}</th>
             </tr>
           </thead>
           <tbody>
@@ -179,7 +180,7 @@ export default function PlayerRoster() {
                       style={{ padding: '3px 8px', fontSize: 11, marginLeft: 6 }}
                       onClick={() => setCreatingFor(p)}
                     >
-                      <UserPlus size={11} /> Account
+                      <UserPlus size={11} /> {t('Account')}
                     </button>
                   )}
                   {mayModerate && p.online && (
@@ -241,7 +242,7 @@ export default function PlayerRoster() {
           <input
             className="input"
             style={{ flex: 1 }}
-            placeholder="Steam ID to unban"
+            placeholder={t('Steam ID to unban')}
             value={unbanId}
             onChange={(e) => setUnbanId(e.target.value)}
           />
@@ -325,7 +326,7 @@ function CreateAccountForm({
         <input
           className="input"
           style={{ flex: '1 1 160px' }}
-          placeholder="Username"
+          placeholder={t('Username')}
           value={username}
           onChange={(e) => setUsername(e.target.value)}
         />
@@ -343,10 +344,10 @@ function CreateAccountForm({
           value={role}
           onChange={(e) => setRole(e.target.value)}
         >
-          <option value="player">Player</option>
-          <option value="trusted">Trusted player</option>
-          <option value="readonly">Read only</option>
-          <option value="moderator">Moderator</option>
+          <option value="player">{t('Player')}</option>
+          <option value="trusted">{t('Trusted player')}</option>
+          <option value="readonly">{t('Read only')}</option>
+          <option value="moderator">{t('Moderator')}</option>
         </select>
       </div>
 
@@ -354,7 +355,7 @@ function CreateAccountForm({
 
       <div style={{ display: 'flex', gap: 8 }}>
         <button className="btn" onClick={submit} disabled={busy || !username || !password}>
-          <UserPlus size={13} /> Create
+          <UserPlus size={13} /> {t('Create')}
         </button>
         <button className="btn btn-ghost" onClick={onClose} disabled={busy}>
           Cancel

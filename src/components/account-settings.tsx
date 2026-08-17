@@ -9,6 +9,7 @@ import {
 import { useDashboardStore } from '@/lib/store';
 import { ROLE_LABEL, type Role } from '@/lib/auth-types';
 import type { MyPrivacy, ManageableBase, ManageableBases } from '@/lib/types';
+import { t } from '@/lib/chrome';
 
 /**
  * Your own account: who you are here, who can see you on the map, and your
@@ -56,13 +57,13 @@ export default function AccountSettings() {
       <div className="glass-card" style={{ padding: 16 }}>
         <SectionTitle icon={<UserCircle size={15} />} text="Signed in as" />
         <dl style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '7px 16px', fontSize: 12 }}>
-          <dt style={{ color: 'var(--text-muted)' }}>Display name</dt>
+          <dt style={{ color: 'var(--text-muted)' }}>{t('Display name')}</dt>
           <dd>{store.user?.displayName || '—'}</dd>
-          <dt style={{ color: 'var(--text-muted)' }}>Username</dt>
+          <dt style={{ color: 'var(--text-muted)' }}>{t('Username')}</dt>
           <dd className="mono">{store.user?.username || '—'}</dd>
-          <dt style={{ color: 'var(--text-muted)' }}>Role</dt>
+          <dt style={{ color: 'var(--text-muted)' }}>{t('Role')}</dt>
           <dd>{ROLE_LABEL[store.userRole as Role] ?? store.userRole}</dd>
-          <dt style={{ color: 'var(--text-muted)' }}>Linked character</dt>
+          <dt style={{ color: 'var(--text-muted)' }}>{t('Linked character')}</dt>
           <dd className="mono">
             {store.user?.steamUid
               ? store.user.steamUid
@@ -93,7 +94,7 @@ export default function AccountSettings() {
         )}
 
         {!privacy && !privacyError && (
-          <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>Loading…</p>
+          <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>{t('Loading…')}</p>
         )}
 
         {privacy && (
@@ -296,17 +297,17 @@ function PasswordCard() {
       <SectionTitle icon={<KeyRound size={15} />} text="Password" />
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxWidth: 320 }}>
         <input
-          className="input" type="password" placeholder="Current password"
+          className="input" type="password" placeholder={t('Current password')}
           value={current} onChange={(e) => setCurrent(e.target.value)}
           autoComplete="current-password" required
         />
         <input
-          className="input" type="password" placeholder="New password"
+          className="input" type="password" placeholder={t('New password')}
           value={next} onChange={(e) => setNext(e.target.value)}
           autoComplete="new-password" required
         />
         <input
-          className="input" type="password" placeholder="New password again"
+          className="input" type="password" placeholder={t('New password again')}
           value={confirm} onChange={(e) => setConfirm(e.target.value)}
           autoComplete="new-password" required
         />

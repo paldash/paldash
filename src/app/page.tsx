@@ -8,6 +8,7 @@ import {
   login, loginAsGuest, logout, getSession,
 } from '@/lib/api';
 import { getBackendHealth, getBases, getGuilds, requestRefresh } from '@/lib/save-api';
+import { t, useChromePack } from '@/lib/chrome';
 import { LanguagePicker } from '@/components/language-picker';
 import ItemsView from '@/components/items-view';
 import AccessSettings from '@/components/access-settings';
@@ -81,6 +82,11 @@ const TABS: {
 
 export default function Home() {
   const store = useDashboardStore();
+  // Chrome-translation subscription — one call, at the root on purpose:
+  // `t()` is a plain function, and nothing between here and the leaves is
+  // memoized, so this re-render is what re-runs every `t()` in the tree when
+  // the pack changes. See src/lib/chrome.ts.
+  useChromePack();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState('');
@@ -357,14 +363,14 @@ export default function Home() {
       <button
         type="button"
         className={`app-scrim ${navOpen ? 'open' : ''}`}
-        aria-label="Close navigation"
+        aria-label={t('Close navigation')}
         tabIndex={navOpen ? 0 : -1}
         onClick={() => setNavOpen(false)}
       />
       <aside className={`app-sidebar ${navOpen ? 'open' : ''}`}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '4px 8px 16px' }}>
           <Server size={17} style={{ color: 'var(--accent)' }} />
-          <div style={{ fontSize: 14, fontWeight: 600 }}>Palworld</div>
+          <div style={{ fontSize: 14, fontWeight: 600 }}>{t('Palworld')}</div>
         </div>
 
         <div
@@ -404,7 +410,7 @@ export default function Home() {
               }}
             >
               {tab.icon}
-              <span>{tab.label}</span>
+              <span>{t(tab.label)}</span>
             </button>
           ))}
         </nav>
@@ -448,7 +454,7 @@ export default function Home() {
             <button
               type="button"
               className="btn btn-ghost nav-toggle"
-              aria-label="Open navigation"
+              aria-label={t('Open navigation')}
               aria-expanded={navOpen}
               onClick={() => setNavOpen(true)}
             >
@@ -456,7 +462,7 @@ export default function Home() {
             </button>
             <div style={{ minWidth: 0 }}>
             <h1 style={{ fontSize: 18, fontWeight: 600 }}>
-              {visibleTabs.find((t) => t.id === activeTab)?.label}
+              {t(visibleTabs.find((v) => v.id === activeTab)?.label ?? '')}
             </h1>
             {store.serverInfo && (
               <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
@@ -473,7 +479,7 @@ export default function Home() {
                 install without them shows no dead control. */}
             <LanguagePicker />
             {!store.backendOnline && (
-              <span className="badge badge-warning">Save backend offline</span>
+              <span className="badge badge-warning">{t('Save backend offline')}</span>
             )}
             {store.backendOnline && store.cacheStatus?.worldClock && (
               /* "Day 481 · 12:20" — the most human number here, and it comes
@@ -553,9 +559,9 @@ export default function Home() {
                       pollLive();
                     }
                   }}
-                  title="Parse the save file now. Nothing parses on a timer."
+                  title={t('Parse the save file now. Nothing parses on a timer.')}
                 >
-                  <RefreshCw size={12} /> Refresh
+                  <RefreshCw size={12} /> {t('Refresh')}
                 </button>
               </>
             )}
@@ -619,7 +625,7 @@ function LoginScreen({
       <div className="glass-card" style={{ width: 360, padding: 28 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 4 }}>
           <Server size={18} style={{ color: 'var(--accent)' }} />
-          <h1 style={{ fontSize: 16, fontWeight: 600 }}>Palworld Dashboard</h1>
+          <h1 style={{ fontSize: 16, fontWeight: 600 }}>{t('Palworld Dashboard')}</h1>
         </div>
         <p style={{ color: 'var(--text-muted)', fontSize: 12, marginBottom: 20 }}>
           Server administration and save tools
@@ -635,7 +641,7 @@ function LoginScreen({
 
         <form onSubmit={onSubmit}>
           <label style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 6, display: 'block' }}>
-            Username
+            {t('Username')}
           </label>
           <input
             className="input"

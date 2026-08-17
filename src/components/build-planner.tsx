@@ -7,6 +7,7 @@ import { asArray } from '@/lib/arrays';
 import { num } from '@/lib/format';
 import GameIcon from '@/components/game-icon';
 import type { BuildRanking } from '@/lib/types';
+import { t } from '@/lib/chrome';
 
 /**
  * Which Pal is fastest, toughest or hardest-hitting at a build you choose.
@@ -100,7 +101,7 @@ export default function BuildPlanner() {
         {canTarget && (
           <select className="select" value={against} onChange={(e) => setAgainst(e.target.value)}
                   style={{ fontSize: 12, padding: '3px 6px' }}>
-            <option value="">No target element</option>
+            <option value="">{t('No target element')}</option>
             {ELEMENTS.map((el) => (
               <option key={el} value={el}>vs {el}</option>
             ))}
@@ -108,7 +109,7 @@ export default function BuildPlanner() {
         )}
         <button className="btn btn-ghost" onClick={load} disabled={loading}
                 style={{ padding: '3px 10px', fontSize: 11 }}>
-          <RefreshCw size={11} /> Refresh
+          <RefreshCw size={11} /> {t('Refresh')}
         </button>
       </div>
 
@@ -122,8 +123,8 @@ export default function BuildPlanner() {
         <Field label="IVs" value={iv} set={setIv} min={0} max={100} />
         <Field label="Souls" value={souls} set={setSouls} min={0} max={20} />
         <label style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          Passives
-          <input className="input" value={passives} placeholder="Legend, MoveSpeed_up_3"
+          {t('Passives')}
+          <input className="input" value={passives} placeholder={t('Legend, MoveSpeed_up_3')}
                  onChange={(e) => setPassives(e.target.value)}
                  style={{ width: 190, fontSize: 12, padding: '2px 6px' }} />
         </label>
@@ -142,7 +143,7 @@ export default function BuildPlanner() {
                 partner skill, which is a list indexed by condenser rank. */}
             Speed and stamina are flat per-species figures: no level, IV or soul
             bonus applies to them, and this ranking invents none.{' '}
-            <strong>Stars do raise the speed of some Pals</strong> — 96 species
+            <strong>{t('Stars do raise the speed of some Pals')}</strong> — 96 species
             have a partner skill that scales with condenser rank, so a 4-star
             Direhowl rides 20% faster while most Pals gain nothing. That term is
             applied here and shown per row.{' '}
@@ -171,19 +172,19 @@ export default function BuildPlanner() {
           <thead>
             <tr style={{ color: 'var(--text-muted)', textAlign: 'left' }}>
               <th style={{ padding: '4px 6px' }}>#</th>
-              <th style={{ padding: '4px 6px' }}>Pal</th>
+              <th style={{ padding: '4px 6px' }}>{t('Pal')}</th>
               <th style={{ padding: '4px 6px', textAlign: 'right' }}>
                 {data?.label ?? 'Value'}
               </th>
               {/* The un-multiplied figure stays visible beside the sorted one,
                   so nothing is hidden behind the ordering. */}
               {data?.matchupApplied && (
-                <th style={{ padding: '4px 6px', textAlign: 'right' }}>Before matchup</th>
+                <th style={{ padding: '4px 6px', textAlign: 'right' }}>{t('Before matchup')}</th>
               )}
               {data?.against && (
-                <th style={{ padding: '4px 6px' }}>Matchup</th>
+                <th style={{ padding: '4px 6px' }}>{t('Matchup')}</th>
               )}
-              <th style={{ padding: '4px 6px' }}>Elements</th>
+              <th style={{ padding: '4px 6px' }}>{t('Elements')}</th>
             </tr>
           </thead>
           <tbody>

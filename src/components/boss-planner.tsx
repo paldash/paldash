@@ -6,6 +6,7 @@ import { getBossEncounters } from '@/lib/save-api';
 import { asArray } from '@/lib/arrays';
 import GameIcon from '@/components/game-icon';
 import type { BossEncounter, BossEncounters } from '@/lib/types';
+import { t } from '@/lib/chrome';
 
 /**
  * Every boss, with which elements beat it and which of its own beat you.
@@ -59,10 +60,10 @@ export default function BossPlanner() {
         <div style={{ flex: 1 }} />
         <select className="select" value={kind} onChange={(e) => setKind(e.target.value)}
                 style={{ fontSize: 12, padding: '3px 6px' }}>
-          <option value="">All kinds</option>
-          <option value="field">Field bosses</option>
-          <option value="raid">Raid bosses</option>
-          <option value="tower">Towers</option>
+          <option value="">{t('All kinds')}</option>
+          <option value="field">{t('Field bosses')}</option>
+          <option value="raid">{t('Raid bosses')}</option>
+          <option value="tower">{t('Towers')}</option>
         </select>
         <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12 }}>
           Up to level
@@ -73,17 +74,17 @@ export default function BossPlanner() {
         </label>
         <button className="btn btn-ghost" onClick={load}
                 style={{ padding: '3px 10px', fontSize: 11 }}>
-          <RefreshCw size={11} /> Refresh
+          <RefreshCw size={11} /> {t('Refresh')}
         </button>
       </div>
 
       {error && <div className="notice notice-warn" style={{ fontSize: 12 }}>{error}</div>}
 
-      <Group icon={<MapPin size={13} />} title="Field bosses" rows={groups.field}
+      <Group icon={<MapPin size={13} />} title={t('Field bosses')} rows={groups.field}
              note="Placed in the world, each with its own level." />
-      <Group icon={<FlaskRound size={13} />} title="Raid bosses" rows={groups.raid}
+      <Group icon={<FlaskRound size={13} />} title={t('Raid bosses')} rows={groups.raid}
              note="Summoned at an altar — these have no location, which is the game rather than missing data." />
-      <Group icon={<Landmark size={13} />} title="Towers" rows={groups.tower}
+      <Group icon={<Landmark size={13} />} title={t('Towers')} rows={groups.tower}
              note="The entrance is what the data names; the boss inside is not in it, so there is no matchup to show." />
 
       <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 10 }}>

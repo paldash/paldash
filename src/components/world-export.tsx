@@ -6,6 +6,7 @@ import { previewWorldExport, createWorldExport, getSavePlayers,
   getWorldExportGuilds } from '@/lib/save-api';
 import type { WorldExportPlan, WorldExportResult, PlayerSaveData,
   ExportGuild } from '@/lib/types';
+import { t } from '@/lib/chrome';
 
 /**
  * Export a playable copy of the world with one player's uid remapped.
@@ -97,7 +98,7 @@ export default function WorldExport({ canManage }: { canManage: boolean }) {
         Writes a playable copy of this world with one player&apos;s id changed — for
         taking a character into co-op or single-player, or onto another server. The
         copy keeps every player, base and Pal; only the id moves.
-        {' '}<strong>Your live world is never modified</strong>, so unlike the other
+        {' '}<strong>{t('Your live world is never modified')}</strong>, so unlike the other
         save tools this does not need the server stopped.
       </p>
 
@@ -258,7 +259,7 @@ export default function WorldExport({ canManage }: { canManage: boolean }) {
       {result && (
         <div className="notice" style={{ fontSize: 12, marginTop: 14 }}>
           <ShieldCheck size={12} style={{ display: 'inline', verticalAlign: '-2px', marginRight: 5 }} />
-          <strong>Copy written and verified.</strong>
+          <strong>{t('Copy written and verified.')}</strong>
           <div style={{ marginTop: 5 }}>
             {result.applied.total.toLocaleString()} references remapped ·{' '}
             {(result.archive.sizeBytes / 1024 / 1024).toFixed(1)} MB archive
@@ -271,7 +272,7 @@ export default function WorldExport({ canManage }: { canManage: boolean }) {
               when it was not. */}
           {result.prune?.requested && !result.prune.pruned && (
             <div className="notice notice-warn" style={{ fontSize: 12, marginTop: 8 }}>
-              <strong>Everything was kept.</strong> The copy is complete and
+              <strong>{t('Everything was kept.')}</strong> The copy is complete and
               usable, but the guilds you unticked are still in it.
               {result.prune.refused && (
                 <div style={{ marginTop: 4, color: 'var(--text-secondary)' }}>
@@ -306,7 +307,7 @@ export default function WorldExport({ canManage }: { canManage: boolean }) {
           </div>
           <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6 }}>
             Copy it off the server and unpack it into your own
-            {' '}<span className="mono">SaveGames/0/</span> directory.
+            {' '}<span className="mono">{t('SaveGames/0/')}</span> directory.
           </div>
         </div>
       )}

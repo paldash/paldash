@@ -9,6 +9,7 @@ import {
 } from '@/lib/save-api';
 import GameIcon from '@/components/game-icon';
 import { asArray } from '@/lib/arrays';
+import { t } from '@/lib/chrome';
 
 /**
  * Who should be doing what.
@@ -194,7 +195,7 @@ function CombatPanel() {
               padding: '3px 6px', fontSize: 12,
             }}
           >
-            <option value="">Anything</option>
+            <option value="">{t('Anything')}</option>
             {asArray(report?.elements, 'optimiser elements').map((el) => (
               <option key={el} value={el}>{el}</option>
             ))}
@@ -217,7 +218,7 @@ function CombatPanel() {
           <PalCell pal={pal} />
           {pal.matchup && (
             <span
-              title="Elemental relation only — the game files give no damage multiplier"
+              title={t('Elemental relation only — the game files give no damage multiplier')}
               style={{
                 fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.5,
                 color: MATCHUP_STYLE[pal.matchup]?.colour ?? 'var(--text-muted)',

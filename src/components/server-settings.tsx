@@ -9,6 +9,7 @@ import {
 import { announce, shutdownServer } from '@/lib/api';
 import { useDashboardStore } from '@/lib/store';
 import type { IniOption, IniSettings, LifecycleStatus } from '@/lib/types';
+import { t } from '@/lib/chrome';
 
 /**
  * PalWorldSettings.ini editor.
@@ -174,7 +175,7 @@ export default function ServerSettings() {
   if (error) {
     return (
       <div className="notice notice-warn">
-        <strong>PalWorldSettings.ini unavailable</strong>
+        <strong>{t('PalWorldSettings.ini unavailable')}</strong>
         <div style={{ marginTop: 6 }}>{error}</div>
         <button className="btn btn-ghost" style={{ marginTop: 12 }} onClick={load}>
           <RefreshCw size={13} /> Retry
@@ -184,7 +185,7 @@ export default function ServerSettings() {
   }
 
   if (!settings) {
-    return <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>Loading settings…</div>;
+    return <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>{t('Loading settings…')}</div>;
   }
 
   const dirty = Object.keys(pending).length;
@@ -195,7 +196,7 @@ export default function ServerSettings() {
 
       {lifecycle?.cameBack === false && (
         <div className="notice notice-danger">
-          <strong>The server has not come back.</strong> A shutdown was issued{' '}
+          <strong>{t('The server has not come back.')}</strong> A shutdown was issued{' '}
           {lifecycle.secondsSinceShutdown}s ago and the game process is still
           gone. The REST API can only stop the server, never start it — if your
           server&apos;s container is still running, its supervisor did not
@@ -215,7 +216,7 @@ export default function ServerSettings() {
 
       {!lifecycle?.restartSupported && (
         <div className="notice">
-          <strong>Heads up:</strong> &quot;Announce &amp; stop&quot; shuts the game
+          <strong>{t('Heads up:')}</strong> &quot;Announce &amp; stop&quot; shuts the game
           process down; it does not start it again. That is a restart only if your
           server container exits when PalServer exits and has a restart policy. If
           your container stays up, the server stays down until you restart it.
@@ -223,7 +224,7 @@ export default function ServerSettings() {
       )}
 
       <div className="notice notice-warn">
-        <strong>Changes apply on restart.</strong> The server reads this file only
+        <strong>{t('Changes apply on restart.')}</strong> The server reads this file only
         when it starts, so nothing here takes effect live. Edits are written
         immediately and are safe while the server runs — this is the config
         directory, not the save directory.
@@ -240,22 +241,22 @@ export default function ServerSettings() {
           avoid. */}
       {settings.iniWatch?.verdict === 'regenerated' && (
         <div className="notice notice-warn">
-          <strong>This server rewrites PalWorldSettings.ini when it starts.</strong>{' '}
+          <strong>{t('This server rewrites PalWorldSettings.ini when it starts.')}</strong>{' '}
           {settings.iniWatch.detail}
           {settings.iniWatch.observedAt && (
             <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6 }}>
               Observed {new Date(settings.iniWatch.observedAt).toLocaleString()}. On{' '}
               <span className="mono">thijsvanloef</span> set{' '}
-              <span className="mono">DISABLE_GENERATE_SETTINGS=true</span>; on{' '}
+              <span className="mono">{t('DISABLE_GENERATE_SETTINGS=true')}</span>; on{' '}
               <span className="mono">jammsen</span> set{' '}
-              <span className="mono">SERVER_SETTINGS_MODE=manual</span>.
+              <span className="mono">{t('SERVER_SETTINGS_MODE=manual')}</span>.
             </div>
           )}
         </div>
       )}
       {settings.iniWatch?.verdict === 'preserved' && (
         <div className="notice" style={{ fontSize: 12 }}>
-          <strong>Your settings persist across restarts.</strong>{' '}
+          <strong>{t('Your settings persist across restarts.')}</strong>{' '}
           {settings.iniWatch.detail}
         </div>
       )}
@@ -354,7 +355,7 @@ export default function ServerSettings() {
         if (!envKeys.length) return null;
         return (
           <div className="notice notice-warn">
-            <strong>Some of these are probably set by your container, not this file.</strong>{' '}
+            <strong>{t('Some of these are probably set by your container, not this file.')}</strong>{' '}
             The common server images —{' '}
             <span className="mono">thijsvanloef/palworld-server-docker</span> and{' '}
             <span className="mono">jammsen/docker-palworld-dedicated-server</span> — rewrite
@@ -504,7 +505,7 @@ export default function ServerSettings() {
                 <input
                   className="input"
                   style={{ flex: 1, maxWidth: 260, fontSize: 12 }}
-                  placeholder="Filter by name or description…"
+                  placeholder={t('Filter by name or description…')}
                   value={filter}
                   onChange={(e) => setFilter(e.target.value)}
                 />
@@ -688,8 +689,8 @@ function SettingRow({
           value={String(current)}
           onChange={(e) => onChange(e.target.value === 'true')}
         >
-          <option value="true">True</option>
-          <option value="false">False</option>
+          <option value="true">{t('True')}</option>
+          <option value="false">{t('False')}</option>
         </select>
       ) : enumChoices ? (
         // An enum whose values the game itself names. `DeathPenalty` was a free

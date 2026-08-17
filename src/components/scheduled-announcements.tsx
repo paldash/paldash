@@ -8,6 +8,7 @@ import {
 } from '@/lib/save-api';
 import type { AnnouncementList, ScheduledAnnouncement } from '@/lib/types';
 import { asArray } from '@/lib/arrays';
+import { t } from '@/lib/chrome';
 
 /**
  * Recurring announcements — rules reminders, restart notices, a Discord link.
@@ -102,9 +103,9 @@ export default function ScheduledAnnouncements() {
           <table className="table">
           <thead>
             <tr>
-              <th>Message</th>
-              <th style={{ width: 130 }}>Every</th>
-              <th style={{ width: 150 }}>Last result</th>
+              <th>{t('Message')}</th>
+              <th style={{ width: 130 }}>{t('Every')}</th>
+              <th style={{ width: 150 }}>{t('Last result')}</th>
               <th style={{ width: 110 }} />
             </tr>
           </thead>
@@ -146,7 +147,7 @@ export default function ScheduledAnnouncements() {
         <input
           className="input"
           style={{ flex: '1 1 260px' }}
-          placeholder="Message to repeat…"
+          placeholder={t('Message to repeat…')}
           value={message}
           maxLength={200}
           disabled={full}
@@ -247,7 +248,7 @@ function Row({
           style={{ padding: '2px 7px', fontSize: 10 }}
           disabled={busy}
           onClick={onSend}
-          title="Send this now, as you. Resets the interval."
+          title={t('Send this now, as you. Resets the interval.')}
         >
           <Send size={10} />
         </button>

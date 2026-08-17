@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Layers, ChevronDown, ChevronRight, X } from 'lucide-react';
 import { prettyClass } from '@/lib/pretty-class';
 import { kindColor, markerShape, shapeSvg } from '@/lib/kind-colors';
+import { t } from '@/lib/chrome';
 
 export interface LayerDef {
   id: string;
@@ -137,7 +138,7 @@ export default function MapLayersPanel({
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
-            <strong style={{ fontSize: 12 }}>Map layers</strong>
+            <strong style={{ fontSize: 12 }}>{t('Map layers')}</strong>
             <button
               onClick={() => setOpen(false)}
               style={{

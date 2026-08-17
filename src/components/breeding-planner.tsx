@@ -11,6 +11,7 @@ import type {
 } from '@/lib/types';
 import { useDashboardStore } from '@/lib/store';
 import GameIcon from '@/components/game-icon';
+import { t } from '@/lib/chrome';
 
 /**
  * Breeding planner driven by the Pals actually present in the save.
@@ -131,7 +132,7 @@ export default function BreedingPlanner() {
   if (error) {
     return (
       <div className="notice notice-warn">
-        <strong>Breeding data unavailable</strong>
+        <strong>{t('Breeding data unavailable')}</strong>
         <div style={{ marginTop: 6 }}>{error}</div>
         <button className="btn btn-ghost" style={{ marginTop: 12 }} onClick={load}>
           <RefreshCw size={13} /> Retry
@@ -152,16 +153,16 @@ export default function BreedingPlanner() {
           player's side. The backend answers for the request being made. */}
       {palbox && !palbox.linkedToPlayer && !palbox.mayScopeToOthers && (
         <div className="notice notice-warn" style={{ fontSize: 12 }}>
-          <strong>This account is not linked to a character.</strong> The planner
+          <strong>{t('This account is not linked to a character.')}</strong> The planner
           works from the Pals you own, so it has nothing to plan with. An
-          Administrator links it from the <strong>Players</strong> tab.
+          Administrator links it from the <strong>{t('Players')}</strong> tab.
         </div>
       )}
       {/* Linked, scoped, and still empty — a different problem with a different
           fix, and previously indistinguishable from the one above. */}
       {palbox?.linkedToPlayer && palbox.pals === 0 && (
         <div className="notice notice-warn" style={{ fontSize: 12 }}>
-          <strong>No Pals found for this character.</strong> The account is
+          <strong>{t('No Pals found for this character.')}</strong> The account is
           linked, but the parsed world has nothing under that uid — either the
           save has not been parsed since you last played, or the link points at a
           different character.
@@ -178,7 +179,7 @@ export default function BreedingPlanner() {
             threshold is a server policy the client does not otherwise know. */}
         {palbox?.mayScopeToOthers && players.length > 1 ? (
           <select className="select" style={{ width: 220 }} value={owner} onChange={(e) => setOwner(e.target.value)}>
-            <option value="">All Pals on the server</option>
+            <option value="">{t('All Pals on the server')}</option>
             {players.map((p) => (
               <option key={p.uid} value={p.uid}>{p.name}</option>
             ))}
@@ -201,7 +202,7 @@ export default function BreedingPlanner() {
           <input
             className="input"
             style={{ paddingLeft: 30 }}
-            placeholder="Filter offspring…"
+            placeholder={t('Filter offspring…')}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
@@ -217,18 +218,18 @@ export default function BreedingPlanner() {
         </label>
 
         <button className="btn btn-ghost" onClick={load} disabled={loading}>
-          <RefreshCw size={13} /> Refresh
+          <RefreshCw size={13} /> {t('Refresh')}
         </button>
       </div>
 
-      {loading && <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>Loading…</div>}
+      {loading && <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>{t('Loading…')}</div>}
 
       {palbox && (
         <div className="dashboard-grid grid-4">
-          <Stat label="Breedable Pals" value={palbox.totalBreedable} />
-          <Stat label="Distinct species" value={palbox.speciesCount} />
-          <Stat label="One-step offspring" value={offspring.length} />
-          <Stat label="Not breedable" value={palbox.skippedUnbreedable} hint="Bosses and alphas cannot breed" />
+          <Stat label={t('Breedable Pals')} value={palbox.totalBreedable} />
+          <Stat label={t('Distinct species')} value={palbox.speciesCount} />
+          <Stat label={t('One-step offspring')} value={offspring.length} />
+          <Stat label={t('Not breedable')} value={palbox.skippedUnbreedable} hint="Bosses and alphas cannot breed" />
         </div>
       )}
 
@@ -248,7 +249,7 @@ export default function BreedingPlanner() {
             {scopeLabel(path)}
           </div>
           {path.alreadyOwned ? (
-            <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>You already own this Pal.</p>
+            <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{t('You already own this Pal.')}</p>
           ) : !path.reachable ? (
             <>
               <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>{path.reason}</p>
@@ -295,10 +296,10 @@ export default function BreedingPlanner() {
         <table className="table">
           <thead>
             <tr>
-              <th>Offspring</th>
-              <th>Dex</th>
-              <th>Pairs</th>
-              <th>Example pairing</th>
+              <th>{t('Offspring')}</th>
+              <th>{t('Dex')}</th>
+              <th>{t('Pairs')}</th>
+              <th>{t('Example pairing')}</th>
               <th></th>
             </tr>
           </thead>
@@ -403,7 +404,7 @@ export default function BreedingPlanner() {
           asked about, and it is still true on a server with no parsed world. */}
       {limitsError ? (
         <div className="notice notice-warn" style={{ fontSize: 12 }}>
-          <strong>Breeding limits unavailable.</strong> {limitsError} — the
+          <strong>{t('Breeding limits unavailable.')}</strong> {limitsError} — the
           planner above is unaffected, but this dashboard cannot currently say
           which Pals the game refuses to breed.
         </div>
@@ -691,7 +692,7 @@ function WhereNote({ species, palbox }: { species?: string; palbox: PalboxSummar
     .join(', ');
 
   return (
-    <span style={{ fontSize: 11, color: 'var(--text-muted)' }} title="Breedable, but not in your palbox">
+    <span style={{ fontSize: 11, color: 'var(--text-muted)' }} title={t('Breedable, but not in your palbox')}>
       ({label})
     </span>
   );

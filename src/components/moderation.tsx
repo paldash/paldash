@@ -5,6 +5,7 @@ import { Gavel, Megaphone, ShieldCheck, AlertTriangle, UserX, RotateCcw } from '
 import { useDashboardStore } from '@/lib/store';
 import { kickPlayer, banPlayer, unbanPlayer, announce, getBanList } from '@/lib/api';
 import type { BanList } from '@/lib/types';
+import { t } from '@/lib/chrome';
 
 /**
  * Kick, ban, unban and broadcast.
@@ -99,7 +100,7 @@ export default function Moderation() {
         <input
           className="input"
           style={{ flex: 1 }}
-          placeholder="Broadcast a message to everyone…"
+          placeholder={t('Broadcast a message to everyone…')}
           value={message}
           maxLength={200}
           onChange={(e) => setMessage(e.target.value)}
@@ -182,7 +183,7 @@ export default function Moderation() {
         <input
           className="input"
           style={{ flex: 1 }}
-          placeholder="Steam ID or uid to unban…"
+          placeholder={t('Steam ID or uid to unban…')}
           value={unbanId}
           onChange={(e) => setUnbanId(e.target.value)}
         />
@@ -230,7 +231,7 @@ function BanListView({
           disabled={busy}
           onClick={onRefresh}
         >
-          Refresh
+          {t('Refresh')}
         </button>
       </div>
 

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { Languages } from 'lucide-react';
 import { getLanguages } from '@/lib/save-api';
 import { useLanguage, setLanguage } from '@/lib/use-language';
+import { useChromePack } from '@/lib/chrome';
 
 /** What the game calls each language, so the list reads in the target language. */
 const LABELS: Record<string, string> = {
@@ -26,16 +27,21 @@ const LABELS: Record<string, string> = {
 };
 
 /**
- * Picks the language for the GAME's own names — Pals, items, structures.
+ * Picks the language — for the GAME's own names (Pals, items, structures,
+ * from Pocketpair's L10N tables) and, since #109's labelled beta, for the
+ * dashboard's own chrome too.
  *
- * **It does not translate the dashboard.** The buttons and headings are ours;
- * Pocketpair never wrote them, and only 3% of them have a checkable equivalent
- * in the game's strings (measured — see AGENTS.md). Saying so under the control
- * is the difference between a scoped feature and one that looks broken.
+ * The chrome half is machine-translated until a human verifies a language,
+ * and the badge below the control says so — the pack carries
+ * `provenance: "machine"`, and the provenance travelling visibly is what
+ * makes this different from the silent machine translation the project
+ * refused. Safety-critical strings (save-editing preconditions, backup and
+ * restore confirmations) stay English in every machine pack.
  */
 export function LanguagePicker() {
   const [available, setAvailable] = useState<string[]>([]);
   const [, current] = useLanguage();
+  const chrome = useChromePack();
 
   useEffect(() => {
     getLanguages()
@@ -67,6 +73,19 @@ export function LanguagePicker() {
           <option key={code} value={code}>{LABELS[code] ?? code}</option>
         ))}
       </select>
+      {chrome && chrome.provenance === 'machine' && !chrome.verified && (
+        /* The label IS the feature: a machine translation shipped without it
+           would be indistinguishable from a human one, which is the exact
+           failure this project records refusing. */
+        <span
+          title="The dashboard's own labels in this language are machine-translated and not yet verified by a person. Game names come from the game itself. Safety-critical messages stay in English. See docs/TRANSLATING.md to help verify."
+          style={{ fontSize: 10, padding: '1px 6px', borderRadius: 8,
+                   background: 'var(--bg-surface)', color: 'var(--text-muted)',
+                   border: '1px solid var(--border)', whiteSpace: 'nowrap' }}
+        >
+          auto-translated β
+        </span>
+      )}
     </div>
   );
 }

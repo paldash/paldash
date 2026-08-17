@@ -13,6 +13,7 @@ import type {
 import { buildChanges, type FieldValue as EditFieldValue } from '@/lib/edit-changes';
 import { getWorkTypes, type WorkType } from '@/lib/work-types';
 import { asArray } from '@/lib/arrays';
+import { t } from '@/lib/chrome';
 
 type Mode = 'pal' | 'player';
 
@@ -342,7 +343,7 @@ export default function CharacterEditor({ canEdit }: { canEdit: boolean }) {
   };
 
   if (error && !schema) return <div className="notice notice-warn">{error}</div>;
-  if (!schema) return <div className="notice">Loading the editor…</div>;
+  if (!schema) return <div className="notice">{t('Loading the editor…')}</div>;
 
   return (
     <div className="glass-card" style={{ padding: 16 }}>
@@ -484,7 +485,7 @@ export default function CharacterEditor({ canEdit }: { canEdit: boolean }) {
                           className="btn btn-ghost"
                           style={{ marginLeft: 'auto', padding: '1px 6px', fontSize: 10 }}
                           onClick={syncExpToLevel}
-                          title="Set EXP to the minimum for the chosen level. The game recalculates level from EXP on load, so the two must agree."
+                          title={t('Set EXP to the minimum for the chosen level. The game recalculates level from EXP on load, so the two must agree.')}
                         >
                           <Wand2 size={10} /> match level
                         </button>
@@ -595,7 +596,7 @@ function PlanView({
   if (!plan.ok) {
     return (
       <div className="notice notice-warn" style={{ marginTop: 12 }}>
-        <strong>Cannot apply:</strong>
+        <strong>{t('Cannot apply:')}</strong>
         <ul style={{ margin: '6px 0 0 16px', fontSize: 12, lineHeight: 1.6 }}>
           {plan.problems.map((p, i) => (
             <li key={i}>{p.field ? <span className="mono">{p.field}</span> : null} {p.problem}</li>
@@ -706,7 +707,7 @@ function RankMap({
             className="btn btn-ghost"
             style={{ padding: '1px 6px', fontSize: 10 }}
             onClick={() => remove(id)}
-            title="Removing a work type deletes its bought rank"
+            title={t('Removing a work type deletes its bought rank')}
           >
             <X size={10} />
           </button>
@@ -719,7 +720,7 @@ function RankMap({
           value=""
           onChange={(e) => e.target.value && setRank(e.target.value, 1)}
         >
-          <option value="">Add a work type…</option>
+          <option value="">{t('Add a work type…')}</option>
           {unused.map((t) => (
             <option key={t.id} value={t.id}>{t.label}</option>
           ))}
@@ -986,7 +987,7 @@ function ClonePanel({
             value={containerId}
             onChange={(e) => { setContainerId(e.target.value); setPlan(null); }}
           >
-            <option value="">Pick a container…</option>
+            <option value="">{t('Pick a container…')}</option>
             {containers.map((c) => (
               <option key={c.containerId} value={c.containerId} disabled={c.free === 0}>
                 {c.containerId.slice(0, 8)}… — {c.used}/{c.capacity} used, {c.free} free

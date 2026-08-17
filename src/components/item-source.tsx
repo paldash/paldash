@@ -6,6 +6,7 @@ import { getItemSources } from '@/lib/save-api';
 import GameIcon from '@/components/game-icon';
 import CraftingTree from '@/components/crafting-tree';
 import type { ItemSources, TechnologyUnlock } from '@/lib/types';
+import { t } from '@/lib/chrome';
 
 /**
  * "Where does this item come from" — the six bundled tables in one panel.
@@ -68,7 +69,7 @@ export default function ItemSourcePanel({
       )}
 
       {!data && !error && (
-        <p style={{ marginTop: 12, fontSize: 12, color: 'var(--text-muted)' }}>Loading…</p>
+        <p style={{ marginTop: 12, fontSize: 12, color: 'var(--text-muted)' }}>{t('Loading…')}</p>
       )}
 
       {data && !data.known && (
@@ -338,7 +339,7 @@ function Shops({ shops }: { shops: NonNullable<ItemSources['shops']> }) {
 function Production({ production }: { production: NonNullable<ItemSources['production']> }) {
   if (!production.length) return null;
   return (
-    <Section icon={<Factory size={13} />} title="Produced at a base by">
+    <Section icon={<Factory size={13} />} title={t('Produced at a base by')}>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
         {production.map((p) => (
           <span key={p.structureId} className="badge">

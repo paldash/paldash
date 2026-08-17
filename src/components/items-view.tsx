@@ -10,6 +10,7 @@ import type { CatalogueStructure } from '@/lib/types';
 import { useLanguage } from '@/lib/use-language';
 import { localName, matchesQuery } from '@/lib/language';
 import type { ItemTotals } from '@/lib/types';
+import { t } from '@/lib/chrome';
 
 /**
  * Every item on the server, totalled across every container — the equivalent of
@@ -116,7 +117,7 @@ export default function ItemsView() {
   if (error) {
     return (
       <div className="notice notice-warn">
-        <strong>Item totals unavailable</strong>
+        <strong>{t('Item totals unavailable')}</strong>
         <div style={{ marginTop: 6 }}>{error}</div>
         <button className="btn btn-ghost" style={{ marginTop: 12 }} onClick={load}>
           <RefreshCw size={13} /> Retry
@@ -129,17 +130,17 @@ export default function ItemsView() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       <div className="dashboard-grid grid-3">
         <div className="stat-card">
-          <div className="stat-label">Distinct items</div>
+          <div className="stat-label">{t('Distinct items')}</div>
           <div className="stat-value" style={{ marginTop: 6 }}>{data?.itemTypes ?? '—'}</div>
         </div>
         <div className="stat-card">
-          <div className="stat-label">Total quantity</div>
+          <div className="stat-label">{t('Total quantity')}</div>
           <div className="stat-value" style={{ marginTop: 6 }}>
             {data ? data.totalCount.toLocaleString() : '—'}
           </div>
         </div>
         <div className="stat-card">
-          <div className="stat-label">Containers scanned</div>
+          <div className="stat-label">{t('Containers scanned')}</div>
           <div className="stat-value" style={{ marginTop: 6 }}>
             {data ? data.containersScanned.toLocaleString() : '—'}
           </div>
@@ -152,7 +153,7 @@ export default function ItemsView() {
           <input
             className="input"
             style={{ paddingLeft: 30 }}
-            placeholder="Filter items…"
+            placeholder={t('Filter items…')}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
@@ -163,7 +164,7 @@ export default function ItemsView() {
             style={{ width: 200 }}
             value={guild}
             onChange={(e) => setGuild(e.target.value)}
-            title="Item totals are per guild, because containers belong to bases and bases belong to guilds"
+            title={t('Item totals are per guild, because containers belong to bases and bases belong to guilds')}
           >
             <option value="">
               {scopes?.serverWide ? 'Whole server' : 'My guilds'}
@@ -218,7 +219,7 @@ export default function ItemsView() {
           <thead>
             <tr>
               <th style={{ width: '55%' }}>Item &mdash; click for sources</th>
-              <th style={{ width: '25%' }}>Category</th>
+              <th style={{ width: '25%' }}>{t('Category')}</th>
               <th>Total</th>
             </tr>
           </thead>
@@ -347,7 +348,7 @@ function StructureList({
     );
   }
   if (!structures) {
-    return <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>Loading…</p>;
+    return <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>{t('Loading…')}</p>;
   }
 
   return (
@@ -357,7 +358,7 @@ function StructureList({
           <thead>
             <tr>
               <th style={{ width: '45%' }}>Structure &mdash; click for the full cost</th>
-              <th style={{ width: '20%' }}>Category</th>
+              <th style={{ width: '20%' }}>{t('Category')}</th>
               <th>Materials</th>
             </tr>
           </thead>

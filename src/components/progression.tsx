@@ -16,6 +16,7 @@ import type {
   Checklist, ChecklistEntry, ProgressDetailReport, RaidBossReport,
   PaldeckCompletion, AchievementSummary, AchievementCategory, AchievementTier,
 } from '@/lib/types';
+import { t } from '@/lib/chrome';
 
 /**
  * How far through the game each player is, and *what is left* by name.
@@ -131,13 +132,13 @@ export default function Progression() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: 10 }}>
           <ChecklistCard
             icon={<Swords size={14} />}
-            title="Tower and major bosses"
+            title={t('Tower and major bosses')}
             list={lists.towerBosses}
             note="Eight towers, three World Tree roots and two encounters the game does not name yet."
           />
           <ChecklistCard
             icon={<Swords size={14} />}
-            title="Field bosses (Pals)"
+            title={t('Field bosses (Pals)')}
             list={lists.fieldBosses.pals}
             note="Placed alpha spawners, with the level each one is."
             label={(e) => (e.level && e.levelMax && e.level !== e.levelMax
@@ -147,13 +148,13 @@ export default function Progression() {
           <HumanBosses bosses={lists.fieldBosses.humans} />
           <ChecklistCard
             icon={<Compass size={14} />}
-            title="Regions discovered"
+            title={t('Regions discovered')}
             list={lists.areasFound}
             note="From the game's own world-map area table."
           />
           <ChecklistCard
             icon={<MapPin size={14} />}
-            title="Fast travel"
+            title={t('Fast travel')}
             list={lists.fastTravel}
             label={(e) => (e.kind && e.kind !== 'travel' ? `${e.name} (${e.kind})` : e.name)}
           />
@@ -169,7 +170,7 @@ export default function Progression() {
               `Area_F1_1` is the join key and never the label. */}
           <ChecklistCard
             icon={<Sparkles size={14} />}
-            title="Pal requests"
+            title={t('Pal requests')}
             list={lists.palDisplay}
             label={(e) => (e.area ? `${e.name} — ${e.area.replace('Area_', '')}` : e.name)}
             note="NPCs who want to be shown a particular Pal."
@@ -482,7 +483,7 @@ function MilestoneCard({ achievements }: { achievements?: AchievementSummary }) 
     <div className="card" style={{ marginTop: 12 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
         <Gift size={14} style={{ color: 'var(--accent-blue)' }} />
-        <strong style={{ fontSize: 13 }}>Milestone rewards</strong>
+        <strong style={{ fontSize: 13 }}>{t('Milestone rewards')}</strong>
         <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--text-muted)' }}>
           {achievements.claimed}/{achievements.total} collected
         </span>
@@ -624,7 +625,7 @@ function HumanBosses({
           <span key={b.id} className="badge" title={b.id}>{b.name}</span>
         ))}
         {!bosses.have.length && (
-          <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>None yet.</span>
+          <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{t('None yet.')}</span>
         )}
       </div>
     </div>
@@ -680,7 +681,7 @@ function RaidBosses({
           padding: 0, fontSize: 13, fontWeight: 600, cursor: 'pointer', textAlign: 'left',
         }}
       >
-        <Swords size={14} /> Raid bosses
+        <Swords size={14} /> {t('Raid bosses')}
         <span style={{ flex: 1 }} />
         {/* A count, never "n of 11": the save counts DEFEATS, not which ones,
             so a denominator would imply a checklist the data cannot back. */}
@@ -728,7 +729,7 @@ function RaidBosses({
               )}
               {boss.rewards.length > 0 && (
                 <div style={{ marginTop: 6 }}>
-                  <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Always drops:</div>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{t('Always drops:')}</div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 3 }}>
                     {boss.rewards.map((r) => (
                       <span key={r.itemId} className="badge" title={`${r.rate}%`}>

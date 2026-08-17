@@ -5,6 +5,7 @@ import { ScanSearch, ShieldCheck, AlertTriangle, Wrench, Info } from 'lucide-rea
 import { scanIllegalPals, previewPalRepair, applyPalRepair } from '@/lib/save-api';
 import type { PalCheckScan, PalRepairPlan } from '@/lib/types';
 import { asArray } from '@/lib/arrays';
+import { t } from '@/lib/chrome';
 
 const CODE_LABELS: Record<string, string> = {
   iv_out_of_range: 'IV out of range',
@@ -119,14 +120,14 @@ export default function PalCheck({ canEdit }: { canEdit: boolean }) {
       ) : (
         <>
           <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginBottom: 12 }}>
-            <Stat label="Pals scanned" value={scan.palsScanned.toLocaleString()} />
+            <Stat label={t('Pals scanned')} value={scan.palsScanned.toLocaleString()} />
             <Stat
-              label="With illegal stats"
+              label={t('With illegal stats')}
               value={scan.palsFlagged.toLocaleString()}
               tone={scan.palsFlagged ? 'warn' : 'ok'}
             />
             <Stat label="Repairable" value={scan.palsRepairable.toLocaleString()} />
-            <Stat label="Unrecognised ids" value={scan.palsUnrecognised.toLocaleString()} />
+            <Stat label={t('Unrecognised ids')} value={scan.palsUnrecognised.toLocaleString()} />
           </div>
 
           {scan.palsFlagged === 0 ? (

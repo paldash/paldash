@@ -7,6 +7,7 @@ import {
 import { Activity, AlertTriangle, HardDrive, TrendingUp } from 'lucide-react';
 import { getMetricsHistory, getMetricsSummary } from '@/lib/api';
 import type { MetricsHistory, MetricsPoint, MetricsSummary } from '@/lib/types';
+import { t } from '@/lib/chrome';
 
 const RANGES = [
   { label: '6h', hours: 6 },
@@ -93,7 +94,7 @@ export default function MetricsHistoryPanel() {
 
       {!enabled ? (
         <div className="notice" style={{ marginTop: 10, fontSize: 12 }}>
-          History is switched off (<span className="mono">METRICS_ENABLED=false</span>).
+          History is switched off (<span className="mono">{t('METRICS_ENABLED=false')}</span>).
           Live figures above still work.
         </div>
       ) : points.length < 2 ? (
@@ -105,13 +106,13 @@ export default function MetricsHistoryPanel() {
       ) : (
         <>
           <Chart
-            title="Server FPS"
+            title={t('Server FPS')}
             points={points}
             lines={[{ key: 'serverFps', colour: '#00d4ff', label: 'FPS' }]}
             hours={hours}
           />
           <Chart
-            title="Players"
+            title={t('Players')}
             points={points}
             lines={[
               { key: 'playersPeak', colour: '#34d399', label: 'Peak' },
@@ -120,7 +121,7 @@ export default function MetricsHistoryPanel() {
             hours={hours}
           />
           <Chart
-            title="Dashboard CPU & memory"
+            title={t('Dashboard CPU & memory')}
             points={points}
             lines={[
               { key: 'cpuPercent', colour: '#fbbf24', label: 'CPU %' },
@@ -138,7 +139,7 @@ export default function MetricsHistoryPanel() {
               operator's. Shown only when something reported it. */}
           <HostContentionChart points={points} hours={hours} />
           <Chart
-            title="World size & Pals"
+            title={t('World size & Pals')}
             points={points}
             lines={[
               { key: 'worldSizeMb', colour: '#f472b6', label: 'Level.sav MB' },
@@ -321,7 +322,7 @@ function GameMemoryChart({ points, hours }: { points: MetricsPoint[]; hours: num
   return (
     <>
       <Chart
-        title="Game server memory"
+        title={t('Game server memory')}
         points={points}
         lines={[{ key: 'gameMemMb', colour: '#f97316', label: 'Game MB' }]}
         hours={hours}
@@ -357,7 +358,7 @@ function HostContentionChart({ points, hours }: { points: MetricsPoint[]; hours:
   const worstSteal = Math.max(...points.map((p) => p.cpuSteal ?? 0));
   return (
     <>
-      <Chart title="Host contention" points={points} lines={lines} hours={hours} />
+      <Chart title={t('Host contention')} points={points} lines={lines} hours={hours} />
       {steal && worstSteal > 5 && (
         <p style={{ fontSize: 11, color: 'var(--status-warning)', margin: '4px 0 0' }}>
           CPU steal peaked at {worstSteal.toFixed(1)}% — the host gave this

@@ -14,13 +14,47 @@ about.
 
 ---
 
-## Why the chrome is not machine-translated
+## The chrome IS machine-translated now — as a LABELLED beta (operator decision, 2026-08-17)
+
+The original refusal below was about provenance: a sentence this project wrote,
+machine-translated into German, renders **identically** to one Pocketpair
+published — and gets trusted the same way. The operator chose the middle path
+that keeps what the refusal protected while shipping the feature:
+
+- Every machine pack carries **`provenance: "machine"` and `verified: false`**,
+  and the language picker shows an **"auto-translated β"** badge whenever one
+  is active. The label IS the feature.
+- **The game's own words win wherever a concept key exists** — the Paldeck tab
+  renders whatever Pocketpair calls the Palpedia in your language (and in
+  English: the game's 1.0 word is "Palpedia"), fast travel is the game's own
+  term, and so on. `scripts/build-chrome-packs.py` reads those from the server
+  pak per language.
+- **Safety-critical strings stay English in every machine pack** — the
+  save-editing preconditions and the backup/restore confirmations
+  (`docs/chrome-wrapped.json` `safetyCritical`). A mistranslated "The server
+  must be stopped first" can cost someone a world; those wait for a human.
+- A human contributor **promotes** a language: review
+  `scripts/chrome-mt/<code>.json`, fix what needs fixing, translate the safety
+  strings, and flip the pack to `provenance: "human", verified: true` in
+  `build-chrome-packs.py`'s output — the badge disappears.
+
+The pipeline: `scripts/wrap-chrome-strings.py` wraps display positions in
+`t()` (JSX text nodes and display attributes only — never logic strings),
+`scripts/chrome-mt/<code>.json` holds the translations,
+`scripts/build-chrome-packs.py` builds `src/lib/chrome-langs/<code>.json`, and
+`src/lib/chrome.ts` loads them as code-split chunks. `src/lib/chrome.test.ts`
+pins the contract: provenance on every pack, no safety string in any machine
+pack.
+
+## Why it was not machine-translated before (kept for the reasoning)
 
 Because a sentence this project wrote, machine-translated into German, renders
 **identically** to one Pocketpair published — and gets trusted the same way. The
 whole method here is that a claim carries its provenance; shipping 600 invented
 German strings beside 1,800 real ones destroys exactly that distinction, and
-nobody downstream can tell which is which.
+nobody downstream can tell which is which. *(The labelled beta above is the
+answer to this, not an exception to it: the provenance now travels in the pack
+and on the screen.)*
 
 Measured, so this is a finding rather than a policy preference: of the
 dashboard's own chrome, **8 strings have a checkable equivalent** among the
@@ -97,13 +131,12 @@ string, many screens. The first few: `Loading…` (8 files), `Preview failed` (8
 
 ## Status
 
-The catalogue exists; **the runtime that would consume it does not yet.** There
-is no chrome-translation loader — `src/lib/use-language.ts` overlays game nouns
-only. Wiring one is the remaining work on #109, and it should not be started
-until at least one language's strings have actually been contributed: a loader
-with no data to load is the "invalidation without a rebuild path" mistake in a
-different costume.
+**Shipped 2026-08-17** as the labelled beta described at the top: the runtime
+(`src/lib/chrome.ts`), 15 machine packs plus an `en` pack carrying the game's
+own vocabulary, the picker badge, and the safety-critical holdout. One picker
+drives game nouns and chrome together.
 
-**If you want to contribute a language**, open an issue naming it. The current
-answer to "how do I submit one" is "there is not a format yet, and it will be
-designed around the first real submission rather than guessed at."
+**If you want to verify a language**, edit `scripts/chrome-mt/<code>.json`,
+translate the `safetyCritical` strings from `docs/chrome-wrapped.json`, run
+`python3 scripts/build-chrome-packs.py`, and open a PR — the maintainer flips
+the pack's provenance to `human` and the badge goes away.

@@ -10,6 +10,7 @@ import {
 } from '@/lib/save-api';
 import GameIcon from '@/components/game-icon';
 import type { CraftableReport, InvaderReport } from '@/lib/types';
+import { t } from '@/lib/chrome';
 
 /**
  * What each base is holding, and what is conspicuously missing.
@@ -120,7 +121,7 @@ function BaseCard({ base }: { base: BaseSupply }) {
       {base.breedingFarms.length > 0 && (
         <div>
           <div style={{ fontSize: 11, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 5, display: 'flex', alignItems: 'center', gap: 5 }}>
-            <Egg size={12} /> Breeding farms
+            <Egg size={12} /> {t('Breeding farms')}
           </div>
           <Containers rows={base.breedingFarms} empty="" />
         </div>
@@ -206,7 +207,7 @@ function Craftable() {
             </div>
           )}
           {!data && !error && (
-            <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Working it out…</div>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{t('Working it out…')}</div>
           )}
           {data && (
             <>
@@ -306,7 +307,7 @@ export default function BaseSupplyPanel() {
             borderRadius: 4, padding: '4px 9px', fontSize: 12, cursor: 'pointer',
           }}
         >
-          <RefreshCw size={13} className={loading ? 'spin' : undefined} /> Refresh
+          <RefreshCw size={13} className={loading ? 'spin' : undefined} /> {t('Refresh')}
         </button>
       </div>
 
@@ -354,7 +355,7 @@ export default function BaseSupplyPanel() {
                     </span>
                   ))}
                   {chest.items.length === 0 && (
-                    <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Empty.</span>
+                    <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{t('Empty.')}</span>
                   )}
                 </div>
               </div>
@@ -445,7 +446,7 @@ function BaseRaids() {
             </div>
           )}
           {!data && !error && (
-            <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Loading…</div>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{t('Loading…')}</div>
           )}
           {data && (
             <>
@@ -462,7 +463,7 @@ function BaseRaids() {
                   value={biome}
                   onChange={(e) => setBiome(e.target.value)}
                 >
-                  <option value="">All biomes</option>
+                  <option value="">{t('All biomes')}</option>
                   {biomes.map((b) => <option key={b} value={b}>{b}</option>)}
                 </select>
                 <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>

@@ -14,6 +14,7 @@ import { getWorkTypes, orderedWork, type WorkType } from '@/lib/work-types';
 import { asArray } from '@/lib/arrays';
 import { loadPassives, describePassive } from '@/lib/passives';
 import { num, fixed, count } from '@/lib/format';
+import { t } from '@/lib/chrome';
 
 /**
  * A player's own Pals, as a table you can actually work with.
@@ -295,7 +296,7 @@ export default function MyPals() {
   if (error) {
     return (
       <div className="notice notice-warn">
-        <strong>Could not load your Pals</strong>
+        <strong>{t('Could not load your Pals')}</strong>
         <div style={{ marginTop: 6 }}>{error}</div>
         <button className="btn btn-ghost" style={{ marginTop: 12 }} onClick={load}>
           <RefreshCw size={13} /> Retry
@@ -308,10 +309,10 @@ export default function MyPals() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       {!linked && (
         <div className="notice notice-warn" style={{ fontSize: 12 }}>
-          <strong>This account is not linked to a character.</strong> Everything
+          <strong>{t('This account is not linked to a character.')}</strong> Everything
           scoped to &ldquo;you&rdquo; — your Pals, your breeding planner, your
           discoveries — has nothing to resolve to, so it comes back empty. An
-          Administrator links it from the <strong>Players</strong> tab.
+          Administrator links it from the <strong>{t('Players')}</strong> tab.
         </div>
       )}
       {/* Above the table on purpose. A sick Pal is the one thing here that is
@@ -321,16 +322,16 @@ export default function MyPals() {
       <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
         <div style={{ position: 'relative', flex: 1, minWidth: 180 }}>
           <Search size={13} style={{ position: 'absolute', left: 10, top: 9, color: 'var(--text-muted)' }} />
-          <input className="input" style={{ paddingLeft: 30 }} placeholder="Species or nickname…"
+          <input className="input" style={{ paddingLeft: 30 }} placeholder={t('Species or nickname…')}
                  value={query} onChange={(e) => setQuery(e.target.value)} />
         </div>
         <button className="btn btn-ghost" onClick={load} disabled={loading}>
-          <RefreshCw size={13} /> Refresh
+          <RefreshCw size={13} /> {t('Refresh')}
         </button>
       </div>
 
       <div className="glass-card" style={{ padding: 12, display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-        <Field label="Min level">
+        <Field label={t('Min level')}>
           <input className="input" type="number" min={0} max={80} style={{ width: 70 }}
                  value={minLevel || ''} placeholder="0"
                  onChange={(e) => setMinLevel(Number(e.target.value) || 0)} />
@@ -338,26 +339,26 @@ export default function MyPals() {
 
         <Field label="Gender">
           <select className="select" style={{ width: 100 }} value={gender} onChange={(e) => setGender(e.target.value)}>
-            <option value="">Any</option>
-            <option value="Male">Male</option>
-            <option value="Female">Female</option>
+            <option value="">{t('Any')}</option>
+            <option value="Male">{t('Male')}</option>
+            <option value="Female">{t('Female')}</option>
           </select>
         </Field>
 
         <Field label="Element">
           <select className="select" style={{ width: 120 }} value={element} onChange={(e) => setElement(e.target.value)}>
-            <option value="">Any</option>
+            <option value="">{t('Any')}</option>
             {asArray(options.elements, 'element options').map((e) => <option key={e} value={e}>{e}</option>)}
           </select>
         </Field>
 
-        <Field label="Min ★">
+        <Field label={t('Min ★')}>
           <select className="select" style={{ width: 80 }} value={minRank} onChange={(e) => setMinRank(Number(e.target.value))}>
             {[0, 1, 2, 3, 4, 5].map((r) => <option key={r} value={r}>{r || 'Any'}</option>)}
           </select>
         </Field>
 
-        <Field label="Best IV ≥" hint="Highest of HP, Attack or Defense">
+        <Field label={t('Best IV ≥')} hint="Highest of HP, Attack or Defense">
           <input className="input" type="number" min={0} max={100} style={{ width: 70 }}
                  value={minIv || ''} placeholder="0"
                  onChange={(e) => setMinIv(Number(e.target.value) || 0)} />
@@ -365,15 +366,15 @@ export default function MyPals() {
 
         <Field label="Passive">
           <select className="select" style={{ width: 160 }} value={passive} onChange={(e) => setPassive(e.target.value)}>
-            <option value="">Any</option>
+            <option value="">{t('Any')}</option>
             {asArray(options.passives, 'passive options').map((p) => <option key={p} value={p}>{p}</option>)}
           </select>
         </Field>
 
-        <Field label="Work" hint="Species work suitability, from bundled game data">
+        <Field label={t('Work')} hint="Species work suitability, from bundled game data">
           <span style={{ display: 'inline-flex', gap: 4 }}>
             <select className="select" style={{ width: 130 }} value={work} onChange={(e) => setWork(e.target.value)}>
-              <option value="">Any</option>
+              <option value="">{t('Any')}</option>
               {(workTypes.length
                 ? workTypes.map((w) => [w.id, w.label] as const)
                 : Object.entries(WORK_LABELS)
@@ -386,15 +387,15 @@ export default function MyPals() {
           </span>
         </Field>
 
-        <Field label="Where" hint="Palbox, active party, or assigned to work at a base">
+        <Field label={t('Where')} hint="Palbox, active party, or assigned to work at a base">
           <select className="select" style={{ width: 130 }} value={where} onChange={(e) => setWhere(e.target.value)}>
-            <option value="">Anywhere</option>
+            <option value="">{t('Anywhere')}</option>
             <option value="palbox">Palbox</option>
-            <option value="party">Party</option>
-            <option value="base">Working at a base</option>
-            <option value="storage">Pal storage</option>
+            <option value="party">{t('Party')}</option>
+            <option value="base">{t('Working at a base')}</option>
+            <option value="storage">{t('Pal storage')}</option>
             <option value="dimension">Dimensional Pal Storage</option>
-            <option value="other">Unassigned</option>
+            <option value="other">{t('Unassigned')}</option>
           </select>
         </Field>
 
@@ -421,7 +422,7 @@ export default function MyPals() {
         <table className="table">
           <thead>
             <tr>
-              <SortHead label="Pal" k="name" sort={sort} desc={descending} set={setSort} flip={setDescending} />
+              <SortHead label={t('Pal')} k="name" sort={sort} desc={descending} set={setSort} flip={setDescending} />
               <SortHead label="Lv" k="level" sort={sort} desc={descending} set={setSort} flip={setDescending} />
               <SortHead label="★" k="rank" sort={sort} desc={descending} set={setSort} flip={setDescending} />
               {/* Calculated stats first — they are what "is this Pal good"
@@ -441,14 +442,14 @@ export default function MyPals() {
               <SortHead label="ivAtk" k="ivAttack" sort={sort} desc={descending} set={setSort} flip={setDescending} />
               <SortHead label="ivDef" k="ivDefense" sort={sort} desc={descending} set={setSort} flip={setDescending} />
               <SortHead label="ΣIV" k="ivs" sort={sort} desc={descending} set={setSort} flip={setDescending} />
-              <th title="Work suitabilities, in the game's own order">Work</th>
+              <th title="Work suitabilities, in the game's own order">{t('Work')}</th>
               {/* WHEN YOU GOT IT. `OwnedTime` has been in every save all along
                   and nothing read it; it is also the only field that answers
                   "which of these did I catch first". Date only — the seconds are
                   real but nobody is choosing a Pal by them. */}
               <SortHead label="Obtained" k="obtained" sort={sort} desc={descending} set={setSort} flip={setDescending} />
-              <th>Where</th>
-              <th>Passives</th>
+              <th>{t('Where')}</th>
+              <th>{t('Passives')}</th>
               {work && <SortHead label={workLabel(work)} k="work" sort={sort} desc={descending} set={setSort} flip={setDescending} />}
               <th />
             </tr>
@@ -468,7 +469,7 @@ export default function MyPals() {
                           {speciesName(p)}
                         </span>
                       )}
-                      {p.isBoss && <span className="badge" style={{ marginLeft: 6 }}>Alpha</span>}
+                      {p.isBoss && <span className="badge" style={{ marginLeft: 6 }}>{t('Alpha')}</span>}
                       <span style={{ color: 'var(--text-muted)', fontSize: 11, marginLeft: 6 }}>
                         {p.gender === 'Female' ? '♀' : '♂'}
                       </span>
@@ -581,7 +582,7 @@ export default function MyPals() {
                     className="btn btn-ghost"
                     style={{ padding: '2px 6px', fontSize: 10 }}
                     disabled={exporting === p.instanceId}
-                    title="Download this Pal as a checksummed JSON document"
+                    title={t('Download this Pal as a checksummed JSON document')}
                     onClick={async () => {
                       setExporting(p.instanceId);
                       setError(null);
@@ -653,7 +654,7 @@ function StatCell({
   if (!bd) {
     return (
       <td className="mono" style={{ color: 'var(--text-muted)' }}
-          title="No stat scaling for this species — humans and NPCs share the character map with Pals.">
+          title={t('No stat scaling for this species — humans and NPCs share the character map with Pals.')}>
         —
       </td>
     );
