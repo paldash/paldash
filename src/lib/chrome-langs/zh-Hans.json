@@ -190,6 +190,8 @@
   "Storage used": "已用存储",
   "Structured JSON export with a checksum, for archiving or transfer": "带校验和的结构化 JSON 导出，用于归档或迁移",
   "Succeeded": "成功",
+  "Switch to the dark theme": "切换到深色主题",
+  "Switch to the light theme": "切换到浅色主题",
   "The save has this slot assigned to a Pal that no longer exists. The game will not fill it until something clears it.": "存档将此栏位指派给了已不存在的帕鲁。在它被清空前游戏不会填充它。",
   "The server has not come back.": "服务器尚未恢复。",
   "The tree (no guild)": "树（无公会）",

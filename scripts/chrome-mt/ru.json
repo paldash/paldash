@@ -207,5 +207,7 @@
  "World size & Pals": "Размер мира и палы",
  "You already own this Pal.": "У вас уже есть этот пал.",
  "Your live world is never modified": "Ваш действующий мир никогда не изменяется",
- "Your settings persist across restarts.": "Ваши настройки сохраняются между перезапусками."
+ "Your settings persist across restarts.": "Ваши настройки сохраняются между перезапусками.",
+ "Switch to the light theme": "Переключиться на светлую тему",
+ "Switch to the dark theme": "Переключиться на тёмную тему"
 }

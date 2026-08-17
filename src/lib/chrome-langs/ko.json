@@ -190,6 +190,8 @@
   "Storage used": "사용 중인 저장 공간",
   "Structured JSON export with a checksum, for archiving or transfer": "보관·이전용 체크섬 포함 구조화 JSON 내보내기",
   "Succeeded": "성공",
+  "Switch to the dark theme": "어두운 테마로 전환",
+  "Switch to the light theme": "밝은 테마로 전환",
   "The save has this slot assigned to a Pal that no longer exists. The game will not fill it until something clears it.": "세이브가 이 슬롯을 더 이상 없는 팰에 배정해 두었습니다. 무언가 비우기 전까지 게임은 채우지 않습니다.",
   "The server has not come back.": "서버가 돌아오지 않았습니다.",
   "The tree (no guild)": "트리 (길드 없음)",

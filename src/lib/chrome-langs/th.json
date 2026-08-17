@@ -190,6 +190,8 @@
   "Storage used": "พื้นที่ที่ใช้",
   "Structured JSON export with a checksum, for archiving or transfer": "ส่งออก JSON แบบมีโครงสร้างพร้อม checksum สำหรับเก็บถาวรหรือย้าย",
   "Succeeded": "สำเร็จ",
+  "Switch to the dark theme": "สลับเป็นธีมมืด",
+  "Switch to the light theme": "สลับเป็นธีมสว่าง",
   "The save has this slot assigned to a Pal that no longer exists. The game will not fill it until something clears it.": "เซฟกำหนดช่องนี้ให้พัลที่ไม่มีอยู่แล้ว เกมจะไม่เติมจนกว่าจะมีอะไรมาล้างช่องนี้",
   "The server has not come back.": "เซิร์ฟเวอร์ยังไม่กลับมา",
   "The tree (no guild)": "ต้นไม้ (ไม่มีกิลด์)",

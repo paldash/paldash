@@ -190,6 +190,8 @@
   "Storage used": "Занято места",
   "Structured JSON export with a checksum, for archiving or transfer": "Структурированный JSON-экспорт с контрольной суммой — для архива или переноса",
   "Succeeded": "Успешно",
+  "Switch to the dark theme": "Переключиться на тёмную тему",
+  "Switch to the light theme": "Переключиться на светлую тему",
   "The save has this slot assigned to a Pal that no longer exists. The game will not fill it until something clears it.": "В сохранении этот слот закреплён за палом, которого больше нет. Игра не заполнит его, пока что-то его не очистит.",
   "The server has not come back.": "Сервер не вернулся.",
   "The tree (no guild)": "Древо (без гильдии)",

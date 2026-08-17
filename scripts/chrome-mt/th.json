@@ -207,5 +207,7 @@
  "World size & Pals": "ขนาดโลกและพัล",
  "You already own this Pal.": "คุณมีพัลตัวนี้อยู่แล้ว",
  "Your live world is never modified": "โลกที่กำลังรันอยู่ของคุณจะไม่ถูกแก้ไขเด็ดขาด",
- "Your settings persist across restarts.": "การตั้งค่าของคุณคงอยู่แม้รีสตาร์ต"
+ "Your settings persist across restarts.": "การตั้งค่าของคุณคงอยู่แม้รีสตาร์ต",
+ "Switch to the light theme": "สลับเป็นธีมสว่าง",
+ "Switch to the dark theme": "สลับเป็นธีมมืด"
 }

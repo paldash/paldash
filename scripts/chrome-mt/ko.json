@@ -207,5 +207,7 @@
  "World size & Pals": "월드 크기·팰",
  "You already own this Pal.": "이미 보유한 팰입니다.",
  "Your live world is never modified": "운영 중인 월드는 절대 수정되지 않습니다",
- "Your settings persist across restarts.": "설정은 재시작 후에도 유지됩니다."
+ "Your settings persist across restarts.": "설정은 재시작 후에도 유지됩니다.",
+ "Switch to the light theme": "밝은 테마로 전환",
+ "Switch to the dark theme": "어두운 테마로 전환"
 }

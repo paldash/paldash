@@ -13,7 +13,21 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    // suppressHydrationWarning: the inline script below sets data-theme on
+    // <html> BEFORE React hydrates, so the server-rendered attribute set and
+    // the client's can legitimately differ for light-theme users. Without the
+    // early script, an effect would apply the theme after first paint and a
+    // light-theme user would get a dark flash on every load.
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "try{if(localStorage.getItem('palworld-dashboard-theme')==='light')" +
+              "document.documentElement.dataset.theme='light'}catch(e){}",
+          }}
+        />
+      </head>
       <body>
         {children}
       </body>

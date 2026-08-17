@@ -207,5 +207,7 @@
  "World size & Pals": "Kích thước thế giới & Pal",
  "You already own this Pal.": "Bạn đã sở hữu Pal này.",
  "Your live world is never modified": "Thế giới đang chạy của bạn không bao giờ bị sửa đổi",
- "Your settings persist across restarts.": "Cài đặt của bạn được giữ qua các lần khởi động lại."
+ "Your settings persist across restarts.": "Cài đặt của bạn được giữ qua các lần khởi động lại.",
+ "Switch to the light theme": "Chuyển sang giao diện sáng",
+ "Switch to the dark theme": "Chuyển sang giao diện tối"
 }
