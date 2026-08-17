@@ -60,10 +60,12 @@ def test_the_species_speed_column_is_never_multiplied_by_a_build():
     assert base["buildAffectsMetric"] is False
     assert base["movementInFiles"] is True
     # The condenser question split in two once the mechanism was found. The
-    # partner-skill half is answered; the speed-column half is not, and is
-    # NEVER False — that was the original overclaim.
+    # partner-skill half is answered; the speed-column half went from
+    # "unverified" to absent-by-enumeration (five file surfaces, zero movement
+    # members) on 2026-08-17 — and is STILL never False, because names are not
+    # values. That was the original overclaim.
     assert base["condenserOnMovement"] == "viaPartnerSkill"
-    assert base["condenserOnSpeedColumns"] == "unverified"
+    assert base["condenserOnSpeedColumns"] == "absentByEnumeration"
 
 
 def test_passives_move_a_speed_and_stack_additively():
@@ -452,13 +454,17 @@ def test_a_trainer_targeted_movement_effect_is_not_the_pals_speed():
 
 def test_the_two_condenser_questions_stay_separate():
     """
-    One got answered and the other did not, and merging them would turn a
-    partial answer into a wrong one: whether `GenkaiToppa_PerAdd` also
-    multiplies the speed COLUMNS is still unsettled.
+    Both halves are answered now, at different strengths, and merging them
+    would still turn the weaker answer into the stronger one's: the
+    partner-skill half is CONFIRMED by observation + the game's own data;
+    the speed-column half is absent by enumeration — the game's own
+    status-operation enum is exactly {Attack, Defence, HP, WorkSpeed}, the
+    condenser screen previews Atk/Def/HP only, and the rank-scaling function
+    family has no movement member. Names, not values — hence the wording.
     """
     out = buildplanner.rank("rideSprint", limit=1)
     assert out["condenserOnMovement"] == "viaPartnerSkill"
-    assert out["condenserOnSpeedColumns"] == "unverified"
+    assert out["condenserOnSpeedColumns"] == "absentByEnumeration"
     # Never `false` — that was the overclaim this whole thread retracted.
     assert out["condenserOnSpeedColumns"] is not False
 

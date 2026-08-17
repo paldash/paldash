@@ -2539,6 +2539,33 @@ A reading of exactly 1.20 confirms the known constant and generalises to all
 753 species; any *other* non-unity ratio means a second native constant exists
 and **nothing may be generalised from one Pal**.
 
+**A fourth and fifth signal landed 2026-08-17, and the flag moved from
+"unverified" to `absentByEnumeration`.** The operator asked for this to be
+settled from the files rather than by playing, and two surfaces not previously
+enumerated both came back empty:
+
+- **`EPalCharacterStatusOperationName` is exactly `{Attack, Defence, HP,
+  WorkSpeed}`** (+`Undefined`) — the game's own enum for character-status
+  operations, i.e. the vocabulary of the pipeline `GenkaiToppa` feeds. The four
+  members are precisely the four stats the rank bonus is validated to touch,
+  and movement is not in the vocabulary at all. This is the strongest of the
+  five signals because it enumerates what the status system can *say*, not
+  merely what one screen shows.
+- **`WBP_IngameMenu_PalCondense`'s full 893-name table** has zero
+  speed/ride/swim/stamina names; its before/after readout is exactly six text
+  blocks (Prev/Aft × Atk/Def/HP) keyed to `COMMON_STATUS_RANGE_ATTACK`,
+  `COMMON_STATUS_DEFENCE`, `COMMON_STATUS_HP2`.
+- Also re-confirmed: **no condenser DataTable or DataAsset exists** (16 pak
+  hits for "condense": the widget, sounds, textures), so there is nowhere
+  data-side for a hidden term to live.
+
+`buildplanner` now ships `condenserOnSpeedColumns: "absentByEnumeration"` —
+**never `false`**, because names are not values and native code could in
+principle ignore its own vocabulary. The #106 measurement is demoted from the
+deciding instrument to an optional confirmation: a ratio of exactly 1.0 on a
+rank-skill-free Pal closes the last gap, and any other reading would be the
+enum lying, which is worth knowing loudly.
+
 ### Airborne locomotion has a SIGNAL in the speed columns — not a rule
 
 Raised by the operator: if there are separate ground and water speeds, can the
