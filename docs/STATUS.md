@@ -197,8 +197,14 @@ server pak"→1,831 blueprints under `BP_<Species>`.
 - **Non-Steam (Xbox/PS5/Mac) players are unverified** — task #33.
   `docs/CROSSPLAY.md` has what is known (now including the community-verified
   operational facts) and the three checks to run the day one joins.
-- **Condenser vs movement ratio** — task #106; the instrument
-  (`scripts/measure-speed.py`) polls the REST API and needs one observation.
+- **Condenser vs movement — CLOSED from the files** (task #106, 2026-08-17).
+  Five enumerable surfaces, zero movement members — the decisive one is
+  `EPalCharacterStatusOperationName = {Attack, Defence, HP, WorkSpeed}`, the
+  game's own vocabulary for the pipeline the rank bonus feeds. Shipped as
+  `condenserOnSpeedColumns: "absentByEnumeration"` (never `false` — names are
+  not values). `scripts/measure-speed.py` remains as an optional confirmation:
+  a 1.0 ratio on a rank-skill-free Pal closes the last gap; any other reading
+  would mean the enum lies, which is worth knowing loudly.
 - **Dungeon entrances are not extractable from the pak** — interiors are
   off-grid sub-levels; ~15 overworld entrances, the rest runtime-spawned.
 - **Respawn timers have no positions.** The save knows *that* a node is
@@ -259,7 +265,7 @@ Ranked by value over effort; every source named is already indexed or bundled.
 |---|---|
 | — | **World Tree**: build or open anything on that landmass to confirm orientation |
 | 33 | **Non-Steam players**: surfaces itself when a console player joins |
-| 106 | **Condenser vs movement**: one `measure-speed.py` run on a rank-skill-free Pal |
+| 106 | *(closed — answered from the files; a `measure-speed.py` run is optional confirmation only)* |
 
 ### Optional hardening, none gating a LAN deployment
 | # | Item | Size |
