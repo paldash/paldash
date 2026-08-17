@@ -22,6 +22,17 @@ confirms the known constant and generalises to all 753 species. Any *other*
 non-unity ratio means a second native constant exists and **nothing may be
 generalised from one Pal**.
 
+**#106 WAS CLOSED FROM THE FILES (2026-08-17), so this run is a CONFIRMATION,
+not the deciding instrument it was written as.** Five enumerable surfaces carry
+zero movement members — decisively, `EPalCharacterStatusOperationName` is
+exactly `{Attack, Defence, HP, WorkSpeed}`, the game's own vocabulary for the
+pipeline the rank bonus feeds — so `buildplanner` ships
+`condenserOnSpeedColumns: "absentByEnumeration"`. The expected reading here is
+therefore **1.00** on a rank-skill-free Pal. A 1.00 closes the last gap
+(names are not values, and this is the value); anything else means the enum
+lies about its own pipeline, which would be a finding worth far more than the
+run that produced it.
+
 **It says nothing about which Pal to use.** Pick one with no rank-indexed
 partner skill, or the partner-skill bonus (#103) is measured instead — Direhowl
 reads 0/10/12/15/20% across the stars for exactly that reason and would produce
