@@ -317,3 +317,21 @@ def test_an_unknown_id_is_still_refused():
     """The structure fallback must not turn a typo into a confident answer."""
     tree = crafting.tree("NoSuchThingAtAll")
     assert tree["known"] is False
+
+
+def test_itemsource_loading_first_does_not_break_the_tree():
+    """
+    THE PRODUCTION ORDERING. The Items panel fetches `/api/world/items/{id}`
+    (itemsource) and the crafting tree together, and itemsource usually wins the
+    race. Both modules cache an index built from the same `economy.json.gz`;
+    while `viewcache.per_file` keyed on the path alone, itemsource's index was
+    handed to crafting, which read `index["byProduct"]` out of a dict that has
+    no such key — a 500 on every crafting tree once the panel had loaded, and a
+    pass in every test that called crafting first.
+    """
+    import itemsource
+
+    itemsource.describe("CopperIngot")           # seeds itemsource's index
+    tree = crafting.tree("CopperIngot")          # must still get its OWN index
+    assert tree["known"] is True
+    assert tree.get("raw"), "tree lost its recipes to itemsource's cache entry"

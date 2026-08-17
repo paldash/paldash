@@ -80,7 +80,9 @@ MAX_NODES = 4000
 
 def _index() -> dict[str, Any]:
     """Recipes keyed by product and by row id, rebuilt when the bundle changes."""
-    return viewcache.per_file(gamedata.ECONOMY_PATH, _build_index)
+    # `itemsource` builds a *different* index from this same file — the key is
+    # what keeps the two from trading shapes. See `viewcache.per_file`.
+    return viewcache.per_file("crafting:index", gamedata.ECONOMY_PATH, _build_index)
 
 
 def _build_index() -> dict[str, Any]:

@@ -697,15 +697,20 @@ export interface BackupInfo {
 
 export interface BackupListing {
   backups: BackupInfo[];
+  /** null when the backup directory could not be read at all. */
   usage: {
     count: number;
     totalBytes: number;
     oldest: string | null;
     newest: string | null;
     directory: string;
-  };
+  } | null;
   scopes: Record<string, string>;
   retention: Record<string, number>;
+  /** false = the backup volume is unmounted/read-only; `reason` says which. */
+  available?: boolean;
+  reason?: string;
+  directory?: string;
 }
 
 export interface BackupDetail extends BackupInfo {
