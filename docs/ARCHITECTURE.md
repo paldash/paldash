@@ -3,9 +3,10 @@
 How this codebase is put together and why it is shaped this way. For *what it
 does*, read `docs/FEATURES.md`; for *what is left*, `docs/AUDIT.md`.
 
-Measured 2026-07-30: **17,435 lines of backend Python** across 41 flat modules,
-**11,571 lines of backend tests**, **12,340 lines of TypeScript** across 24
-components, **108 backend routes**.
+Measured 2026-08-17: **35,773 lines of backend Python** across 67 flat modules,
+**28,294 lines of backend tests**, **27,236 lines of TypeScript** across 45
+components, **149 backend routes**. (Re-count when you change this header —
+the 2026-07-30 figures sat here at half these values for two weeks.)
 
 ---
 
@@ -69,7 +70,7 @@ failure direction.
 
 ## 3. Backend module map
 
-Flat, and they import each other directly. At 41 modules that is still fine;
+Flat, and they import each other directly. At 67 modules that is still fine;
 the discipline that keeps it fine is that **each module has one job and the
 dangerous ones are separated from the safe ones on purpose.**
 
@@ -109,15 +110,39 @@ soloexport.py   uid remap          writes a COPY; never the live world
 `saveexport.py` has **no write path at all** and lives apart from
 `saveimport.py` so the risky code is never one typo from the safe code.
 
+### Writing, the additions since 07-30
+`dynamicitem.py` (durability), `itemclone.py` (the only module adding a
+`DynamicItemSaveData` record), `guildedit.py` (the four-structure guild move),
+`exportscope.py` (the prune option).
+
 ### Serving
-`main.py` (108 routes), `accounts.py`, `authz.py`, `roles.py`, `policy.py`,
+`main.py` (149 routes), `accounts.py`, `authz.py`, `roles.py`, `policy.py`,
 `audit.py`, `db.py`, `privacy.py`, `baseprivacy.py`, `reports.py`,
 `worldobjects.py`, `breeding.py`, `editschema.py`.
 
+### Understanding the game (reference data, no save writes)
+The post-phase layer — each a separate module because the neighbouring one
+holds an *opposite policy on the same data* (the `palstats`/`palresist`/
+`workassign` lesson, three times over):
+
+| Module | Job |
+|---|---|
+| `palstats.py` | the community stat formula, transcribed and labelled `calculated` |
+| `palresist.py` | elemental resistance from effect types, never prose |
+| `passiveeffects.py` | the 208 effect types, structured |
+| `condenser.py` | star → work-suitability bonus (the determined 76%) |
+| `buildplanner.py` | whole-species rankings at a chosen build |
+| `optimise.py` | roster rankings — matchup is a badge, never a sort key |
+| `workrank.py` / `workassign.py` / `baseassign.py` | rank curves · who IS working · who SHOULD |
+| `crafting.py` / `itemsource.py` | recursive tree · where an item comes from |
+| `elements.py` | the one hand-entered constant, quarantined |
+| `habitats.py`, `bossplanner.py`, `completion.py`, `achievements.py`, `progresscheck.py`, `labresearch.py`, `basesupply.py`, `worldclock.py`, `settingshelp.py` | one question each; names say which |
+
 ### Talking to the server
 `gameapi.py` (the backend's own REST client), `moderate.py` (commands + audit),
-`lifecycle.py` (container start/stop), `settings_ini.py`, `metrics.py`,
-`schedule.py`, `announcements.py`, `gameversion.py`, `mods.py`.
+`lifecycle.py` (container start/stop), `settings_ini.py`, `iniwatch.py` (did a
+write survive the restart), `metrics.py`, `schedule.py`, `announcements.py`,
+`gameversion.py`, `mods.py`.
 
 ---
 
@@ -210,14 +235,19 @@ where it came from fails the suite.
 
 ## 7. Testing
 
+**`docs/TESTING.md` is the full guide** — how to run everything, what pins
+what, and the traps. The short form:
+
 | Command | Scope | Time |
 |---|---|---|
-| `pytest -m "not integration"` | Backend unit | ~35 s |
-| `pytest` | Everything, against a real world | ~140 s |
-| `npm test` | Frontend (vitest) | <1 s |
+| `pytest -m "not integration"` | Backend unit (~1,900 tests) | ~3 min |
+| `pytest` | Everything, against a real world (2,043) | ~25 min |
+| `npm test` | Frontend (vitest, 153) | ~1 s |
 
 Integration tests skip automatically when `refworld/` or `palsav` is absent, so
-a clean checkout still runs green.
+a clean checkout still runs green. **Clear `/tmp/pytest-of-$USER` before a full
+run** — 2.6 GB per run on a tmpfs, and a full `/tmp` presents as every shell
+command failing with no output, not as a disk error.
 
 **The pattern worth knowing**: findings get pinned by a test, not just a
 comment. `group_id_belong_to` is the guild rather than the base; the `max()` in
