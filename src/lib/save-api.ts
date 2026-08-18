@@ -2026,7 +2026,10 @@ export interface PlayerProgress {
     | RelicLine[]
     | Record<string, number>
     | { obtained: number; of: number; source: string }
-    | { total: number; distinct: number }
+    // `distinct` is null when the save stores a plain int — a scalar carries
+    // no per-key breakdown, and the counter is ABSENT (not 0/0) until the
+    // game first has something to count.
+    | { total: number; distinct: number | null }
     | undefined;
 }
 
