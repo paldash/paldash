@@ -172,6 +172,27 @@ export default function PlayerRoster() {
                       </span>
                     )}
                   </span>
+                  {(p.trainerBuffs?.length ?? 0) > 0 && (
+                    /* What the party grants the player — per effect with its
+                       condition and source Pal, never summed: how two buffs
+                       stack is stated in no game file, and a riding-only buff
+                       is not active on foot. */
+                    <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 3 }}>
+                      {p.trainerBuffs!.map((b, i) => (
+                        <span
+                          key={i}
+                          title={`${b.skillName} on ${b.palName} — ${b.affectsLabel}, ${b.whenLabel}`}
+                          style={{ marginRight: 10, whiteSpace: 'nowrap' }}
+                        >
+                          {b.label} {b.value > 0 ? '+' : ''}{b.value}
+                          {b.unit === 'percent' ? '%' : ''}
+                          {b.whenLabel !== 'always' && (
+                            <span style={{ opacity: 0.7 }}> ({b.whenLabel})</span>
+                          )}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </td>
                 <td>
                   <button

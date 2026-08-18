@@ -249,11 +249,26 @@ export interface GuildMember {
  * population for account management — the player you want to add an account for
  * is usually the one who logged off.
  */
+export interface TrainerBuff {
+  label: string;
+  value: number;
+  unit: 'flat' | 'percent';
+  /** e.g. "always", "while riding", "while in your party" — a riding-only
+   *  buff is not active on foot, so the condition always renders. */
+  whenLabel: string;
+  skillName: string;
+  palName: string;
+  affectsLabel: string;
+}
+
 export interface RosterPlayer {
   uid: string;
   name: string;
   level: number;
   online: boolean;
+  /** What this player's party grants them. Per effect, never summed — how
+   *  buffs stack is stated in no game file. */
+  trainerBuffs?: TrainerBuff[];
   /** The id kick/ban take, which is not always spelled like the save's uid. */
   restUserId: string;
   ping: number | null;

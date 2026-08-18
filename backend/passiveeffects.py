@@ -482,3 +482,43 @@ def catalogue() -> dict[str, Any]:
         "affects": [{"id": k, "label": v} for k, v in _AFFECTS_LABELS.items()],
         "unclassified": unclassified(),
     }
+
+
+#: `affects` values that reach the TRAINER. `party`/`active_party` do not —
+#: they buff other Pals, which is a different sentence than "buffs you".
+_PLAYER_AFFECTS = frozenset({"player", "pal_and_player", "player_and_party"})
+
+
+def trainer_buffs(party_pals: list) -> list[dict[str, Any]]:
+    """
+    What a player's PARTY currently grants the player, per effect.
+
+    #137's finding was that 273 effects targeting the trainer were rendered
+    nowhere: a Silvegis in your party cuts shield damage 65-80% and the
+    dashboard never said so. This is the aggregation the roster shows.
+
+    Scope is deliberate and worth stating:
+
+    - **Party Pals only.** A trainer buff fires from the party (`InvokeInOtomo`
+      and friends); a palbox Pal grants nothing. The caller passes the party.
+    - **Conditions travel, values do not combine.** A riding-only buff
+      (`whenLabel: "while riding"`) is not active while walking, and how two
+      same-type buffs stack is stated in no file — so each effect is its own
+      row with its source Pal named, never a summed figure that would assert a
+      stacking rule nobody has.
+    """
+    rows: list[dict[str, Any]] = []
+    for pal in party_pals or []:
+        described = describe_passives(list(pal.get("passiveSkills") or []))
+        for skill in described["skills"]:
+            for effect in skill["effects"]:
+                if effect.get("affects") not in _PLAYER_AFFECTS:
+                    continue
+                rows.append({
+                    **effect,
+                    "skillName": skill["name"],
+                    "whenLabel": skill["whenLabel"],
+                    "palName": pal.get("nickname") or pal.get("speciesName")
+                               or pal.get("characterId") or "",
+                })
+    return rows
