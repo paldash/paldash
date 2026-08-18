@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Layers, ChevronDown, ChevronRight, X } from 'lucide-react';
 import { prettyClass } from '@/lib/pretty-class';
 import { kindColor, markerShape, shapeSvg } from '@/lib/kind-colors';
-import { t } from '@/lib/chrome';
+import { t, tl } from '@/lib/chrome';
 
 export interface LayerDef {
   id: string;
@@ -30,20 +30,20 @@ export interface StaticCategory {
 }
 
 const GROUP_LABEL: Record<LayerDef['group'], string> = {
-  live: 'Live',
+  live: tl('Live'),
   // Bundled positions + your save's found/not-found state. Neither of the two
   // groups below describes that, and filing them under "From the save" was
   // wrong in the one way that matters: it claimed the *positions* came from the
   // world, when the whole point of these layers is that the dashboard knows
   // where all 174 and all 396 are regardless of what anyone has found.
-  discovery: 'Discoveries',
-  world: 'From the save',
-  static: 'From the game files',
+  discovery: tl('Discoveries'),
+  world: tl('From the save'),
+  static: tl('From the game files'),
   // Their own group rather than a `static:` sibling, because the interesting
   // thing about them is WHO stands there rather than that something does — and
   // the role split gives seven toggles, which would swamp the static list.
-  npc: 'People',
-  base: 'Base structures',
+  npc: tl('People'),
+  base: tl('Base structures'),
 };
 
 /**
@@ -165,7 +165,7 @@ export default function MapLayersPanel({
                     color: 'var(--text-muted)',
                   }}
                 >
-                  <span>{GROUP_LABEL[group]}</span>
+                  <span>{t(GROUP_LABEL[group])}</span>
                   <span>({on}/{inGroup.length})</span>
                   <button
                     className="btn btn-ghost"
@@ -233,7 +233,7 @@ export default function MapLayersPanel({
                               }}
                             />
                           )}
-                          <span style={{ fontSize: 12 }}>{layer.label}</span>
+                          <span style={{ fontSize: 12 }}>{t(layer.label)}</span>
                           {counts[layer.id] != null && (
                             <span style={{ marginLeft: 'auto', fontSize: 10, color: 'var(--text-muted)' }}>
                               {counts[layer.id].toLocaleString()}

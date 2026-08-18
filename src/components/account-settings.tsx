@@ -9,7 +9,7 @@ import {
 import { useDashboardStore } from '@/lib/store';
 import { ROLE_LABEL, type Role } from '@/lib/auth-types';
 import type { MyPrivacy, ManageableBase, ManageableBases } from '@/lib/types';
-import { t } from '@/lib/chrome';
+import { t, tl } from '@/lib/chrome';
 
 /**
  * Your own account: who you are here, who can see you on the map, and your
@@ -20,6 +20,20 @@ import { t } from '@/lib/chrome';
  * point of having it — and oversight does not need that, because the rule already
  * lets staff see everyone below them regardless of the setting.
  */
+//: The privacy-mode labels arrive from the BACKEND (`backend/privacy.py`),
+//: so the manifest scan cannot see them in a render expression. This mirror
+//: is what puts them into the language packs; `t(mode.label)` at the render
+//: site does the lookup. Keep in step with the backend — a drifted entry
+//: costs nothing worse than that string staying English.
+const PRIVACY_MODE_STRINGS = [
+  tl('Visible to everyone'),
+  tl('Hide me'),
+  tl('Hide me and my solo bases'),
+  tl('Hide me and my whole guild'),
+  tl('Hide my bases, not me'),
+];
+void PRIVACY_MODE_STRINGS;
+
 export default function AccountSettings() {
   const store = useDashboardStore();
   const [privacy, setPrivacy] = useState<MyPrivacy | null>(null);
@@ -119,14 +133,14 @@ export default function AccountSettings() {
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, fontWeight: 600 }}>
-                      {mode.label}
+                      {t(mode.label)}
                       {active && <Check size={13} style={{ color: 'var(--accent)' }} />}
                       {mode.id === 'guild' && (
                         <span className="badge" style={{ fontSize: 9 }}>affects your guildmates</span>
                       )}
                     </div>
                     <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 3 }}>
-                      {mode.description}
+                      {t(mode.description)}
                     </div>
                   </button>
                 );

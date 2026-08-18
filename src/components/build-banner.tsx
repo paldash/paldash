@@ -110,7 +110,7 @@ export default function BuildBanner() {
             internal id instead of a name, and would not appear on the map.
           </div>
           <div style={{ marginTop: 6, lineHeight: 1.6 }}>
-            <strong>Nothing for you to do.</strong> This is fixed by a dashboard
+            <strong>{t('Nothing for you to do.')}</strong> This is fixed by a dashboard
             update that bundles the new build&rsquo;s data, not by anything on
             this server. Save editing, backups and moderation are unaffected.
           </div>

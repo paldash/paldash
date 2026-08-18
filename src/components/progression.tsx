@@ -17,7 +17,7 @@ import type {
   Checklist, ChecklistEntry, ProgressDetailReport, RaidBossReport,
   PaldeckCompletion, AchievementSummary, AchievementCategory, AchievementTier,
 } from '@/lib/types';
-import { t } from '@/lib/chrome';
+import { t, tl } from '@/lib/chrome';
 
 /**
  * How far through the game each player is, and *what is left* by name.
@@ -162,7 +162,7 @@ export default function Progression() {
           />
           <ChecklistCard
             icon={<Sparkles size={14} />}
-            title="Effigies"
+            title={t('Effigies')}
             list={lists.effigies}
             note="Positions only — a relic has no name of its own. The map draws them."
           />
@@ -240,7 +240,7 @@ function PaldeckCompletionCard({ entries, who }: {
           <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12 }}>
             <input type="checkbox" checked={showCaught}
                    onChange={(e) => setShowCaught(e.target.checked)} />
-            Show caught
+            {t('Show caught')}
           </label>
         )}
       </div>
@@ -336,12 +336,12 @@ function Counts({
   totals: Record<string, { total: number; source: string }>;
 }) {
   const rows: [string, string][] = [
-    ['towerBosses', 'Tower bosses'],
-    ['fieldBosses', 'Field bosses'],
-    ['fastTravel', 'Fast travel'],
-    ['paldeck', 'Paldeck'],
-    ['effigies', 'Effigies'],
-    ['areasFound', 'Regions'],
+    ['towerBosses', tl('Tower bosses')],
+    ['fieldBosses', tl('Field bosses')],
+    ['fastTravel', tl('Fast travel')],
+    ['paldeck', tl('Paldeck')],
+    ['effigies', tl('Effigies')],
+    ['areasFound', tl('Regions')],
   ];
   return (
     <div className="dashboard-grid grid-3">
@@ -351,7 +351,7 @@ function Counts({
         const source = entry.source || totals[key]?.source;
         return (
           <div key={key} className="stat-card">
-            <div className="stat-label">{label}</div>
+            <div className="stat-label">{t(label)}</div>
             <div className="stat-value" style={{ marginTop: 6 }}>
               {entry.obtained}
               <span style={{ fontSize: 13, color: 'var(--text-muted)' }}> / {entry.of}</span>
@@ -392,19 +392,19 @@ const RECORD_COUNTERS: {
   distinctLabel?: string;
   title?: string;
 }[] = [
-  { key: 'itemsCrafted', label: 'Items crafted', distinctLabel: 'kinds' },
+  { key: 'itemsCrafted', label: tl('Items crafted'), distinctLabel: tl('kinds') },
   {
-    key: 'palRankUps', label: 'Condenser rank-ups',
+    key: 'palRankUps', label: tl('Condenser rank-ups'),
     title: 'The save counts rank-ups per rank reached, so a per-species breakdown does not exist.',
   },
   {
-    key: 'mutations', label: 'Mutations',
+    key: 'mutations', label: tl('Mutations'),
     title: 'The counter is named MutationCount and no file states what one unit is.',
   },
-  { key: 'towerBossDefeats', label: 'Tower boss defeats', distinctLabel: 'bosses' },
-  { key: 'campsConquered', label: 'Camps conquered' },
-  { key: 'oilrigsCleared', label: 'Oil rigs cleared' },
-  { key: 'npcTalks', label: 'NPC conversations', distinctLabel: 'NPCs' },
+  { key: 'towerBossDefeats', label: tl('Tower boss defeats'), distinctLabel: tl('bosses') },
+  { key: 'campsConquered', label: tl('Camps conquered') },
+  { key: 'oilrigsCleared', label: tl('Oil rigs cleared') },
+  { key: 'npcTalks', label: tl('NPC conversations'), distinctLabel: tl('NPCs') },
 ];
 
 function RecordCounters({ player }: { player: PlayerProgress }) {
@@ -423,13 +423,13 @@ function RecordCounters({ player }: { player: PlayerProgress }) {
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 18px' }}>
         {rows.map((c) => (
           <div key={c.key} style={{ fontSize: 12 }} title={c.title}>
-            <span style={{ color: 'var(--text-muted)' }}>{c.label} </span>
+            <span style={{ color: 'var(--text-muted)' }}>{t(c.label)} </span>
             <span className="mono" style={{ color: 'var(--text-primary)' }}>
               {c.entry!.total.toLocaleString()}
             </span>
             {c.distinctLabel && c.entry!.distinct != null && (
               <span style={{ color: 'var(--text-muted)' }}>
-                {' '}· {c.entry!.distinct.toLocaleString()} {c.distinctLabel}
+                {' '}· {c.entry!.distinct.toLocaleString()} {t(c.distinctLabel)}
               </span>
             )}
           </div>
@@ -476,9 +476,9 @@ function Relics({ lines }: { lines: RelicLine[] }) {
 
 /** Human labels for the game's three milestone categories. */
 const MILESTONE_LABEL: Record<string, string> = {
-  PalCapture: 'Pals captured',
-  PalDex: 'Paldeck species',
-  BossDefeat: 'Bosses defeated',
+  PalCapture: tl('Pals captured'),
+  PalDex: tl('Paldeck species'),
+  BossDefeat: tl('Bosses defeated'),
 };
 
 const TIER_STYLE: Record<AchievementTier['state'], { color: string; label: string }> = {
@@ -489,7 +489,7 @@ const TIER_STYLE: Record<AchievementTier['state'], { color: string; label: strin
 };
 
 function MilestoneRow({ name, category }: { name: string; category: AchievementCategory }) {
-  const label = MILESTONE_LABEL[name] ?? name;
+  const label = t(MILESTONE_LABEL[name] ?? name);
   return (
     <div style={{ marginBottom: 10 }}>
       <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap' }}>
