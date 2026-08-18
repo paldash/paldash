@@ -43,6 +43,10 @@ export default function SaveEditor() {
   // what is safe to move — bundling them would make "sort by category" imply
   // permission to relocate durability items.
   const [order, setOrder] = useState<'id' | 'category'>('category');
+  // Which tool is on screen. Everything used to render at once — seven
+  // heavyweight editors in one scroll, with the one you wanted somewhere
+  // under 3,000 lines of the ones you didn't. One section at a time.
+  const [section, setSection] = useState('sorting');
   // Whether the operator configured STOP_COMMAND / START_COMMAND. Both are off
   // by default, so the container buttons stay hidden unless they would work.
   const [canStopContainer, setCanStopContainer] = useState(false);
@@ -204,8 +208,33 @@ docker compose start palworld    # bring it back`}
         </details>
       </div>
 
-      {/* ─── Sort scope ─── */}
-      <div className="glass-card" style={{ padding: 16 }}>
+      {/* ─── Tool picker ─── */}
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        {[
+          ['sorting', t('Sort chests')],
+          ...(has(CAPABILITIES.VIEW_DETAIL) ? [['integrity', t('Integrity scan')]] : []),
+          ['pals', t('Pal & player editor')],
+          ['bulk', t('Bulk edits')],
+          ['slots', t('Chest slots')],
+          ['guilds', t('Guild move')],
+          ['import', t('Pal import')],
+          ['export', t('World export')],
+        ].map(([id, label]) => (
+          <button
+            key={id}
+            className={section === id ? 'btn btn-primary' : 'btn btn-ghost'}
+            style={{ fontSize: 12, padding: '4px 12px' }}
+            onClick={() => setSection(id)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {section === 'sorting' && (
+        <>
+          {/* ─── Sort scope ─── */}
+          <div className="glass-card" style={{ padding: 16 }}>
         <div className="section-title" style={{ marginBottom: 10 }}>
           <Target size={14} /> What to sort
         </div>
@@ -274,43 +303,48 @@ docker compose start palworld    # bring it back`}
           onRun={() => runSort('all')}
         />
       </div>
-
-      {/* The illegal-Pal scan is a read, so it sits outside the SAVE_EDIT_FULL
-          gate below — finding out whether anyone has been cheating must not
-          require the capability to rewrite the world. */}
-      {has(CAPABILITIES.VIEW_DETAIL) && <PalCheck canEdit={canEdit && has(CAPABILITIES.SAVE_EDIT_FULL)} />}
-
-      {/* Not gated on `canEdit`. This is the one operation here that never writes
-          to the live world — it reads it and produces a separate copy — so a
-          running server is no reason to hide it. */}
-      <WorldExport canManage={has(CAPABILITIES.BACKUP_MANAGE)} />
-
-      {has(CAPABILITIES.SAVE_EDIT_FULL) ? (
-        <>
-          <CharacterEditor canEdit={canEdit} />
-          <BulkPalEditor canEdit={canEdit} />
-          <SlotEditor canEdit={canEdit} />
-          <GuildMove canEdit={canEdit} />
-          <div className="glass-card" style={{ padding: 16 }}>
-            <PalImport canEdit={canEdit} />
-          </div>
         </>
-      ) : (
-        <div className="glass-card" style={{ padding: 16, opacity: 0.75 }}>
-          <div className="section-title" style={{ marginBottom: 8 }}>
-            <PenLine size={14} /> Character editor
-            <span className="badge" style={{ marginLeft: 'auto' }}>{t('Locked')}</span>
+      )}
+
+      {section === 'integrity' && has(CAPABILITIES.VIEW_DETAIL) && (
+        <PalCheck canEdit={canEdit && has(CAPABILITIES.SAVE_EDIT_FULL)} />
+      )}
+
+      {/* Not gated on `canEdit`. The export is the one operation here that
+          never writes to the live world — it reads it and produces a separate
+          copy — so a running server is no reason to hide it. */}
+      {section === 'export' && <WorldExport canManage={has(CAPABILITIES.BACKUP_MANAGE)} />}
+
+      {['pals', 'bulk', 'slots', 'guilds', 'import'].includes(section) && (
+        has(CAPABILITIES.SAVE_EDIT_FULL) ? (
+          <>
+            {section === 'pals' && <CharacterEditor canEdit={canEdit} />}
+            {section === 'bulk' && <BulkPalEditor canEdit={canEdit} />}
+            {section === 'slots' && <SlotEditor canEdit={canEdit} />}
+            {section === 'guilds' && <GuildMove canEdit={canEdit} />}
+            {section === 'import' && (
+              <div className="glass-card" style={{ padding: 16 }}>
+                <PalImport canEdit={canEdit} />
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="glass-card" style={{ padding: 16, opacity: 0.75 }}>
+            <div className="section-title" style={{ marginBottom: 8 }}>
+              <PenLine size={14} /> Character editor
+              <span className="badge" style={{ marginLeft: 'auto' }}>{t('Locked')}</span>
+            </div>
+            <p style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.7 }}>
+              Editing Pal and player levels, experience, condenser rank and IVs needs the{' '}
+              <span className="mono">save.edit.full</span> capability, which exists only at
+              security level <strong>full</strong>. Servers default to <strong>safe</strong>,
+              so this stays hidden until someone deliberately raises it — even for an Owner.
+              Set <span className="mono">{t('SECURITY_LEVEL=full')}</span> in your{' '}
+              <span className="mono">.env</span>, or raise it on the Access tab if the
+              environment ceiling already permits it.
+            </p>
           </div>
-          <p style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.7 }}>
-            Editing Pal and player levels, experience, condenser rank and IVs needs the{' '}
-            <span className="mono">save.edit.full</span> capability, which exists only at
-            security level <strong>full</strong>. Servers default to <strong>safe</strong>,
-            so this stays hidden until someone deliberately raises it — even for an Owner.
-            Set <span className="mono">{t('SECURITY_LEVEL=full')}</span> in your{' '}
-            <span className="mono">.env</span>, or raise it on the Access tab if the
-            environment ceiling already permits it.
-          </p>
-        </div>
+        )
       )}
 
       {lastResult && (
