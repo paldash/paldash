@@ -300,9 +300,9 @@ def verify_written_keys(path: Optional[str]) -> dict[str, Any]:
     if not pending:
         return _key_summary([])
 
-    try:
-        import settings_ini
+    import settings_ini
 
+    try:
         options = settings_ini.read_ini(path, reveal=True)["options"]
     except Exception as e:  # noqa: BLE001
         logger.warning("Could not re-read the INI to verify keys: %s", e)
@@ -325,6 +325,13 @@ def verify_written_keys(path: Optional[str]) -> dict[str, Any]:
             verdict = (
                 "verified" if _matches(row["expected"], actual, secret) else "reverted"
             )
+        # The actionable half of a failed verdict (#132): on a regenerating
+        # image the INI is a projection of the compose file, so "your change
+        # was reverted" without naming the env var sends the operator to edit
+        # the same file that just got overwritten. Attached on every verdict,
+        # not only failures — a verified key on such an image is one restart
+        # of a changed compose file away from the same fate.
+        env_hint = settings_ini._env_display(key)
         results.append({
             "key": key,
             "verdict": verdict,
@@ -332,6 +339,7 @@ def verify_written_keys(path: Optional[str]) -> dict[str, Any]:
             # Never for a secret, in either direction, whatever the verdict.
             "expected": "" if secret else row["expected"],
             "actual": "" if secret else actual,
+            "envVar": env_hint,
         })
 
     with db.transaction() as conn:
@@ -368,6 +376,10 @@ def _key_summary(results: list[dict[str, Any]]) -> dict[str, Any]:
             f"{r['key']} did not survive the restart"
             + ("" if r["secret"] else f" — expected {r['expected']}, found "
                + (r["actual"] or "the key to be absent"))
+            # The fix lives in the compose file, not this dashboard, so the
+            # warning names the variable the operator must actually set.
+            + (f". This image manages it as {r['envVar']} — set that in the "
+               "game container's environment instead." if r.get("envVar") else "")
         )
         for r in results if r["verdict"] in _FAILED
     ]

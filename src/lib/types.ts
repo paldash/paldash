@@ -1423,6 +1423,14 @@ export interface IniSettings {
         secret: boolean;
         expected: string;
         actual: string;
+        /**
+         * The env var(s) that manage this key on the known server images
+         * (`SERVER_NAME`, or `REST_API_PORT / RESTAPI_PORT` when they
+         * disagree) — the thing to actually change after a revert, since on a
+         * regenerating image the INI is a projection of the compose file.
+         * Null for a key neither image's template names.
+         */
+        envVar: string | null;
       }[];
       /** Actionable: a setting you changed is not in effect. */
       warnings: string[];
