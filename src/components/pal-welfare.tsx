@@ -40,10 +40,12 @@ const PROBLEMS: {
   colour: string;
 }[] = [
   { key: 'sick', label: 'Sick', icon: <Stethoscope size={13} />, colour: '#e5484d' },
-  // Amber, not red: the game is already curing these. See the backend note —
-  // `EPalBaseCampWorkerSickType` is a base-camp worker state, and every Pal
-  // this flagged on one live server was sitting healthy in a palbox.
-  { key: 'sickRecovering', label: 'Recovering in the box', icon: <Stethoscope size={13} />, colour: '#f5a524' },
+  // Muted, not amber: nothing is wrong with these Pals. `WorkerSick` is a
+  // base-camp worker state that lingers on the record after the Pal leaves —
+  // the game shows them healthy, and the flags sit unchanged indefinitely.
+  // An earlier label said "Recovering in the box", which claimed a process
+  // nobody has observed. Listed so the operator can clear the residue.
+  { key: 'staleSick', label: 'Stale sickness flag (healthy in game)', icon: <Stethoscope size={13} />, colour: 'var(--text-muted)' },
   { key: 'injured', label: 'Injured', icon: <HeartPulse size={13} />, colour: '#e5484d' },
   { key: 'starving', label: 'Starving', icon: <Utensils size={13} />, colour: '#e5484d' },
   { key: 'hungry', label: 'Hungry', icon: <Utensils size={13} />, colour: '#f5a524' },
@@ -65,7 +67,7 @@ const REMEDIES: Remedy[] = [
   {
     id: 'cure',
     label: 'Cure sickness',
-    covers: ['sick', 'sickRecovering'],
+    covers: ['sick', 'staleSick'],
     // `null` is the whole request. A healthy Pal has no `WorkerSick` property
     // at all, so there is no well value to write — curing is a deletion, and
     // the result is byte-identical to a Pal that was never ill.
@@ -408,6 +410,7 @@ function WelfareRow({ pal }: { pal: PalRecord & { problems: WelfareProblem[] } }
                   is a different problem from "Depression" and both read as
                   "sick" otherwise. */}
               {problem === 'sick' ? pal.workerSick
+                : problem === 'staleSick' ? `Stale: ${pal.workerSick}`
                 : problem === 'injured' ? pal.physicalHealth
                 : problem === 'lowSanity' ? `SAN ${Math.round(pal.sanity ?? 0)}`
                 : meta?.label}

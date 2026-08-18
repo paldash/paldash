@@ -499,14 +499,16 @@ export interface SanityThreshold {
 export type WelfareProblem =
   | 'sick'
   /**
-   * Sick, but sitting in a palbox where the game cures it.
+   * A leftover base-camp sickness flag on a Pal that is not at a base.
    *
    * `EPalBaseCampWorkerSickType` is a base-camp worker state, so it does not
-   * describe a Pal that is not working at a base — every Pal one live server
-   * flagged as sick was healthy in game. Reported separately rather than
-   * dropped: it is true, and it is not something to act on.
+   * describe a Pal in a box — every Pal one live server flagged as sick was
+   * healthy in game, and the flags sit unchanged for far longer than any cure
+   * window (an earlier version called this `sickRecovering`, which claimed a
+   * process nothing observes). Reported separately rather than dropped: the
+   * record really carries the field, and clearing it is how it gets tidied.
    */
-  | 'sickRecovering'
+  | 'staleSick'
   | 'injured'
   | 'hungry'
   | 'starving'

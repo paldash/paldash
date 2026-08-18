@@ -344,9 +344,13 @@ def test_a_boxed_sick_pal_is_RECOVERING_not_a_problem(client, alice, monkeypatch
 
     body = client.get("/api/welfare", headers=alice).json()
     assert body["counts"].get("sick") == 1, "only the base worker is actionable"
-    assert body["counts"].get("sickRecovering") == 2, "boxed and stored are recovering"
+    # Off-base the flag is RESIDUE, not recovery: the game shows these Pals
+    # healthy and the flags sit unchanged past any cure window (operator
+    # reports 2026-08-07 and 2026-08-18). The bucket is named for what is
+    # known — a stale field — not for a process nothing observes.
+    assert body["counts"].get("staleSick") == 2, "boxed and stored are stale flags"
 
     problems = {p["instanceId"]: p["problems"] for p in body["pals"]}
     assert problems["s1"] == ["sick"]
-    assert problems["s2"] == ["sickRecovering"]
-    assert problems["s3"] == ["sickRecovering"]
+    assert problems["s2"] == ["staleSick"]
+    assert problems["s3"] == ["staleSick"]

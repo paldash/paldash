@@ -1091,17 +1091,26 @@ def get_welfare(request: Request, owner: Optional[str] = None) -> dict:
             # The field is `EPalBaseCampWorkerSickType` and its own name says
             # what it is about. Reported 2026-08-07: every Pal the panel called
             # sick was in a palbox, and checking them in game showed all of them
-            # healthy — so the flag persists on the record after the Pal leaves
+            # healthy — the flag persists on the record after the Pal leaves
             # the base, and the game does not treat it as a live condition
-            # there. `PalBoxTimePeriodRecoverySick` (3,600s) is the game's own
-            # statement that the box cures them.
+            # there.
             #
-            # Split rather than dropped. A Pal recovering in the box is a fact
-            # worth showing, and silently discarding 54 of 54 flags would be its
-            # own kind of wrong — but it is not something to go and fix, which
-            # is the only question this panel exists to answer.
+            # **AND "RECOVERING" WAS STILL AN OVERCLAIM.** This bucket shipped
+            # as `sickRecovering`, reasoning from `PalBoxTimePeriodRecoverySick`
+            # (3,600s) that the box was curing them. Reported again 2026-08-18:
+            # ~50 flags on a world with nothing deployed, unchanged after far
+            # longer than any cure window — so whatever that setting governs,
+            # it is not clearing these records, and the in-game reading already
+            # said the game considers them healthy. The flag is residue, and
+            # `staleSick` names what is actually known: a leftover base-camp
+            # field on a Pal the game shows as well.
+            #
+            # Split rather than dropped, still: silently discarding 50 of 50
+            # flags would be its own kind of wrong, and the cure edit is how an
+            # operator tidies the record — but residue is not something to go
+            # and fix, which is the only question this panel exists to answer.
             problems.append(
-                "sick" if pal.get("location") == "base" else "sickRecovering"
+                "sick" if pal.get("location") == "base" else "staleSick"
             )
         if pal.get("physicalHealth"):
             problems.append("injured")
@@ -1131,8 +1140,13 @@ def get_welfare(request: Request, owner: Optional[str] = None) -> dict:
     # panel can say "Depressed — work -20%, move -10%, palbox cures 10% an hour"
     # instead of a red dot. Only the illnesses actually present are returned:
     # a reference table of all eight beside a roster of two is noise.
+    # Only LIVE sickness feeds the cost table. A stale flag on a boxed Pal is
+    # residue the game ignores, and a "Sprain — work -30%" row under fifty of
+    # them would dress the residue up as fifty live problems.
     present = {
-        str(p.get("workerSick") or "") for p in affected if p.get("workerSick")
+        str(p.get("workerSick") or "")
+        for p in affected
+        if p.get("workerSick") and "sick" in p.get("problems", [])
     }
     illnesses = [row for row in (gamedata.illness(sick) for sick in sorted(present)) if row]
 
