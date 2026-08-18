@@ -2004,10 +2004,16 @@ export interface RelicLine {
   effectRate: number;
   /** False for CapturePower — show the rank, never a percentage. */
   hasEffectRate: boolean;
-  /** Relics needed for the next rank, or absent at max. */
-  nextCost?: number;
-  /** Gold to reset this line and get the relics back. */
-  resetCost?: number;
+  /**
+   * The next rank, or null at max. This — not a `nextCost` field that never
+   * existed — is the maxed test: an earlier version keyed "maxed" on a name
+   * the backend never emitted, so every line read as maxed.
+   */
+  nextRank: number | null;
+  /** Relics needed to reach `nextRank`; 0 at max. */
+  relicsToNext: number;
+  /** Total relics to max this line out. */
+  totalToMax: number;
 }
 
 /** One player's counted progress, from `/api/progress`. */
