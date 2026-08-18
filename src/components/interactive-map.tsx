@@ -19,7 +19,7 @@ import type {
   StaticWorldObject, StaticWorldSummary, NpcPlacement,
 } from '@/lib/types';
 import { asArray } from '@/lib/arrays';
-import { t } from '@/lib/chrome';
+import { t, tl } from '@/lib/chrome';
 
 const MapComponent = dynamic(() => import('./map-inner'), { ssr: false });
 
@@ -31,8 +31,8 @@ const MapComponent = dynamic(() => import('./map-inner'), { ssr: false });
  * bundled game data. Everything else is read out of the world.
  */
 const LAYERS: { id: string; label: string; color: string; group: 'live' | 'discovery' | 'world' | 'static' | 'npc' | 'base' }[] = [
-  { id: 'players', label: 'Players', color: '#5b9dd9', group: 'live' },
-  { id: 'bases', label: 'Bases', color: '#c9973f', group: 'live' },
+  { id: 'players', label: tl('Players'), color: '#5b9dd9', group: 'live' },
+  { id: 'bases', label: tl('Bases'), color: '#c9973f', group: 'live' },
 
   // Their own group, because they are neither of the other two and sat under
   // "From the save" claiming to be something they are not. Positions ship with
@@ -43,32 +43,32 @@ const LAYERS: { id: string; label: string; color: string; group: 'live' | 'disco
   // The group also maps one-to-one onto `discoveryCategoryVisibility`, so what
   // an operator sets on the Access tab and what a player sees here are named the
   // same thing.
-  { id: 'fastTravel', label: 'Fast travel', color: '#e0c060', group: 'discovery' },
-  { id: 'effigies', label: 'Effigies', color: '#8d84c7', group: 'discovery' },
-  { id: 'bosses', label: 'Field bosses', color: '#d4574e', group: 'discovery' },
+  { id: 'fastTravel', label: tl('Fast travel'), color: '#e0c060', group: 'discovery' },
+  { id: 'effigies', label: tl('Effigies'), color: '#8d84c7', group: 'discovery' },
+  { id: 'bosses', label: tl('Field bosses'), color: '#d4574e', group: 'discovery' },
 
 
   // "From the save", which is exactly what these are — not something the
   // world contains and you discover, but something a player wrote into it.
   // The server only ever sends you your own guild's.
-  { id: 'guildMarkers', label: 'Guild markers', color: '#4ea8d4', group: 'world' },
-  { id: 'chest', label: 'Chests', color: '#c9973f', group: 'world' },
-  { id: 'oreNode', label: 'Ore nodes', color: '#8a8378', group: 'world' },
-  { id: 'oilrigChest', label: 'Oil rig', color: '#d97757', group: 'world' },
-  { id: 'fishingJunk', label: 'Fishing junk', color: '#5f6b73', group: 'world' },
+  { id: 'guildMarkers', label: tl('Guild markers'), color: '#4ea8d4', group: 'world' },
+  { id: 'chest', label: tl('Chests'), color: '#c9973f', group: 'world' },
+  { id: 'oreNode', label: tl('Ore nodes'), color: '#8a8378', group: 'world' },
+  { id: 'oilrigChest', label: tl('Oil rig'), color: '#d97757', group: 'world' },
+  { id: 'fishingJunk', label: tl('Fishing junk'), color: '#5f6b73', group: 'world' },
 
   // Pak-derived, and a different thing from the save-derived layers above: these
   // are every node the game ships, not the ones a save has state for. Namespaced
   // `static:` so the two can be toggled independently and never collide.
-  { id: 'static:ore', label: 'All ore', color: '#8a8378', group: 'static' },
-  { id: 'static:treasure', label: 'All chests', color: '#c9973f', group: 'static' },
-  { id: 'static:fishing', label: 'Fishing spots', color: '#5f6b73', group: 'static' },
-  { id: 'static:oilrig', label: 'Oil fields', color: '#d97757', group: 'static' },
+  { id: 'static:ore', label: tl('All ore'), color: '#8a8378', group: 'static' },
+  { id: 'static:treasure', label: tl('All chests'), color: '#c9973f', group: 'static' },
+  { id: 'static:fishing', label: tl('Fishing spots'), color: '#5f6b73', group: 'static' },
+  { id: 'static:oilrig', label: tl('Oil fields'), color: '#d97757', group: 'static' },
   // Extracted all along and never given a toggle, so 2,163 dungeon objects and
   // 13,851 spawners sat in the bundle unreachable. A category the backend
   // withholds still gets no toggle — `visibleStaticIds` filters this list.
-  { id: 'static:dungeon', label: 'Dungeons', color: '#9a6fb0', group: 'static' },
-  { id: 'static:palspawner', label: 'Pal spawns', color: '#7fa05b', group: 'static' },
+  { id: 'static:dungeon', label: tl('Dungeons'), color: '#9a6fb0', group: 'static' },
+  { id: 'static:palspawner', label: tl('Pal spawns'), color: '#7fa05b', group: 'static' },
   // NAMED NPC LAYERS, one per role. These replace the anonymous
   // `static:npc` toggle: 141 of those 220 points were the generic class
   // `BP_MonoNPCSpawner`, so the layer could say "someone stands here" and never
@@ -77,37 +77,37 @@ const LAYERS: { id: string; label: string; color: string; group: 'live' | 'disco
   //
   // The role split is a NAME RULE — no game table carries a role — and it fails
   // safe: anything unrecognised lands in "Other NPCs".
-  { id: 'npc:merchant', label: 'Merchants & traders', color: '#e0c060', group: 'npc' },
-  { id: 'npc:villager', label: 'Villagers', color: '#7fa05b', group: 'npc' },
-  { id: 'npc:police', label: 'PIDF & law', color: '#5b9dd9', group: 'npc' },
-  { id: 'npc:hunter', label: 'Hunters & raiders', color: '#d4574e', group: 'npc' },
-  { id: 'npc:scholar', label: 'Scholars & specialists', color: '#9a6fb0', group: 'npc' },
-  { id: 'npc:quest', label: 'Quest & event NPCs', color: '#d98cc4', group: 'npc' },
-  { id: 'npc:npc', label: 'Other NPCs', color: '#c9a227', group: 'npc' },
+  { id: 'npc:merchant', label: tl('Merchants & traders'), color: '#e0c060', group: 'npc' },
+  { id: 'npc:villager', label: tl('Villagers'), color: '#7fa05b', group: 'npc' },
+  { id: 'npc:police', label: tl('PIDF & law'), color: '#5b9dd9', group: 'npc' },
+  { id: 'npc:hunter', label: tl('Hunters & raiders'), color: '#d4574e', group: 'npc' },
+  { id: 'npc:scholar', label: tl('Scholars & specialists'), color: '#9a6fb0', group: 'npc' },
+  { id: 'npc:quest', label: tl('Quest & event NPCs'), color: '#d98cc4', group: 'npc' },
+  { id: 'npc:npc', label: tl('Other NPCs'), color: '#c9a227', group: 'npc' },
   // The alpha Pals that drop Ancient Technology Points. 99 in the world, named
   // and drawn with the Pal's own artwork — they were previously indistinguishable
   // from the other 13,851 spawn points.
-  { id: 'static:fieldboss', label: 'Field bosses', color: '#d14b4b', group: 'static' },
+  { id: 'static:fieldboss', label: tl('Field bosses'), color: '#d14b4b', group: 'static' },
   // Found by a coverage check over every placeable class in the pak, after a
   // community map showed content this one did not. Extracted from the same pak
   // as everything else rather than copied from anyone's marker data.
-  { id: 'static:skillfruit', label: 'Skill & kinship fruit', color: '#d98cc4', group: 'static' },
-  { id: 'static:lotus', label: 'Stat lotuses', color: '#7fd4c1', group: 'static' },
-  { id: 'static:junk', label: 'Junk piles', color: '#8a7a5f', group: 'static' },
-  { id: 'static:collectible', label: 'Coins & pots', color: '#e0c060', group: 'static' },
-  { id: 'static:supply', label: 'Supply drops', color: '#5b9dd9', group: 'static' },
+  { id: 'static:skillfruit', label: tl('Skill & kinship fruit'), color: '#d98cc4', group: 'static' },
+  { id: 'static:lotus', label: tl('Stat lotuses'), color: '#7fd4c1', group: 'static' },
+  { id: 'static:junk', label: tl('Junk piles'), color: '#8a7a5f', group: 'static' },
+  { id: 'static:collectible', label: tl('Coins & pots'), color: '#e0c060', group: 'static' },
+  { id: 'static:supply', label: tl('Supply drops'), color: '#5b9dd9', group: 'static' },
 
-  { id: 'palbox', label: 'Palboxes', color: '#5b9dd9', group: 'base' },
+  { id: 'palbox', label: tl('Palboxes'), color: '#5b9dd9', group: 'base' },
   // `breeding` used to be the Ranch. The Breeding Farm matched no category at
   // all, so none were ever drawn — see `_POI_CATEGORIES` in the parser.
-  { id: 'breeding', label: 'Breeding farms', color: '#8d84c7', group: 'base' },
-  { id: 'ranch', label: 'Ranches', color: '#b58cc7', group: 'base' },
-  { id: 'statue', label: 'Statues', color: '#4d9e75', group: 'base' },
-  { id: 'crafting', label: 'Crafting', color: '#a1a7b0', group: 'base' },
-  { id: 'production', label: 'Production', color: '#6d747e', group: 'base' },
-  { id: 'farm', label: 'Farms', color: '#7fa05b', group: 'base' },
-  { id: 'storage', label: 'Storage', color: '#c25757', group: 'base' },
-  { id: 'defense', label: 'Defense', color: '#b0553f', group: 'base' },
+  { id: 'breeding', label: tl('Breeding farms'), color: '#8d84c7', group: 'base' },
+  { id: 'ranch', label: tl('Ranches'), color: '#b58cc7', group: 'base' },
+  { id: 'statue', label: tl('Statues'), color: '#4d9e75', group: 'base' },
+  { id: 'crafting', label: tl('Crafting'), color: '#a1a7b0', group: 'base' },
+  { id: 'production', label: tl('Production'), color: '#6d747e', group: 'base' },
+  { id: 'farm', label: tl('Farms'), color: '#7fa05b', group: 'base' },
+  { id: 'storage', label: tl('Storage'), color: '#c25757', group: 'base' },
+  { id: 'defense', label: tl('Defense'), color: '#b0553f', group: 'base' },
 ];
 
 export default function InteractiveMap() {

@@ -188,7 +188,11 @@ def main() -> int:
     # The wrapped set comes from a SCAN of the sources, not from this run's
     # edits — a re-run that changes one file must not shrink the manifest to
     # one string, which is exactly what the first version did.
-    call = re.compile(r"\bt\('((?:[^'\\]|\\.)*)'\)")
+    # `tl('...')` is the definition-site marker for labels that live in data
+    # arrays and reach t() dynamically (`t(layer.label)`) — the scan cannot
+    # see a dynamic call, so the marker is what makes those strings exist to
+    # the pack builder. Same reason build-chrome-packs.py carries TAB_LABELS.
+    call = re.compile(r"\bt(?:l)?\('((?:[^'\\]|\\.)*)'\)")
     wrapped = set()
     for dirpath, _dirs, files in os.walk(SRC):
         for fname in files:

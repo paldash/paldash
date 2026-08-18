@@ -12,6 +12,7 @@ import type { BulkEditPlan } from '@/lib/types';
 import GameIcon from '@/components/game-icon';
 import { asArray } from '@/lib/arrays';
 import { num, fixed, count } from '@/lib/format';
+import { t, tl } from '@/lib/chrome';
 
 /**
  * Pals that need attention — sick, starving, injured, or losing their minds.
@@ -39,17 +40,17 @@ const PROBLEMS: {
   icon: React.ReactNode;
   colour: string;
 }[] = [
-  { key: 'sick', label: 'Sick', icon: <Stethoscope size={13} />, colour: '#e5484d' },
+  { key: 'sick', label: tl('Sick'), icon: <Stethoscope size={13} />, colour: '#e5484d' },
   // Muted, not amber: nothing is wrong with these Pals. `WorkerSick` is a
   // base-camp worker state that lingers on the record after the Pal leaves —
   // the game shows them healthy, and the flags sit unchanged indefinitely.
   // An earlier label said "Recovering in the box", which claimed a process
   // nobody has observed. Listed so the operator can clear the residue.
-  { key: 'staleSick', label: 'Stale sickness flag (healthy in game)', icon: <Stethoscope size={13} />, colour: 'var(--text-muted)' },
-  { key: 'injured', label: 'Injured', icon: <HeartPulse size={13} />, colour: '#e5484d' },
-  { key: 'starving', label: 'Starving', icon: <Utensils size={13} />, colour: '#e5484d' },
-  { key: 'hungry', label: 'Hungry', icon: <Utensils size={13} />, colour: '#f5a524' },
-  { key: 'lowSanity', label: 'Low sanity', icon: <Brain size={13} />, colour: '#f5a524' },
+  { key: 'staleSick', label: tl('Stale sickness flag (healthy in game)'), icon: <Stethoscope size={13} />, colour: 'var(--text-muted)' },
+  { key: 'injured', label: tl('Injured'), icon: <HeartPulse size={13} />, colour: '#e5484d' },
+  { key: 'starving', label: tl('Starving'), icon: <Utensils size={13} />, colour: '#e5484d' },
+  { key: 'hungry', label: tl('Hungry'), icon: <Utensils size={13} />, colour: '#f5a524' },
+  { key: 'lowSanity', label: tl('Low sanity'), icon: <Brain size={13} />, colour: '#f5a524' },
 ];
 
 type Remedy = {
@@ -66,7 +67,7 @@ type Remedy = {
 const REMEDIES: Remedy[] = [
   {
     id: 'cure',
-    label: 'Cure sickness',
+    label: tl('Cure sickness'),
     covers: ['sick', 'staleSick'],
     // `null` is the whole request. A healthy Pal has no `WorkerSick` property
     // at all, so there is no well value to write — curing is a deletion, and
@@ -75,13 +76,13 @@ const REMEDIES: Remedy[] = [
   },
   {
     id: 'heal',
-    label: 'Heal injuries',
+    label: tl('Heal injuries'),
     covers: ['injured'],
     changes: () => ({ physicalHealth: null }),
   },
   {
     id: 'feed',
-    label: 'Feed',
+    label: tl('Feed'),
     covers: ['hungry', 'starving'],
     // Both halves, and the order does not matter because they are written in
     // one guarded pass. Clearing the flag alone leaves `FullStomach` where it
@@ -93,7 +94,7 @@ const REMEDIES: Remedy[] = [
   },
   {
     id: 'calm',
-    label: 'Restore sanity',
+    label: tl('Restore sanity'),
     covers: ['lowSanity'],
     changes: () => ({ sanity: 100 }),
   },
@@ -241,7 +242,7 @@ export default function PalWelfare({ canEdit }: { canEdit: boolean }) {
                   background: 'var(--bg-input)', color: p.colour,
                 }}
               >
-                {p.icon} {counts[p.key]} {p.label.toLowerCase()}
+                {p.icon} {counts[p.key]} {t(p.label).toLowerCase()}
               </span>
             ))}
           </div>
@@ -313,7 +314,7 @@ export default function PalWelfare({ canEdit }: { canEdit: boolean }) {
                     title={why ?? undefined}
                     onClick={() => void preview(remedy)}
                   >
-                    {busy === remedy.id ? 'Working…' : `${remedy.label} (${count})`}
+                    {busy === remedy.id ? 'Working…' : `${t(remedy.label)} (${count})`}
                   </button>
                 );
               })}
@@ -338,7 +339,7 @@ export default function PalWelfare({ canEdit }: { canEdit: boolean }) {
               {plan.plan.ok ? (
                 <>
                   <p style={{ marginBottom: 6 }}>
-                    <strong>{plan.remedy.label}</strong> — {plan.plan.palsChanged} Pal(s) will
+                    <strong>{t(plan.remedy.label)}</strong> — {plan.plan.palsChanged} Pal(s) will
                     change, {plan.plan.palsUnchanged} already fine.
                   </p>
                   <div style={{ display: 'flex', gap: 8 }}>
@@ -413,7 +414,7 @@ function WelfareRow({ pal }: { pal: PalRecord & { problems: WelfareProblem[] } }
                 : problem === 'staleSick' ? `Stale: ${pal.workerSick}`
                 : problem === 'injured' ? pal.physicalHealth
                 : problem === 'lowSanity' ? `SAN ${Math.round(pal.sanity ?? 0)}`
-                : meta?.label}
+                : meta ? t(meta.label) : problem}
             </span>
           );
         })}

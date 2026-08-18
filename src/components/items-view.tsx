@@ -210,7 +210,7 @@ export default function ItemsView() {
           className={mode === 'structures' ? 'btn' : 'btn btn-ghost'}
           style={{ padding: '3px 10px', fontSize: 12 }}
           onClick={() => { setMode('structures'); setSelected(null); }}
-          title="What each buildable structure costs, expanded to raw materials"
+          title={t('What each buildable structure costs, expanded to raw materials')}
         >
           <Hammer size={12} /> Structures
         </button>
@@ -364,7 +364,7 @@ function StructureList({
   if (error) {
     return (
       <div className="notice notice-warn" style={{ fontSize: 12 }}>
-        <strong>Structures unavailable</strong>
+        <strong>{t('Structures unavailable')}</strong>
         <div style={{ marginTop: 6 }}>{error}</div>
       </div>
     );
@@ -381,7 +381,7 @@ function StructureList({
             <tr>
               <th style={{ width: '45%' }}>Structure &mdash; click for the full cost</th>
               <th style={{ width: '20%' }}>{t('Category')}</th>
-              <th>Materials</th>
+              <th>{t('Materials')}</th>
             </tr>
           </thead>
           <tbody>

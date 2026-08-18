@@ -54,6 +54,19 @@ export function t(s: string): string {
   return dict[s] ?? s;
 }
 
+/**
+ * Definition-site marker for a translatable label that reaches `t()`
+ * dynamically — `label: tl('Players')` in a data array, rendered as
+ * `{t(layer.label)}`. Identity at runtime; its whole job is to be a literal
+ * the manifest scan (wrap-chrome-strings.py) can see, because a dynamic
+ * `t(x.label)` is invisible to it and the string would otherwise never reach
+ * a language pack. Translate at the RENDER site, never here: a module-level
+ * constant evaluates once, before any pack loads.
+ */
+export function tl(s: string): string {
+  return s;
+}
+
 /** The active pack's metadata, for the picker's provenance badge. */
 export function chromePackMeta(): ChromePack | null {
   return meta;
