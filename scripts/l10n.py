@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
-The game's own display strings, in sixteen languages, out of the CLIENT pak.
+The game's own display strings, in sixteen languages, from the pak's L10N
+overrides — the SERVER pak's copy preferred since 2026-08-17 (see SERVER_PAK).
 
 WHY THIS EXISTS
 ---------------
@@ -89,6 +90,36 @@ import upackage     # noqa: E402
 CLIENT_PAK = os.path.join(
     os.path.dirname(HERE), "refs", "Pal-Windows.pak",
 )
+
+#: The SERVER pak carries the same 27 `L10N/<lang>/` tables the client pak
+#: does — found 2026-08-17 while diffing v1.0.3, after this module's docstring
+#: had recorded the server pak as Japanese-only. Both statements are true of
+#: different directories: `Pal/DataTable/Text/` is the Japanese source,
+#: `L10N/<lang>/` is the per-language override set, and the third attempt
+#: documented above only ever looked for the second in the client pak.
+#:
+#: The server pak's copies are **tagged**, so they decode through
+#: `uassettable` with no custom walk at all — and they update with every
+#: server update, where the 40 GB client pak has to be fetched by hand from a
+#: Steam *client* install. Hence `_default_pak()` prefers the server pak and
+#: falls back to the client pak, which remains fully supported (`--pak`).
+SERVER_PAK = palpak.DEFAULT_PAK
+
+_default_pak_cache: "palpak.Pak | None" = None
+
+
+def _default_pak() -> "palpak.Pak":
+    """The freshest pak that actually carries L10N overrides."""
+    global _default_pak_cache
+    if _default_pak_cache is not None:
+        return _default_pak_cache
+    if os.path.exists(SERVER_PAK):
+        pak = palpak.Pak(SERVER_PAK)
+        if any("/L10N/" in f for f in pak.files):
+            _default_pak_cache = pak
+            return pak
+    _default_pak_cache = palpak.Pak(CLIENT_PAK)
+    return _default_pak_cache
 
 # How far into the export to look for the row-count field. The row section does
 # not begin at the end of the object's own properties — see `uassettable`, which
@@ -242,18 +273,73 @@ def _asset_path(pak: "palpak.Pak", table: str, lang: str) -> Optional[str]:
     return next((f for f in pak.files if f.endswith(needle)), None)
 
 
+def _read_tagged(pak: "palpak.Pak", asset: str, table: str,
+                 lang: str) -> list[tuple[str, str, str]]:
+    """
+    The server-pak path: tagged properties, decoded by `uassettable` like any
+    other DataTable, no custom walk. The namespace check is kept — it is the
+    same third verification the unversioned reader runs, and it is what says
+    these rows belong to *this* table rather than to a drifted read.
+    """
+    import uassettable  # noqa: PLC0415 — scripts import siblings lazily
+
+    out: list[tuple[str, str, str]] = []
+    for row, cells in uassettable.read_table(pak, asset).items():
+        data = (cells or {}).get("TextData") or {}
+        namespace = str(data.get("namespace") or "")
+        if namespace and namespace != table:
+            raise ValueError(
+                f"{lang}/{table}: row {row!r} carries namespace {namespace!r} "
+                f"— the read is not aligned to this table."
+            )
+        key = str(data.get("key") or "")
+        source = str(data.get("source") or "")
+        # Untranslated stubs ship with BOTH fields empty (v1.0.3 has ~9 across
+        # all languages, `NAME_BOSS_DEFEAT_001_834` and friends). They carry
+        # nothing and would only show up as key-agreement noise.
+        if not key and not source:
+            continue
+        out.append((str(row), key, source))
+    # Key agreement is NOT enforced on this path, deliberately. For the
+    # unversioned reader the row-name/key agreement is the only alignment
+    # proof it has; here alignment is already proven twice (uassettable's
+    # walk must end exactly at the export end, and every namespace matched
+    # this table), so a key mismatch is Pocketpair's data rather than our
+    # read — tr's `None_155` row carries `REGION_Grass_2_TextData`, a row
+    # the game itself mis-named. One quirk row must not take down the
+    # other 14,000.
+    return out
+
+
 def read_table(pak: "palpak.Pak", table: str, lang: str = "en") -> list[tuple[str, str, str]]:
     """Every row of one localised text table as `(row, key, source)`."""
     asset = _asset_path(pak, table, lang)
     if asset is None:
         raise KeyError(f"{table} has no {lang} localisation in this pak")
     package = upackage.read(pak.read(asset))
+
+    # The tell this module's own docstring names, used as the router: a tagged
+    # package (the server pak) carries property TYPE names in its name table;
+    # an unversioned one (the client pak) does not. Each pak gets the reader
+    # its cooking supports, and neither reader ever sees the other's bytes.
+    if any(n in ("StructProperty", "TextProperty") for n in package.names):
+        return _read_tagged(pak, asset, table, lang)
+
     body = pak.read(asset[: -len(".uasset")] + ".uexp")
     end = len(body) - _PACKAGE_TAG
 
     for start in range(_ROW_OFFSET_SEARCH):
         rows = _walk(body, package.names, start, end, table)
         if rows is not None:
+            # For THIS reader the agreement is the alignment proof, so it is
+            # enforced here rather than left to the caller — a misaligned walk
+            # cannot keep two independent parts of the file agreeing.
+            ok, total = key_agreement(rows)
+            if ok != total:
+                raise ValueError(
+                    f"{lang}/{table}: {total - ok} of {total} rows carry a key "
+                    f"that disagrees with their row name. The walk is misaligned."
+                )
             return rows
 
     raise ValueError(
@@ -279,14 +365,8 @@ def key_agreement(rows: list[tuple[str, str, str]]) -> tuple[int, int]:
 def strings(table: str, lang: str = "en", *, pak: "palpak.Pak" = None,
             keep_placeholders: bool = False) -> dict[str, str]:
     """`{row name: display string}`, with untranslated markers dropped."""
-    pak = pak or palpak.Pak(CLIENT_PAK)
+    pak = pak or _default_pak()
     rows = read_table(pak, table, lang)
-    ok, total = key_agreement(rows)
-    if ok != total:
-        raise ValueError(
-            f"{lang}/{table}: {total - ok} of {total} rows carry a key that "
-            f"disagrees with their row name. The walk is misaligned."
-        )
     return {
         row: source
         for row, _, source in rows
@@ -296,7 +376,7 @@ def strings(table: str, lang: str = "en", *, pak: "palpak.Pak" = None,
 
 def tables(pak: "palpak.Pak" = None, lang: str = "en") -> list[str]:
     """Every localised text table the pak ships for a language."""
-    pak = pak or palpak.Pak(CLIENT_PAK)
+    pak = pak or _default_pak()
     prefix = f"L10N/{lang}/Pal/DataTable/Text/"
     return sorted({
         f.rsplit("/", 1)[1][: -len(".uasset")]
@@ -307,7 +387,7 @@ def tables(pak: "palpak.Pak" = None, lang: str = "en") -> list[str]:
 
 def languages(pak: "palpak.Pak" = None) -> list[str]:
     """Every language with an L10N override directory."""
-    pak = pak or palpak.Pak(CLIENT_PAK)
+    pak = pak or _default_pak()
     out = set()
     for f in pak.files:
         marker = "/L10N/"
@@ -321,7 +401,8 @@ def main() -> int:
     import argparse
 
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--pak", default=CLIENT_PAK)
+    ap.add_argument("--pak", default=None,
+                    help="explicit pak; default prefers the server pak")
     ap.add_argument("--lang", default="en")
     ap.add_argument("--table", help="decode one table and print it")
     ap.add_argument("--limit", type=int, default=20)
@@ -329,7 +410,7 @@ def main() -> int:
                     help="decode every table in every language and report agreement")
     args = ap.parse_args()
 
-    pak = palpak.Pak(args.pak)
+    pak = palpak.Pak(args.pak) if args.pak else _default_pak()
 
     if args.verify:
         langs = languages(pak)
