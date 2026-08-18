@@ -6,9 +6,10 @@
 > is essentially complete (tasks #34–#123), and the *current* state, measured
 > numbers and open items live in `docs/STATUS.md` (snapshot 2026-08-16), with the
 > feature inventory in `docs/FEATURES.md`. What remains open from this file:
-> **S7** (CSRF tokens, mitigated), **S11** (dependency scanning), task **#33**
-> (non-Steam players — `docs/CROSSPLAY.md`), task **#106** (condenser vs
-> movement ratio) and task **#109** (chrome translations — `docs/TRANSLATING.md`).
+> task **#33** (non-Steam players — `docs/CROSSPLAY.md`) and the optional
+> confirmations on **#106** (condenser speed ratio) and **#109** (human
+> verification of the machine-translated chrome — `docs/TRANSLATING.md`).
+> S7 (CSRF) and S11 (dependency scanning) closed 2026-08-18.
 > Read the rest as the record of how the plan was made, not as a list of gaps.
 
 Every number below was measured against the real save in `refworld/` (2.0 MB compressed,
@@ -361,11 +362,11 @@ detour. No further files are needed from PST beyond what `refs/` already contain
 | S4 | ~~High~~ | Session revocation impossible. | ✅ **Fixed** (P3). Server-side sessions stored hashed. Logout, disabling an account, changing a role or changing a password all take effect immediately. |
 | S5 | ~~High~~ | Proxy used prefix matching with a permissive default. | ✅ **Fixed** (P3). Explicit allowlist with per-method capabilities; traversal rejected before matching; unknown paths 404. 34 vitest cases. |
 | S6 | ~~Medium~~ | Lifecycle commands runnable by any admin session. | ✅ **Fixed** (P3). Bound to `server.control` (Moderator+) and audited. |
-| S7 | Medium | No CSRF tokens. | 🟡 **Mitigated.** `SameSite=Lax` blocks cross-site POST cookies, and state-changing routes are POST/PATCH/DELETE only. Tokens still worth adding. |
+| S7 | ~~Medium~~ | No CSRF tokens. | ✅ **Fixed** (2026-08-18). `SameSite=Lax` remains the first layer; `crossSiteReason` now refuses cross-site mutations at the proxy (Sec-Fetch-Site + Origin-vs-host, X-Forwarded-Host aware) on every mutating save route, login and logout. Header-based rather than token-based: no client plumbing, curl unaffected. 9 vitest cases. |
 | S8 | ~~Medium~~ | `COOKIE_SECURE` defaulted false. | ✅ **Fixed** (P3). Inferred from `X-Forwarded-Proto`/request scheme, overridable. |
 | S10 | ~~Low~~ | Backend had no auth of its own. | ✅ **Largely fixed** (P3). It now resolves sessions itself and enforces capabilities; loopback binding is defence in depth rather than the only control. |
 | S9 | Medium | No upload validation. | 🟡 **Partly fixed** (2026-07-28). `MAX_UPLOAD_BYTES` caps request bodies; `export/verify` checksums a document before anything trusts it. Per-field validation lands with the import half. |
-| S11 | Low | No dependency scanning. | 🔴 Open. `npm audit` + `pip-audit` in CI. |
+| S11 | ~~Low~~ | No dependency scanning. | ✅ **Fixed** (2026-08-18). `.github/workflows/audit.yml`: npm audit (prod deps, high+) and pip-audit, on manifest-touching PRs and weekly. |
 | S12 | ~~Low~~ | Container ran as root over a bind mount of the world files. | ✅ **Fixed** (2026-07-28). `USER 1000:1000` via `APP_UID`/`APP_GID` build args, defaulting to the Palworld image's own PUID/PGID. Reuses the base image's `node` user when the id is taken, creates one otherwise; both paths verified by building and running. Volume mount points are chowned in the image so a fresh named volume inherits the right owner. |
 
 Not vulnerable: SQL injection (no SQL), XSS (React escapes; no `dangerouslySetInnerHTML`),
