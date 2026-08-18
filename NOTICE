@@ -1,0 +1,33 @@
+Palworld Dashboard — third-party content notice
+================================================
+
+The CODE in this repository is GPL-3.0-or-later (see LICENSE and
+docs/LICENSING.md).
+
+The GAME DATA is not the project's to license. The bundles under
+backend/data/ (names, descriptions, stats, coordinates, localised strings)
+and any installed artwork under public/icons/ and public/maps/ are extracted
+from Palworld, whose content is copyright (c) Pocketpair, Inc. They are
+included solely so a self-hosted server dashboard can describe the game it
+administers. This is an unofficial fan project, is not affiliated with or
+endorsed by Pocketpair, and charges nothing.
+
+Every bundled artifact records its origin and the script that regenerates it
+in backend/data/provenance.json, and every bundle can be rebuilt from an
+operator's own game install using scripts/ — so a distribution that ships no
+Pocketpair data at all remains possible (docs/PUBLISHING.md discusses the
+options).
+
+Third-party components and data sources are credited in docs/LICENSING.md,
+including:
+
+  - palsav / palooz (GPL-3.0-or-later) — Palworld 1.0 save codec; the reason
+    this project is GPL.
+  - PalworldSaveTools (MIT) — reference game database, icon paths, and the
+    stat formula derivation.
+  - tylercamp/palcalc (MIT) — the precomputed breeding pair table.
+  - Leaflet (BSD-2-Clause), Next.js, FastAPI, Recharts, Zustand and the rest
+    of the runtime dependency tree, each under its own license.
+
+If you are Pocketpair and want anything here changed or removed, open an
+issue and it will be handled promptly.
