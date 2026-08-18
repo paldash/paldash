@@ -260,3 +260,39 @@ def test_nothing_written_means_nothing_claimed(env):
     assert result == {
         "checked": 0, "verified": 0, "keys": [], "warnings": [], "notes": [],
     }
+
+
+# ─── The env-var hint (#132) ─────────────────────────────
+
+
+def test_a_reverted_env_managed_key_names_the_variable_to_set(env):
+    """
+    On a regenerating image the INI is a projection of the compose file, so
+    "reverted" without the env-var name sends the operator back to edit the
+    file that just got overwritten. The warning must name the variable, and
+    the per-key row must carry it for the UI.
+    """
+    env["settings_ini"].write_ini({"ServerName": "renamed"}, env["ini"])
+    _rewrite(env["ini"], ServerName='"hi"')
+
+    report = env["iniwatch"].verify_written_keys(env["ini"])
+    row = next(r for r in report["keys"] if r["key"] == "ServerName")
+    assert row["verdict"] == "reverted"
+    assert row["envVar"], "ServerName has env equivalents in both images"
+    warning = next(w for w in report["warnings"] if w.startswith("ServerName"))
+    assert row["envVar"] in warning
+    assert "environment" in warning
+
+
+def test_an_unmapped_key_gets_no_invented_hint():
+    """
+    Every one of the game's current 119 keys has an env equivalent in at
+    least one image — measured while writing this, which is why the test
+    could not use a real key. The case still matters: a key the NEXT game
+    update adds exists in the INI before either image's template learns it,
+    and a hint for it would send the operator hunting for a variable that
+    does not exist. Absent, not guessed.
+    """
+    import settings_ini
+
+    assert settings_ini._env_display("NotARealSettingYet") is None

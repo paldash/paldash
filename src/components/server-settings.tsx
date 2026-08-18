@@ -325,6 +325,14 @@ export default function ServerSettings() {
                     <span className="mono">{k.actual || '(the key is gone)'}</span>
                   </span>
                 )}
+                {/* The actionable half of a revert: the fix is in the compose
+                    file, not this form, so name the variable to set there. */}
+                {(k.verdict === 'reverted' || k.verdict === 'missing') && k.envVar && (
+                  <span style={{ color: 'var(--text-muted)' }}>
+                    {' '}· set <span className="mono">{k.envVar}</span> in the game
+                    container&rsquo;s environment instead
+                  </span>
+                )}
               </div>
             ))}
             {v.notes.map((n) => (
