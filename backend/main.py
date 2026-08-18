@@ -38,6 +38,7 @@ import charedit
 import completion
 import crafting
 import db
+import dungeons
 import editschema
 import elements
 import gameapi
@@ -2553,6 +2554,21 @@ def get_item_catalogue(request: Request) -> dict[str, Any]:
     except gamedata.GameDataUnavailable as e:
         raise HTTPException(503, str(e))
     return {"items": items, "total": len(items)}
+
+
+@app.get("/api/world/dungeons")
+def get_dungeon_guide(request: Request) -> dict[str, Any]:
+    """
+    The random-dungeon guide: enemies, levels, chest loot and rewards per
+    spawn area (#136). Reference data about the game, not this world — same
+    gate as the Paldeck, no parsed save involved. The areas are unnamed
+    because the game does not name them, and the payload says so.
+    """
+    authz.require(request, roles_module.VIEW_BASIC)
+    try:
+        return dungeons.catalogue()
+    except dungeons.DungeonsUnavailable as e:
+        raise HTTPException(503, str(e))
 
 
 @app.get("/api/world/structures")

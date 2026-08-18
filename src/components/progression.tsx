@@ -12,6 +12,7 @@ import {
 import GameIcon from '@/components/game-icon';
 import { asArray } from '@/lib/arrays';
 import BossPlanner from '@/components/boss-planner';
+import DungeonGuide from '@/components/dungeon-guide';
 import type {
   Checklist, ChecklistEntry, ProgressDetailReport, RaidBossReport,
   PaldeckCompletion, AchievementSummary, AchievementCategory, AchievementTier,
@@ -190,6 +191,7 @@ export default function Progression() {
       {/* Reference data rather than this player's progress, so it sits below
           the checklists and does not depend on a parsed world. */}
       <BossPlanner />
+      <DungeonGuide />
 
       {raids && <RaidBosses report={raids} defeated={player} />}
     </div>

@@ -1849,6 +1849,54 @@ export interface MapMarker {
  * item shape would have meant six fields that are always zero and one reader
  * eventually believing them.
  */
+export interface DungeonRosterEntry {
+  id: string;
+  name: string;
+  icon: string;
+  elements: string[];
+  isNpc: boolean;
+  levelMin: number;
+  levelMax: number;
+  countMin: number;
+  countMax: number;
+  /** Relative within its own spawner group ONLY — never comparable across groups. */
+  weight: number;
+}
+
+export interface DungeonLootItem {
+  itemId: string;
+  name: string;
+  icon: string;
+  slot: number;
+  weight: number;
+  min: number;
+  max: number;
+  grade: string;
+  /** Chance this item fills its slot GIVEN the slot rolls — nothing here says
+   *  how often a chest spawns or rolls. */
+  slotShare: number | null;
+}
+
+export interface DungeonArea {
+  areaId: string;
+  /** Humanised area id — deliberately id-shaped. The game has no name. */
+  label: string;
+  named: boolean;
+  levels: { levelName: string; weight: number; bonusExpRate: number }[];
+  enemies: { rank: string; weight: number; spawnerName: string;
+             roster: DungeonRosterEntry[] }[];
+  loot: { type: string; lotteryName: string; items: DungeonLootItem[] | null }[];
+  rewards: { type: string; weight: number; contentType: string; value: string }[];
+}
+
+export interface DungeonGuide {
+  areas: DungeonArea[];
+  note: string;
+  weightIsWithinGroup: boolean;
+  namedByGame: boolean;
+  missingLotteries: string[];
+}
+
 export interface CatalogueStructure {
   structureId: string;
   name: string;
