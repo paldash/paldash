@@ -1,0 +1,45 @@
+# Dependency scanning (docs/AUDIT.md S11).
+#
+# Runs on PRs that touch a manifest, and weekly — a vulnerability published
+# on a Tuesday should not wait for the next code change to surface. High
+# severity and above fails the job; moderate noise stays out of PRs so the
+# signal keeps meaning something.
+#
+# `pip-audit` sees only what requirements.txt names: palsav/palooz are built
+# from a git checkout (not PyPI) and are outside every advisory database
+# anyway. That is a known hole, not an oversight.
+name: Dependency audit
+
+on:
+  pull_request:
+    paths:
+      - "package.json"
+      - "package-lock.json"
+      - "backend/requirements*.txt"
+      - ".github/workflows/audit.yml"
+  schedule:
+    - cron: "17 6 * * 1" # Mondays 06:17 UTC
+  workflow_dispatch:
+
+jobs:
+  npm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      # --omit=dev on purpose: the shipped image installs production deps
+      # only, so a dev-only advisory is a nuisance, not an exposure.
+      - run: npm audit --omit=dev --audit-level=high
+
+  pip:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install pip-audit
+      - run: pip-audit -r backend/requirements.txt
