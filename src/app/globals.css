@@ -15,21 +15,26 @@
  */
 
 :root {
-  /* Surfaces, darkest to lightest */
-  --bg-primary: #0f1115;
-  --bg-secondary: #14171c;
-  --bg-card: #181b21;
-  --bg-card-hover: #1e222a;
-  --bg-surface: #1e222a;
-  --bg-input: #101318;
+  /* Surfaces, darkest to lightest. Neutral near-black, not blue-tinted —
+   * operator request 2026-08-18: "more black instead of blue". The blue lives
+   * in the accent only; every grey here has equal-ish RGB channels on
+   * purpose, so nudging one back towards navy is a change to notice in
+   * review, not a typo. Map markers keep their own literal #0f1115 outlines
+   * further down — they contrast against the map artwork, not this palette. */
+  --bg-primary: #0b0b0c;
+  --bg-secondary: #111112;
+  --bg-card: #151517;
+  --bg-card-hover: #1b1b1e;
+  --bg-surface: #1b1b1e;
+  --bg-input: #0d0d0f;
 
-  --border-primary: #272b33;
-  --border-strong: #363b45;
-  --border-accent: #3d4956;
+  --border-primary: #242428;
+  --border-strong: #323236;
+  --border-accent: #43434a;
 
-  --text-primary: #e6e8ea;
-  --text-secondary: #a1a7b0;
-  --text-muted: #6d747e;
+  --text-primary: #e8e8ea;
+  --text-secondary: #a4a6ab;
+  --text-muted: #707278;
 
   /* One accent, used sparingly */
   --accent: #5b9dd9;
@@ -52,7 +57,7 @@
   /* Text drawn ON an accent-filled control (.btn-primary). A literal dark hex
    * lived in the button rule and read fine — until a light theme needed the
    * inverse and had nothing to override. */
-  --accent-contrast: #0f1115;
+  --accent-contrast: #0b0b0c;
 
   /* Native form controls, scrollbars and the UA's default canvas follow this,
    * not the CSS palette — a themed page over an unthemed <select> popup is the
