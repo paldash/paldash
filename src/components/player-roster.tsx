@@ -7,6 +7,7 @@ import { kickPlayer, banPlayer, unbanPlayer } from '@/lib/api';
 import { getPlayerRoster, createUser } from '@/lib/save-api';
 import { CAPABILITIES } from '@/lib/permissions';
 import type { PlayerRoster as Roster, RosterPlayer } from '@/lib/types';
+import { SortHead } from '@/components/sort-head';
 import { t } from '@/lib/chrome';
 
 /**
@@ -33,6 +34,11 @@ export default function PlayerRoster() {
   const [copied, setCopied] = useState<string | null>(null);
   const [creatingFor, setCreatingFor] = useState<RosterPlayer | null>(null);
   const [unbanId, setUnbanId] = useState('');
+  // 'roster' keeps the server's own order, which is the pre-sorting
+  // behaviour — a default that silently re-orders the list would make the
+  // feature read as a regression to anyone used to the old layout.
+  const [sort, setSort] = useState<'roster' | 'name' | 'level'>('roster');
+  const [desc, setDesc] = useState(false);
 
   const mayModerate = capabilities.includes(CAPABILITIES.PLAYERS_MODERATE);
 
@@ -60,10 +66,18 @@ export default function PlayerRoster() {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     const all = roster?.players ?? [];
-    return q
+    const rows = q
       ? all.filter((p) => (p.name || '').toLowerCase().includes(q) || p.uid.toLowerCase().includes(q))
       : all;
-  }, [roster, search]);
+    if (sort === 'roster') return rows;
+    const sorted = [...rows].sort((a, b) => {
+      const v = sort === 'level'
+        ? (a.level ?? 0) - (b.level ?? 0)
+        : (a.name || '').localeCompare(b.name || '');
+      return desc ? -v : v;
+    });
+    return sorted;
+  }, [roster, search, sort, desc]);
 
   const copyUid = async (uid: string) => {
     try {
@@ -132,9 +146,11 @@ export default function PlayerRoster() {
         <table className="table">
           <thead>
             <tr>
-              <th>{t('Player')}</th>
+              <SortHead label={t('Player')} k="name" sort={sort} desc={desc}
+                        set={setSort} flip={setDesc} />
               <th>{t('Steam ID')}</th>
-              <th>Level</th>
+              <SortHead label="Level" k="level" sort={sort} desc={desc}
+                        set={setSort} flip={setDesc} />
               <th style={{ textAlign: 'right' }}>{t('Actions')}</th>
             </tr>
           </thead>
