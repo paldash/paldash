@@ -10,6 +10,7 @@ import type { CatalogueStructure } from '@/lib/types';
 import { useLanguage } from '@/lib/use-language';
 import { localName, matchesQuery } from '@/lib/language';
 import type { ItemTotals } from '@/lib/types';
+import { SortHead } from '@/components/sort-head';
 import { t } from '@/lib/chrome';
 
 /**
@@ -96,6 +97,9 @@ export default function ItemsView() {
     getItemScopes().then(setScopes).catch(() => setScopes(null));
   }, []);
 
+  const [sort, setSort] = useState<'name' | 'category' | 'count'>('count');
+  const [desc, setDesc] = useState(true);
+
   const filtered = useMemo(() => {
     if (!data) return [];
     const q = query.trim().toLowerCase();
@@ -113,6 +117,21 @@ export default function ItemsView() {
     // while leaving the filter on the previous language — the same stale-deps
     // bug `my-pals` carries a comment about, twice.
   }, [data, query, itemName]);
+
+  const sorted = useMemo(() => {
+    // 'count' descending IS the server's own order, so the default renders
+    // byte-identically to the unsortable table this replaces.
+    if (sort === 'count' && desc) return filtered;
+    const rows = [...filtered].sort((a, b) => {
+      const v = sort === 'count'
+        ? a.count - b.count
+        : sort === 'category'
+          ? (a.typeB || a.typeA || '').localeCompare(b.typeB || b.typeA || '')
+          : itemName(a).localeCompare(itemName(b));
+      return desc ? -v : v;
+    });
+    return rows;
+  }, [filtered, sort, desc, itemName]);
 
   if (error) {
     return (
@@ -209,7 +228,7 @@ export default function ItemsView() {
 
       {mode === 'items' && data?.truncated && (
         <div className="notice" style={{ fontSize: 12 }}>
-          Showing the top {data.items.length} item types by quantity.
+          Showing the top {data.items.length} item types by quantity. Click a row for where an item comes from.
         </div>
       )}
 
@@ -218,13 +237,16 @@ export default function ItemsView() {
         <table className="table">
           <thead>
             <tr>
-              <th style={{ width: '55%' }}>Item &mdash; click for sources</th>
-              <th style={{ width: '25%' }}>{t('Category')}</th>
-              <th>Total</th>
+              <SortHead label="Item" k="name" sort={sort} desc={desc}
+                        set={setSort} flip={setDesc} />
+              <SortHead label={t('Category')} k="category" sort={sort} desc={desc}
+                        set={setSort} flip={setDesc} />
+              <SortHead label="Total" k="count" sort={sort} desc={desc}
+                        set={setSort} flip={setDesc} />
             </tr>
           </thead>
           <tbody>
-            {filtered.map((item) => (
+            {sorted.map((item) => (
               <Fragment key={item.itemId}>
               <tr
                 title={item.description || undefined}
