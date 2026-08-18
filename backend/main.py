@@ -3171,12 +3171,22 @@ def player_roster(request: Request) -> dict[str, Any]:
             if uid:
                 linked[uid] = account["username"]
 
+    # What each player's PARTY grants them (#137) — 273 trainer-facing effects
+    # existed in the bundle and were rendered nowhere. Party-scoped because
+    # that is where the game fires them; a palbox Pal grants nothing.
+    party_by_uid: dict[str, list] = {}
+    for pal in viewcache.derived("pals:enriched", _enriched_pals):
+        if pal.get("location") == "party":
+            party_by_uid.setdefault(
+                privacy.normalise_uid(pal.get("ownerUid")), []).append(pal)
+
     rows = []
     for player in players:
         uid = privacy.normalise_uid(player.get("uid"))
         live = online_by_uid.get(uid)
         row = {
             **player,
+            "trainerBuffs": passiveeffects.trainer_buffs(party_by_uid.get(uid, [])),
             "online": live is not None,
             # The REST id, which is what kick and ban take. It is not always
             # spelled the way the save spells the uid, so it is carried through
