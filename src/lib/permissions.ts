@@ -170,6 +170,7 @@ const ROUTES: RouteRule[] = [
   // Structures are not items — separate table, separate catalogue. Same gate:
   // reference data about what the game has, needing no parsed world.
   { pattern: /^world\/structures$/, methods: ['GET'], capability: CAPABILITIES.VIEW_BASIC, feature: FEATURES.SERVER_STATUS },
+  { pattern: /^world\/dungeons$/, methods: ['GET'], capability: CAPABILITIES.VIEW_BASIC, feature: FEATURES.SERVER_STATUS },
   // Where one item comes from — recipes, drops, chests, merchants. Same
   // catalogue, same gate: it describes the game, not this world.
   { pattern: /^world\/items\/[A-Za-z0-9_]+$/, methods: ['GET'], capability: CAPABILITIES.VIEW_BASIC, feature: FEATURES.SERVER_STATUS },

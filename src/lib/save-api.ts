@@ -2,6 +2,7 @@ import type {
   BaseCamp,
   BaseStorage,
   DiscoveryPoint,
+  DungeonGuide,
   EditPlan,
   EditResult,
   EditSchema,
@@ -1539,6 +1540,10 @@ export async function getBreedingLimits(): Promise<BreedingLimits> {
  */
 export async function getPlayerRoster(): Promise<PlayerRoster> {
   return saveFetch('/players/roster');
+}
+
+export async function getDungeonGuide(): Promise<DungeonGuide> {
+  return saveFetch('/world/dungeons');
 }
 
 export async function getPaldeck(): Promise<PaldeckListing> {
