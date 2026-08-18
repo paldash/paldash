@@ -39,6 +39,7 @@ import completion
 import crafting
 import db
 import dungeons
+import eggmoves
 import editschema
 import elements
 import gameapi
@@ -4088,6 +4089,26 @@ def breeding_limits(request: Request) -> dict:
         raise HTTPException(503, str(e))
     except gamedata.GameDataUnavailable as e:
         raise HTTPException(503, str(e))
+
+
+@app.get("/api/breeding/eggmoves")
+def breeding_egg_moves(request: Request, species: str) -> dict:
+    """
+    The egg-move POOL for one species — reference data, no world needed.
+
+    `poolOnly: true` travels with it: no file states how many moves an egg
+    rolls or at what rate, so the payload names a pool the game closes and
+    never a prediction. A species with no pool is a real answer (404), not an
+    empty list wearing a 200.
+    """
+    authz.require(request, roles_module.VIEW_SELF)
+    try:
+        found = eggmoves.for_species(species)
+    except eggmoves.EggMovesUnavailable as e:
+        raise HTTPException(503, str(e))
+    if found is None:
+        raise HTTPException(404, f"no egg-move pool for species {species!r}")
+    return found
 
 
 @app.get("/api/breeding/predict")

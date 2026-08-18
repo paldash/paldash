@@ -52,6 +52,12 @@
   "regenerateWith": "python3 scripts/extract-effigies.py",
   "source": "Pal-LinuxServer.pak (MainGrid_L15_X0_Y0)"
  },
+ "egg_moves.json.gz": {
+  "gameBuild": "24575149",
+  "note": "Per-species egg-move pools (282 species, keyed by the game on BOSS_ rows, resolved to base ids). Every pool move is IgnoreRandomInherit = false in DT_WazaDataTable (47/47) — the extractor refuses if the two tables stop agreeing. The POOL only: no file states the count or rate an egg rolls.",
+  "regenerateWith": "python3 scripts/extract-egg-moves.py",
+  "source": "Pal-LinuxServer.pak DT_WazaMasterTamago + DT_WazaDataTable.IgnoreRandomInherit"
+ },
  "env_equivalents.json": {
   "gameBuild": null,
   "note": "IniKey -> env var per server image; 119 keys, 118 covered by both. Not game data (no build id) — it tracks the images, and should be re-fetched when either image changes its template.",

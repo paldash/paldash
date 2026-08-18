@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Egg, Search, RefreshCw, ArrowRight, Ban } from 'lucide-react';
 import {
-  getBreedingLimits, getBreedingPath, getOffspring, getPalbox, getReachable,
+  getBreedingLimits, getBreedingPath, getEggMovePool, getOffspring, getPalbox,
+  getReachable, type EggMovePool,
 } from '@/lib/save-api';
 import type {
   BreedingLimitRow, BreedingLimits, BreedingPath, BreedingScope, OffspringOption,
@@ -33,6 +34,12 @@ export default function BreedingPlanner() {
   const [limits, setLimits] = useState<BreedingLimits | null>(null);
   const [limitsError, setLimitsError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
+  // The egg-move POOL panel: fetched on demand per species, keyed so a second
+  // click on the same row closes it. `null` moves with `poolError` naming a
+  // species with no pool — a real answer, never an empty list.
+  const [pool, setPool] = useState<EggMovePool | null>(null);
+  const [poolFor, setPoolFor] = useState<string | null>(null);
+  const [poolError, setPoolError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
@@ -99,6 +106,18 @@ export default function BreedingPlanner() {
       setPath(await getBreedingPath(internalName, owner || undefined));
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Path search failed');
+    }
+  };
+
+  const toggleEggMoves = async (species: string, label: string) => {
+    if (poolFor === species) { setPoolFor(null); setPool(null); setPoolError(null); return; }
+    setPoolFor(species); setPool(null); setPoolError(null);
+    try {
+      setPool(await getEggMovePool(species));
+    } catch {
+      // A 404 is the species having no pool — the game defines none — and it
+      // must not read as a failed request.
+      setPoolError(`${label}: the game defines no egg-move pool for this species.`);
     }
   };
 
@@ -328,12 +347,44 @@ export default function BreedingPlanner() {
                   >
                     Route
                   </button>
+                  <button
+                    className="btn btn-ghost"
+                    style={{ padding: '3px 8px', fontSize: 11 }}
+                    title={t('The moves an egg of this species can roll, from the game files. A pool, not a prediction.')}
+                    onClick={() => void toggleEggMoves(option.internalName, option.name)}
+                  >
+                    {t('Egg moves')}
+                  </button>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
 
+        {poolError && (
+          <p style={{ padding: '8px 12px', color: 'var(--text-muted)', fontSize: 12 }}>{poolError}</p>
+        )}
+        {pool && (
+          <div style={{ padding: '10px 12px', borderTop: '1px solid var(--border-primary)' }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 2 }}>
+              {pool.name} — {t('egg move pool')}
+            </div>
+            {/* The pool, never odds: how many an egg rolls is stated in no
+                file, and the caption carries that instead of leaving a bare
+                list to read as "the child will know these". */}
+            <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '0 0 6px' }}>{pool.note}</p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {pool.moves.map((m) => (
+                <span key={m.id} className="badge" style={{ fontSize: 11 }}>
+                  {m.name}
+                  {m.power != null && (
+                    <span style={{ color: 'var(--text-muted)', marginLeft: 4 }}>{m.power}</span>
+                  )}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
         {!loading && !filtered.length && (
           <p style={{ padding: 20, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
             <Egg size={16} style={{ display: 'block', margin: '0 auto 8px' }} />

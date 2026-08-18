@@ -1530,6 +1530,25 @@ export async function getBreedingLimits(): Promise<BreedingLimits> {
 }
 
 /**
+ * The egg-move POOL for one species — the game's own DT_WazaMasterTamago
+ * checked against DT_WazaDataTable.IgnoreRandomInherit. `poolOnly` is the
+ * honesty flag: no file states how many moves an egg rolls or at what rate,
+ * so the UI must present a pool, never a prediction. A species with no pool
+ * 404s — a real answer, distinct from an empty list.
+ */
+export interface EggMovePool {
+  species: string;
+  name: string;
+  moves: { id: string; name: string; element: string; power: number | null }[];
+  poolOnly: boolean;
+  note: string;
+}
+
+export async function getEggMovePool(species: string): Promise<EggMovePool> {
+  return saveFetch(`/breeding/eggmoves?species=${encodeURIComponent(species)}`);
+}
+
+/**
  * Every Pal in the game, from bundled data — a reference view, not a report on
  * your server, so it works with no parsed world.
  */
