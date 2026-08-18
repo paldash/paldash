@@ -1579,6 +1579,15 @@ _PROGRESS_COUNTERS: list[tuple[str, str]] = [
     ("palRankUps", "PalRankupCount"),
     ("mutations", "MutationCount"),
     ("raidBossesDefeated", "RaidBossDefeatCount"),
+    # The #117/#138 stragglers. Scalars and maps both go through the loop's
+    # shape handling; ABSENT is a real state distinct from zero (refworld
+    # players carry no TowerBossDefeatCount at all — the trap the boss-counter
+    # investigation recorded), so the loop must keep skipping absent keys and
+    # the UI must render only what is present.
+    ("towerBossDefeats", "TowerBossDefeatCount"),
+    ("campsConquered", "CampConqueredCount"),
+    ("oilrigsCleared", "OilrigClearCount"),
+    ("npcTalks", "NPCTalkCountMap"),
 ]
 
 
@@ -1664,6 +1673,14 @@ def extract_player_progress(gvas: Any) -> dict[str, Any]:
 
     for label, prop in _PROGRESS_COUNTERS:
         raw = _v(record, prop, "value")
+
+        # ABSENT IS NOT ZERO. `TowerBossDefeatCount` is missing outright on
+        # every refworld player — the game only writes a counter once it has
+        # something to count — and emitting `{total: 0}` for a missing key is
+        # how a first pass "refuted" the boss counters. Skip it: the key stays
+        # out of the payload and the UI renders nothing rather than a 0.
+        if raw is None:
+            continue
 
         # **`TribeCaptureCount` IS A PLAIN INT AND THIS READ IT AS A MAP**, so
         # `speciesCaptured` has been `{total: 0, distinct: 0}` on every player

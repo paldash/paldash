@@ -117,6 +117,7 @@ export default function Progression() {
       )}
 
       {player && <Counts player={player} totals={totals} />}
+      {player && <RecordCounters player={player} />}
       {player && <Relics lines={player.relicLines || []} />}
 
       {detail && !detail.showsMissing && (
@@ -368,6 +369,72 @@ function Counts({
           </div>
         );
       })}
+    </div>
+  );
+}
+
+/**
+ * The lifetime counters the save keeps under `RecordData` (#138) — counts,
+ * never "n of N": nothing enumerates how many camps or conversations exist, so
+ * a denominator would be invented.
+ *
+ * **Only counters the save actually carries render.** The game writes a
+ * counter the first time it has something to count, so absent and zero are
+ * different facts — the parser drops absent keys and this renders nothing for
+ * them rather than a 0 (the trap that once "refuted" the boss counters).
+ * `raidBossesDefeated` is deliberately not here; the Raid bosses card below
+ * already shows it beside the reference list.
+ */
+const RECORD_COUNTERS: {
+  key: string;
+  label: string;
+  /** What one entry in the map IS, where that is known — else distinct is hidden. */
+  distinctLabel?: string;
+  title?: string;
+}[] = [
+  { key: 'itemsCrafted', label: 'Items crafted', distinctLabel: 'kinds' },
+  {
+    key: 'palRankUps', label: 'Condenser rank-ups',
+    title: 'The save counts rank-ups per rank reached, so a per-species breakdown does not exist.',
+  },
+  {
+    key: 'mutations', label: 'Mutations',
+    title: 'The counter is named MutationCount and no file states what one unit is.',
+  },
+  { key: 'towerBossDefeats', label: 'Tower boss defeats', distinctLabel: 'bosses' },
+  { key: 'campsConquered', label: 'Camps conquered' },
+  { key: 'oilrigsCleared', label: 'Oil rigs cleared' },
+  { key: 'npcTalks', label: 'NPC conversations', distinctLabel: 'NPCs' },
+];
+
+function RecordCounters({ player }: { player: PlayerProgress }) {
+  const rows = RECORD_COUNTERS
+    .map((c) => ({ ...c, entry: player[c.key] as { total: number; distinct: number | null } | undefined }))
+    .filter((c) => c.entry && typeof c.entry.total === 'number');
+  if (!rows.length) return null;
+  return (
+    <div className="glass-card" style={{ padding: 14 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 8 }}>
+        <Info size={14} /> {t('Lifetime counters')}
+        <span style={{ fontSize: 10, fontWeight: 400, color: 'var(--text-muted)' }}>
+          {t('what the save counts — nothing states a total to compare against')}
+        </span>
+      </div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 18px' }}>
+        {rows.map((c) => (
+          <div key={c.key} style={{ fontSize: 12 }} title={c.title}>
+            <span style={{ color: 'var(--text-muted)' }}>{c.label} </span>
+            <span className="mono" style={{ color: 'var(--text-primary)' }}>
+              {c.entry!.total.toLocaleString()}
+            </span>
+            {c.distinctLabel && c.entry!.distinct != null && (
+              <span style={{ color: 'var(--text-muted)' }}>
+                {' '}· {c.entry!.distinct.toLocaleString()} {c.distinctLabel}
+              </span>
+            )}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
