@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import {
-  SESSION_COOKIE, login, sessionCookieOptions, isGuestEnabled, publicUser,
+  SESSION_COOKIE, crossSiteReason, login, sessionCookieOptions, isGuestEnabled,
+  publicUser,
 } from '@/lib/auth';
 
 /**
@@ -16,6 +17,14 @@ import {
  * restart does not reset an attacker's budget.
  */
 export async function POST(request: NextRequest) {
+  // Login CSRF: a cross-site sign-in plants the ATTACKER'S session in the
+  // victim's browser, so everything they then do lands in an account the
+  // attacker can read. Same gate as the mutating proxy routes.
+  const crossSite = crossSiteReason(request.headers);
+  if (crossSite) {
+    return NextResponse.json({ error: crossSite }, { status: 403 });
+  }
+
   let body: { username?: string; password?: string; guest?: boolean };
   try {
     body = await request.json();

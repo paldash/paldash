@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSession, getSessionToken, SESSION_HEADER } from '@/lib/auth';
+import { crossSiteReason, getSession, getSessionToken, SESSION_HEADER } from '@/lib/auth';
 import { describeSavePath, FEATURES } from '@/lib/permissions';
 import { guestMaySee } from '@/lib/permissions-server';
 
@@ -57,6 +57,17 @@ export async function DELETE(
 }
 
 async function handle(request: NextRequest, path: string[], method: string) {
+  // CSRF (AUDIT S7): a browser-initiated cross-site mutation is refused
+  // before anything else runs. GETs are exempt — nothing on the allowlist
+  // mutates on GET, and refusing cross-site reads would break nothing but
+  // could mask a misconfigured reverse proxy as a security event.
+  if (method !== 'GET') {
+    const reason = crossSiteReason(request.headers);
+    if (reason) {
+      return NextResponse.json({ error: reason }, { status: 403 });
+    }
+  }
+
   const joined = path.join('/');
   const route = describeSavePath(joined, method);
 

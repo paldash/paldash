@@ -31,6 +31,59 @@ export type { Role } from './auth-types';
 export const SESSION_COOKIE = 'pw_session';
 export const SESSION_HEADER = 'X-Session-Token';
 
+/**
+ * CSRF: why a cross-site mutating request is refused, or null (AUDIT S7).
+ *
+ * The session rides an httpOnly SameSite=Lax cookie, which already blocks the
+ * classic cross-site form POST — this is the defence-in-depth layer on top,
+ * because Lax is a browser default this code does not control and a
+ * subdomain-hosted attacker is same-SITE to the cookie.
+ *
+ * Two signals, strongest first:
+ *
+ * - `Sec-Fetch-Site` is the browser's own verdict and cannot be forged from a
+ *   page. `cross-site` is refused outright; `same-origin`/`same-site`/`none`
+ *   (address bar, bookmarks) pass.
+ * - `Origin`, compared against the host the request arrived at
+ *   (`X-Forwarded-Host` first — behind a reverse proxy the plain Host is the
+ *   internal one and would fail every legitimate request). `Origin: null` — a
+ *   sandboxed iframe or file:// page — is refused: no legitimate dashboard
+ *   request has it.
+ *
+ * A request with NEITHER header passes. That is curl and every non-browser
+ * client — CSRF needs a victim's browser to attach the cookie, and a client
+ * that manufactures its own requests is not confused-deputising anything.
+ *
+ * Takes Headers, not a NextRequest, so tests exercise it without standing up
+ * the framework.
+ */
+export function crossSiteReason(headers: Headers): string | null {
+  const fetchSite = headers.get('sec-fetch-site');
+  if (fetchSite === 'cross-site') {
+    return 'cross-site request refused (Sec-Fetch-Site: cross-site)';
+  }
+
+  const origin = headers.get('origin');
+  if (!origin) return null;
+  if (origin === 'null') {
+    return 'cross-site request refused (Origin: null)';
+  }
+
+  let originHost: string;
+  try {
+    originHost = new URL(origin).host;
+  } catch {
+    return `cross-site request refused (unparseable Origin: ${origin})`;
+  }
+  const requestHost = (
+    headers.get('x-forwarded-host') ?? headers.get('host') ?? ''
+  ).split(',')[0].trim();
+  if (requestHost && originHost.toLowerCase() !== requestHost.toLowerCase()) {
+    return `cross-site request refused (Origin ${originHost} != host ${requestHost})`;
+  }
+  return null;
+}
+
 const BACKEND = process.env.PYTHON_BACKEND_URL || 'http://127.0.0.1:8400';
 const SESSION_TTL_SECONDS = Number(process.env.SESSION_TTL_HOURS || 12) * 3600;
 
