@@ -13,22 +13,9 @@
   "string stays visibly English rather than becoming a sentence this",
   "project wrote and attributed to nobody."
  ],
- "distinct": 631,
- "occurrences": 718,
+ "distinct": 611,
+ "occurrences": 695,
  "strings": [
-  {
-   "text": "Loading…",
-   "occurrences": 8,
-   "files": [
-    "src/components/access-settings.tsx",
-    "src/components/account-settings.tsx",
-    "src/components/base-supply.tsx",
-    "src/components/breeding-planner.tsx",
-    "src/components/bulk-pal-editor.tsx",
-    "src/components/item-source.tsx",
-    "src/components/paldeck.tsx"
-   ]
-  },
   {
    "text": "Preview failed",
    "occurrences": 8,
@@ -40,6 +27,17 @@
     "src/components/pal-import.tsx",
     "src/components/pal-welfare.tsx",
     "src/components/slot-editor.tsx"
+   ]
+  },
+  {
+   "text": "The server must be stopped first",
+   "occurrences": 6,
+   "files": [
+    "src/components/bulk-pal-editor.tsx",
+    "src/components/character-editor.tsx",
+    "src/components/pal-check.tsx",
+    "src/components/slot-editor.tsx",
+    "src/lib/chrome.ts"
    ]
   },
   {
@@ -62,16 +60,6 @@
    ]
   },
   {
-   "text": "The server must be stopped first",
-   "occurrences": 5,
-   "files": [
-    "src/components/bulk-pal-editor.tsx",
-    "src/components/character-editor.tsx",
-    "src/components/pal-check.tsx",
-    "src/components/slot-editor.tsx"
-   ]
-  },
-  {
    "text": "Dimensional Pal Storage",
    "occurrences": 4,
    "files": [
@@ -90,13 +78,6 @@
    ]
   },
   {
-   "text": "Any",
-   "occurrences": 4,
-   "files": [
-    "src/components/my-pals.tsx"
-   ]
-  },
-  {
    "text": "Schedule updated",
    "occurrences": 3,
    "files": [
@@ -110,6 +91,14 @@
     "src/components/base-viewer.tsx",
     "src/components/my-pals.tsx",
     "src/components/world-export.tsx"
+   ]
+  },
+  {
+   "text": "Raid bosses",
+   "occurrences": 3,
+   "files": [
+    "src/components/boss-planner.tsx",
+    "src/components/progression.tsx"
    ]
   },
   {
@@ -182,6 +171,22 @@
    "files": [
     "src/components/player-roster.tsx",
     "src/lib/auth-types.ts"
+   ]
+  },
+  {
+   "text": "Palpagos Islands",
+   "occurrences": 2,
+   "files": [
+    "src/components/paldeck.tsx",
+    "src/lib/map-coordinates.ts"
+   ]
+  },
+  {
+   "text": "World Tree",
+   "occurrences": 2,
+   "files": [
+    "src/components/paldeck.tsx",
+    "src/lib/map-coordinates.ts"
    ]
   },
   {
@@ -259,6 +264,13 @@
    ]
   },
   {
+   "text": "Undiscovered locations",
+   "occurrences": 2,
+   "files": [
+    "src/components/access-settings.tsx"
+   ]
+  },
+  {
    "text": "Could not save",
    "occurrences": 2,
    "files": [
@@ -266,7 +278,7 @@
    ]
   },
   {
-   "text": "Role",
+   "text": "Display name",
    "occurrences": 2,
    "files": [
     "src/components/account-settings.tsx",
@@ -279,14 +291,6 @@
    "files": [
     "src/components/account-settings.tsx",
     "src/components/user-manager.tsx"
-   ]
-  },
-  {
-   "text": "When",
-   "occurrences": 2,
-   "files": [
-    "src/components/audit-log.tsx",
-    "src/components/backup-manager.tsx"
    ]
   },
   {
@@ -314,6 +318,14 @@
    ]
   },
   {
+   "text": "Breeding farms",
+   "occurrences": 2,
+   "files": [
+    "src/components/base-supply.tsx",
+    "src/components/interactive-map.tsx"
+   ]
+  },
+  {
    "text": "All Pals on the server",
    "occurrences": 2,
    "files": [
@@ -330,13 +342,6 @@
    ]
   },
   {
-   "text": "Raid bosses",
-   "occurrences": 2,
-   "files": [
-    "src/components/boss-planner.tsx"
-   ]
-  },
-  {
    "text": "Could not load",
    "occurrences": 2,
    "files": [
@@ -346,14 +351,6 @@
   },
   {
    "text": "This account is not linked to a character.",
-   "occurrences": 2,
-   "files": [
-    "src/components/breeding-planner.tsx",
-    "src/components/my-pals.tsx"
-   ]
-  },
-  {
-   "text": "Players",
    "occurrences": 2,
    "files": [
     "src/components/breeding-planner.tsx",
@@ -390,6 +387,13 @@
    "files": [
     "src/components/character-editor.tsx",
     "src/components/pal-import.tsx"
+   ]
+  },
+  {
+   "text": "Chest loot",
+   "occurrences": 2,
+   "files": [
+    "src/components/dungeon-guide.tsx"
    ]
   },
   {
@@ -468,10 +472,24 @@
    ]
   },
   {
-   "text": "Player",
+   "text": "Switch to the light theme",
    "occurrences": 2,
    "files": [
-    "src/components/player-roster.tsx"
+    "src/components/theme-toggle.tsx"
+   ]
+  },
+  {
+   "text": "Switch to the dark theme",
+   "occurrences": 2,
+   "files": [
+    "src/components/theme-toggle.tsx"
+   ]
+  },
+  {
+   "text": "New account",
+   "occurrences": 2,
+   "files": [
+    "src/components/user-manager.tsx"
    ]
   },
   {
@@ -518,13 +536,6 @@
   },
   {
    "text": "Close navigation",
-   "occurrences": 1,
-   "files": [
-    "src/app/page.tsx"
-   ]
-  },
-  {
-   "text": "Palworld",
    "occurrences": 1,
    "files": [
     "src/app/page.tsx"
@@ -689,20 +700,6 @@
    "occurrences": 1,
    "files": [
     "src/lib/auth.ts"
-   ]
-  },
-  {
-   "text": "Palpagos Islands",
-   "occurrences": 1,
-   "files": [
-    "src/lib/map-coordinates.ts"
-   ]
-  },
-  {
-   "text": "World Tree",
-   "occurrences": 1,
-   "files": [
-    "src/lib/map-coordinates.ts"
    ]
   },
   {
@@ -923,13 +920,6 @@
    ]
   },
   {
-   "text": "Undiscovered locations",
-   "occurrences": 1,
-   "files": [
-    "src/components/access-settings.tsx"
-   ]
-  },
-  {
    "text": "Currently permitted writes",
    "occurrences": 1,
    "files": [
@@ -945,20 +935,6 @@
   },
   {
    "text": "Signed in as",
-   "occurrences": 1,
-   "files": [
-    "src/components/account-settings.tsx"
-   ]
-  },
-  {
-   "text": "Display name",
-   "occurrences": 1,
-   "files": [
-    "src/components/account-settings.tsx"
-   ]
-  },
-  {
-   "text": "Username",
    "occurrences": 1,
    "files": [
     "src/components/account-settings.tsx"
@@ -1070,56 +1046,7 @@
    ]
   },
   {
-   "text": "Succeeded",
-   "occurrences": 1,
-   "files": [
-    "src/components/audit-log.tsx"
-   ]
-  },
-  {
-   "text": "Failed",
-   "occurrences": 1,
-   "files": [
-    "src/components/audit-log.tsx"
-   ]
-  },
-  {
-   "text": "Denied",
-   "occurrences": 1,
-   "files": [
-    "src/components/audit-log.tsx"
-   ]
-  },
-  {
    "text": "Filter by user…",
-   "occurrences": 1,
-   "files": [
-    "src/components/audit-log.tsx"
-   ]
-  },
-  {
-   "text": "Who",
-   "occurrences": 1,
-   "files": [
-    "src/components/audit-log.tsx"
-   ]
-  },
-  {
-   "text": "Action",
-   "occurrences": 1,
-   "files": [
-    "src/components/audit-log.tsx"
-   ]
-  },
-  {
-   "text": "Detail",
-   "occurrences": 1,
-   "files": [
-    "src/components/audit-log.tsx"
-   ]
-  },
-  {
-   "text": "From",
    "occurrences": 1,
    "files": [
     "src/components/audit-log.tsx"
@@ -1155,6 +1082,13 @@
   },
   {
    "text": "Could not preview the restore",
+   "occurrences": 1,
+   "files": [
+    "src/components/backup-manager.tsx"
+   ]
+  },
+  {
+   "text": "The backup directory is not usable.",
    "occurrences": 1,
    "files": [
     "src/components/backup-manager.tsx"
@@ -1211,27 +1145,6 @@
   },
   {
    "text": "Retention applied",
-   "occurrences": 1,
-   "files": [
-    "src/components/backup-manager.tsx"
-   ]
-  },
-  {
-   "text": "Description",
-   "occurrences": 1,
-   "files": [
-    "src/components/backup-manager.tsx"
-   ]
-  },
-  {
-   "text": "Reason",
-   "occurrences": 1,
-   "files": [
-    "src/components/backup-manager.tsx"
-   ]
-  },
-  {
-   "text": "Size",
    "occurrences": 1,
    "files": [
     "src/components/backup-manager.tsx"
@@ -1309,13 +1222,6 @@
   },
   {
    "text": "Working it out…",
-   "occurrences": 1,
-   "files": [
-    "src/components/base-supply.tsx"
-   ]
-  },
-  {
-   "text": "Empty.",
    "occurrences": 1,
    "files": [
     "src/components/base-supply.tsx"
@@ -1574,13 +1480,6 @@
    ]
   },
   {
-   "text": "Towers",
-   "occurrences": 1,
-   "files": [
-    "src/components/boss-planner.tsx"
-   ]
-  },
-  {
    "text": "Placed in the world, each with its own level.",
    "occurrences": 1,
    "files": [
@@ -1721,27 +1620,6 @@
    ]
   },
   {
-   "text": "Offspring",
-   "occurrences": 1,
-   "files": [
-    "src/components/breeding-planner.tsx"
-   ]
-  },
-  {
-   "text": "Dex",
-   "occurrences": 1,
-   "files": [
-    "src/components/breeding-planner.tsx"
-   ]
-  },
-  {
-   "text": "Pairs",
-   "occurrences": 1,
-   "files": [
-    "src/components/breeding-planner.tsx"
-   ]
-  },
-  {
    "text": "Example pairing",
    "occurrences": 1,
    "files": [
@@ -1791,7 +1669,7 @@
    ]
   },
   {
-   "text": "Bundled world data is out of date",
+   "text": "Palworld updated — some new content may not be named yet",
    "occurrences": 1,
    "files": [
     "src/components/build-banner.tsx"
@@ -1806,6 +1684,27 @@
   },
   {
    "text": "Palworld has updated",
+   "occurrences": 1,
+   "files": [
+    "src/components/build-banner.tsx"
+   ]
+  },
+  {
+   "text": "Bundled world data is out of date",
+   "occurrences": 1,
+   "files": [
+    "src/components/build-banner.tsx"
+   ]
+  },
+  {
+   "text": "Nothing for you to do.",
+   "occurrences": 1,
+   "files": [
+    "src/components/build-banner.tsx"
+   ]
+  },
+  {
+   "text": "Details for whoever builds the dashboard",
    "occurrences": 1,
    "files": [
     "src/components/build-banner.tsx"
@@ -1882,28 +1781,7 @@
    ]
   },
   {
-   "text": "Pal",
-   "occurrences": 1,
-   "files": [
-    "src/components/build-planner.tsx"
-   ]
-  },
-  {
    "text": "Before matchup",
-   "occurrences": 1,
-   "files": [
-    "src/components/build-planner.tsx"
-   ]
-  },
-  {
-   "text": "Matchup",
-   "occurrences": 1,
-   "files": [
-    "src/components/build-planner.tsx"
-   ]
-  },
-  {
-   "text": "Elements",
    "occurrences": 1,
    "files": [
     "src/components/build-planner.tsx"
@@ -2061,6 +1939,55 @@
    "occurrences": 1,
    "files": [
     "src/components/crafting-tree.tsx"
+   ]
+  },
+  {
+   "text": "Verdant Cavern",
+   "occurrences": 1,
+   "files": [
+    "src/components/dungeon-guide.tsx"
+   ]
+  },
+  {
+   "text": "Sealed Realms",
+   "occurrences": 1,
+   "files": [
+    "src/components/dungeon-guide.tsx"
+   ]
+  },
+  {
+   "text": "Could not load the dungeon guide",
+   "occurrences": 1,
+   "files": [
+    "src/components/dungeon-guide.tsx"
+   ]
+  },
+  {
+   "text": "Random dungeons",
+   "occurrences": 1,
+   "files": [
+    "src/components/dungeon-guide.tsx"
+   ]
+  },
+  {
+   "text": "What spawns inside each biome’s dungeons, and what the chests roll.",
+   "occurrences": 1,
+   "files": [
+    "src/components/dungeon-guide.tsx"
+   ]
+  },
+  {
+   "text": "The game does not name these areas, so they are listed by internal id.",
+   "occurrences": 1,
+   "files": [
+    "src/components/dungeon-guide.tsx"
+   ]
+  },
+  {
+   "text": "Share of the slot when it rolls — nothing states how often a chest spawns.",
+   "occurrences": 1,
+   "files": [
+    "src/components/dungeon-guide.tsx"
    ]
   },
   {
@@ -2246,13 +2173,6 @@
    ]
   },
   {
-   "text": "Breeding farms",
-   "occurrences": 1,
-   "files": [
-    "src/components/interactive-map.tsx"
-   ]
-  },
-  {
    "text": "Discovery data could not be loaded",
    "occurrences": 1,
    "files": [
@@ -2289,13 +2209,6 @@
   },
   {
    "text": "Base layer unavailable.",
-   "occurrences": 1,
-   "files": [
-    "src/components/interactive-map.tsx"
-   ]
-  },
-  {
-   "text": "Refresh",
    "occurrences": 1,
    "files": [
     "src/components/interactive-map.tsx"
@@ -2394,6 +2307,13 @@
    ]
   },
   {
+   "text": "Could not load structures",
+   "occurrences": 1,
+   "files": [
+    "src/components/items-view.tsx"
+   ]
+  },
+  {
    "text": "Could not load item totals",
    "occurrences": 1,
    "files": [
@@ -2471,26 +2391,11 @@
    ]
   },
   {
-   "text": "Item &mdash; click for sources",
+   "text": "What each buildable structure costs, expanded to raw materials",
    "occurrences": 1,
    "files": [
     "src/components/items-view.tsx"
    ]
-  },
-  {
-   "text": "Category",
-   "occurrences": 1,
-   "files": [
-    "src/components/items-view.tsx"
-   ]
-  },
-  {
-   "text": "Total",
-   "occurrences": 1,
-   "files": [
-    "src/components/items-view.tsx"
-   ],
-   "useGameString": "common_total"
   },
   {
    "text": "No items matched.",
@@ -2522,6 +2427,27 @@
   },
   {
    "text": "Totals cover every container in the world: base chests, guild chests, player inventories and palboxes.",
+   "occurrences": 1,
+   "files": [
+    "src/components/items-view.tsx"
+   ]
+  },
+  {
+   "text": "Structures unavailable",
+   "occurrences": 1,
+   "files": [
+    "src/components/items-view.tsx"
+   ]
+  },
+  {
+   "text": "Structure &mdash; click for the full cost",
+   "occurrences": 1,
+   "files": [
+    "src/components/items-view.tsx"
+   ]
+  },
+  {
+   "text": "Materials",
    "occurrences": 1,
    "files": [
     "src/components/items-view.tsx"
@@ -2585,6 +2511,13 @@
   },
   {
    "text": "The game",
+   "occurrences": 1,
+   "files": [
+    "src/components/language-picker.tsx"
+   ]
+  },
+  {
+   "text": "The dashboard",
    "occurrences": 1,
    "files": [
     "src/components/language-picker.tsx"
@@ -2852,13 +2785,6 @@
    ]
   },
   {
-   "text": "METRICS_ENABLED=false",
-   "occurrences": 1,
-   "files": [
-    "src/components/metrics-history.tsx"
-   ]
-  },
-  {
    "text": "Dashboard CPU & memory",
    "occurrences": 1,
    "files": [
@@ -2971,20 +2897,6 @@
    ]
   },
   {
-   "text": "Male",
-   "occurrences": 1,
-   "files": [
-    "src/components/my-pals.tsx"
-   ]
-  },
-  {
-   "text": "Female",
-   "occurrences": 1,
-   "files": [
-    "src/components/my-pals.tsx"
-   ]
-  },
-  {
    "text": "Min ★",
    "occurrences": 1,
    "files": [
@@ -3020,26 +2932,12 @@
    ]
   },
   {
-   "text": "Anywhere",
-   "occurrences": 1,
-   "files": [
-    "src/components/my-pals.tsx"
-   ]
-  },
-  {
    "text": "Palbox",
    "occurrences": 1,
    "files": [
     "src/components/my-pals.tsx"
    ],
    "gameNoun": true
-  },
-  {
-   "text": "Party",
-   "occurrences": 1,
-   "files": [
-    "src/components/my-pals.tsx"
-   ]
   },
   {
    "text": "Working at a base",
@@ -3049,42 +2947,7 @@
    ]
   },
   {
-   "text": "Unassigned",
-   "occurrences": 1,
-   "files": [
-    "src/components/my-pals.tsx"
-   ]
-  },
-  {
-   "text": "Work",
-   "occurrences": 1,
-   "files": [
-    "src/components/my-pals.tsx"
-   ]
-  },
-  {
    "text": "Work suitabilities, in the game",
-   "occurrences": 1,
-   "files": [
-    "src/components/my-pals.tsx"
-   ]
-  },
-  {
-   "text": "Where",
-   "occurrences": 1,
-   "files": [
-    "src/components/my-pals.tsx"
-   ]
-  },
-  {
-   "text": "Passives",
-   "occurrences": 1,
-   "files": [
-    "src/components/my-pals.tsx"
-   ]
-  },
-  {
-   "text": "Alpha",
    "occurrences": 1,
    "files": [
     "src/components/my-pals.tsx"
@@ -3301,13 +3164,6 @@
    ]
   },
   {
-   "text": "Anything",
-   "occurrences": 1,
-   "files": [
-    "src/components/pal-optimiser.tsx"
-   ]
-  },
-  {
    "text": "Elemental relation only — the game files give no damage multiplier",
    "occurrences": 1,
    "files": [
@@ -3316,6 +3172,13 @@
   },
   {
    "text": "Recovering in the box",
+   "occurrences": 1,
+   "files": [
+    "src/components/pal-welfare.tsx"
+   ]
+  },
+  {
+   "text": "Stale sickness flag (healthy in game)",
    "occurrences": 1,
    "files": [
     "src/components/pal-welfare.tsx"
@@ -3427,13 +3290,6 @@
    ]
   },
   {
-   "text": "Condenser",
-   "occurrences": 1,
-   "files": [
-    "src/components/paldeck.tsx"
-   ]
-  },
-  {
    "text": "Could not load the roster",
    "occurrences": 1,
    "files": [
@@ -3469,21 +3325,6 @@
    ]
   },
   {
-   "text": "Level",
-   "occurrences": 1,
-   "files": [
-    "src/components/player-roster.tsx"
-   ],
-   "useGameString": "common_level"
-  },
-  {
-   "text": "Actions",
-   "occurrences": 1,
-   "files": [
-    "src/components/player-roster.tsx"
-   ]
-  },
-  {
    "text": "No players matched.",
    "occurrences": 1,
    "files": [
@@ -3506,13 +3347,6 @@
   },
   {
    "text": "Could not create the account",
-   "occurrences": 1,
-   "files": [
-    "src/components/player-roster.tsx"
-   ]
-  },
-  {
-   "text": "Moderator",
    "occurrences": 1,
    "files": [
     "src/components/player-roster.tsx"
@@ -3583,6 +3417,69 @@
   },
   {
    "text": "Tower bosses",
+   "occurrences": 1,
+   "files": [
+    "src/components/progression.tsx"
+   ]
+  },
+  {
+   "text": "Items crafted",
+   "occurrences": 1,
+   "files": [
+    "src/components/progression.tsx"
+   ]
+  },
+  {
+   "text": "Condenser rank-ups",
+   "occurrences": 1,
+   "files": [
+    "src/components/progression.tsx"
+   ]
+  },
+  {
+   "text": "The save counts rank-ups per rank reached, so a per-species breakdown does not exist.",
+   "occurrences": 1,
+   "files": [
+    "src/components/progression.tsx"
+   ]
+  },
+  {
+   "text": "The counter is named MutationCount and no file states what one unit is.",
+   "occurrences": 1,
+   "files": [
+    "src/components/progression.tsx"
+   ]
+  },
+  {
+   "text": "Tower boss defeats",
+   "occurrences": 1,
+   "files": [
+    "src/components/progression.tsx"
+   ]
+  },
+  {
+   "text": "Camps conquered",
+   "occurrences": 1,
+   "files": [
+    "src/components/progression.tsx"
+   ]
+  },
+  {
+   "text": "Oil rigs cleared",
+   "occurrences": 1,
+   "files": [
+    "src/components/progression.tsx"
+   ]
+  },
+  {
+   "text": "NPC conversations",
+   "occurrences": 1,
+   "files": [
+    "src/components/progression.tsx"
+   ]
+  },
+  {
+   "text": "Lifetime counters",
    "occurrences": 1,
    "files": [
     "src/components/progression.tsx"
@@ -3771,6 +3668,62 @@
    ]
   },
   {
+   "text": "Sort chests",
+   "occurrences": 1,
+   "files": [
+    "src/components/save-editor.tsx"
+   ]
+  },
+  {
+   "text": "Integrity scan",
+   "occurrences": 1,
+   "files": [
+    "src/components/save-editor.tsx"
+   ]
+  },
+  {
+   "text": "Pal & player editor",
+   "occurrences": 1,
+   "files": [
+    "src/components/save-editor.tsx"
+   ]
+  },
+  {
+   "text": "Bulk edits",
+   "occurrences": 1,
+   "files": [
+    "src/components/save-editor.tsx"
+   ]
+  },
+  {
+   "text": "Chest slots",
+   "occurrences": 1,
+   "files": [
+    "src/components/save-editor.tsx"
+   ]
+  },
+  {
+   "text": "Guild move",
+   "occurrences": 1,
+   "files": [
+    "src/components/save-editor.tsx"
+   ]
+  },
+  {
+   "text": "Pal import",
+   "occurrences": 1,
+   "files": [
+    "src/components/save-editor.tsx"
+   ]
+  },
+  {
+   "text": "World export",
+   "occurrences": 1,
+   "files": [
+    "src/components/save-editor.tsx"
+   ]
+  },
+  {
    "text": "Every container in the world",
    "occurrences": 1,
    "files": [
@@ -3813,27 +3766,6 @@
    ]
   },
   {
-   "text": "Locked",
-   "occurrences": 1,
-   "files": [
-    "src/components/save-editor.tsx"
-   ]
-  },
-  {
-   "text": "SECURITY_LEVEL=full",
-   "occurrences": 1,
-   "files": [
-    "src/components/save-editor.tsx"
-   ]
-  },
-  {
-   "text": "Backups",
-   "occurrences": 1,
-   "files": [
-    "src/components/save-editor.tsx"
-   ]
-  },
-  {
    "text": "You do not have permission for this operation.",
    "occurrences": 1,
    "files": [
@@ -3856,20 +3788,6 @@
   },
   {
    "text": "Could not load the schedule",
-   "occurrences": 1,
-   "files": [
-    "src/components/scheduled-announcements.tsx"
-   ]
-  },
-  {
-   "text": "Message",
-   "occurrences": 1,
-   "files": [
-    "src/components/scheduled-announcements.tsx"
-   ]
-  },
-  {
-   "text": "Every",
    "occurrences": 1,
    "files": [
     "src/components/scheduled-announcements.tsx"
@@ -3954,13 +3872,6 @@
   },
   {
    "text": "Players Online",
-   "occurrences": 1,
-   "files": [
-    "src/components/server-overview.tsx"
-   ]
-  },
-  {
-   "text": "Uptime",
    "occurrences": 1,
    "files": [
     "src/components/server-overview.tsx"
@@ -4135,20 +4046,6 @@
    ]
   },
   {
-   "text": "DISABLE_GENERATE_SETTINGS=true",
-   "occurrences": 1,
-   "files": [
-    "src/components/server-settings.tsx"
-   ]
-  },
-  {
-   "text": "SERVER_SETTINGS_MODE=manual",
-   "occurrences": 1,
-   "files": [
-    "src/components/server-settings.tsx"
-   ]
-  },
-  {
    "text": "Your settings persist across restarts.",
    "occurrences": 1,
    "files": [
@@ -4206,20 +4103,6 @@
   },
   {
    "text": "Not set.",
-   "occurrences": 1,
-   "files": [
-    "src/components/server-settings.tsx"
-   ]
-  },
-  {
-   "text": "True",
-   "occurrences": 1,
-   "files": [
-    "src/components/server-settings.tsx"
-   ]
-  },
-  {
-   "text": "False",
    "occurrences": 1,
    "files": [
     "src/components/server-settings.tsx"
@@ -4366,28 +4249,7 @@
    ]
   },
   {
-   "text": "New account",
-   "occurrences": 1,
-   "files": [
-    "src/components/user-manager.tsx"
-   ]
-  },
-  {
    "text": "Links this login to a character in the save",
-   "occurrences": 1,
-   "files": [
-    "src/components/user-manager.tsx"
-   ]
-  },
-  {
-   "text": "Create",
-   "occurrences": 1,
-   "files": [
-    "src/components/user-manager.tsx"
-   ]
-  },
-  {
-   "text": "Account",
    "occurrences": 1,
    "files": [
     "src/components/user-manager.tsx"
@@ -4493,13 +4355,6 @@
   },
   {
    "text": "Everything was kept.",
-   "occurrences": 1,
-   "files": [
-    "src/components/world-export.tsx"
-   ]
-  },
-  {
-   "text": "SaveGames/0/",
    "occurrences": 1,
    "files": [
     "src/components/world-export.tsx"
