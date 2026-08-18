@@ -120,7 +120,7 @@ class Catalogue:
 
     def __init__(self, lang: str = "en", pak: "palpak.Pak" = None) -> None:
         self.lang = lang
-        self.pak = pak or palpak.Pak(l10n.CLIENT_PAK)
+        self.pak = pak or l10n._default_pak()
         raw = {t: l10n.strings(t, lang, pak=self.pak) for t in l10n.tables(self.pak, lang)}
         self._raw = raw
 

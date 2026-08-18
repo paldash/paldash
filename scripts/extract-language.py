@@ -84,7 +84,7 @@ def main() -> int:
     args = ap.parse_args()
 
     try:
-        pak = palpak.Pak(l10n.CLIENT_PAK)
+        pak = l10n._default_pak()
     except Exception as e:  # noqa: BLE001
         print(f"Needs the client pak: {e}", file=sys.stderr)
         return 2

@@ -254,7 +254,6 @@ Ranked by value over effort; every source named is already indexed or bundled.
 | **Egg-move surfacing** (#64's open half) | breeding tables + `moves.json.gz` | medium |
 | **Sortable Players roster and Items catalogue** | UI only — the two remaining unsortable tables (`my-pals` is the pattern to copy) | small |
 | **Chrome translations** (#109) | `docs/chrome-strings.json` (631 strings) + `docs/TRANSLATING.md`; waits on a human translation, not a framework | contributor-gated |
-| **Names from the server pak** — drop the 40 GB client-pak dependency | The server pak carries the same 27 `L10N/<lang>/` text tables, tagged (found 2026-08-17); point `l10n.py`/`gametext.py` at it and names refresh with every server update | medium |
 
 ---
 
@@ -340,10 +339,12 @@ The operator supplied the v1.0.3 server pak (build **24575149**, public
   rewards rebalanced, World Tree loot tables +1 entry each,
   `SkillCard_Psychokinesis` became legal (which failed the 575-item legality
   pin exactly as designed — now 574, with the story in the test).
-- **Language packs lag deliberately:** `Pal-Windows.pak` has not updated, so
-  v1.0.3's new strings are not in the 16 language bundles yet. Note the server
-  pak turns out to carry the same 27 `L10N/<lang>/` text tables — switching
-  `l10n.py` to read them would end the client-pak dependency for names
-  entirely; recorded as a candidate in §4b.
+- **Language packs no longer lag** (follow-up, same day): `l10n.py` now
+  prefers the server pak's own `L10N/<lang>/` tables — tagged, decoded by
+  `uassettable`, verified by a full 236k-row sweep and an English cross-check
+  against the independently-cooked client pak (14,425 identical, 339 differing
+  = exactly v1.0.3's edits). The packs, gamedata names and guild strings all
+  regenerate from the server pak now, so they refresh with every server
+  update; the 40 GB client pak is only needed for icons/textures.
 - Unit suite green against the new bundles; the full 2,043-test suite was
   green immediately before the refresh.
