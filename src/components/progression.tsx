@@ -462,7 +462,10 @@ function Relics({ lines }: { lines: RelicLine[] }) {
                   confident wrong number rather than a missing one. */}
               {line.hasEffectRate ? ` · +${line.effectRate}%` : ''}
               {' · '}{line.spent} spent
-              {line.nextCost != null ? ` · next costs ${line.nextCost}` : ' · maxed'}
+              {/* Maxed is nextRank === null, from the payload. This used to
+                  test a `nextCost` field the backend never emitted, so every
+                  line — rank 0 included — read "maxed". */}
+              {line.nextRank != null ? ` · next costs ${line.relicsToNext}` : ' · maxed'}
             </div>
           </div>
         ))}
