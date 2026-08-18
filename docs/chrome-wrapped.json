@@ -106,6 +106,7 @@
   "Last sign-in",
   "Leave blank for factory-fresh, which is what the game gives a new item.",
   "Legend, MoveSpeed_up_3",
+  "Lifetime counters",
   "Linked character",
   "Links this login to a character in the save",
   "Loading settings…",
@@ -243,7 +244,8 @@
   "Your settings persist across restarts.",
   "boss groups",
   "per-slot share",
-  "spawn groups"
+  "spawn groups",
+  "what the save counts — nothing states a total to compare against"
  ],
  "safetyCritical": [
   "Automatic backups",
