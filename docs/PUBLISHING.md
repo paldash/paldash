@@ -103,9 +103,8 @@ Verified against the tree on 2026-08-13 unless marked.
       `fetch` to any host; the only `urllib` callers are `gameapi.py` and
       `safety.py`, both talking to the operator's own game server.
 - [ ] **Decide A / B / C above.** The one genuinely open item.
-- [ ] **Add `CONTRIBUTING.md`** — GPL-3.0 implications for contributors, how to
-      run the suites, and the "measure before you claim" convention that
-      `AGENTS.md` documents at length.
+- [x] **Add `CONTRIBUTING.md`** — done 2026-08-18, with `SECURITY.md`, a
+      `NOTICE` for the Pocketpair-owned data, and issue templates beside it.
 - [ ] **Decide whether `AGENTS.md` ships as-is.** It is the most valuable file
       here and it is also a candid record of wrong answers, some of them
       embarrassing. Recommendation: **ship it unchanged.** Its credibility is
