@@ -90,7 +90,7 @@ export default function ItemsView() {
   }, [guild]);
 
   useEffect(() => {
-    load();
+    queueMicrotask(load);
   }, [load]);
 
   useEffect(() => {

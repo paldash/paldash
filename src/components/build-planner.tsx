@@ -72,7 +72,7 @@ export default function BuildPlanner() {
     }
   }, [metric, level, condenser, iv, souls, passives, against]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { queueMicrotask(load); }, [load]);
 
   const rows = asArray(data?.rows, 'build ranking rows');
   // Off the payload, never re-derived here — the backend is what knows which

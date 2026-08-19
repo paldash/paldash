@@ -79,7 +79,7 @@ export default function Progression() {
     setLoading(false);
   }, []);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => { queueMicrotask(load); }, [load]);
 
   const players = summary ?? [];
   const selected = who || players[0]?.uid || '';

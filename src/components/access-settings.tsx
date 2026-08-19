@@ -41,7 +41,7 @@ export default function AccessSettings() {
   }, []);
 
   useEffect(() => {
-    load();
+    queueMicrotask(load);
   }, [load]);
 
   const flash = (msg: string) => {

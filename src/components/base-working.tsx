@@ -131,7 +131,7 @@ export default function BaseWorking({ baseId }: { baseId?: string }) {
   }, [baseId]);
 
   useEffect(() => {
-    load();
+    queueMicrotask(load);
   }, [load]);
 
   const unsuitable = (data?.mismatches ?? []).filter((m) => m.kind === 'unsuitable');

@@ -76,7 +76,7 @@ export default function BreedingPlanner() {
   }, [owner]);
 
   useEffect(() => {
-    load();
+    queueMicrotask(load);
   }, [load]);
 
   // Separate from `load` on purpose. This is a fact about Palworld rather than

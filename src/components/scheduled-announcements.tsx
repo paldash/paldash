@@ -44,7 +44,7 @@ export default function ScheduledAnnouncements() {
   }, [interval]);
 
   useEffect(() => {
-    void load();
+    queueMicrotask(load);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

@@ -55,7 +55,7 @@ export default function ItemCreator({
   // hash and the backend refuses a stale one, but a preview left on screen
   // describing a different item is how someone confirms the wrong thing.
   const reset = useCallback(() => { setPlan(null); setDone(null); setError(null); }, []);
-  useEffect(reset, [typed, durability, hatches, reset]);
+  useEffect(() => { queueMicrotask(reset); }, [typed, durability, hatches, reset]);
 
   // Accepts either spelling, because the API speaks `Rankup_1` and people say
   // "Starfruit ☆1". A name that resolves to nothing is still sent — the backend

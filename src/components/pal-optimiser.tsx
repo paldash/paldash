@@ -90,7 +90,7 @@ function WorkPanel() {
     }
   }, []);
 
-  useEffect(() => { void load(work); }, [load, work]);
+  useEffect(() => { queueMicrotask(() => load(work)); }, [load, work]);
 
   const ranking = report?.rankings?.[0];
 
@@ -175,7 +175,7 @@ function CombatPanel() {
     }
   }, []);
 
-  useEffect(() => { void load(against); }, [load, against]);
+  useEffect(() => { queueMicrotask(() => load(against)); }, [load, against]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>

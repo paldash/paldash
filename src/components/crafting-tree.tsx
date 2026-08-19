@@ -39,7 +39,7 @@ export default function CraftingTree({ itemId }: { itemId: string }) {
 
   useEffect(() => {
     let live = true;
-    setError(null);
+    queueMicrotask(() => setError(null));
     getCraftingTree(itemId, count, prefer)
       .then((d) => { if (live) setData(d); })
       .catch((e: unknown) => {

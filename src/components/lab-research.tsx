@@ -83,7 +83,7 @@ export default function LabResearchPanel() {
   }, []);
 
   useEffect(() => {
-    if (backendOnline) load(guildId);
+    if (backendOnline) queueMicrotask(() => load(guildId));
   }, [backendOnline, guildId, load]);
 
   const nodes = asArray<ResearchNode>(tree?.nodes, 'research nodes');

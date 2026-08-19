@@ -117,7 +117,7 @@ export default function SlotEditor({ canEdit }: { canEdit: boolean }) {
   // A player's containers are fetched per player rather than all at once: the
   // endpoint is scoped per uid and most sessions only ever look at one.
   useEffect(() => {
-    if (!playerUid) { setPlayerContainers([]); return; }
+    if (!playerUid) { queueMicrotask(() => setPlayerContainers([])); return; }
     let cancelled = false;
     getPlayerContainers(playerUid)
       .then((r) => { if (!cancelled) setPlayerContainers(r.containers); })

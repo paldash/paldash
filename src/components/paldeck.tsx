@@ -79,7 +79,7 @@ export default function Paldeck() {
   }, []);
 
   useEffect(() => {
-    load();
+    queueMicrotask(load);
   }, [load]);
 
   useEffect(() => {

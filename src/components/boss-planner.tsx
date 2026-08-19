@@ -40,7 +40,7 @@ export default function BossPlanner() {
     }
   }, [kind, maxLevel]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { queueMicrotask(load); }, [load]);
 
   const bosses = asArray(data?.bosses, 'boss encounters');
   const groups = useMemo(() => ({

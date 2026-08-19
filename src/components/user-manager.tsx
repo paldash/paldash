@@ -53,7 +53,7 @@ export default function UserManager() {
   }, []);
 
   useEffect(() => {
-    load();
+    queueMicrotask(load);
   }, [load]);
 
   const flash = (message: string) => {
