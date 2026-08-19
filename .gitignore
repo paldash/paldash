@@ -83,3 +83,11 @@ refs/
 # Speed measurement runs (scripts/measure-speed.py) — local observations,
 # not source. Committing one would present one operator's reading as data.
 .speed-runs/
+
+# Game artwork — Pocketpair's, and since 2026-08-19 never in git history
+# (stripped with git-filter-repo; see docs/PUBLISHING.md option B). Locally
+# installed by scripts/install-icons.py + install-map-assets.py, and in a
+# container by the self-provisioning boot (backend/provision.py), so these
+# directories exist on every working setup and are simply not distributed.
+public/icons/
+public/maps/

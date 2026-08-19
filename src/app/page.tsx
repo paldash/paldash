@@ -627,7 +627,7 @@ function LoginScreen({
       <div className="glass-card" style={{ width: 360, padding: 28 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 4 }}>
           <Server size={18} style={{ color: 'var(--accent)' }} />
-          <h1 style={{ fontSize: 16, fontWeight: 600 }}>{t('Palworld Dashboard')}</h1>
+          <h1 style={{ fontSize: 16, fontWeight: 600 }}>paldash</h1>
         </div>
         <p style={{ color: 'var(--text-muted)', fontSize: 12, marginBottom: 20 }}>
           Server administration and save tools
