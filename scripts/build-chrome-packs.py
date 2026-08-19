@@ -61,6 +61,21 @@ CONCEPTS = {
     "Items": "TECHNOLOGY_CATEGOFY_ITEM",       # the typo is Pocketpair's
     "Party": "INGAME_MAIN_MENU_PAL",
     "Fast travel": "INTERACT_INDICATOR_FastTravel",
+    # Extended 2026-08-18 ("use game words when available"). Each passed the
+    # same two-source check: the KEY names the concept and the English VALUE
+    # matches our string. Not taken, and why: COMMON_LEVEL is "LEVEL" (a
+    # styling artifact, not a word); COMMON_TOTAL_MONEY is "Gold"; "Bases"
+    # only exists as the singular MAP_FILTER_CAMP "Base"; and the "Detail"
+    # value-match is INTERACT_INDICATOR_NotImpl_OpenDetailMenu — the literal
+    # "(not implemented)" trap AGENTS.md records for value joins.
+    "Defense": "COMMON_STATUS_DEFENCE",
+    "Sick": "COMMON_CONDITION_NAME_Cold",          # the game's word IS "Sick"
+    "Hungry": "COMMON_CONDITION_NAME_Hunger",
+    "Starving": "COMMON_CONDITION_NAME_Starvation",
+    "Oil rig": "MAP_FILTER_OILRIG",
+    "Field bosses": "MAP_FILTER_BOSS",             # the game's map filter name
+    "Guild markers": "MAP_MARKER_HEAD_GUILD",
+    "Production": "COMMON_WORKSPACE_Product",
 }
 
 #: Language codes as the game's L10N folders spell them; the dashboard's
@@ -93,7 +108,14 @@ def game_concepts() -> dict[str, dict[str, str]]:
         for ours, key in CONCEPTS.items():
             cell = rows.get(key) or {}
             src = ((cell.get("TextData") or {}).get("source") or "").strip()
-            if src:
+            # A row nobody translated ships a literal marker, and the game
+            # spells it at least three ways (`gametext.py` knows "en Text",
+            # "en_text", "Unidentified Pal"; INGAME_MAIN_MENU_QUEST adds
+            # "en-hant text"). Shipping one as a button label would be the
+            # placeholder-as-name failure — skip, so MT or English fills in.
+            if src and src.lower() not in (
+                "en text", "en_text", "en-hant text", "unidentified pal",
+            ):
                 found[ours] = src
         out[lang] = found
     return out

@@ -94,7 +94,7 @@ export default function BreedingPlanner() {
     getBreedingLimits()
       .then((data) => { if (live) { setLimits(data); setLimitsError(null); } })
       .catch((e: unknown) => {
-        if (live) setLimitsError(e instanceof Error ? e.message : 'Could not load');
+        if (live) setLimitsError(e instanceof Error ? e.message : t('Could not load'));
       });
     return () => { live = false; };
   }, []);

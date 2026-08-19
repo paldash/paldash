@@ -12,10 +12,10 @@ const CODE_LABELS: Record<string, string> = {
   rank_out_of_range: 'Condenser rank out of range',
   level_out_of_range: 'Level above the cap',
   exp_mismatch: 'EXP beyond its level',
-  too_many_passives: 'Too many passive skills',
+  too_many_passives: t('Too many passive skills'),
   duplicate_passives: 'Duplicate passive skills',
-  unknown_passive: 'Unrecognised passive skill',
-  unknown_species: 'Unrecognised species',
+  unknown_passive: t('Unrecognised passive skill'),
+  unknown_species: t('Unrecognised species'),
 };
 
 /**
@@ -220,7 +220,7 @@ export default function PalCheck({ canEdit }: { canEdit: boolean }) {
                     style={{ marginTop: 10 }}
                     disabled={!canEdit || busy || !plan.palsChanged}
                     onClick={repair}
-                    title={!canEdit ? 'The server must be stopped first' : undefined}
+                    title={!canEdit ? t('The server must be stopped first') : undefined}
                   >
                     {busy ? 'Writing…' : `Repair ${plan.palsChanged} Pal(s)`}
                   </button>

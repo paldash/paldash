@@ -3,9 +3,17 @@
  "provenance": "game",
  "verified": true,
  "strings": {
+  "Defense": "Defense",
   "Fast travel": "Fast Travel",
+  "Field bosses": "Field Boss",
+  "Guild markers": "Guild Marker",
+  "Hungry": "Hungry",
   "Items": "Items",
+  "Oil rig": "Oil Rig",
   "Paldeck": "Palpedia",
-  "Party": "Party"
+  "Party": "Party",
+  "Production": "Production",
+  "Sick": "Sick",
+  "Starving": "Starving"
  }
 }

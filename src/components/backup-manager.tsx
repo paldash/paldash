@@ -86,7 +86,7 @@ export default function BackupManager() {
       flash(label);
       await load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Action failed');
+      setError(e instanceof Error ? e.message : t('Action failed'));
     } finally {
       setBusy(false);
     }
@@ -101,7 +101,7 @@ export default function BackupManager() {
         ? `Backup ${id} verified — ${verdict.checkedFiles} files intact`
         : `Backup ${id} FAILED verification`);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Verification failed');
+      setError(e instanceof Error ? e.message : t('Verification failed'));
     } finally {
       setBusy(false);
     }
@@ -195,7 +195,7 @@ export default function BackupManager() {
                 checked={schedule.enabled}
                 disabled={busy}
                 onChange={(e) =>
-                  act('Schedule updated', () => setBackupSchedule({ enabled: e.target.checked }))
+                  act(t('Schedule updated'), () => setBackupSchedule({ enabled: e.target.checked }))
                 }
               />
               Enabled
@@ -206,7 +206,7 @@ export default function BackupManager() {
               value={schedule.frequency}
               disabled={busy}
               onChange={(e) =>
-                act('Schedule updated', () => setBackupSchedule({ frequency: e.target.value }))
+                act(t('Schedule updated'), () => setBackupSchedule({ frequency: e.target.value }))
               }
             >
               {schedule.frequencies.map((f) => (
@@ -219,7 +219,7 @@ export default function BackupManager() {
                 checked={schedule.pruneAfter}
                 disabled={busy}
                 onChange={(e) =>
-                  act('Schedule updated', () => setBackupSchedule({ pruneAfter: e.target.checked }))
+                  act(t('Schedule updated'), () => setBackupSchedule({ pruneAfter: e.target.checked }))
                 }
               />
               Apply retention afterwards

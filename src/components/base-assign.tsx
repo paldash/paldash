@@ -37,7 +37,7 @@ const AVAILABILITY_STYLE: Record<
   { label: string; color: string }
 > = {
   free: { label: 'Free', color: 'var(--accent-green)' },
-  party: { label: 'In a party', color: 'var(--accent-amber)' },
+  party: { label: t('In a party'), color: 'var(--accent-amber)' },
   base: { label: 'At another base', color: 'var(--accent-amber)' },
   committed: { label: 'Here', color: 'var(--text-muted)' },
 };
@@ -152,7 +152,7 @@ function BaseCard({ report }: { report: BaseAssignment }) {
       </div>
 
       <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>
-        {report.guildName || 'No guild'}
+        {report.guildName || t('No guild')}
         {report.uncovered > 0
           ? ` · ${report.uncovered} job${report.uncovered === 1 ? '' : 's'} uncovered`
           : report.needs.length > 0 ? ' · all jobs covered' : ''}
@@ -188,7 +188,7 @@ export default function BaseAssignPanel() {
       // collection is a legitimate answer for almost everything this dashboard
       // fetches, so a swallowed error is indistinguishable from "no bases".
       setData(null);
-      setError(e instanceof Error ? e.message : 'Could not load work assignments');
+      setError(e instanceof Error ? e.message : t('Could not load work assignments'));
     } finally {
       setBusy(false);
     }

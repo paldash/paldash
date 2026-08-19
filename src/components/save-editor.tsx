@@ -166,7 +166,7 @@ export default function SaveEditor() {
                 className="btn btn-warning"
                 disabled={busy !== null || !serverProcessRunning}
                 onClick={() => containerAction('stop')}
-                title={!serverProcessRunning ? 'The server is already stopped' : undefined}
+                title={!serverProcessRunning ? t('The server is already stopped') : undefined}
               >
                 <Square size={13} /> Stop server container
               </button>
@@ -176,7 +176,7 @@ export default function SaveEditor() {
                 className="btn"
                 disabled={busy !== null || serverProcessRunning}
                 onClick={() => containerAction('start')}
-                title={serverProcessRunning ? 'The server is already running' : undefined}
+                title={serverProcessRunning ? t('The server is already running') : undefined}
               >
                 <Play size={13} /> Start server container
               </button>
@@ -382,7 +382,7 @@ function OperationCard({
   disabledReason?: string;
 }) {
   const blocked = !allowed
-    ? 'You do not have permission for this operation.'
+    ? t('You do not have permission for this operation.')
     : !canEdit
       ? 'The server must be stopped first.'
       : disabledReason;

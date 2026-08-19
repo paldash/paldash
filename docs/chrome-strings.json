@@ -13,8 +13,8 @@
   "string stays visibly English rather than becoming a sentence this",
   "project wrote and attributed to nobody."
  ],
- "distinct": 611,
- "occurrences": 695,
+ "distinct": 620,
+ "occurrences": 704,
  "strings": [
   {
    "text": "Preview failed",
@@ -927,6 +927,41 @@
    ]
   },
   {
+   "text": "Visible to everyone",
+   "occurrences": 1,
+   "files": [
+    "src/components/account-settings.tsx"
+   ]
+  },
+  {
+   "text": "Hide me",
+   "occurrences": 1,
+   "files": [
+    "src/components/account-settings.tsx"
+   ]
+  },
+  {
+   "text": "Hide me and my solo bases",
+   "occurrences": 1,
+   "files": [
+    "src/components/account-settings.tsx"
+   ]
+  },
+  {
+   "text": "Hide me and my whole guild",
+   "occurrences": 1,
+   "files": [
+    "src/components/account-settings.tsx"
+   ]
+  },
+  {
+   "text": "Hide my bases, not me",
+   "occurrences": 1,
+   "files": [
+    "src/components/account-settings.tsx"
+   ]
+  },
+  {
    "text": "Could not load your privacy setting",
    "occurrences": 1,
    "files": [
@@ -1627,6 +1662,20 @@
    ]
   },
   {
+   "text": "The moves an egg of this species can roll, from the game files. A pool, not a prediction.",
+   "occurrences": 1,
+   "files": [
+    "src/components/breeding-planner.tsx"
+   ]
+  },
+  {
+   "text": "Egg moves",
+   "occurrences": 1,
+   "files": [
+    "src/components/breeding-planner.tsx"
+   ]
+  },
+  {
    "text": "Breeding limits unavailable.",
    "occurrences": 1,
    "files": [
@@ -2047,6 +2096,13 @@
    ]
   },
   {
+   "text": "Respawning nodes",
+   "occurrences": 1,
+   "files": [
+    "src/components/interactive-map.tsx"
+   ]
+  },
+  {
    "text": "Ore nodes",
    "occurrences": 1,
    "files": [
@@ -2076,6 +2132,13 @@
   },
   {
    "text": "Fishing spots",
+   "occurrences": 1,
+   "files": [
+    "src/components/interactive-map.tsx"
+   ]
+  },
+  {
+   "text": "Wild Pal eggs",
    "occurrences": 1,
    "files": [
     "src/components/interactive-map.tsx"
@@ -2441,13 +2504,6 @@
   },
   {
    "text": "Structure &mdash; click for the full cost",
-   "occurrences": 1,
-   "files": [
-    "src/components/items-view.tsx"
-   ]
-  },
-  {
-   "text": "Materials",
    "occurrences": 1,
    "files": [
     "src/components/items-view.tsx"
@@ -3410,6 +3466,13 @@
   },
   {
    "text": "NPCs who want to be shown a particular Pal.",
+   "occurrences": 1,
+   "files": [
+    "src/components/progression.tsx"
+   ]
+  },
+  {
+   "text": "Show caught",
    "occurrences": 1,
    "files": [
     "src/components/progression.tsx"

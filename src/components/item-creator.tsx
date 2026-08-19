@@ -76,7 +76,7 @@ export default function ItemCreator({
         containerId, slotIndex, itemId, durability, hatches.trim() || undefined
       ));
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Preview failed');
+      setError(e instanceof Error ? e.message : t('Preview failed'));
       setPlan(null);
     } finally {
       setBusy(false);
@@ -298,7 +298,7 @@ export default function ItemCreator({
             style={{ marginTop: 8 }}
             onClick={apply}
             disabled={busy || !canEdit}
-            title={canEdit ? undefined : 'The server must be provably stopped first.'}
+            title={canEdit ? undefined : t('The server must be provably stopped first.')}
           >
             {busy ? 'Creating…' : 'Create it'}
           </button>

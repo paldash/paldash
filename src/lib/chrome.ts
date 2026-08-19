@@ -31,8 +31,9 @@ import { useEffect, useState } from 'react';
 
 export interface ChromePack {
   language: string;
-  /** "machine" until a human verifies; the picker badges it. */
-  provenance: 'machine' | 'human';
+  /** "machine" until a human verifies; the picker badges it. "game" is the
+   *  English pack, whose few strings are Pocketpair's own words. */
+  provenance: 'machine' | 'human' | 'game';
   verified: boolean;
   strings: Record<string, string>;
 }
@@ -73,13 +74,13 @@ export function chromePackMeta(): ChromePack | null {
 }
 
 export function loadChromeLanguage(code: string): void {
-  requested = code;
-  if (!code || code === 'en') {
-    dict = null;
-    meta = null;
-    notify();
-    return;
-  }
+  // English is a pack too, not the null case: it carries the handful of
+  // strings the GAME has its own word for — the Paldeck tab is "Palpedia"
+  // because that is what Palworld 1.0 calls it, in English included. An
+  // earlier version nulled the dict for 'en', which meant the game-word
+  // overlay applied to every language EXCEPT the default one.
+  requested = code || 'en';
+  code = requested;
   // Bundled at build time as a code-split chunk per language — no network
   // beyond the dashboard's own assets, per the offline rule.
   import(`./chrome-langs/${code}.json`)

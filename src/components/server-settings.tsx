@@ -100,7 +100,7 @@ export default function ServerSettings() {
       setPending({});
       await load();
     } catch (e) {
-      flash(e instanceof Error ? e.message : 'Write failed');
+      flash(e instanceof Error ? e.message : t('Write failed'));
     } finally {
       setBusy(false);
     }
