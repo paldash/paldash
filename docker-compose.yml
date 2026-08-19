@@ -117,6 +117,17 @@ services:
       # Ceiling on what any account may change, even an Owner.
       - SECURITY_LEVEL=${SECURITY_LEVEL:-safe}
 
+      # ─── Self-maintaining boot (#149) ───
+      # On every start the dashboard checks itself: game artwork missing ->
+      # fetched once (~27 MB, PalworldSaveTools archive) into the cache
+      # volume; bundled game data older than the installed build -> rebuilt
+      # in the background from the server pak on the shared mount, once per
+      # build. Both fail soft — an offline container keeps working and the
+      # banner says which state it is in. Set to false/off for strictly
+      # airgapped deployments.
+      - FETCH_ASSETS_ON_BOOT=${FETCH_ASSETS_ON_BOOT:-true}
+      - DATA_REFRESH_ON_BOOT=${DATA_REFRESH_ON_BOOT:-auto}
+
       # ─── Backup retention ───
       # Backups thin out rather than truncate: the newest N, then one per day,
       # then one per week. Rollback points taken before an edit are protected

@@ -47,10 +47,33 @@ PAK_MAGIC = 0x5A6F12E1
 # uint32 comparison against 0xC1832A9E fails on a file that is perfectly fine.
 PACKAGE_MAGIC = b"\xc1\x83\x2a\x9e"
 
-DEFAULT_PAK = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-    "refs", "palworld", "Pal", "Content", "Paks", "Pal-LinuxServer.pak",
-)
+def _default_pak() -> str:
+    """
+    Where the server pak lives: an explicit override, the dev checkout's
+    refs/ copy, or the shared /palworld mount — in that order.
+
+    The third candidate is what makes in-container bundle regeneration work
+    at all (#149): the default compose mounts the game's whole install, so
+    the pak the operator is actually running is sitting at a known path. The
+    refs/ copy stays ahead of it so a dev machine with both keeps building
+    against the checked-in reference.
+    """
+    explicit = os.environ.get("PALWORLD_PAK", "").strip()
+    if explicit:
+        return explicit
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    candidates = [
+        os.path.join(root, "refs", "palworld", "Pal", "Content", "Paks",
+                     "Pal-LinuxServer.pak"),
+        "/palworld/Pal/Content/Paks/Pal-LinuxServer.pak",
+    ]
+    for path in candidates:
+        if os.path.exists(path):
+            return path
+    return candidates[0]
+
+
+DEFAULT_PAK = _default_pak()
 
 
 class PakError(Exception):

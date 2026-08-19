@@ -101,6 +101,12 @@ def scan(archive: zipfile.ZipFile) -> dict[str, list[zipfile.ZipInfo]]:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--archive", default=ARCHIVE,
+                        help="PalworldSaveTools zip (default: refs/ copy). The "
+                             "container's boot provisioning passes the one it "
+                             "downloaded into the cache volume (#149).")
+    parser.add_argument("--out", default=OUT_DIR,
+                        help="destination icons directory")
     parser.add_argument("--all", action="store_true",
                         help="install every category, not just the displayed ones")
     parser.add_argument("--list", action="store_true",
@@ -109,13 +115,14 @@ def main() -> int:
                         help="comma-separated category names")
     args = parser.parse_args()
 
-    if not os.path.exists(ARCHIVE):
-        print(f"!! {ARCHIVE} not found.")
+    archive_path, out_dir = args.archive, args.out
+    if not os.path.exists(archive_path):
+        print(f"!! {archive_path} not found.")
         print("   Download PalworldSaveTools-main.zip from")
         print("   https://github.com/deafdudecomputers/PalworldSaveTools into refs/")
         return 1
 
-    archive = zipfile.ZipFile(ARCHIVE)
+    archive = zipfile.ZipFile(archive_path)
     by_category = scan(archive)
 
     if args.list:
@@ -158,7 +165,7 @@ def main() -> int:
             if match is None:
                 continue
             category, name = relative.split("/", 1)
-            target_dir = os.path.join(OUT_DIR, category)
+            target_dir = os.path.join(out_dir, category)
             os.makedirs(target_dir, exist_ok=True)
             with archive.open(match) as src:
                 data = src.read()
@@ -169,7 +176,7 @@ def main() -> int:
         print(f"  {'structures':12} {len(EXTRA_FILES):5} icons (map pins only)", file=sys.stderr)
 
     for category in wanted:
-        target_dir = os.path.join(OUT_DIR, category)
+        target_dir = os.path.join(out_dir, category)
         os.makedirs(target_dir, exist_ok=True)
         count = 0
 
@@ -187,7 +194,7 @@ def main() -> int:
         installed += count
         print(f"  {category:12} {count:5} icons", file=sys.stderr)
 
-    print(f"\ninstalled {installed} icons ({total_bytes / 1024 / 1024:.2f} MB) into {OUT_DIR}",
+    print(f"\ninstalled {installed} icons ({total_bytes / 1024 / 1024:.2f} MB) into {out_dir}",
           file=sys.stderr)
     return 0
 

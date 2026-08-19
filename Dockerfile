@@ -79,6 +79,11 @@ COPY --from=webbuilder --chown=${APP_UID}:${APP_GID} /app/public ./public
 
 # Python backend
 COPY --chown=${APP_UID}:${APP_GID} backend/ ./backend/
+# The extraction/installer scripts, so the container can provision itself
+# (#149): fetch artwork into the cache volume, and regenerate stale bundles
+# from the server pak on the shared /palworld mount. Pure Python; the heavy
+# lifting (palooz) is already installed for the backend.
+COPY --chown=${APP_UID}:${APP_GID} scripts/ ./scripts/
 
 COPY docker-entrypoint.sh /docker-entrypoint.sh
 # Both of these are named-volume mount points. Docker seeds a fresh volume's

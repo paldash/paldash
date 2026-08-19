@@ -41,6 +41,7 @@ import db
 import dungeons
 import eggmoves
 import respawns
+import provision
 import editschema
 import elements
 import gameapi
@@ -123,6 +124,10 @@ async def _lifespan(_app: FastAPI) -> AsyncIterator[None]:
     # After db.init(): this consults the metrics table to decide whether the
     # game server is too busy to parse.
     savecache.recover_stale_schema()
+    # Self-maintaining boot (#149): fetch missing artwork, rebuild bundles a
+    # game update made stale. Background threads, fail-soft — an offline or
+    # save-only deployment loses nothing but gains a banner saying so.
+    provision.boot()
     created = accounts.bootstrap_from_env()
     if created:
         audit.record(
@@ -2138,7 +2143,7 @@ def get_game_build(request: Request) -> dict[str, Any]:
     who needs to know.
     """
     authz.require(request, roles_module.VIEW_BASIC)
-    return gameversion.status()
+    return {**gameversion.status(), "provision": provision.state()}
 
 
 class BuildAcknowledge(BaseModel):
