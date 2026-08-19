@@ -102,7 +102,12 @@ Verified against the tree on 2026-08-13 unless marked.
 - [x] **No runtime dependency on any external API.** Grep finds no outbound
       `fetch` to any host; the only `urllib` callers are `gameapi.py` and
       `safety.py`, both talking to the operator's own game server.
-- [ ] **Decide A / B / C above.** The one genuinely open item.
+- [x] **Decide A / B / C above.** Decided 2026-08-19: **B**, implemented as
+      the self-provisioning boot (#149) — artwork auto-fetched at first boot,
+      stale bundles auto-rebuilt from the operator's own pak — and the art
+      stripped from the repo AND its full history with `git filter-repo`
+      (286 commits preserved, zero history references remain; the pre-filter
+      history lives in a bundle outside the repo).
 - [x] **Add `CONTRIBUTING.md`** — done 2026-08-18, with `SECURITY.md`, a
       `NOTICE` for the Pocketpair-owned data, and issue templates beside it.
 - [ ] **Decide whether `AGENTS.md` ships as-is.** It is the most valuable file
