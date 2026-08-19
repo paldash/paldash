@@ -63,8 +63,11 @@ services:
     #     context: .
     #     args: { APP_UID: "1001", APP_GID: "1001" }
     # Prefer a prebuilt image? Replace `build: .` with an `image:` line — the
-    # container needs no clone, no refs/ and no network to run, because all the
-    # game data is committed. `docs/DEPLOYMENT.md` §10 covers building once and
+    # container needs no clone and no refs/ to run: the game DATA is
+    # committed, and the game ARTWORK (not distributed — see NOTICE) is
+    # fetched once at first boot into the cache volume by the self-
+    # provisioning boot, or installed offline with scripts/install-icons.py.
+    # `docs/DEPLOYMENT.md` §10 covers building once and
     # pulling elsewhere (including with no registry at all), and what publishing
     # one publicly would oblige you to do.
     # image: ghcr.io/paldash/paldash:1.0
