@@ -83,7 +83,7 @@ export default function WorldExport({ canManage }: { canManage: boolean }) {
         keep ? [...keep] : undefined));
       setPlan(null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Export failed');
+      setError(e instanceof Error ? e.message : t('Export failed'));
     } finally {
       setBusy(false);
     }
@@ -178,7 +178,7 @@ export default function WorldExport({ canManage }: { canManage: boolean }) {
                       setKeep(next); setPlan(null); setResult(null);
                     }}
                   />
-                  <span>{g.name || 'Unnamed guild'}</span>
+                  <span>{g.name || t('Unnamed guild')}</span>
                   <span className="mono" style={{ color: 'var(--text-muted)' }}>
                     {g.guildId.slice(0, 8)} · {g.memberCount} member
                     {g.memberCount === 1 ? '' : 's'}

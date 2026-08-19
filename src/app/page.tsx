@@ -159,7 +159,7 @@ export default function Home() {
       store.setCapabilities(capabilities ?? []);
       store.setAuthenticated(true, role as Role);
     } catch (err) {
-      setLoginError(err instanceof Error ? err.message : 'Login failed');
+      setLoginError(err instanceof Error ? err.message : t('Login failed'));
     } finally {
       setBusy(false);
     }
@@ -172,7 +172,7 @@ export default function Home() {
       const { role } = await loginAsGuest();
       store.setAuthenticated(true, role);
     } catch (err) {
-      setLoginError(err instanceof Error ? err.message : 'Guest login failed');
+      setLoginError(err instanceof Error ? err.message : t('Guest login failed'));
     } finally {
       setBusy(false);
     }
@@ -420,7 +420,7 @@ export default function Home() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 11, color: 'var(--text-muted)', padding: '0 8px 6px' }}>
             {store.serverProcessRunning ? <Lock size={11} /> : <Unlock size={11} style={{ color: 'var(--accent-amber)' }} />}
             <span title={store.serverState?.reason}>
-              {store.serverProcessRunning ? 'Saves read-only' : 'Saves editable'}
+              {store.serverProcessRunning ? t('Saves read-only') : t('Saves editable')}
             </span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 11, color: 'var(--text-muted)', padding: '0 8px 8px' }}>
@@ -536,12 +536,12 @@ export default function Home() {
                   }
                 >
                   {store.cacheStatus.parsing
-                    ? 'Parsing save…'
+                    ? t('Parsing save…')
                     : store.cacheStatus.hasData
                       ? `Save data ${formatAge(store.cacheStatus.ageSeconds)}`
                       : store.cacheStatus.schemaStale
                         ? 'Re-parsing after update — no world data yet'
-                        : 'Save not parsed yet'}
+                        : t('Save not parsed yet')}
                 </span>
                 <button
                   className="btn btn-ghost"
@@ -552,10 +552,10 @@ export default function Home() {
                     try {
                       const result = await requestRefresh();
                       if (!result.started) setRefreshNote(result.reason);
-                      else setRefreshNote('Parsing started…');
+                      else setRefreshNote(t('Parsing started…'));
                       setTimeout(() => setRefreshNote(null), 6000);
                     } catch {
-                      setRefreshNote('Refresh failed');
+                      setRefreshNote(t('Refresh failed'));
                     } finally {
                       setRefreshing(false);
                       pollLive();

@@ -54,7 +54,7 @@ export default function BaseViewer() {
     try {
       await download();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Export failed');
+      setError(e instanceof Error ? e.message : t('Export failed'));
     } finally {
       setBusy(false);
     }

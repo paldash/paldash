@@ -60,7 +60,7 @@ export default function AccountSettings() {
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } catch (e) {
-      setPrivacyError(e instanceof Error ? e.message : 'Could not save');
+      setPrivacyError(e instanceof Error ? e.message : t('Could not save'));
     } finally {
       setSaving(false);
     }
@@ -203,7 +203,7 @@ function BaseVisibilityCard() {
       await setBaseHidden(base.baseId, !base.hidden);
       load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not save');
+      setError(e instanceof Error ? e.message : t('Could not save'));
     } finally {
       setBusy('');
     }
@@ -276,7 +276,7 @@ function PasswordCard() {
     e.preventDefault();
     setError(null);
     if (next !== confirm) {
-      setError('The two new passwords do not match.');
+      setError(t('The two new passwords do not match.'));
       return;
     }
     setBusy(true);

@@ -159,7 +159,7 @@ export default function PalWelfare({ canEdit }: { canEdit: boolean }) {
       const result = await previewBulkPalEdit(ids, remedy.changes(feedTo), false);
       setPlan({ remedy, ids, plan: result });
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Preview failed');
+      setError(e instanceof Error ? e.message : t('Preview failed'));
     } finally {
       setBusy(null);
     }
@@ -187,7 +187,7 @@ export default function PalWelfare({ canEdit }: { canEdit: boolean }) {
       // The world moved, so the report we are showing is now the old one.
       await load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Apply failed');
+      setError(e instanceof Error ? e.message : t('Apply failed'));
     } finally {
       setBusy(null);
     }

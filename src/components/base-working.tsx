@@ -123,7 +123,7 @@ export default function BaseWorking({ baseId }: { baseId?: string }) {
     } catch (e) {
       // Let it surface. An empty report and a failed fetch must not look the
       // same — `.catch(() => [])` is the bug this project keeps recording.
-      setError(e instanceof Error ? e.message : 'Could not load work assignments');
+      setError(e instanceof Error ? e.message : t('Could not load work assignments'));
       setData(null);
     } finally {
       setBusy(false);

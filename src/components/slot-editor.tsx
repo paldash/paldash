@@ -241,7 +241,7 @@ export default function SlotEditor({ canEdit }: { canEdit: boolean }) {
     try {
       setPlan(await previewSlotEdit(containerId, patches));
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Preview failed');
+      setError(e instanceof Error ? e.message : t('Preview failed'));
     } finally {
       setBusy(false);
     }
@@ -387,7 +387,7 @@ export default function SlotEditor({ canEdit }: { canEdit: boolean }) {
                   `baseName` is our positional fallback ("Base 3") — which says
                   nothing about *whose* it is, and whose is the thing you need to
                   know before editing someone's chest. */}
-              {base.guildName || 'Unknown guild'} · {base.baseName || base.baseId.slice(0, 8)}
+              {base.guildName || t('Unknown guild')} · {base.baseName || base.baseId.slice(0, 8)}
               {' '}— {base.containerCount} containers, {base.itemCount.toLocaleString()} items
             </option>
           ))}
@@ -646,7 +646,7 @@ export default function SlotEditor({ canEdit }: { canEdit: boolean }) {
                     style={{ marginTop: 10 }}
                     disabled={!canEdit || busy}
                     onClick={apply}
-                    title={!canEdit ? 'The server must be stopped first' : undefined}
+                    title={!canEdit ? t('The server must be stopped first') : undefined}
                   >
                     {busy ? 'Writing…' : `Write ${plan.slotsChanged} slot(s)`}
                   </button>

@@ -40,7 +40,7 @@ export default function ItemSourcePanel({
         // Kept and shown rather than swallowed into an empty panel: an empty
         // result is a legitimate answer here ("nothing produces this"), so a
         // catch that produced one would destroy the distinction.
-        if (live) setError(e instanceof Error ? e.message : 'Could not load');
+        if (live) setError(e instanceof Error ? e.message : t('Could not load'));
       });
     return () => { live = false; };
   }, [itemId]);

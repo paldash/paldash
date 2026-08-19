@@ -79,7 +79,7 @@ const WHERE_LABELS: Record<string, string> = {
   // Level.sav: Dimensional Pal Storage is a separate per-player file
   // (`<UID>_dps.sav`) that this dashboard did not read at all, so these Pals
   // were missing from every count rather than mislabelled.
-  dimension: 'Dimensional Pal Storage',
+  dimension: t('Dimensional Pal Storage'),
   other: 'Unassigned',
 };
 
@@ -589,7 +589,7 @@ export default function MyPals() {
                       try {
                         await downloadExport('pal', p.instanceId);
                       } catch (e) {
-                        setError(e instanceof Error ? e.message : 'Export failed');
+                        setError(e instanceof Error ? e.message : t('Export failed'));
                       } finally {
                         setExporting('');
                       }

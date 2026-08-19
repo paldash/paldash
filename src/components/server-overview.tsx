@@ -63,7 +63,7 @@ export default function ServerOverview() {
   const handleSave = async () => {
     try {
       await forceSave();
-      showFeedback('World saved!');
+      showFeedback(t('World saved!'));
     } catch (e) {
       showFeedback(`Error: ${e instanceof Error ? e.message : 'Failed'}`);
     }

@@ -62,7 +62,7 @@ export default function GuildMove({ canEdit }: { canEdit: boolean }) {
     try {
       setPlan(await previewGuildMove(playerUid, targetGuildId, transferBases));
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Preview failed');
+      setError(e instanceof Error ? e.message : t('Preview failed'));
       setPlan(null);
     } finally {
       setBusy(false);
@@ -229,7 +229,7 @@ export default function GuildMove({ canEdit }: { canEdit: boolean }) {
                 style={{ marginTop: 10 }}
                 onClick={apply}
                 disabled={busy || !canEdit}
-                title={canEdit ? undefined : 'The server must be provably stopped first.'}
+                title={canEdit ? undefined : t('The server must be provably stopped first.')}
               >
                 {busy ? 'Moving…' : 'Apply this move'}
               </button>

@@ -17,6 +17,7 @@ import type {
   Discoveries, DiscoveryPoint, Player, BaseCamp, MapObject, FastTravelPoint,
   StaticWorldObject, NpcPlacement } from '@/lib/types';
 import type { BossSpawner, GuildMarker, RespawnPin } from '@/lib/save-api';
+import { t } from '@/lib/chrome';
 
 interface Props {
   players: Player[];
@@ -386,7 +387,7 @@ const NPC_ROLE_LABEL: Record<string, string> = {
 
 const STATIC_STYLE: Record<string, { color: string; size: number; label: string }> = {
   ore:      { color: '#8a8378', size: px(4), label: 'Ore / mineral node' },
-  treasure: { color: '#c9973f', size: px(5), label: 'Treasure chest' },
+  treasure: { color: '#c9973f', size: px(5), label: t('Treasure chest') },
   fishing:  { color: '#5f6b73', size: px(4), label: 'Fishing spot' },
   oilrig:   { color: '#d97757', size: px(6), label: 'Oil field' },
   // Spawners are the densest category by far (13,851 of them), so they stay the
@@ -948,12 +949,12 @@ export default function MapInner({
           const c = worldToGameMap(marker.x, marker.y);
           return `<div style="min-width:170px">
              <div style="font-weight:600;margin-bottom:3px">Guild marker</div>
-             <div style="font-size:12px;color:#4ea8d4">${escapeHtml(marker.guildName || 'Your guild')}</div>
+             <div style="font-size:12px;color:#4ea8d4">${escapeHtml(marker.guildName || t('Your guild'))}</div>
              <div style="font-size:11px;color:#6d747e;margin-top:2px">Icon ${marker.iconType} \u00b7 the game does not name these</div>
              <div style="font-size:11px;color:#6d747e;margin-top:4px">${c.x}, ${c.y}</div>
            </div>`;
         })
-        .bindTooltip(marker.guildName || 'Guild marker', { direction: 'top', offset: [0, -6] })
+        .bindTooltip(marker.guildName || t('Guild marker'), { direction: 'top', offset: [0, -6] })
         .addTo(group);
     }
   }, [guildMarkers, layers, region]);
@@ -1030,7 +1031,7 @@ export default function MapInner({
       const coords = worldToGameMap(point.x, point.y);
       const found = point.discovered;
       const label =
-        kind === 'tower' ? 'Tower boss' : kind === 'watchtower' ? 'Watchtower' : 'Fast travel';
+        kind === 'tower' ? t('Tower boss') : kind === 'watchtower' ? 'Watchtower' : 'Fast travel';
 
       L.marker(worldToMap(point.x, point.y, region), {
         // The game's own fast-travel art is a dark stone plinth, which is

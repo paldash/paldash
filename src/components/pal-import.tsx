@@ -48,7 +48,7 @@ export default function PalImport({ canEdit }: { canEdit: boolean }) {
     getPalContainers()
       .then((r) => setContainers(r.containers))
       .catch((e: unknown) =>
-        setError(e instanceof Error ? e.message : 'Could not list containers')
+        setError(e instanceof Error ? e.message : t('Could not list containers'))
       );
   }, [mode, containers.length]);
 
@@ -82,7 +82,7 @@ export default function PalImport({ canEdit }: { canEdit: boolean }) {
     try {
       setPlan(await previewPalImport(document_, mode, { containerId }));
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Preview failed');
+      setError(e instanceof Error ? e.message : t('Preview failed'));
       setPlan(null);
     } finally {
       setBusy(false);

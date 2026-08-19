@@ -79,7 +79,7 @@ export default function UserManager() {
       flash(label);
       await load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Action failed');
+      setError(e instanceof Error ? e.message : t('Action failed'));
     } finally {
       setBusy(false);
     }

@@ -107,7 +107,7 @@ export default function BulkPalEditor({ canEdit }: { canEdit: boolean }) {
     try {
       setPlan(await previewBulkPalEdit(ids, changes, autoExp));
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Preview failed');
+      setError(e instanceof Error ? e.message : t('Preview failed'));
     } finally {
       setBusy(false);
     }
@@ -372,7 +372,7 @@ function BulkPlanView({
         style={{ marginTop: 10 }}
         disabled={!canEdit || busy}
         onClick={onApply}
-        title={!canEdit ? 'The server must be stopped first' : undefined}
+        title={!canEdit ? t('The server must be stopped first') : undefined}
       >
         {busy ? 'Writing…' : `Apply to ${plan.palsChanged} Pal(s)`}
       </button>

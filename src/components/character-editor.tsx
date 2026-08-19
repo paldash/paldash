@@ -306,7 +306,7 @@ export default function CharacterEditor({ canEdit }: { canEdit: boolean }) {
           : await previewPlayerEdit(selected.id, changes)
       );
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Preview failed');
+      setError(e instanceof Error ? e.message : t('Preview failed'));
     } finally {
       setBusy(false);
     }
@@ -644,7 +644,7 @@ function PlanView({
         style={{ marginTop: 10 }}
         disabled={!canEdit || busy}
         onClick={onApply}
-        title={canEdit ? undefined : 'The server must be stopped first'}
+        title={canEdit ? undefined : t('The server must be stopped first')}
       >
         {busy ? 'Writing…' : 'Apply and verify'}
       </button>
@@ -899,7 +899,7 @@ function ClonePanel({
     getPalContainers()
       .then((r) => setContainers(r.containers))
       .catch((e: unknown) =>
-        setError(e instanceof Error ? e.message : 'Could not list containers')
+        setError(e instanceof Error ? e.message : t('Could not list containers'))
       );
   }, [open, containers.length]);
 
@@ -908,7 +908,7 @@ function ClonePanel({
     try {
       setPlan(await previewClone(subjectId, containerId, count));
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Preview failed');
+      setError(e instanceof Error ? e.message : t('Preview failed'));
     } finally {
       setBusy(false);
     }
@@ -1040,7 +1040,7 @@ function ClonePanel({
                 style={{ marginTop: 8 }}
                 disabled={!canEdit || busy}
                 onClick={apply}
-                title={!canEdit ? 'The server must be stopped first' : undefined}
+                title={!canEdit ? t('The server must be stopped first') : undefined}
               >
                 {busy ? 'Writing…' : `Create ${plan.count}`}
               </button>

@@ -55,7 +55,7 @@ export default function AccessSettings() {
       setPolicy(await setAccessPolicy(update));
       flash('Access policy updated.');
     } catch (e) {
-      flash(e instanceof Error ? e.message : 'Update failed');
+      flash(e instanceof Error ? e.message : t('Update failed'));
     } finally {
       setBusy(false);
     }

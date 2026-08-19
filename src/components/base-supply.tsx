@@ -89,7 +89,7 @@ function BaseCard({ base }: { base: BaseSupply }) {
         <div>
           <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{base.baseName}</div>
           <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-            {base.guildName || 'No guild'} · {base.palCount} Pals
+            {base.guildName || t('No guild')} · {base.palCount} Pals
           </div>
         </div>
       </div>
