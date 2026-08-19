@@ -928,6 +928,16 @@ export interface GameBuildStatus {
     note: string;
     state: 'current' | 'stale' | 'unknown';
   }[];
+  /** Self-maintaining boot (#149): what the container did about missing
+   *  artwork and stale bundles, so the banner reports action taken rather
+   *  than only a caveat. */
+  provision?: {
+    assets: { state: string; note?: string; error?: string; url?: string };
+    bundles: {
+      state: string; build?: string; changed?: number;
+      ok?: boolean; note?: string; failed?: string[];
+    };
+  };
   staleArtifacts: string[];
   unknownArtifacts: string[];
 }

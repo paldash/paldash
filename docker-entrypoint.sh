@@ -10,6 +10,24 @@ set -e
 
 echo "Palworld Dashboard starting..."
 
+# ── Self-provisioned state from previous boots (#149) ──
+# The backend regenerates stale bundles and fetches artwork into the cache
+# volume; the image's own copies are ephemeral, so each boot overlays what
+# earlier boots produced BEFORE anything imports it. Copy, not symlink: the
+# bundled files must keep working when the volume is empty.
+CACHE_DIR="${CACHE_DIR:-/app/cache}"
+if [ -d "${CACHE_DIR}/provision/bundles" ]; then
+    n=$(cp -fv "${CACHE_DIR}/provision/bundles/"* /app/backend/data/ 2>/dev/null | wc -l)
+    [ "$n" -gt 0 ] && echo "  overlaid ${n} refreshed data bundle(s) from the cache volume"
+fi
+for kind in icons maps; do
+    if [ -d "${CACHE_DIR}/provision/public-${kind}" ] && [ -n "$(ls -A "${CACHE_DIR}/provision/public-${kind}" 2>/dev/null)" ]; then
+        mkdir -p "/app/public/${kind}"
+        cp -rf "${CACHE_DIR}/provision/public-${kind}/." "/app/public/${kind}/"
+        echo "  restored game ${kind} from the cache volume"
+    fi
+done
+
 BACKEND_PORT="${BACKEND_PORT:-8400}"
 
 # Bind the save backend to loopback only. It has no auth of its own — the

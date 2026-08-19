@@ -18,6 +18,7 @@ src/lib/map-coordinates.ts stays valid unchanged.
 
 from __future__ import annotations
 
+import argparse
 import os
 import shutil
 import sys
@@ -38,16 +39,21 @@ WANTED = {
 
 
 def main() -> int:
-    if not os.path.exists(ARCHIVE):
-        print(f"!! {ARCHIVE} not found.")
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--archive", default=ARCHIVE)
+    parser.add_argument("--out", default=OUT_DIR)
+    args = parser.parse_args()
+    archive_path, out_dir = args.archive, args.out
+    if not os.path.exists(archive_path):
+        print(f"!! {archive_path} not found.")
         print("   Download PalworldSaveTools-main.zip from")
         print("   https://github.com/deafdudecomputers/PalworldSaveTools into refs/")
         return 1
 
-    os.makedirs(OUT_DIR, exist_ok=True)
+    os.makedirs(out_dir, exist_ok=True)
     installed = 0
 
-    with zipfile.ZipFile(ARCHIVE) as zf:
+    with zipfile.ZipFile(archive_path) as zf:
         names = zf.namelist()
         for source, target in WANTED.items():
             matches = [n for n in names if n.endswith(f"assets/maps/{source}")]
@@ -55,7 +61,7 @@ def main() -> int:
                 print(f"!! {source} not found in the archive — skipping")
                 continue
 
-            destination = os.path.join(OUT_DIR, target)
+            destination = os.path.join(out_dir, target)
             with zf.open(matches[0]) as src, open(destination, "wb") as dst:
                 shutil.copyfileobj(src, dst)
 

@@ -109,11 +109,40 @@ export default function BuildBanner() {
             dashboard has not seen: a new Pal, item or structure would show its
             internal id instead of a name, and would not appear on the map.
           </div>
-          <div style={{ marginTop: 6, lineHeight: 1.6 }}>
-            <strong>{t('Nothing for you to do.')}</strong> This is fixed by a dashboard
-            update that bundles the new build&rsquo;s data, not by anything on
-            this server. Save editing, backups and moderation are unaffected.
-          </div>
+          {/* #149: the container tries to fix this itself when the game
+              install is mounted — the honest line depends on how that went. */}
+          {status.provision?.bundles?.state === 'rebuilding' && (
+            <div style={{ marginTop: 6, lineHeight: 1.6 }}>
+              <strong>{t('Rebuilding now.')}</strong> The dashboard found the game
+              files on the shared mount and is regenerating its data in the
+              background. This banner clears once a rebuild for this build has
+              finished and the page reloads.
+            </div>
+          )}
+          {status.provision?.bundles?.state === 'rebuilt' && (
+            <div style={{ marginTop: 6, lineHeight: 1.6 }}>
+              <strong>{t('Rebuilt from your install.')}</strong>{' '}
+              {status.provision.bundles.changed} data bundle(s) were regenerated
+              from the game files on the shared mount at the last boot.
+            </div>
+          )}
+          {status.provision?.bundles?.state === 'partial' && (
+            <div style={{ marginTop: 6, lineHeight: 1.6 }}>
+              <strong>{t('Partly rebuilt.')}</strong> Some data was regenerated
+              from your install; some extractors declined the new build&rsquo;s
+              format and their bundles stay at the previous build. A dashboard
+              update completes it.
+            </div>
+          )}
+          {(!status.provision ||
+            ['no-pak', 'disabled', 'unknown', 'unchecked', 'attempted'].includes(
+              status.provision.bundles?.state ?? '')) && (
+            <div style={{ marginTop: 6, lineHeight: 1.6 }}>
+              <strong>{t('Nothing for you to do.')}</strong> This is fixed by a dashboard
+              update that bundles the new build&rsquo;s data, not by anything on
+              this server. Save editing, backups and moderation are unaffected.
+            </div>
+          )}
 
           {/* Everything below is for whoever rebuilds the dashboard, and says
               so — it is behind the same "Why?" toggle rather than shown to
