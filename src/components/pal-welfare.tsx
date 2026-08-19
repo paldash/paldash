@@ -11,7 +11,7 @@ import {
 import type { BulkEditPlan } from '@/lib/types';
 import GameIcon from '@/components/game-icon';
 import { asArray } from '@/lib/arrays';
-import { num, fixed, count } from '@/lib/format';
+import { num, count } from '@/lib/format';
 import { t, tl } from '@/lib/chrome';
 
 /**
