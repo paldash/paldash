@@ -381,3 +381,41 @@ their own character, and accounts link to characters through `users.steam_uid`.
 Effigy data comes from the game pak via `scripts/extract-effigies.py` — 396,
 each with the instance GUID that `RelicObtainForInstanceFlag` uses, which is what
 makes the per-player join possible at all.
+
+## 2026-08-18 additions
+
+### Respawning nodes on the map (#141)
+The save's respawn clocks joined to bundled world positions: gatherable
+actors' instance GUIDs are captured from the pak's L0 streaming cells
+(30,708 of refworld's 31,774 spawner keys resolve — 96.6%), and the map's
+"Respawning nodes" layer pins every node whose clock is still running, with
+the remaining game-hours as of the last parse. Due timers respawn on
+approach and are counted, never pinned. `/api/world/respawns`.
+
+### Wild Pal egg spawn points
+1,805 placements across 13 biome/grade classes — a category found by the
+#141 GUID sweep, not by anyone looking for it. Its own map layer under
+"Static world".
+
+### Egg-move pools on the breeding planner (#139)
+`DT_WazaMasterTamago` per species, cross-verified against
+`DT_WazaDataTable.IgnoreRandomInherit` (47 of 47 pool moves are marked
+randomly inheritable). An "Egg moves" button per offspring row shows the
+pool — the pool only: no file states how many moves an egg rolls or at what
+rate, and the payload says so.
+
+### Random-dungeon guide (#136)
+Per biome area: weighted enemy groups with level ranges, chest loot with
+per-slot shares, EXP bonus. The areas render as ids because Pocketpair never
+named them. On the Progression tab.
+
+### Lifetime counters (#138)
+Tower boss defeats, camps conquered, oil rigs cleared, NPC conversations,
+items crafted, condenser rank-ups and mutations, per player, from
+RecordData. Rendered only when the save carries them — absent is not zero —
+and always as counts, never "n of N".
+
+### Player buffs from party passives (#137)
+Passives on party Pals that buff the *player* (`ToTrainer` effects), listed
+per player on the roster. Per-effect rows, never summed: no file states the
+stacking rule.
