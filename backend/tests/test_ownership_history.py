@@ -27,6 +27,14 @@ BACKEND = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if BACKEND not in sys.path:
     sys.path.insert(0, BACKEND)
 
+# The whole subject of this file is palsav's UUID value type — without
+# palsav (CI installs only requirements.txt; the codec is a compiled
+# checkout) there is nothing to test, so the file skips as one unit
+# rather than failing twelve ways with the same ModuleNotFoundError.
+import pytest
+
+pytest.importorskip("palsav")
+
 import charedit       # noqa: E402
 import editschema     # noqa: E402
 
