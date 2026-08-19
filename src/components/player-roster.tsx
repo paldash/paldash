@@ -55,7 +55,7 @@ export default function PlayerRoster() {
   }, []);
 
   useEffect(() => {
-    load();
+    queueMicrotask(load);
   }, [load]);
 
   const say = (msg: string) => {

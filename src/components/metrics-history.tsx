@@ -55,7 +55,7 @@ export default function MetricsHistoryPanel() {
   }, [hours]);
 
   useEffect(() => {
-    void load();
+    queueMicrotask(load);
   }, [load]);
 
   if (error) {

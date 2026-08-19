@@ -123,7 +123,7 @@ export default function PalWelfare({ canEdit }: { canEdit: boolean }) {
     }
   }, []);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => { queueMicrotask(load); }, [load]);
 
   /**
    * What to raise fullness to, taken from the operator's own world.

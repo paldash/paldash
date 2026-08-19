@@ -289,7 +289,7 @@ export default function InteractiveMap() {
   }, []);
 
   useEffect(() => {
-    load();
+    queueMicrotask(load);
   }, [load]);
 
   const transform = getRegion(region);

@@ -276,7 +276,7 @@ export default function BaseSupplyPanel() {
     }
   }, []);
 
-  useEffect(() => { void load(floor); }, [load, floor]);
+  useEffect(() => { queueMicrotask(() => load(floor)); }, [load, floor]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>

@@ -152,7 +152,7 @@ export default function MyPals() {
   }, []);
 
   useEffect(() => {
-    load();
+    queueMicrotask(load);
   }, [load]);
 
   useEffect(() => {

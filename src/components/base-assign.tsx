@@ -194,7 +194,7 @@ export default function BaseAssignPanel() {
     }
   }, []);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => { queueMicrotask(load); }, [load]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>

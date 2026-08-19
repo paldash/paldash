@@ -76,7 +76,7 @@ export default function ServerSettings() {
   }, []);
 
   useEffect(() => {
-    load();
+    queueMicrotask(load);
   }, [load]);
 
   const flash = (msg: string) => {

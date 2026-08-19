@@ -37,7 +37,7 @@ export default function Moderation() {
   }, []);
 
   useEffect(() => {
-    void loadBans();
+    queueMicrotask(loadBans);
   }, [loadBans]);
 
   const run = async (label: string, action: () => Promise<unknown>, after?: () => void) => {

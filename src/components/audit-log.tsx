@@ -44,7 +44,7 @@ export default function AuditLog() {
   }, [offset, action, result, username]);
 
   useEffect(() => {
-    load();
+    queueMicrotask(load);
   }, [load]);
 
   const total = page?.total ?? 0;
