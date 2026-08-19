@@ -99,3 +99,59 @@ skopeo inspect docker://docker.io/jammsen/palworld-dedicated-server:latest
 
 Look at `.Env` for the path and port variables. It costs a few KB — there is no need
 to pull the images, and no need for a running daemon.
+
+## Run-validated 2026-08-19 (#131) — executed, not inspected
+
+Everything above was read from image metadata; this section is from actually
+running both images (podman 5.8.2, rootless) against a copy of a real world
+and driving the dashboard's own code at them. Game build v1.0.3.101283.
+
+**INI regeneration, all four cells of the matrix, observed live:**
+
+| | default | with the toggle |
+|---|---|---|
+| thijsvanloef | **regenerates** ("Using Env vars to create PalWorldSettings.ini") | `DISABLE_GENERATE_SETTINGS=true` → manual edit **survived** boot; `SERVER_NAME` env ignored |
+| jammsen | `manual` — its own log: "NOT using environment variables"; manual edit survived, env ignored | `SERVER_SETTINGS_MODE=auto` → **regenerated** from env |
+
+**The dashboard's write-verification cycle, both directions:** a `write_ini`
+of `ServerName` followed by a restart of the regenerating image produced
+verdict `reverted` with the warning naming `SERVER_NAME` as the variable to
+set instead (#132's hint, live); the same write under the preserving toggle
+produced `verified` with zero warnings.
+
+**Safety:** with the server up, `editable: False` on three positive signals
+(REST 200, port open, save written 25 s ago) — the game autosaves into the
+mount, so `save_activity` is a real signal, not a formality. After a stop the
+window aged out at 397 s and all three flipped; the process probe reports
+`unknown (inconclusive)` because a containerised PalServer is outside the
+dashboard's namespace, which is the fail-closed design degrading exactly as
+documented.
+
+**Save editing, end to end:** category sort with merge on the full world —
+verified backup first, 4,932 containers touched, 14,321 slots changed,
+conservation verified in memory and after re-read, 23 s. Then the strongest
+check available anywhere: **the game booted the edited world** (day 704, all
+16 bases, REST serving) and autosaved over it.
+
+**Server stop/start (#108's fixed form):** `STOP_COMMAND`/`START_COMMAND`
+set to `podman stop/start <name>` — the container went down and came back
+through `lifecycle.run_stop_command`/`run_start_command`.
+
+**Metrics honesty:** server up → `reachable: 1`; server down →
+`reachable: 0` with `players`/`server_fps` **null, never 0**, host CPU and
+disk still sampled.
+
+Three deployment notes learned by running rather than reading:
+
+- **jammsen refuses to start unless the container runs as root** (it drops to
+  its own `steam` uid itself) and **aborts on default passwords** — set
+  `SERVER_PASSWORD` and `ADMIN_PASSWORD` explicitly.
+- Under **rootless podman**, run thijsvanloef with
+  `--userns=keep-id:uid=1000,gid=1000` so its `PUID=1000` chown is a no-op;
+  jammsen (which insists on container root) chowns the mount to a **subuid**,
+  after which host-side processes lose write access — `podman unshare chown
+  -R 0:0 <mount>` maps it back. Irrelevant when the dashboard runs as a
+  container beside the game (both see uid 1000), which is the shipped layout.
+- The activity window means "server stopped" becomes "editable" about **5
+  minutes after** the last autosave — by design, and worth telling an
+  operator watching the unlock.
