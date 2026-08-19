@@ -67,8 +67,8 @@ services:
     # game data is committed. `docs/DEPLOYMENT.md` §10 covers building once and
     # pulling elsewhere (including with no registry at all), and what publishing
     # one publicly would oblige you to do.
-    # image: ghcr.io/<you>/palworld-dashboard:1.0
-    container_name: palworld-dashboard
+    # image: ghcr.io/paldash/paldash:1.0
+    container_name: paldash
     restart: unless-stopped
     depends_on:
       - palworld

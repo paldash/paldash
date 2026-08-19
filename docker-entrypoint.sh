@@ -8,7 +8,7 @@
 # container a second after boot, every time. Do not "simplify" this back to sh.
 set -e
 
-echo "Palworld Dashboard starting..."
+echo "paldash starting..."
 
 # ── Self-provisioned state from previous boots (#149) ──
 # The backend regenerates stale bundles and fetches artwork into the cache

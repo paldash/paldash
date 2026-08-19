@@ -1,4 +1,6 @@
-# Palworld Server Dashboard
+# paldash
+
+*A self-hosted dashboard for Palworld dedicated servers.*
 
 A web dashboard for a self-hosted Palworld dedicated server. It combines the
 server's REST API (live status, players, admin actions) with direct reads of the
@@ -92,7 +94,7 @@ your-server-dir/
 ├── docker-compose.yml
 ├── .env
 ├── palworld/               <- the game's data, already bind-mounted
-└── palworld-dashboard/     <- this repo
+└── paldash/                <- this repo
 ```
 
 ```yaml
@@ -100,8 +102,8 @@ services:
   # ... your existing palworld server service ...
 
   dashboard:
-    build: ./palworld-dashboard    # or: image: ghcr.io/<you>/palworld-dashboard:1.0
-    container_name: palworld-dashboard
+    build: ./paldash               # or: image: ghcr.io/paldash/paldash:1.0
+    container_name: paldash
     restart: unless-stopped
     depends_on:
       - palworld                   # <- your server's service name
