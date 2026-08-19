@@ -123,6 +123,7 @@ const ROUTES: RouteRule[] = [
   { pattern: /^world\/passives\/effects$/, methods: ['GET'], capability: CAPABILITIES.VIEW_BASIC, feature: FEATURES.SERVER_STATUS },
   { pattern: /^world\/paldeck\/[A-Za-z0-9_]+$/, methods: ['GET'], capability: CAPABILITIES.VIEW_BASIC, feature: FEATURES.SERVER_STATUS },
   { pattern: /^world\/objects\/categories$/, methods: ['GET'], capability: CAPABILITIES.VIEW_BASIC, feature: FEATURES.MAP_OBJECTS },
+  { pattern: /^world\/respawns$/, methods: ['GET'], capability: CAPABILITIES.VIEW_BASIC, feature: FEATURES.MAP_OBJECTS },
   { pattern: /^world\/fasttravel$/, methods: ['GET'], capability: CAPABILITIES.VIEW_BASIC, feature: FEATURES.MAP_OBJECTS },
   // The effigy counterpart, and it carries the same caveat: VIEW_BASIC here, with
   // the backend applying `discoveryVisibility` per category. It is the map's

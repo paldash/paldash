@@ -74,6 +74,7 @@ TARGETS: dict[str, dict] = {
     # different families; matching the first looked complete because it returned
     # 8,386 objects. A count that looks plausible is not coverage.
     "ore": {
+        "instanceGuid": True,
         "label": "Ore & mineral nodes",
         "pattern": re.compile(
             r"^BP_PalMapObjectSpawner_(Rock\w*|Crystal\w*|PalCrystal\w*|Sulfur\w*|"
@@ -83,6 +84,7 @@ TARGETS: dict[str, dict] = {
         ),
     },
     "treasure": {
+        "instanceGuid": True,
         "label": "Treasure chests",
         # Both families, plus the oil-rig crates, which are their own class again.
         "pattern": re.compile(
@@ -119,6 +121,7 @@ TARGETS: dict[str, dict] = {
         "pattern": re.compile(r"^BP_Dungeon\w*$"),
     },
     "fishing": {
+        "instanceGuid": True,
         "label": "Fishing spots",
         # Two families again: `FishingJunkSpot` is the junk you fish up,
         # `BP_FishingSpot_*` is where you actually fish.
@@ -142,6 +145,7 @@ TARGETS: dict[str, dict] = {
     # else comes from, not to copy someone's marker data. Eight biome variants,
     # which the per-kind filter keeps separable ("only World Tree fruit").
     "skillfruit": {
+        "instanceGuid": True,
         "label": "Skill & affection fruit",
         "pattern": re.compile(r"^BP_PalMapObjectSpawner_(SkillFruits_\w+|AffectionFruit)$"),
         "prefixes": ["BP_PalMapObjectSpawner_SkillFruits", "BP_PalMapObjectSpawner_AffectionFruit"],
@@ -149,6 +153,7 @@ TARGETS: dict[str, dict] = {
     # Ground junk piles. Distinct from `fishing`, which is
     # `BP_MapObject_FishingJunkSpot` — those are fished, these are walked up to.
     "junk": {
+        "instanceGuid": True,
         "label": "Junk piles",
         "pattern": re.compile(r"^BP_PalMapObjectSpawner_Junk_\w+$"),
         "prefixes": ["BP_PalMapObjectSpawner_Junk"],
@@ -184,6 +189,18 @@ TARGETS: dict[str, dict] = {
     "effigy": {
         "label": "Effigies",
         "pattern": re.compile(r"^BP_(LevelObject_Relic\w*|RelicObject)$"),
+    },
+    # Wild Pal egg spawn points. Found by the GUID sweep for #141 rather than
+    # by anyone looking for them: 1,886 placements across 13 biome/grade
+    # classes, every one carrying a save-referenced instance GUID — so they are
+    # both a map layer and a respawn-tracked gatherable. The class name is
+    # lowercase in the pak (`bp_palmapobjectspawner_palegg_…`), which is why
+    # this pattern is the one case-insensitive entry.
+    "palegg": {
+        "instanceGuid": True,
+        "label": "Wild Pal eggs",
+        "pattern": re.compile(r"^bp_palmapobjectspawner_palegg_\w+$", re.IGNORECASE),
+        "prefixes": ["bp_palmapobjectspawner_palegg"],
     },
 }
 
@@ -221,6 +238,51 @@ def read_position(blob: bytes) -> tuple[float, float, float] | None:
                 and -Z_LIMIT < z < Z_LIMIT and abs(x) > 1000 and abs(y) > 1000):
             return x, y, z
     return None
+
+
+def read_instance_guid(blob: bytes) -> tuple[str, int] | None:
+    """
+    The actor's instance GUID — the id `MapObjectSpawnerInStageSaveData` keys
+    its respawn timers on (#141) — located structurally, without a save.
+
+    The actor export's data is a descriptor of small int64 fields, and the
+    GUID is its only high-entropy one. Three conditions pick it out: at least
+    12 zero bytes precede it, its first byte is nonzero (which is what stops
+    the window sliding through its own zero-run), and both u64 halves exceed
+    2^32 — true of a random GUID with probability 1-2^-31 and of no small
+    counter field ever.
+
+    Scored against refworld's 31,774 spawner keys before being trusted:
+    9,534 of 9,568 locatable actors correct, 0 misses, 33 wrong — and the
+    wrong ones are exactly the ~1/256 GUIDs whose FIRST byte is zero, where
+    the zero-run swallows it and the location lands a byte late. The modal-
+    offset consensus in `extract()` drops most of those; the remainder simply
+    never resolve against a save, which downstream treats as "no pin", never
+    as a wrong pin.
+
+    Returns (guid_hex, offset) — the offset feeds the consensus check — or
+    None. Multiple candidates mean the structure is not what this expects,
+    and refusing beats guessing.
+    """
+    candidates = []
+    for p in range(12, len(blob) - 16):
+        if blob[p] == 0:
+            continue
+        if blob[p - 12:p] != b"\0" * 12:
+            continue
+        lo, hi = struct.unpack_from("<QQ", blob, p)
+        if lo < (1 << 32) or hi < (1 << 32):
+            continue
+        candidates.append(p)
+        if len(candidates) > 1:
+            return None
+    if len(candidates) != 1:
+        return None
+    p = candidates[0]
+    guid = "".join(
+        f"{struct.unpack_from('<I', blob, p + i)[0]:08x}" for i in range(0, 16, 4)
+    )
+    return guid, p
 
 
 def class_of(export_name: str) -> str:
@@ -313,7 +375,15 @@ def extract(pak: Pak, wanted: list[str]) -> dict:
     skipped = Counter()
     cells_parsed = 0
 
+    lvl_re = re.compile(r"MainGrid_L(\d+)_")
     for path in sorted(f for f in pak.files if "/_Generated_/" in f and f.endswith(".umap")):
+        # Which World Partition grid LEVEL this cell belongs to. L0 is the
+        # streaming layer world content actually lives on; L15 is the
+        # always-loaded layer, and the gatherable spawners found there are
+        # instanced dungeon-template copies that SHARE a GUID per template —
+        # 326 duplicate pairs among L15 RockCopper alone, against zero on L0.
+        m = lvl_re.search(path)
+        grid_level = m.group(1) if m else None
         raw = pak.read(path)
         relevant = [
             name for name in wanted
@@ -360,11 +430,26 @@ def extract(pak: Pak, wanted: list[str]) -> dict:
                 if (int(x) // CELL_SIZE, int(y) // CELL_SIZE) not in grid:
                     skipped["offGrid"] += 1
                     break
-                found[name].append({
+                obj = {
                     "cls": cls,
                     "x": round(x, 1), "y": round(y, 1), "z": round(z, 1),
                     "landmass": "worldtree" if x > 300_000 else "palpagos",
-                })
+                }
+                # The instance GUID save respawn timers key on (#141) —
+                # captured only for the groups whose classes were verified
+                # against a real save's spawner keys. The OTHER groups' actors
+                # carry a shared content GUID the locator also finds: the
+                # first ungated run produced 5,772 duplicates, all from
+                # palspawner and friends, and the duplicate refusal fired.
+                # Located structurally; the consensus pass below vets it.
+                # L0 only: the save's OVERWORLD respawn stage can only key
+                # actors on the streaming layer; the L15 copies are dungeon
+                # templates whose shared GUIDs the duplicate refusal caught.
+                if TARGETS[name].get("instanceGuid") and grid_level == "0":
+                    located = read_instance_guid(export.data(uexp))
+                    if located:
+                        obj["guid"], obj["_guidOff"] = located
+                found[name].append(obj)
                 break
 
     # Field bosses carry the species they spawn, because "BP_PalSpawner_Sheets_
@@ -380,8 +465,54 @@ def extract(pak: Pak, wanted: list[str]) -> dict:
               f"{len({o['cls'] for o in found['fieldboss']})} field boss sheets",
               file=sys.stderr)
 
+    # ── GUID consensus and uniqueness (#141) ─────────────────────────
+    #
+    # Within a class the GUID sits at one of a small set of offsets (78 for
+    # the rock family, 165/255 for chests — a 90-byte optional block). A
+    # located offset the rest of the class never uses is almost always the
+    # 1-in-256 first-byte-zero mislocation, so it is dropped and counted
+    # rather than shipped as a confidently wrong id. Offsets need >= 2
+    # sightings to count as modal — a class of one keeps its only reading.
+    by_class_offsets: dict[str, Counter] = {}
+    for objs in found.values():
+        for o in objs:
+            if "_guidOff" in o:
+                by_class_offsets.setdefault(o["cls"], Counter())[o["_guidOff"]] += 1
+    guid_stats = Counter()
+    seen_guids: dict[str, dict] = {}
+    for objs in found.values():
+        for o in objs:
+            off = o.pop("_guidOff", None)
+            if "guid" not in o:
+                continue
+            offsets = by_class_offsets[o["cls"]]
+            modal = {k for k, v in offsets.items() if v >= 2} or set(offsets)
+            if off not in modal:
+                guid_stats["droppedOffModal"] += 1
+                del o["guid"]
+                continue
+            # A GUID two objects share is not an id, whatever located it.
+            prev = seen_guids.get(o["guid"])
+            if prev is not None:
+                same_place = (prev.get("cls") == o.get("cls")
+                              and abs(prev.get("x", 0) - o.get("x", 1e9)) < 1.0
+                              and abs(prev.get("y", 0) - o.get("y", 1e9)) < 1.0)
+                guid_stats["dupSamePlace" if same_place else "dupElsewhere"] += 1
+                if not same_place:
+                    prev.pop("guid", None)
+                del o["guid"]
+                continue
+            seen_guids[o["guid"]] = o
+            guid_stats["captured"] += 1
+    if guid_stats["dupElsewhere"] > max(10, guid_stats["captured"] // 500):
+        raise SystemExit(
+            f"!! {guid_stats['dupElsewhere']} instance GUIDs shared by actors in "
+            "DIFFERENT places — the locator is not reading ids, refusing")
+    print(f"instance GUIDs: {dict(guid_stats)}", file=sys.stderr)
+
     return {
         "cellsParsed": cells_parsed,
+        "guidStats": dict(guid_stats),
         "skipped": dict(skipped),
         "groups": {
             name: {

@@ -307,7 +307,10 @@ def test_the_bundled_data_has_the_documented_shape():
     worldobjects.reset_for_tests()
     try:
         totals = worldobjects.totals()
-        assert totals["objects"] == 59_396
+        # 59,396 -> 61,201 on 2026-08-18: the #141 GUID sweep added the
+        # `palegg` category (1,805 wild egg spawn points) the moment it
+        # enumerated every class the save references.
+        assert totals["objects"] == 61_201
         by_category = {c["id"]: c["count"] for c in worldobjects.categories()}
         assert by_category == {
             "oilrig": 185,
@@ -315,6 +318,7 @@ def test_the_bundled_data_has_the_documented_shape():
             "palspawner": 13_752, "dungeon": 2_163, "npc": 220,
             "fieldboss": 99, "skillfruit": 68, "junk": 794,
             "lotus": 705, "collectible": 103, "supply": 473,
+            "palegg": 1_805,
         }
         assert "effigy" not in by_category
     finally:
