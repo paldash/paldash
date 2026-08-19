@@ -36,6 +36,7 @@ import logging
 import os
 import shutil
 import tarfile
+import zlib
 import tempfile
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
@@ -193,7 +194,12 @@ def read_manifest(archive_path: str) -> dict[str, Any]:
             if handle is None:
                 raise BackupError("Manifest is unreadable")
             return json.loads(handle.read().decode("utf-8"))
-    except (tarfile.TarError, KeyError, json.JSONDecodeError, OSError) as e:
+    except (tarfile.TarError, KeyError, json.JSONDecodeError, OSError,
+            zlib.error, EOFError) as e:
+        # zlib.error and EOFError are how gzip reports mid-stream corruption
+        # and truncation — on Python 3.12 they escape raw (3.14 wraps them),
+        # which is how a corrupt archive briefly crashed verification instead
+        # of failing it. Caught by CI's version matrix, not by anyone's eyes.
         raise BackupError(f"Could not read the manifest: {e}") from e
 
 
@@ -252,7 +258,7 @@ def verify_archive(archive_path: str, manifest: Optional[dict] = None) -> dict[s
                 elif digest.hexdigest() != entry["sha256"]:
                     problems.append(f"Corrupted: {path}")
                 checked += 1
-    except (tarfile.TarError, OSError) as e:
+    except (tarfile.TarError, OSError, zlib.error, EOFError) as e:
         problems.append(f"Archive is unreadable: {e}")
 
     return {
