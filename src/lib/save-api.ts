@@ -1544,6 +1544,28 @@ export interface EggMovePool {
   note: string;
 }
 
+/** One regrowing gatherable (#141): where, what, and how long in GAME hours. */
+export interface RespawnPin {
+  x: number;
+  y: number;
+  category: string;
+  cls: string;
+  inGameHours: number | null;
+}
+
+export interface RespawnReport {
+  pins: RespawnPin[];
+  /** Pending timers with no bundled position — counted, never guessed onto the map. */
+  pendingUnmapped: number;
+  counts: Record<string, number>;
+  clockTicks: number | null;
+  note: string;
+}
+
+export async function getRespawns(): Promise<RespawnReport> {
+  return saveFetch('/world/respawns');
+}
+
 export async function getEggMovePool(species: string): Promise<EggMovePool> {
   return saveFetch(`/breeding/eggmoves?species=${encodeURIComponent(species)}`);
 }

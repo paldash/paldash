@@ -801,23 +801,42 @@ printed that as the respawn range — nonsense wearing a number. Excluding it,
 distinct: `-1` idle, `0` never written, `MaxValue` never respawns. Same family
 as `RideSprintSpeed = -1`.
 
-### Why there is no map layer, and the one thing that would unblock it
+### The map layer EXISTS now — the GUID capture landed (#141, 2026-08-18)
 
-- the spawner key is a **level object instance id**, and **0 of 31,774 resolve**
-  against `MapObjectSaveData` — a different id space, as the field name says
-- `worldobjects.json.gz` carries all 59,396 spawn points from the pak as
-  `cls, x, y, z` and **no GUID**
+The paragraph this replaces predicted the unblock exactly and the offsets
+turned out not to matter at all. The GUID is located **structurally**, not by
+offset: the actor export's data is a descriptor of small int64 fields and the
+GUID is its only high-entropy one — at least 12 zero bytes before it, nonzero
+first byte (what stops the window sliding through its own zero-run), both u64
+halves above 2^32. Scored against refworld's spawner keys before being
+trusted: 9,534 of 9,568 locatable actors correct, 0 missed, 33 wrong — the 33
+being exactly the ~1/256 GUIDs whose first byte is zero, which a per-class
+modal-offset consensus mostly drops and the save join silently ignores.
 
-So the save knows *that* a node is respawning, the pak knows *where* every node
-is, and nothing connects them. **The unblock is a technique this project already
-owns**: `extract-effigies.py` reads an actor's instance GUID out of a world cell
-(byte 252 on the relic actor), which is how 396 effigies got save-matching ids.
-Teaching `extract-world-objects.py` to capture the same per object would turn
-154 numbers into 154 map pins. The offset will not be 252 for every actor class,
-so it is real work — but a path, not a wall.
+**Three traps the build hit, each caught by its own refusal:**
 
-Nothing in `backend/` reads the structure meanwhile: **a respawn timer with no
-position is a number, not a feature.**
+- **Non-gatherable actors carry a SHARED content GUID** that passes the
+  locator — 5,772 duplicates from `palspawner` and friends on the first
+  ungated run. Capture is gated to the six families the save sweep verified
+  (ore, treasure, fishing, junk, skillfruit, palegg).
+- **L15 cells hold dungeon-template copies** sharing a GUID per template —
+  326 duplicate pairs among L15 RockCopper alone, zero on L0. Capture reads
+  L0 streaming cells only, which is also the only layer the save's overworld
+  stage can reference.
+- **`palegg` is a whole category nobody knew existed** — 1,805 wild Pal egg
+  spawn points, found because the GUID sweep enumerated every class the save
+  references instead of every class someone had thought to look for.
+
+Verified end to end: **30,708 of refworld's 31,774 spawner keys resolve to a
+bundled position (96.6%)** — two independent readers landing on one id space,
+the 157/157 fast-travel class of evidence. `parser.extract_respawn_state`
+ships the pending timers (154 on refworld, +49 ms on the parse, measured
+interleaved), `backend/respawns.py` joins them, `/api/world/respawns` serves
+pins, and the map's "Respawning nodes" layer draws them. Durations are GAME
+hours as of the last parse — game time does not advance while the server is
+stopped, so a wall-clock countdown would be a guess dressed as a timer. A due
+timer is deliberately not pinned: it respawns on approach, and 985 of those
+would bury the 154 that answer "when".
 
 ## The base ModuleMap: seven blobs are empty, one is a constant, one decodes
 

@@ -1319,6 +1319,77 @@ def extract_world_clock(gvas: Any) -> dict[str, int]:
     return out
 
 
+# .NET DateTime.MaxValue.Ticks — a respawn timer holding it means "never
+# respawns", and taken as a duration it is 87 million game-hours wearing a
+# number (#86's lesson). The other two sentinels: -1 idle, 0 never written.
+_TICKS_NEVER = 3155378975999999999
+
+
+def extract_respawn_state(gvas: Any) -> dict[str, Any]:
+    """
+    Which gatherable spawners are respawning, from
+    `MapObjectSpawnerInStageSaveData` (#141) — the save's largest structure,
+    unread until the pak side could name a position for its keys.
+
+    Only PENDING timers travel: a slot at -1 has its object standing, 0 was
+    never written, DateTime.MaxValue never respawns, and a timer already
+    behind `GameDateTimeTicks` respawns the moment a player streams the area
+    in — thousands of those on a lived-in world, and a map of them would be
+    noise. The counts keep all four states visible so "few pins" is
+    distinguishable from "nothing read".
+
+    **Every stage is walked, never `[0]`** — the outer map is keyed by stage
+    and dungeon stages ride beside the overworld (the `base_camp_level`
+    mistake, pinned in AGENTS.md). Non-overworld spawners have no world
+    position, so they are counted and not listed.
+    """
+    world = _world_save_data(gvas)
+    node = _v(world, "MapObjectSpawnerInStageSaveData", "value")
+    if not isinstance(node, list):
+        return {}
+
+    clock = _v(world, "GameTimeSaveData", "value", "GameDateTimeTicks", "value")
+    now = int(clock) if isinstance(clock, int) and not isinstance(clock, bool) else None
+
+    pending: list[dict[str, Any]] = []
+    counts = {"idle": 0, "neverWritten": 0, "neverRespawns": 0, "due": 0,
+              "pending": 0, "otherStages": 0}
+    for stage in node:
+        internal = str(_v(stage, "key", "InternalId", "value") or "")
+        overworld = internal.strip("0-") == ""
+        spawners = _v(stage, "value", "SpawnerDataMapByLevelObjectInstanceId",
+                      "value", default=[]) or []
+        for spawner in spawners:
+            spawner_id = str(spawner.get("key") or "").lower().replace("-", "")
+            for slot in _v(spawner, "value", "ItemMap", "value", default=[]) or []:
+                ticks = _v(slot, "value", "NextLotteryGameTime", "value")
+                if not isinstance(ticks, int) or isinstance(ticks, bool):
+                    continue
+                if ticks == -1:
+                    counts["idle"] += 1
+                elif ticks == 0:
+                    counts["neverWritten"] += 1
+                elif ticks >= _TICKS_NEVER:
+                    counts["neverRespawns"] += 1
+                elif now is not None and ticks <= now:
+                    counts["due"] += 1
+                else:
+                    if overworld:
+                        counts["pending"] += 1
+                        pending.append({"id": spawner_id, "readyTicks": ticks})
+                    else:
+                        counts["otherStages"] += 1
+
+    return {
+        # "As of this parse": game time only advances while the server runs,
+        # so a remaining duration computed later against wall clocks would be
+        # a guess. The clock ships and the caller subtracts.
+        "clockTicks": now,
+        "pending": pending,
+        "counts": counts,
+    }
+
+
 def extract_work_assignments(gvas: Any) -> list[dict]:
     """
     Who the game has **actually** assigned to each job — `WorkSaveData`.

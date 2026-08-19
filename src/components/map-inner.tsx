@@ -16,7 +16,7 @@ import {
 import type {
   Discoveries, DiscoveryPoint, Player, BaseCamp, MapObject, FastTravelPoint,
   StaticWorldObject, NpcPlacement } from '@/lib/types';
-import type { BossSpawner, GuildMarker } from '@/lib/save-api';
+import type { BossSpawner, GuildMarker, RespawnPin } from '@/lib/save-api';
 
 interface Props {
   players: Player[];
@@ -52,6 +52,7 @@ interface Props {
   /** Named NPC spawn points, one layer per role. Bundled, not viewport-fetched. */
   npcs: NpcPlacement[];
   guildMarkers: GuildMarker[];
+  respawns: RespawnPin[];
   layers: Record<string, boolean>;
   /**
    * Per-category kind exclusions, for the save-derived POI layer.
@@ -459,6 +460,7 @@ export default function MapInner({
   staticObjects,
   npcs,
   guildMarkers,
+  respawns,
   layers,
   kindsOff,
   region,
@@ -478,6 +480,7 @@ export default function MapInner({
   const bossLayer = useRef<L.LayerGroup>(L.layerGroup());
   const npcLayer = useRef<L.LayerGroup>(L.layerGroup());
   const guildMarkerLayer = useRef<L.LayerGroup>(L.layerGroup());
+  const respawnLayer = useRef<L.LayerGroup>(L.layerGroup());
   const baseLayer = useRef<L.LayerGroup>(L.layerGroup());
   const playerLayer = useRef<L.LayerGroup>(L.layerGroup());
 
@@ -543,6 +546,7 @@ export default function MapInner({
     staticLayer.current.addTo(map);
     npcLayer.current.addTo(map);
     guildMarkerLayer.current.addTo(map);
+    respawnLayer.current.addTo(map);
     poiLayer.current.addTo(map);
     travelLayer.current.addTo(map);
     effigyLayer.current.addTo(map);
@@ -953,6 +957,46 @@ export default function MapInner({
         .addTo(group);
     }
   }, [guildMarkers, layers, region]);
+
+  // ─── Respawning nodes (#141): save timers joined to bundled positions ──
+  //
+  // Only nodes with a RUNNING clock — a due timer respawns on approach and
+  // pinning 985 of those would bury the 154 that answer "when". The duration
+  // is GAME hours as of the last parse, and the popup says so: game time
+  // does not advance while the server is stopped, so a wall-clock countdown
+  // would be a guess dressed as a timer.
+  useEffect(() => {
+    const group = respawnLayer.current;
+    group.clearLayers();
+    if (!layers.respawns) return;
+    const transform = getRegion(region);
+    for (const pin of respawns) {
+      if (!transform.contains(pin.x, pin.y)) continue;
+      L.marker(worldToMap(pin.x, pin.y, region), {
+        icon: L.divIcon({
+          className: 'shape-marker',
+          html: shapeSvg('circle', 10, '#7fd48f'),
+          iconSize: [10, 10],
+          iconAnchor: [5, 5],
+        }),
+        zIndexOffset: 620,
+      })
+        .bindPopup(() => {
+          const c = worldToGameMap(pin.x, pin.y);
+          const kind = prettyClass(pin.cls);
+          const when = pin.inGameHours != null
+            ? `respawns in ~${pin.inGameHours} game-hours (as of the last parse)`
+            : 'respawn clock running';
+          return `<div style="min-width:170px">
+             <div style="font-weight:600;margin-bottom:3px">${escapeHtml(kind)}</div>
+             <div style="font-size:12px;color:#7fd48f">${escapeHtml(when)}</div>
+             <div style="font-size:11px;color:#6d747e;margin-top:4px">${c.x}, ${c.y}</div>
+           </div>`;
+        })
+        .bindTooltip(prettyClass(pin.cls), { direction: 'top', offset: [0, -6] })
+        .addTo(group);
+    }
+  }, [respawns, layers, region]);
 
   // ─── Fast travel (bundled game data, not from the save) ──
   //

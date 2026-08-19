@@ -9,6 +9,8 @@ import {
   getStaticWorldObjects, getStaticWorldSummary, getBossSpawners, getNpcPlacements,
   type BossSpawner,
   getGuildMarkers,
+  getRespawns,
+  type RespawnPin,
   type GuildMarker,
 } from '@/lib/save-api';
 import { Crosshair, RefreshCw, Search, Info } from 'lucide-react';
@@ -52,6 +54,9 @@ const LAYERS: { id: string; label: string; color: string; group: 'live' | 'disco
   // world contains and you discover, but something a player wrote into it.
   // The server only ever sends you your own guild's.
   { id: 'guildMarkers', label: tl('Guild markers'), color: '#4ea8d4', group: 'world' },
+  // Save-derived: nodes with a RUNNING respawn clock. A harvested node whose
+  // timer is already due respawns on approach and is deliberately not pinned.
+  { id: 'respawns', label: tl('Respawning nodes'), color: '#7fd48f', group: 'world' },
   { id: 'chest', label: tl('Chests'), color: '#c9973f', group: 'world' },
   { id: 'oreNode', label: tl('Ore nodes'), color: '#8a8378', group: 'world' },
   { id: 'oilrigChest', label: tl('Oil rig'), color: '#d97757', group: 'world' },
@@ -63,6 +68,7 @@ const LAYERS: { id: string; label: string; color: string; group: 'live' | 'disco
   { id: 'static:ore', label: tl('All ore'), color: '#8a8378', group: 'static' },
   { id: 'static:treasure', label: tl('All chests'), color: '#c9973f', group: 'static' },
   { id: 'static:fishing', label: tl('Fishing spots'), color: '#5f6b73', group: 'static' },
+  { id: 'static:palegg', label: tl('Wild Pal eggs'), color: '#d98cc4', group: 'static' },
   { id: 'static:oilrig', label: tl('Oil fields'), color: '#d97757', group: 'static' },
   // Extracted all along and never given a toggle, so 2,163 dungeon objects and
   // 13,851 spawners sat in the bundle unreachable. A category the backend
@@ -124,6 +130,7 @@ export default function InteractiveMap() {
   const [bosses, setBosses] = useState<BossSpawner[]>([]);
   const [npcs, setNpcs] = useState<NpcPlacement[]>([]);
   const [guildMarkers, setGuildMarkers] = useState<GuildMarker[]>([]);
+  const [respawns, setRespawns] = useState<RespawnPin[]>([]);
   // Not the same as `guildMarkers.length === 0`: an empty list because your
   // guild has placed none, and an empty list because you are in no guild, are
   // different answers and only the second needs saying.
@@ -231,7 +238,7 @@ export default function InteractiveMap() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [objects, points, found, relics, fieldBosses, people, pins] = await Promise.allSettled([
+    const [objects, points, found, relics, fieldBosses, people, pins, regrowing] = await Promise.allSettled([
       getMapObjects(),
       getFastTravelPoints(),
       // Discoveries may legitimately fail — a guest has no character, and the
@@ -254,6 +261,9 @@ export default function InteractiveMap() {
       // legitimate answer here more often than anywhere else on this map, so a
       // swallowed failure would be invisible.
       getGuildMarkers(),
+      // Save-derived; a world with no parse 503s, and that is a quiet layer
+      // rather than an error — the toggle simply draws nothing.
+      getRespawns(),
     ]);
     setMapObjects(objects.status === 'fulfilled' ? objects.value : []);
     setFastTravel(points.status === 'fulfilled' ? points.value : []);
@@ -262,6 +272,7 @@ export default function InteractiveMap() {
     setBosses(fieldBosses.status === 'fulfilled' ? fieldBosses.value : []);
     setNpcs(people.status === 'fulfilled' ? people.value.placements : []);
     setGuildMarkers(pins.status === 'fulfilled' ? pins.value.points : []);
+    setRespawns(regrowing.status === 'fulfilled' ? regrowing.value.pins : []);
     setMarkerScope(pins.status === 'fulfilled' ? pins.value.scope : 'none');
     // A layer that is switched on and empty is indistinguishable from a layer
     // that failed to load, which is how "effigies not showing" went undiagnosed.
@@ -664,6 +675,7 @@ export default function InteractiveMap() {
           bosses={bosses}
           npcs={npcs}
           guildMarkers={guildMarkers}
+          respawns={respawns}
           hideCollected={hideCollected}
           staticObjects={staticObjects}
           layers={mapLayers}

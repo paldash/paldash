@@ -40,6 +40,7 @@ import crafting
 import db
 import dungeons
 import eggmoves
+import respawns
 import editschema
 import elements
 import gameapi
@@ -2307,6 +2308,24 @@ def get_world_objects(
                 point["level"] = level["level"]
                 point["levelSpawner"] = level["spawnerId"]
     return result
+
+
+@app.get("/api/world/respawns")
+def get_world_respawns(request: Request) -> dict[str, Any]:
+    """
+    Gatherables currently regrowing, as map pins (#141).
+
+    Same gate as `/api/world/objects`: node positions are bundled pak data
+    identical for every viewer, and a respawn clock says "someone harvested
+    here", which is no more revealing than the harvested node itself. The
+    parse-derived half means this 503s without a parsed world rather than
+    serving an empty layer that reads as "nothing is respawning".
+    """
+    authz.require(request, roles_module.VIEW_BASIC)
+    found = respawns.report()
+    if found is None:
+        raise HTTPException(503, "No parsed world yet — press Refresh first.")
+    return found
 
 
 @app.get("/api/world/objects/categories")
