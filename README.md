@@ -16,6 +16,20 @@ and to stay out of the game server's way.
 
 ---
 
+## Screenshots
+
+| | |
+|---|---|
+| ![Map](docs/screenshots/map.webp) *The world map — live players, bases, and 38 toggleable layers read from the save and the game's own files* | ![Bases](docs/screenshots/bases.webp) *Every base with workers, storage fill and guild attribution* |
+| ![Breeding planner](docs/screenshots/breeding.webp) *Breeding planner scoped to the Pals you actually own* | ![My Pals](docs/screenshots/my-pals.webp) *Palbox with calculated stats, IVs and a welfare check* |
+| ![Progression](docs/screenshots/progression.webp) *Per-player progression — bosses, effigies, regions, milestone rewards* | ![Overview](docs/screenshots/overview.webp) *Server overview — FPS, players, uptime, admin controls* |
+| ![Metrics](docs/screenshots/metrics.webp) *30 days of FPS, players and host metrics — gaps are data, not smoothed away* | |
+
+![Save Tools](docs/screenshots/save-tools.webp)
+*Save editing stays locked until the server is provably stopped — every write takes a verified backup first.*
+
+---
+
 ## Palworld 1.0 support (read this first)
 
 Palworld 1.0 (the Summer 2026 update) changed the save format. Saves are now
