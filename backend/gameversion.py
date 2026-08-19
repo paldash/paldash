@@ -55,7 +55,13 @@ PROVENANCE_PATH = os.path.join(DATA_DIR, "provenance.json")
 # `<root>/Pal/Saved/SaveGames/0` puts the install root four levels up — because
 # that mount is the one the dashboard is guaranteed to have.
 INSTALL_DIR = os.environ.get("PALWORLD_INSTALL_DIR", "")
-SAVE_BASE_DIR = os.environ.get("SAVE_BASE_DIR", "")
+# Same default as safety.py — the shared-mount path the shipped compose
+# guarantees. An empty default here made build detection fail silently in any
+# container that did not set the env var explicitly, with everything mounted
+# and readable: the #149 smoke test read the manifest by hand while status()
+# said "not visible to this container". install_dir() still checks isdir, so
+# a dev machine without /palworld degrades to "" exactly as before.
+SAVE_BASE_DIR = os.environ.get("SAVE_BASE_DIR", "/palworld/Pal/Saved/SaveGames/0")
 
 PAK_RELATIVE = os.path.join("Pal", "Content", "Paks", "Pal-LinuxServer.pak")
 
