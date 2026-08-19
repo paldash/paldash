@@ -367,12 +367,20 @@ def sort_containers(
 
     world_dir = os.path.dirname(level_path)
 
+    # The safety gate comes before EVERYTHING — the palsav import included.
+    # The import is harmless in itself, but its old position made "the gate
+    # is reached before anything" true only on machines where palsav was
+    # installed: on CI (which deliberately has no palsav) the import raised
+    # first, and the test asserting the ordering failed for the wrong reason.
+    safety.assert_writable()
+
     from palsav.core import compress_gvas_to_sav, decompress_sav_to_gvas
     from palsav.gvas import GvasFile
     from palsav.paltypes import PALWORLD_CUSTOM_PROPERTIES, PALWORLD_TYPE_HINTS
     from savefiles import read_sav_bytes
 
-    # assert_writable + full backup; raises unless provably safe.
+    # assert_writable (again, inside the guard) + full backup; raises unless
+    # provably safe — the pre-check above does not replace the guard's own.
     scope_note = f", base {base_id}" if base_id else ""
     with guarded_save_write(
         f"sort containers ({mode}, by {order}{scope_note})", world_dir

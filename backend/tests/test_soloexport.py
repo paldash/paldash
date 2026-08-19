@@ -23,6 +23,10 @@ import os
 
 import pytest
 
+# The subject here is palsav's UUID value type — without palsav (CI has
+# no compiled codec) there is nothing to test, so skip as one unit.
+pytest.importorskip("palsav")
+
 import soloexport
 
 A = "22b22b02-0000-0000-0000-000000000000"
