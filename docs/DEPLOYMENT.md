@@ -277,7 +277,7 @@ updating the reference install *before* diffing anything against it.
 the image needs the repository at runtime. The runtime stage copies exactly four
 things — the Next.js standalone bundle, its static assets, `public/`, and
 `backend/` — and every byte of game data is already committed, so a running
-container needs no clone, no `refs/`, and no network beyond your own server.
+container needs no clone and no `refs/`. The one optional network touch is the first-boot artwork fetch (~27 MB, cached in the volume; see `FETCH_ASSETS_ON_BOOT`) — everything else runs entirely against your own server, and with the fetch disabled the dashboard works fully with text and shape fallbacks in place of the game's art.
 
 Build once on a machine that has the source, push, and pull everywhere else:
 

@@ -2,6 +2,10 @@
 
 *A self-hosted dashboard for Palworld dedicated servers.*
 
+[![CI](https://github.com/paldash/paldash/actions/workflows/ci.yml/badge.svg)](https://github.com/paldash/paldash/actions/workflows/ci.yml)
+[![Docker image](https://github.com/paldash/paldash/actions/workflows/docker.yml/badge.svg)](https://github.com/paldash/paldash/pkgs/container/paldash)
+[![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-blue.svg)](LICENSE)
+
 A web dashboard for a self-hosted Palworld dedicated server. It combines the
 server's REST API (live status, players, admin actions) with direct reads of the
 save files (bases, guilds, Pals, inventories, breeding) and an editor for
