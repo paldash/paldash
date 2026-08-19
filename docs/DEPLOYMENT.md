@@ -290,8 +290,10 @@ Tag a version rather than relying on `latest`: this image can write to your save
 files, and "which build is running" is a question you want answerable during an
 incident.
 
-Then in `docker-compose.yml`, replace `build: .` with
-`image: ghcr.io/<you>/palworld-dashboard:1.0`.
+The bundled compose files already default to the published image
+(`ghcr.io/paldash/paldash:latest`, or pin `:1.0.0`). To run your own build
+instead, replace the `image:` line with `build: .` — or with the tag you
+pushed above.
 
 **With no registry at all**, which is often the right answer for one LAN box:
 

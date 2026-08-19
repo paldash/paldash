@@ -101,22 +101,24 @@ services:
 
   # ─── The dashboard ──────────────────────────────────────
   dashboard:
-    build: .
-    # The container runs as uid/gid 1000, matching PUID/PGID on the server above
-    # so it can read the shared bind mount without running as root. If your
-    # server uses different ids, match them here rather than reverting to root:
+    image: ghcr.io/paldash/paldash:latest
+    # The published image needs no clone and no refs/ to run: the game DATA is
+    # committed, and the game ARTWORK (not distributed — see NOTICE) is fetched
+    # once at first boot into the cache volume by the self-provisioning boot, or
+    # installed offline with scripts/install-icons.py. Pin a version instead of
+    # `latest` (e.g. `:1.0.0`) if you want "which build is running" answerable
+    # during an incident.
+    #
+    # Building from a clone instead? Swap the image line for `build: .`. That is
+    # also the path when your server runs ids other than the image's uid/gid
+    # 1000 (which matches PUID/PGID above so the shared bind mount is readable
+    # without root):
     #   build:
     #     context: .
     #     args: { APP_UID: "1001", APP_GID: "1001" }
-    # Prefer a prebuilt image? Replace `build: .` with an `image:` line — the
-    # container needs no clone and no refs/ to run: the game DATA is
-    # committed, and the game ARTWORK (not distributed — see NOTICE) is
-    # fetched once at first boot into the cache volume by the self-
-    # provisioning boot, or installed offline with scripts/install-icons.py.
-    # `docs/DEPLOYMENT.md` §10 covers building once and
-    # pulling elsewhere (including with no registry at all), and what publishing
-    # one publicly would oblige you to do.
-    # image: ghcr.io/paldash/paldash:1.0
+    # `docs/DEPLOYMENT.md` §10 covers building once and pulling elsewhere
+    # (including with no registry at all), and what publishing one publicly
+    # would oblige you to do.
     container_name: paldash
     restart: unless-stopped
     depends_on:

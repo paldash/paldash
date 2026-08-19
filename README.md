@@ -18,15 +18,27 @@ and to stay out of the game server's way.
 
 ## Screenshots
 
-| | |
-|---|---|
-| ![Map](docs/screenshots/map.webp) *The world map — live players, bases, and 38 toggleable layers read from the save and the game's own files* | ![Bases](docs/screenshots/bases.webp) *Every base with workers, storage fill and guild attribution* |
-| ![Breeding planner](docs/screenshots/breeding.webp) *Breeding planner scoped to the Pals you actually own* | ![My Pals](docs/screenshots/my-pals.webp) *Palbox with calculated stats, IVs and a welfare check* |
-| ![Progression](docs/screenshots/progression.webp) *Per-player progression — bosses, effigies, regions, milestone rewards* | ![Overview](docs/screenshots/overview.webp) *Server overview — FPS, players, uptime, admin controls* |
-| ![Metrics](docs/screenshots/metrics.webp) *30 days of FPS, players and host metrics — gaps are data, not smoothed away* | |
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/map.webp" alt="World map"><br><sub><b>Map</b> — live players, bases, and 38 toggleable layers read from the save and the game's own files</sub></td>
+    <td width="50%"><img src="docs/screenshots/bases.webp" alt="Bases"><br><sub><b>Bases</b> — every base with workers, storage fill and guild attribution</sub></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/my-pals.webp" alt="My Pals"><br><sub><b>My Pals</b> — palbox with calculated stats, IVs and a welfare check</sub></td>
+    <td><img src="docs/screenshots/breeding.webp" alt="Breeding planner"><br><sub><b>Breeding planner</b> — scoped to the Pals you actually own</sub></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/paldeck.webp" alt="Palpedia"><br><sub><b>Palpedia</b> — spawn areas, partner skills, moves and drops from the game's own tables</sub></td>
+    <td><img src="docs/screenshots/progression.webp" alt="Progression"><br><sub><b>Progression</b> — per-player bosses, effigies, regions and milestone rewards</sub></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/overview.webp" alt="Overview"><br><sub><b>Overview</b> — FPS, players, uptime and admin controls</sub></td>
+    <td><img src="docs/screenshots/metrics.webp" alt="Metrics"><br><sub><b>Metrics</b> — 30 days of FPS, players and host data; gaps are data, not smoothed away</sub></td>
+  </tr>
+</table>
 
-![Save Tools](docs/screenshots/save-tools.webp)
-*Save editing stays locked until the server is provably stopped — every write takes a verified backup first.*
+<img src="docs/screenshots/save-tools.webp" alt="Save Tools">
+<br><sub><b>Save Tools</b> — editing stays locked until the server is provably stopped, and every write takes a verified backup first.</sub>
 
 ---
 
@@ -59,10 +71,12 @@ Verified against a real 1.0 save: a 2.0 MB `Level.sav` decompresses to 55.6 MB i
 ```bash
 cp .env.example .env
 # set PANEL_PASSWORD and PALWORLD_ADMIN_PASSWORD, then:
-docker compose up -d --build
+docker compose up -d
 ```
 
-Dashboard on `http://localhost:3000`.
+Dashboard on `http://localhost:3000`. The first run pulls the prebuilt image
+from `ghcr.io/paldash/paldash`; to build from your clone instead, swap the
+compose file's `image:` line for `build: .`.
 
 The bundled `docker-compose.yml` runs both the game server and the dashboard on a
 private bridge network sharing `./palworld`. If you already run a server, don't
@@ -120,7 +134,7 @@ services:
   # ... your existing palworld server service ...
 
   dashboard:
-    build: ./paldash               # or: image: ghcr.io/paldash/paldash:1.0
+    image: ghcr.io/paldash/paldash:latest   # or, from a clone: build: ./paldash
     container_name: paldash
     restart: unless-stopped
     depends_on:
