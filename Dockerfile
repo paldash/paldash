@@ -1,5 +1,5 @@
 # ─── Stage 1: Build Next.js ──────────────────────────────
-FROM node:20-bookworm-slim AS webbuilder
+FROM node:25-bookworm-slim AS webbuilder
 
 WORKDIR /app
 COPY package.json package-lock.json ./
@@ -40,7 +40,7 @@ COPY backend/requirements.txt /tmp/requirements.txt
 RUN python -m pip wheel --no-cache-dir --wheel-dir /wheels -r /tmp/requirements.txt
 
 # ─── Stage 3: Runtime ────────────────────────────────────
-FROM node:20-bookworm-slim AS runner
+FROM node:25-bookworm-slim AS runner
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
         python3 python3-pip \
