@@ -1477,6 +1477,10 @@ so anything adopted is fetched once and bundled.
 
 ## Conventions
 
+- Commit messages are Conventional Commits — `type(scope): summary`, lowercase
+  summary, body explaining *why* — checked by commitlint on PRs. No
+  `Co-Authored-By` trailer (`.claude/settings.json` turns it off); commits
+  before 2026-08-25 carry one and are left alone.
 - Comments explain *why*, especially where a subtlety already caused a bug.
   Match the existing density; do not narrate obvious code.
 - Backend modules are flat and import each other directly. Module-level constants
