@@ -1,0 +1,57 @@
+# Dependabot version updates.
+#
+# Grouped on purpose: one PR per ecosystem per week for minor + patch bumps,
+# so the toolchain moves together and CI judges the set, not twenty PRs that
+# each pass alone and break in combination. Majors stay separate — those are
+# the ones that need reading.
+#
+# This works here because GitHub is the source of truth and the Forgejo copy
+# is pushed *from* the working clone (`git push backup`, one branch). Nothing
+# ever pushes --mirror at GitHub, so dependabot/* branches are never pruned.
+# Do not add a Forgejo -> GitHub push mirror: it would delete every
+# Dependabot branch on each sync and auto-close the PRs.
+#
+# Alerts and security updates are repo settings, not this file — enable them
+# under Settings -> Code security.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+    groups:
+      npm-minor-and-patch:
+        patterns: ["*"]
+        update-types: [minor, patch]
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: pip
+    directory: /backend
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+    groups:
+      pip-minor-and-patch:
+        patterns: ["*"]
+        update-types: [minor, patch]
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+    groups:
+      actions:
+        patterns: ["*"]
+
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"

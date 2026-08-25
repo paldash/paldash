@@ -15,11 +15,26 @@ fired. `docs/ARCHITECTURE.md` §7 is the summary; this is the working guide.
 # Frontend — vitest
 npm test                                          # 153 tests, ~1 s
 
+# Browser smoke — Playwright, against the built app with a real backend
+npm run build && npm run test:e2e                 # 5 tests, ~10 s once built
+npx playwright install chromium                   # once, if the browser is missing
+
 # The other gates a change must clear
 npx tsc --noEmit
-npm run lint                                      # 0 errors expected; warnings are pre-existing
+npm run lint                                      # --max-warnings 0: warnings fail
 npm run build                                     # catches what tsc alone does not
 ```
+
+**The e2e suite boots the whole stack with nothing attached.** `e2e/serve.mjs`
+starts the Python backend in a scratch directory — fresh database, empty save
+directory, REST URL pointing at a closed port, no `palsav` required — and the
+standalone Next server in front of it. That is what a fresh install looks like
+before anything is mounted, and the property under test is that every tab
+renders an honest empty state rather than a crash, that the server reads as
+offline, and that saves read as read-only (the fail-closed default). CI runs
+Lighthouse against the same launcher afterwards; `lighthouserc.json` holds
+the thresholds, and `npm run e2e:serve` brings the stack up by hand for
+`npx lighthouse http://127.0.0.1:3019/`.
 
 **Before a full run: `rm -rf /tmp/pytest-of-$USER`.** One run leaves ~2.6 GB in
 `$TMPDIR` and pytest does not always reclaim it. Four runs wedge a 7.7 GB
@@ -41,6 +56,7 @@ repository lost one real failure to exactly that during the v1.0.3 refresh.
 | Backend unit | `backend/tests/test_*.py` | module behaviour, **and the shipped bundles** (see below) |
 | Backend integration | same files, `@pytest.mark.integration` | the real pipeline against `refworld/` — a genuine 55 MB world |
 | Frontend | `src/**/*.test.ts` | permissions allowlist, item lookup, build config |
+| Browser smoke | `e2e/*.spec.ts` | sign-in, guest scope, every tab rendering with no world and no server, the read-only default |
 | Route gates | `backend/tests/test_route_gates.py` | every live route has `authz.require` AND an allowlist entry |
 
 Integration tests **skip automatically** when `refworld/` or `palsav` is

@@ -8,7 +8,9 @@
     "start": "next start",
     "lint": "eslint --max-warnings 0",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "e2e:serve": "node e2e/serve.mjs"
   },
   "dependencies": {
     "leaflet": "^1.9.4",
@@ -20,6 +22,7 @@
     "zustand": "^5.0.14"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
     "@tailwindcss/postcss": "^4",
     "@types/leaflet": "^1.9.21",
     "@types/node": "^20",

@@ -21,6 +21,7 @@ The GPL covers this project's code, not their data.
 ./scripts/setup-dev.sh                           # one time; needs refs/ (see below)
 .venv/bin/python -m pytest -m "not integration"  # backend unit: ~3 min
 npm test                                         # frontend: <1 s
+npm run build && npm run test:e2e                # browser smoke: ~10 s once built
 npm run lint && npx tsc --noEmit
 ```
 

@@ -1,8 +1,24 @@
+# One workflow, three jobs, one order: nothing publishes unless everything
+# tested passes first.
+#
+#   backend  — Python unit tests (integration tests need palsav and a real
+#              world, and run locally with refworld/ present).
+#   web      — lint, unit tests, build, then the browser smoke suite and
+#              Lighthouse against the built app with a real backend beside it.
+#              e2e/serve.mjs boots that backend with nothing attached — no
+#              world, no game server, no palsav — the shape of a fresh install.
+#   image    — build the container; push to GHCR on main and on version tags.
+#              Runs on pull requests too, without pushing, so a broken
+#              Dockerfile fails the PR rather than the release.
+#
+# The dependency audit lives in audit.yml because its trigger is a calendar,
+# not a commit.
 name: CI
 
 on:
   push:
     branches: [main]
+    tags: ["v*"]
   pull_request:
 
 jobs:
@@ -20,14 +36,11 @@ jobs:
       - name: Install dependencies
         run: pip install -r backend/requirements.txt -r backend/requirements-dev.txt
 
-      # Integration tests are deselected: they need `palsav` (a compiled Oodle
-      # extension) and a real world save, neither of which belongs in CI. They
-      # run locally via `pytest` with refworld/ present.
       - name: Unit tests
         run: pytest -m "not integration"
 
-  frontend:
-    name: Frontend lint & build
+  web:
+    name: Web — lint, unit, build, e2e, Lighthouse
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -37,6 +50,14 @@ jobs:
           node-version: "22"
           cache: npm
 
+      # The e2e backend. Runtime dependencies only: no palsav, which is the
+      # point — the dashboard must boot and render without it.
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r backend/requirements.txt
+
       - run: npm ci
       - run: npm run lint
       - run: npm test
@@ -44,3 +65,75 @@ jobs:
         env:
           # The build must not require real secrets.
           PANEL_PASSWORD: ci-build-placeholder
+
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Browser smoke tests
+        run: npx playwright test
+        env:
+          E2E_PYTHON: python
+
+      - name: Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
+
+      # Same launcher as the smoke tests, so Lighthouse measures the app the
+      # tests just exercised. Thresholds live in lighthouserc.json.
+      - name: Lighthouse
+        uses: treosh/lighthouse-ci-action@v12
+        with:
+          configPath: lighthouserc.json
+          uploadArtifacts: true
+          temporaryPublicStorage: false
+        env:
+          E2E_PYTHON: python
+
+  image:
+    name: Container image
+    needs: [backend, web]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Image metadata
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=ref,event=tag
+            type=semver,pattern={{version}}
+            type=raw,value=edge,enable={{is_default_branch}}
+
+      # No secrets to configure: GITHUB_TOKEN can push to ghcr.io/<owner>/<repo>.
+      # The build needs nothing outside the repo — palsav/palooz are cloned
+      # from their own upstream inside the Dockerfile, and refs/ and refworld/
+      # are excluded by .dockerignore (live server passwords and real Steam
+      # IDs must never enter a build context).
+      - name: Build (and push on main/tags)
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

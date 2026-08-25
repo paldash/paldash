@@ -91,3 +91,8 @@ refs/
 # directories exist on every working setup and are simply not distributed.
 public/icons/
 public/maps/
+
+# Playwright / Lighthouse output
+playwright-report/
+test-results/
+.lighthouseci/
