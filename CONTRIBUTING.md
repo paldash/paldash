@@ -69,13 +69,14 @@ the receipts.
 ## PRs
 
 - Small and focused beats large and mixed. A fix and a refactor are two PRs.
-- Commit messages are [Conventional Commits](https://www.conventionalcommits.org):
-  `type(scope): summary`, summary in lowercase, then a body that explains
-  *why* in sentences — `fix(backup): refuse a corrupt archive instead of
-  crashing`. Types: `feat`, `fix`, `docs`, `ci`, `chore`, `refactor`, `test`,
-  `perf`, `build`, `revert`. commitlint checks every commit on a PR;
-  `npx commitlint --from origin/main` runs the same check locally. Commits
-  before 2026-08-25 predate the rule and are not the template.
+- **The PR title is a [Conventional Commit](https://www.conventionalcommits.org)**:
+  `type(scope): summary`, summary in lowercase — `fix(backup): refuse a
+  corrupt archive instead of crashing`. Types: `feat`, `fix`, `docs`, `ci`,
+  `chore`, `refactor`, `test`, `perf`, `build`, `revert`. PRs are squash-merged
+  with the title as the commit subject, so the title is what reaches history;
+  CI checks it and nothing else — your individual commits inside the PR can be
+  whatever you like. Put the *why* in the PR description; it becomes the body.
+  (`npx commitlint` reads a message from stdin if you want to check one.)
 - If you changed behaviour, a test pins it. If you fixed a bug, the test fails
   without the fix.
 - CI (commit messages, backend unit, frontend lint/unit/build, browser smoke,

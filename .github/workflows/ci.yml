@@ -20,27 +20,36 @@ on:
     branches: [main]
     tags: ["v*"]
   pull_request:
+    # `edited` so a retitled PR re-runs the title check; the heavy jobs skip
+    # that event.
+    types: [opened, synchronize, reopened, edited]
 
 jobs:
-  # Conventional Commits, checked over the PR's own commits. Pull requests
-  # only: main is pushed to directly, and a message on main is history.
-  commits:
-    name: Commit messages
+  # Conventional Commits are enforced on the PULL REQUEST TITLE, not on a
+  # contributor's individual commits: PRs are squash-merged with the title as
+  # the commit subject, so the title is what reaches main's history and the
+  # maintainer can edit it before merging. Nobody is blocked over the wording
+  # of their work-in-progress commits.
+  pr-title:
+    name: PR title
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
       - uses: actions/setup-node@v7
         with:
           node-version: "22"
           cache: npm
       - run: npm ci
-      - run: npx commitlint --from ${{ github.event.pull_request.base.sha }} --to ${{ github.event.pull_request.head.sha }} --verbose
+      # Through an env var, never interpolated into the script: a title is
+      # attacker-controlled text.
+      - run: printf '%s\n' "$PR_TITLE" | npx commitlint --verbose
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
 
   backend:
     name: Backend tests
+    if: github.event.action != 'edited'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -58,6 +67,7 @@ jobs:
 
   web:
     name: Web — lint, unit, build, e2e, Lighthouse
+    if: github.event.action != 'edited'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -113,6 +123,7 @@ jobs:
   image:
     name: Container image
     needs: [backend, web]
+    if: github.event.action != 'edited'
     runs-on: ubuntu-latest
     permissions:
       contents: read
