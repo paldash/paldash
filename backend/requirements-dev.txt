@@ -10,5 +10,5 @@
 pytest>=8.0
 # FastAPI's TestClient transport. httpx2 is what current starlette wants;
 # plain httpx still works but emits a deprecation warning.
-httpx2>=0.1
+httpx2>=2.12.0
 
