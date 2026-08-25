@@ -69,11 +69,17 @@ the receipts.
 ## PRs
 
 - Small and focused beats large and mixed. A fix and a refactor are two PRs.
-- Commit messages explain *why*, in sentences. Look at `git log` — that is
-  the house style.
+- Commit messages are [Conventional Commits](https://www.conventionalcommits.org):
+  `type(scope): summary`, summary in lowercase, then a body that explains
+  *why* in sentences — `fix(backup): refuse a corrupt archive instead of
+  crashing`. Types: `feat`, `fix`, `docs`, `ci`, `chore`, `refactor`, `test`,
+  `perf`, `build`, `revert`. commitlint checks every commit on a PR;
+  `npx commitlint --from origin/main` runs the same check locally. Commits
+  before 2026-08-25 predate the rule and are not the template.
 - If you changed behaviour, a test pins it. If you fixed a bug, the test fails
   without the fix.
-- CI (backend unit, frontend lint/build, Docker build) must be green.
+- CI (commit messages, backend unit, frontend lint/unit/build, browser smoke,
+  Lighthouse, Docker build) must be green.
 
 ## Translations
 

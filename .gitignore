@@ -96,3 +96,6 @@ public/maps/
 playwright-report/
 test-results/
 .lighthouseci/
+
+# Claude Code per-user overrides (permissions); the shared settings.json is tracked
+.claude/settings.local.json
