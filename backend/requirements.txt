@@ -2,7 +2,7 @@
 fastapi>=0.104.0
 uvicorn>=0.24.0
 psutil>=5.9.0
-orjson>=3.11.8
+orjson>=3.12.0
 
 # ─── Save parsing (NOT installable from here — see below) ─
 # `palworld-save-tools` (the PyPI package) CANNOT read Palworld 1.0 saves and has
