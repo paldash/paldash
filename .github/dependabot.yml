@@ -1,18 +1,24 @@
 # Dependabot version updates.
 #
-# Grouped on purpose: one PR per ecosystem per week for minor + patch bumps,
-# so the toolchain moves together and CI judges the set, not twenty PRs that
-# each pass alone and break in combination. Majors stay separate — those are
-# the ones that need reading.
+# Minor + patch only, grouped: one PR per ecosystem per week, so the toolchain
+# moves together and CI judges the set rather than twenty PRs that each pass
+# alone and break in combination. MAJORS ARE NEVER PROPOSED HERE — the first
+# run offered typescript 5->7, eslint 9->10, @types/node 20->26 against a
+# Node 20 runtime, and a node:25 (non-LTS) base image, all at once. Those are
+# peer-locked decisions taken by hand, in one commit, with the Dockerfile's
+# runtime pairing in view. Security alerts and security updates are repo
+# settings, independent of this file, and still cover majors.
 #
-# This works here because GitHub is the source of truth and the Forgejo copy
-# is pushed *from* the working clone (`git push backup`, one branch). Nothing
+# No pip entry on purpose: backend/requirements.txt pins lower bounds
+# (`fastapi>=0.104.0`), and Dependabot's only move on a range is to raise the
+# floor, which changes nothing anyone installs. pip security alerts do not
+# need an entry here.
+#
+# This works because GitHub is the source of truth and the Forgejo copy is
+# pushed *from* the working clone (`git push backup`, one branch). Nothing
 # ever pushes --mirror at GitHub, so dependabot/* branches are never pruned.
 # Do not add a Forgejo -> GitHub push mirror: it would delete every
 # Dependabot branch on each sync and auto-close the PRs.
-#
-# Alerts and security updates are repo settings, not this file — enable them
-# under Settings -> Code security.
 version: 2
 updates:
   - package-ecosystem: npm
@@ -25,19 +31,10 @@ updates:
       npm-minor-and-patch:
         patterns: ["*"]
         update-types: [minor, patch]
-    open-pull-requests-limit: 5
-
-  - package-ecosystem: pip
-    directory: /backend
-    schedule:
-      interval: weekly
-      day: monday
-      time: "06:00"
-    groups:
-      pip-minor-and-patch:
-        patterns: ["*"]
-        update-types: [minor, patch]
-    open-pull-requests-limit: 5
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+    open-pull-requests-limit: 2
 
   - package-ecosystem: github-actions
     directory: /
@@ -55,3 +52,8 @@ updates:
       interval: weekly
       day: monday
       time: "06:00"
+    ignore:
+      # The Node major is paired with the runtime image and the healthcheck's
+      # `node -e "fetch(...)"`; it moves by hand, and only to an LTS line.
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
