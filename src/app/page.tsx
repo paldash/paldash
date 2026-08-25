@@ -623,7 +623,7 @@ function LoginScreen({
   availability: { anyUsers: boolean; guestAvailable: boolean };
 }) {
   return (
-    <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', padding: 20 }}>
+    <main style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', padding: 20 }}>
       <div className="glass-card" style={{ width: 360, padding: 28 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 4 }}>
           <Server size={18} style={{ color: 'var(--accent)' }} />
@@ -642,10 +642,11 @@ function LoginScreen({
         )}
 
         <form onSubmit={onSubmit}>
-          <label style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 6, display: 'block' }}>
+          <label htmlFor="login-username" style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 6, display: 'block' }}>
             {t('Username')}
           </label>
           <input
+            id="login-username"
             className="input"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
@@ -654,10 +655,11 @@ function LoginScreen({
             disabled={!availability.anyUsers || busy}
             autoFocus
           />
-          <label style={{ fontSize: 12, color: 'var(--text-secondary)', margin: '12px 0 6px', display: 'block' }}>
+          <label htmlFor="login-password" style={{ fontSize: 12, color: 'var(--text-secondary)', margin: '12px 0 6px', display: 'block' }}>
             Password
           </label>
           <input
+            id="login-password"
             type="password"
             className="input"
             value={password}
@@ -693,6 +695,6 @@ function LoginScreen({
           failed sign-ins are throttled per user and per address.
         </p>
       </div>
-    </div>
+    </main>
   );
 }

@@ -43,6 +43,8 @@ shared bind mount.
 .venv/bin/python -m pytest -m "not slow"         # skip full-world parses
 .venv/bin/python -m pytest backend/tests/test_safety.py -k read_only  # one test
 npm test                                          # frontend (vitest): 143 tests, <1s
+npm run build && npm run test:e2e                 # browser smoke (Playwright): boots the
+                                                  # whole stack with nothing attached, ~10s
 
 # Frontend
 npm run dev

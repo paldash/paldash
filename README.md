@@ -3,7 +3,7 @@
 *A self-hosted dashboard for Palworld dedicated servers.*
 
 [![CI](https://github.com/paldash/paldash/actions/workflows/ci.yml/badge.svg)](https://github.com/paldash/paldash/actions/workflows/ci.yml)
-[![Docker image](https://github.com/paldash/paldash/actions/workflows/docker.yml/badge.svg)](https://github.com/paldash/paldash/pkgs/container/paldash)
+[![Container image](https://img.shields.io/badge/ghcr.io-paldash%2Fpaldash-blue?logo=docker)](https://github.com/paldash/paldash/pkgs/container/paldash)
 [![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-blue.svg)](LICENSE)
 
 A web dashboard for a self-hosted Palworld dedicated server. It combines the
@@ -834,17 +834,19 @@ types, per-item totals identical, zero mismatches.
 
 ```bash
 ./scripts/setup-dev.sh          # builds .venv, compiles palsav from refs/
-.venv/bin/python -m pytest      # backend: 991 tests, ~21 min
-npm test                        # frontend: 82 tests, <1s
+.venv/bin/python -m pytest      # backend: ~2,020 tests, ~25 min
+npm test                        # frontend: 168 tests, <1s
+npm run build && npm run test:e2e   # browser smoke against the built app, ~10 s
 ```
 
 The suite is in tiers:
 
 | Command | Tests | Time | Needs |
 |---|---:|---:|---|
-| `npm test` | 82 | <1 s | nothing |
-| `pytest -m "not integration"` | 931 | ~2 min | nothing |
-| `pytest` | 991 | ~21 min | `refworld/` + `palsav` |
+| `npm test` | 168 | <1 s | nothing |
+| `npm run test:e2e` | 5 | ~10 s | a build; boots the backend itself, no `palsav` |
+| `pytest -m "not integration"` | ~1,880 | ~3 min | nothing |
+| `pytest` | ~2,020 | ~25 min | `refworld/` + `palsav` |
 
 **The 60 integration tests are ~19 of those 21 minutes.** Each parses a real
 55 MB world, and the write paths take a full verified backup on top. That is the
