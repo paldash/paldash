@@ -1,7 +1,7 @@
 // Conventional Commits: `type(scope): summary`, lowercase summary, body free.
 // Checked on pull requests in ci.yml; run by hand with
 //   npx commitlint --from origin/main
-export default {
+const config = {
   extends: ['@commitlint/config-conventional'],
   rules: {
     // Subjects here are sentences with em dashes and explain the *why*; the
@@ -12,3 +12,5 @@ export default {
     'body-max-line-length': [1, 'always', 100],
   },
 };
+
+export default config;
