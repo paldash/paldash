@@ -150,6 +150,9 @@ jobs:
             type=ref,event=tag
             type=semver,pattern={{version}}
             type=raw,value=edge,enable={{is_default_branch}}
+            # Pull requests build without pushing; naming the image anyway
+            # keeps the action from warning that no tag was generated.
+            type=ref,event=pr
 
       # No secrets to configure: GITHUB_TOKEN can push to ghcr.io/<owner>/<repo>.
       # The build needs nothing outside the repo — palsav/palooz are cloned

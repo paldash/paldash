@@ -1122,10 +1122,21 @@ with it, `turbopackFileSystemCacheForBuild: false` was tried and changes
 nothing, and Turbopack has no ignore option (only `root` and `ignoreIssue`).
 
 CI and the Docker builder never have `refs/`, so **they pass on 16.3 — a
-green PR is not evidence here.** `.github/dependabot.yml` ignores `next` and
+green PR is not evidence here.** 16.3.3 was tried in this tree the same day:
+9.9 GB, killed. `.github/dependabot.yml` ignores `next` and
 `eslint-config-next` until an upstream fix is confirmed by building in *this*
 tree. A build that suddenly needs gigabytes on a developer machine and not in
 CI is this again.
+
+**Staying on 16.2.12 has a cost, and `package.json` `overrides` pays it.**
+`npm audit --omit=dev --audit-level=high` — the weekly gate in `audit.yml` —
+flags 16.2.12's own pinned `postcss 8.4.31` (four advisories: XSS in
+stringified output, arbitrary `.map` reads via `sourceMappingURL`) and
+`sharp 0.34` (libvips CVEs), and npm's only offered fix is `next@16.3.3`. Real
+exposure is nil: `next/image` is used nowhere, so `sharp` never runs, and
+`postcss` only ever processes this repository's own stylesheets at build
+time. The overrides force the nested copies onto the patched lines so the
+audit stays green without moving Next. Drop them when Next moves.
 
 Runs as uid/gid 1000 (`APP_UID`/`APP_GID`), matching the Palworld server image's
 PUID/PGID so the shared bind mount is readable without root. `/app/cache` and
