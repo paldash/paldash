@@ -1106,6 +1106,27 @@ misconfigured ignore file away from publishing a real world save. Pinned by
 than degrading. So `.gitignore`'s date-prefix pattern for the session transcripts
 cannot be copied into that config verbatim.
 
+**Next 16.3.x cannot build in a tree that holds `refs/`, and `next` is pinned
+at 16.2.12 for it (2026-08-27).** With 16.3.2, `next build` in this working
+tree climbed to **10 GB resident and the OOM killer took it**; the identical
+build in a clean checkout is 1.4 GB, and 16.2.12 in this tree is under 1 GB.
+Measured, not inferred: `refs/` moved *out of the project* (a rename inside
+the tree proves nothing — it just stops matching the exclude pattern) brings
+16.3.2 back to 1.45 GB; with only the 40 GB pak moved out it still reaches
+10.3 GB against the ~8 GB that remains. **And an `lsof` poll through the
+whole build saw no file under `refs/` opened or mapped by any process** — it
+dies in "Creating an optimized production build", before any tracing. So
+Turbopack 16.3 allocates in proportion to the *size* of files it never reads,
+from directory metadata alone. `outputFileTracingExcludes` has nothing to do
+with it, `turbopackFileSystemCacheForBuild: false` was tried and changes
+nothing, and Turbopack has no ignore option (only `root` and `ignoreIssue`).
+
+CI and the Docker builder never have `refs/`, so **they pass on 16.3 — a
+green PR is not evidence here.** `.github/dependabot.yml` ignores `next` and
+`eslint-config-next` until an upstream fix is confirmed by building in *this*
+tree. A build that suddenly needs gigabytes on a developer machine and not in
+CI is this again.
+
 Runs as uid/gid 1000 (`APP_UID`/`APP_GID`), matching the Palworld server image's
 PUID/PGID so the shared bind mount is readable without root. `/app/cache` and
 `/app/backups` are chowned *in the image* because Docker seeds a named volume's

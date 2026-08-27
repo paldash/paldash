@@ -34,6 +34,13 @@ updates:
     ignore:
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
+      # Next 16.3.x OOMs `next build` in any working tree that holds refs/
+      # (10 GB resident, from file sizes it never reads — AGENTS.md, "Next
+      # 16.3.x cannot build in a tree that holds refs/"). CI clones have no
+      # refs/, so a green PR proves nothing. Lift both entries only after a
+      # newer Next builds in a tree with refs/ present.
+      - dependency-name: next
+      - dependency-name: eslint-config-next
     open-pull-requests-limit: 2
 
   - package-ecosystem: github-actions
