@@ -53,14 +53,11 @@ updates:
       actions:
         patterns: ["*"]
 
-  - package-ecosystem: docker
-    directory: /
-    schedule:
-      interval: weekly
-      day: monday
-      time: "06:00"
-    ignore:
-      # The Node major is paired with the runtime image and the healthcheck's
-      # `node -e "fetch(...)"`; it moves by hand, and only to an LTS line.
-      - dependency-name: "*"
-        update-types: ["version-update:semver-major"]
+# No docker entry on purpose: BOTH base images in the Dockerfile are pins
+# where any bump is a trap, and Docker image versioning slips past semver
+# ignores — 3.11 -> 3.14 counts as "minor". `python:3.11-slim-bookworm` must
+# match Debian bookworm's runtime python3 (3.11): a newer builder produces
+# wheels the runtime's pip refuses and the image does not build (AGENTS.md,
+# "The builder and runtime Python minor versions must match").
+# `node:20-bookworm-slim` is the LTS line shared by builder and runner and
+# assumed by the healthcheck. Base images move by hand, both stages together.
