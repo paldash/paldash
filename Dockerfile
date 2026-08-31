@@ -19,7 +19,7 @@ RUN npm run build
 #   ERROR: orjson-...-cp312-...whl is not a supported wheel on this platform.
 # The runtime installs Debian bookworm's `python3`, which is 3.11 — so this is
 # 3.11 too. Bumping one without the other breaks the build outright.
-FROM python:3.11-slim-bookworm AS pybuilder
+FROM python:3.14-slim-bookworm AS pybuilder
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
         git build-essential \
