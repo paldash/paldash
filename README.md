@@ -352,22 +352,14 @@ scales accordingly — budget for it with `mem_limit`. Item decoding costs only
 ~2%, so leave `PARSE_INCLUDE_ITEMS=true` unless memory is very tight; **parse
 frequency is the real lever.**
 
-How it stays cheap:
-
-- **Nothing parses on a timer.** By default (`PARSE_AUTO=false`) the save is read
-  only when you press **Refresh**. Opening tabs, polling, and every read endpoint
-  serve cached data and never trigger work — so between refreshes the dashboard
-  costs your server nothing. Set `PARSE_AUTO=true` to let stale data refresh
-  itself, rate-limited by `PARSE_MIN_INTERVAL_SECONDS`.
-- Parsing runs in a **separate niced subprocess** (`nice 19`, idle I/O priority)
-  so it yields to the game server, and its memory is returned to the OS on exit.
-- One parse at a time, hard timeout, results cached to disk so a container
-  restart doesn't re-parse.
-- **Only the decoders in use are registered.** Foliage grids, map objects, work
-  data and dynamic items stay as opaque bytes rather than being decoded into
-  millions of Python objects.
-- The UI polls live REST metrics every 5 s (cheap, it's just the game's API) and
-  save-derived data every 2 min.
+How it stays cheap: **nothing parses on a timer** — by default
+(`PARSE_AUTO=false`) the save is read only when you press Refresh, and every
+read endpoint serves cached data in between, so the dashboard costs your
+server nothing at rest. Parsing runs in a separate niced subprocess (`nice
+19`, idle I/O) whose memory returns to the OS on exit; one parse at a time,
+hard timeout, results cached to disk across restarts; and only the decoders in
+use are registered, so bulky structures stay as opaque bytes instead of
+millions of Python objects.
 
 If you want it even lighter, set `PARSE_ENABLED=false`. Everything driven by the
 REST API — status, players, FPS, admin actions, settings, broadcasts — keeps
@@ -394,35 +386,20 @@ Seven role presets, least to most privileged:
 | **Administrator** | Server settings and save editing as well. |
 | **Owner** | Everything, including accounts and the security policy. |
 
-**Moderating players and controlling the server are separate capabilities**
-(`players.moderate` and `server.control`). Both go to Moderator and above by
-default, but banning a griefer and shutting the world down are different kinds of
-trust, so either can be withdrawn without the other.
+The load-bearing rules, in brief — `docs/ROLES.md` has all of them:
 
-**Every command is audited, including the ones that fail.** Kick, ban, unban,
-announce, force-save and shutdown all go through the backend rather than straight
-to the game, precisely so there is a record: who did it, to whom, why, and whether
-it worked. The target's name is captured at the time — a Steam ID is unreadable six
-months later.
-
-**Two gates, both must agree.** A role grants a capability; the security level
-withholds it. An Owner on a `readonly` server still cannot write — that dial is
-about protecting the world from mistakes, not about trust. Nobody can grant a
-role above their own, and the last Owner cannot be demoted, disabled or deleted.
-
-**Sessions are revocable.** Signing out, disabling an account, changing someone's
-role or changing a password all take effect immediately rather than whenever a
-cookie happens to expire. Tokens are stored hashed, so a stolen database does not
-hand over live sessions.
-
-**Sign-in is throttled** per address and per username, with exponential backoff
-that survives a restart.
-
-**Everything is audited.** Every save write, settings change, restore, container
-stop, account change and policy change is recorded with who, when, from where and
-whether it succeeded — including refusals. The log is append-only: there is no
-endpoint that deletes an entry, and entries age out on a retention timer whose
-own runs are logged.
+- **Two gates, both must agree**: a role grants a capability, the security
+  level (`SECURITY_LEVEL`, an environment ceiling the UI cannot raise)
+  withholds it. An Owner on a `readonly` server still cannot write.
+- **Moderating players and controlling the server are separate capabilities**,
+  so either can be withdrawn without the other.
+- **Everything is audited, including failures and refusals** — who, when, from
+  where, target names captured at the time (a Steam ID is unreadable six
+  months later). The log is append-only.
+- **Sessions are revocable immediately**, tokens stored hashed; sign-in is
+  throttled per address and per username with backoff that survives restarts.
+- Nobody grants a role above their own, and the last Owner cannot be demoted,
+  disabled or deleted.
 
 ```yaml
 # Which parts of the world guests may see, and the write ceiling.
@@ -452,26 +429,14 @@ meaning:
 | `player_bases` | That, plus their bases — solo guilds only |
 | `guild` | The whole guild's bases. The one mode with a social cost |
 
-**The whole rule is one comparison:** `hidden ⟺ viewer_rank <= hider_rank`.
-
-- A player can **never hide from staff**, so moderation works without anyone
-  maintaining an exemption list.
-- **Equal rank is concealed.** Peers are exactly who a privacy setting is for.
-
-**The default is the most private mode**, not the least. Nobody should have to
-discover a privacy setting exists before they stop being exposed, and it costs
-little because staff see everyone regardless.
-
-**Bases have their own switch**, held by the guild master (with a fallback if the
-master has no dashboard account, so a guild is never locked out). Staff get no
-override on that one.
-
-Filtering happens **server-side, in two places** — the save endpoints and the
-live REST proxy. A filter in only one leaves a hidden player missing from the map
-and still showing as a live dot on the same screen.
-
-Privacy governs map and roster visibility only. The audit log, account management
-and save editing all work on real identities regardless.
+The whole rule is one comparison — `hidden ⟺ viewer_rank <= hider_rank` — so a
+player can never hide from staff and peers are exactly who the setting is for.
+The default is the most private mode, bases have their own guild-master-held
+switch, and filtering happens server-side in both data paths (save endpoints
+and the live REST proxy), because a filter in only one leaves a hidden player
+off the map yet showing as a live dot. Privacy governs map and roster
+visibility only; the audit log and moderation always see real identities.
+Details in `docs/ROLES.md`.
 
 ---
 
@@ -747,69 +712,26 @@ All of it is implemented and verified against a real world:
 | Coordinate teleport | Move a player to any point, or to one of the 174 fast-travel presets |
 | World copy for co-op | Remap one player's uid across a **copy** of the world |
 
-### Pal welfare
+A few of these deserve one line each — `docs/FEATURES.md` carries the full
+notes:
 
-An affliction in Palworld is a **property that exists**: a healthy Pal carries no
-`WorkerSick` field at all. So none of this was readable until it was looked for —
-on a real 2,963-Pal world that is 54 sick, 97 hungry or starving, 21 injured and
-33 with sanity under 50, none of which the dashboard could see.
-
-The **My Pals** tab now leads with a welfare panel listing them worst-first, and
-an operator with save-edit rights gets bulk cure, heal, feed and restore-sanity
-buttons over the whole affected set.
-
-Curing is a **deletion**, which is why it is safe: it produces a record identical
-to a Pal that was never ill, rather than a "well" value this project invented.
-Inflicting one is not offered.
-
-Feeding writes **two** things. `HungerType` is a consequence of `FullStomach`,
-so clearing the flag alone leaves the fullness where it was and the game sets it
-straight back at the next tick — an edit you would watch succeed and then lose.
-The fullness figure comes from the highest reading among your own affected Pals
-and is shown before you press anything, because the real ceiling is per species
-and per level and is stored nowhere in the save.
-
-### Moving a character between servers
-
-`soloexport.py` remaps a player's uid so a character works on another server or
-in co-op. It is the **one save operation that never writes to the live world** —
-it reads the world and produces a new directory, so it cannot corrupt anything
-and does not require the server stopped.
-
-Two departures from the reference implementation, both deliberate. It writes a
-copy rather than mutating in place, and it **matches uids by value rather than by
-key name**: the four named keys the reference rewrites miss **1,836 references**
-on a real world, 1,817 of them `LastNickNameModifierPlayerUid` alone. A key list
-is also a promise about a schema this project does not control, whereas a field
-holding a player's uid *means* that player whatever it is called.
-
-### Teleport
-
-Coordinate teleport is a **save edit**, not a live command — so the server has to
-be stopped. That limitation is real and worth stating plainly: it cannot unstick
-a player who is stuck right now.
-
-There is no live alternative. Verified against the shipped server binary rather
-than community docs: the only teleport command is `TeleportToPlayerByIndex`, and
-both admin teleports anchor to the **issuing admin's in-game character**. A
-headless dashboard has no character in the world, so there is no anchor.
-
-### Importing a Pal
-
-Export a Pal (or a whole player, which includes their team) and import it back —
-same file, unmodified. Two modes:
-
-- **Overwrite** writes the file's values onto Pals already in the world, matched by
-  instance id. Re-importing this world's own export is therefore a restore.
-- **Add as a new Pal** creates one, by copying a same-species Pal already in the
-  save and applying the file's fields. If you have never had that species, the
-  import is refused and says so — a Pal's record carries values specific to the save
-  it lives in, so one is copied rather than invented.
-
-**The preview lists every field it will *not* write.** An export contains a Pal's
-owner, container, slot and guild; none of those are editable. Dropping them silently
-would let you believe an imported Pal changed hands, so they are shown with a reason
-before you approve anything.
+- **Pal welfare**: the My Pals tab leads with a worst-first panel of sick,
+  starving, injured and low-sanity Pals, with bulk cure/heal/feed buttons.
+  Curing is a *deletion* of the affliction property — identical to a Pal that
+  was never ill — and feeding writes fullness as well as the hunger flag,
+  because the flag alone snaps back on the game's next tick.
+- **Moving a character between servers** (`soloexport`): the one save
+  operation that never writes to the live world — it produces a remapped
+  *copy*, matching uids by value rather than by key name (a key list missed
+  1,836 references on a real world).
+- **Teleport** is a save edit, not a live command — the server must be
+  stopped, and there is no live alternative: verified against the shipped
+  binary, both admin teleport commands anchor to the issuing admin's in-game
+  character, which a headless dashboard does not have.
+- **Pal import** previews every field it will *not* write (owner, container,
+  slot, guild — an export describes where a Pal is, not what it is), and
+  creating a new Pal copies a same-species record already in the save rather
+  than inventing one.
 
 **Permissions are capabilities, not roles.** `save.sort.stackables`,
 `save.sort.all` and `save.edit.full` are separate grants, enforced in the API
@@ -865,140 +787,42 @@ The suite is in tiers:
 | `pytest -m "not integration"` | ~1,880 | ~3 min | nothing |
 | `pytest` | ~2,020 | ~25 min | `refworld/` + `palsav` |
 
-**The 140 integration tests are most of those 25 minutes.** Each parses a real
-55 MB world, and the write paths take a full verified backup on top. That is the
-cost of testing against a real save rather than a fixture, and it is worth
-paying — but use `-m "not integration"` while iterating.
-
-That is **29,000 lines of backend tests against 37,000 lines of backend code.**
-
-Unit tests cover the corruption guard (every way it must refuse to write), path
-handling, the settings-INI parser, the access-policy ceiling, the container sort
-algorithm on synthetic data, password hashing, session revocation, login
-throttling, and the role model. The frontend tests cover the proxy route
-allowlist and the build-output tracing excludes. Integration tests run the real
-pipeline against a real world: parse a 55 MB save, sort every container, write
-it, re-read from disk and prove not one item moved in or out. They skip cleanly
-when `refworld/` is absent, so a fresh checkout still runs green.
-
-If you change anything under `backend/safety.py`, `backend/backup.py` or
+The 140 integration tests are most of those 25 minutes: each parses a real
+55 MB world, and the write paths take a full verified backup on top — the cost
+of testing against a real save rather than a fixture. **29,000 lines of
+backend tests against 37,000 lines of backend code**; integration tests skip
+cleanly when `refworld/` is absent, so a fresh clone runs green. If you change
+anything under `backend/safety.py`, `backend/backup.py` or
 `backend/saveedit.py`, run the full suite — the slow tests are the ones that
-actually prove the save is safe.
-
-**Two hazards this suite has actually hit**, both worth knowing before you add to
-it:
-
-- `vitest.config.ts` excludes `.next/`, because `next build` copies `src/` into
-  `.next/standalone/` and vitest was discovering the stale copy — which would
-  stay green against yesterday's build while the real source failed.
-- Backend modules capture environment variables **at import time**, so tests
-  monkeypatch the module attribute, not `os.environ`. For the same reason,
-  patching `safety.assert_writable` does nothing to `backup.py`, which bound the
-  name at import — a teleport test once passed for exactly that wrong reason.
-
-The integration tests write full-world backup archives into `$TMPDIR`. If that is
-a tmpfs, repeated interrupted runs will fill it; `/tmp` being full presents as
-every shell command failing with no output.
+actually prove the save is safe. **`docs/TESTING.md`** is the working guide:
+what each layer pins, and the traps that have actually fired.
 
 ---
 
-## Reading the game's own files
+## Where the game data comes from
 
-`refs/palworld/` (a dedicated server install — gitignored, not shipped) unlocks
-things the save files cannot answer, because the save only records what players
-have *done*, never what exists.
+Everything the dashboard states about the game is **extracted from the game's
+own files and bundled** — never fetched at runtime, never scraped from a wiki.
+The server pak is unencrypted and its DataTables, DataAssets and blueprint
+defaults all decode; that is where the names, stats, recipes, drop tables,
+spawner rosters, 396 effigy GUIDs, the World Partition cell grid, and 347 of
+the game's own tuning constants come from, each bundle stamped with its
+provenance. **`docs/GAMEDATA-SOURCES.md`** is the map of every source — and,
+just as deliberately, of every negative: what was searched for and confirmed
+absent, so "I could not find it" stops being evidence that it is not there.
 
-`Pal-LinuxServer.pak` is **not encrypted**, and its entries use Oodle — which
-this project already decompresses for saves. `scripts/palpak.py` lists and
-extracts any of its 158,444 files.
+### Element matchups
 
-Results so far:
-
-- **The World Partition cell grid.** Cells are named `MainGrid_L0_X<col>_Y<row>`,
-  and those names are coordinates. Cell size is 25,600 world units — measured,
-  not guessed: at that value all 174 fast-travel points land inside an occupied
-  cell. Connected components give one cluster per landmass, which is what finally
-  pinned down the World Tree map's extent.
-- **All 396 effigies**, each with its world position *and* the instance GUID
-  that save files key on. That GUID is what makes "which have I not found yet"
-  answerable rather than just "here they all are". `scripts/upackage.py` reads
-  the package export map to pair each relic actor with its position;
-  `scripts/extract-effigies.py` drives it. Bundled at 14 KB.
-
-- **Every passive skill's actual numbers.** The bundled tables carry an English
-  sentence — "Attack +5%" — which is right for showing a player and impossible to
-  compute with, so the passive term in the stat formula was **zero on every Pal
-  since the feature shipped**. `DT_PassiveSkill_Main` decodes out of the server
-  pak with structured effect types, signed values, targets and invoke conditions;
-  `scripts/extract-passive-effects.py` bundles all 1,897 at 20 KB. Cross-checked
-  against the game's own prose: 1,754 of the 1,759 with a numeric description
-  match exactly, and four of the five exceptions are the archive failing to
-  substitute its own `{EffectValue1}` placeholder. On a real world this corrected
-  **1,352 of 2,963 Pals**, the largest single attack figure by +1,515.
-
-  A passive's bonus is **per stat**, not one number: `Legend` is +20% attack *and*
-  +20% defence, `Noukin` is +30% attack and **−50%** work speed. 175 skills touch
-  more than one stat and 77 carry a negative.
-
-- **347 of the game's own tuning constants.** `BP_PalGameSetting`'s class-default
-  object decodes out of the server pak — which supersedes the assumption that
-  only DataTables come out of a pak, and is the answer to "surely that number is
-  in the files somewhere". It usually is.
-
-  **The decode verifies itself**: `CharacterMaxLevel` comes out **80** and
-  `CharacterMaxRank` **5**, two constants this project already held from sources
-  that explicitly could not be checked against the install. A misaligned read
-  does not land two independently-known values in the right places, and
-  `--verify` asserts them after a game update.
-
-  Three numbers that had been guessed at were in there: the level cap above, the
-  low-sanity threshold the welfare panel uses
-  (`FriendshipPoint_AutoIncrementRequireSanity = 50`, which had been *chosen* at
-  50), and the element damage multiplier.
-
-Something it does **not** unlock, recorded so nobody searches twice:
-
-- **Field boss levels.** Numeric properties in the unversioned block.
-
-The element *relation* is also not in any file — all 480 DataTables were listed
-and read, and no `Compatibility`, `Effectiveness` or `ElementDamage` asset exists
-under any name. Its **multiplier**, however, is: see "Element matchups".
-
-`DefaultPalWorldSettings.ini` from the same install is the authoritative list of
-the 119 settings a 1.0 server accepts, and the test suite checks the parser and
-presets against it.
-
-### Element matchups — the one hand-entered thing here
-
-Everything else in this project is extracted, and a script can re-derive it. The
-element chart cannot be: it is in neither the game pak nor the reference archive
-(see above), so it lives in C++ or in a blueprint's unversioned properties.
-
-`backend/elements.py` therefore ships it as a **documented constant** with its
-source named — the same footing as the level cap. It sits in a module rather than
-in `backend/data/` on purpose, so it is never mistaken for extracted data.
-
-**The game still decides what elements exist.** Only the *relation* is
-hand-entered; the vocabulary is read off the bundled Pal data, and
-`unknown_to_chart()` reports any element the game ships that the chart says
-nothing about — because this is the one thing here that can silently rot, and a
-tenth element would otherwise read as a confident "neutral" rather than a gap.
-
-Two checks before it was trusted: the relation is **exactly reciprocal** (nine
-strength pairs, nine weakness pairs, identical sets), and every name resolves
-against the bundled Pals — eight of nine matched the source's spelling, with only
-"Ground" needing mapping to the game's `Earth`.
-
-**The multiplier is the game's, and it is not 2x.** Only the *relation* was
-hand-entered; the number came out of `BP_PalGameSetting` —
-`DamageElementMatchRate = **1.2**`. The widely repeated figure is 2x damage dealt
-and half taken, and the game's settings object holds **exactly one**
-element-damage constant with no halving counterpart, so neither popular number is
-reproduced by the files.
-
-The API still returns *strong*, *weak* or *neutral* rather than a damage
-estimate, because that constant's meaning is inferred from its name and the
-binary exports two more element-damage symbols that are C++ and unread.
+The one hand-entered thing here. The element *relation* (what beats what)
+exists in no readable file — proven by enumeration, not by a failed search —
+because it is compiled into the game's C++. `backend/elements.py` ships it as
+a documented constant, verified reciprocal and name-resolved against the
+game's own element vocabulary, with a tripwire that surfaces any element a
+future update adds rather than letting it read as "neutral". The *multiplier*
+is the game's own, extracted: `DamageElementMatchRate = 1.2` — not the widely
+repeated "2x dealt, half taken", which appears in no file. The API returns
+strong/weak/neutral rather than a damage estimate, because how that constant
+composes is stated nowhere.
 
 ---
 

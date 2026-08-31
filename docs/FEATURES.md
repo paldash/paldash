@@ -419,3 +419,44 @@ and always as counts, never "n of N".
 Passives on party Pals that buff the *player* (`ToTrainer` effects), listed
 per player on the roster. Per-effect rows, never summed: no file states the
 stacking rule.
+
+## Save-editing notes (moved from the README front page)
+
+### Pal welfare
+An affliction in Palworld is a **property that exists**: a healthy Pal carries
+no `WorkerSick` field at all. Curing is therefore a *deletion* — it produces a
+record identical to a Pal that was never ill, rather than a "well" value this
+project invented; inflicting one is not offered. Feeding writes **two**
+things: `HungerType` is a consequence of `FullStomach`, so clearing the flag
+alone leaves fullness where it was and the game sets the flag straight back at
+the next tick. The fullness figure offered comes from the highest reading
+among the operator's own affected Pals and is shown before anything is
+pressed.
+
+### Moving a character between servers
+`soloexport.py` is the one save operation that never writes to the live world:
+it reads the world and produces a remapped **copy**, so it cannot corrupt
+anything and does not require the server stopped. It matches uids **by value,
+not by key name** — the four named keys the reference implementation rewrites
+miss 1,836 references on a real world, 1,817 of them
+`LastNickNameModifierPlayerUid` alone. A key list is also a promise about a
+schema this project does not control; a field holding a player's uid *means*
+that player whatever it is called.
+
+### Teleport
+Coordinate teleport is a **save edit**, so the server must be stopped — it
+cannot unstick a player who is stuck right now, and there is no live
+alternative. Verified against the shipped server binary rather than community
+docs: the only teleport command is `TeleportToPlayerByIndex`, and both admin
+teleports anchor to the **issuing admin's in-game character**. A headless
+dashboard has no character in the world, so there is no anchor.
+
+### Pal import
+Export a Pal (or a whole player, which embeds the team) and import it back.
+**Overwrite** writes onto Pals matched by instance id, so re-importing a
+world's own export is a restore; **add as new** deep-copies a same-species
+record already in the save and applies the file's fields — no template species
+means a refusal naming it, because a Pal's record carries values specific to
+its save. The preview lists every field it will **not** write (owner,
+container, slot, guild — where a Pal *is*, not what it is), so nobody believes
+an imported Pal changed hands.
