@@ -69,14 +69,13 @@ the receipts.
 ## PRs
 
 - Small and focused beats large and mixed. A fix and a refactor are two PRs.
-- **The PR title is a [Conventional Commit](https://www.conventionalcommits.org)**:
-  `type(scope): summary`, summary in lowercase — `fix(backup): refuse a
-  corrupt archive instead of crashing`. Types: `feat`, `fix`, `docs`, `ci`,
-  `chore`, `refactor`, `test`, `perf`, `build`, `revert`. PRs are squash-merged
-  with the title as the commit subject, so the title is what reaches history;
-  CI checks it and nothing else — your individual commits inside the PR can be
-  whatever you like. Put the *why* in the PR description; it becomes the body.
-  (`npx commitlint` reads a message from stdin if you want to check one.)
+- PRs are squash-merged with the **title** as the commit subject, so a
+  [Conventional Commit](https://www.conventionalcommits.org) title —
+  `type(scope): summary`, lowercase summary, e.g. `fix(backup): refuse a
+  corrupt archive instead of crashing` — is appreciated. Not enforced: the
+  maintainer will retitle at merge if needed. Your individual commits inside
+  the PR can be whatever you like; put the *why* in the PR description, it
+  becomes the body.
 - If you changed behaviour, a test pins it. If you fixed a bug, the test fails
   without the fix.
 - CI (commit messages, backend unit, frontend lint/unit/build, browser smoke,
