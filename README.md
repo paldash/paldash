@@ -42,10 +42,12 @@ and to stay out of the game server's way.
 
 ---
 
-## Palworld 1.0 support (read this first)
+## Built for Palworld 1.0 — why the usual tools fail on it (read this first)
 
-Palworld 1.0 (the Summer 2026 update) changed the save format. Saves are now
-compressed with **Oodle Kraken** and the magic bytes changed from `PlZ` to `PlM`.
+This dashboard targets **Palworld 1.0** (the Summer 2026 update) and nothing
+older. 1.0 changed the save format: saves are now compressed with **Oodle
+Kraken** and the magic bytes changed from `PlZ` to `PlM` — which is why most
+existing tooling cannot read them.
 
 **The `palworld-save-tools` PyPI package cannot read 1.0 saves.** On a real 1.0
 `Level.sav` it fails immediately:
