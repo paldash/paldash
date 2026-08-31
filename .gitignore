@@ -97,5 +97,5 @@ playwright-report/
 test-results/
 .lighthouseci/
 
-# Claude Code per-user overrides (permissions); the shared settings.json is tracked
-.claude/settings.local.json
+# Claude Code config stays local (attribution and per-user permissions)
+.claude/

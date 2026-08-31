@@ -1512,8 +1512,8 @@ so anything adopted is fetched once and bundled.
 - Commit messages are Conventional Commits — `type(scope): summary`, lowercase
   summary, body explaining *why*. By discipline, not CI: PRs are squash-merged
   with the title as subject and the maintainer writes that title. No
-  `Co-Authored-By` trailer (`.claude/settings.json` turns it off); commits
-  before 2026-08-25 carry one and are left alone.
+  `Co-Authored-By` trailer (an untracked local `.claude/settings.json` turns
+  it off); commits before 2026-08-25 carry one and are left alone.
 - Comments explain *why*, especially where a subtlety already caused a bug.
   Match the existing density; do not narrate obvious code.
 - Backend modules are flat and import each other directly. Module-level constants
