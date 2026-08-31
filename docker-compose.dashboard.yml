@@ -1,0 +1,45 @@
+# The dashboard ALONE, for adding to a server you already run — no clone
+# needed. Download this file next to your existing compose file and start
+# both together:
+#
+#   curl -LO https://raw.githubusercontent.com/paldash/paldash/main/docker-compose.dashboard.yml
+#   docker compose -f docker-compose.yml -f docker-compose.dashboard.yml up -d
+#
+# Three things must line up (the README's checklist has the full detail):
+#   1. The volumes below mount EXACTLY the same host path your server mounts.
+#   2. Both services share a network — running them in one compose project
+#      (the two -f files above) does this automatically.
+#   3. RESTAPIEnabled=True and AdminPassword set on the server. Most images
+#      expose these as env vars (jammsen spells the port RESTAPI_PORT,
+#      thijsvanloef REST_API_PORT).
+#
+# The full-stack alternatives ship in this repo too: docker-compose.yml
+# (thijsvanloef server + dashboard) and docker-compose.jammsen.yml.
+services:
+  dashboard:
+    image: ghcr.io/paldash/paldash:latest
+    container_name: paldash
+    restart: unless-stopped
+    # Uncomment and match your server's service name so the dashboard starts
+    # after it. Left off by default because that name varies per setup:
+    # depends_on:
+    #   - palworld
+    ports:
+      - "3000:3000" # UI. Put this behind a reverse proxy / VPN if not LAN-only.
+    volumes:
+      - ./palworld:/palworld # <- EXACTLY the same mount your server uses
+      - dashboard-cache:/app/cache # parse cache AND the accounts database
+      - dashboard-backups:/app/backups # keep these OFF the server's directory
+    environment:
+      # http://<your server's service name>:<REST port>
+      - PALWORLD_REST_URL=http://palworld:8212
+      - PALWORLD_ADMIN_PASSWORD=${PALWORLD_ADMIN_PASSWORD}
+      - PANEL_PASSWORD=${PANEL_PASSWORD} # creates the first Owner account
+      - SAVE_BASE_DIR=/palworld/Pal/Saved/SaveGames/0
+      - BACKUP_DIR=/app/backups
+      - CACHE_DIR=/app/cache
+    mem_limit: 3g
+
+volumes:
+  dashboard-cache:
+  dashboard-backups:

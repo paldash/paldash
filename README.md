@@ -113,21 +113,28 @@ container traps that only show up on a real build.
 
 ## Adding this to an existing compose file
 
-Copy this one service into your existing compose file. Three things must line
-up: the **same bind mount**, a **shared network**, and `RESTAPIEnabled=True` on
-the server.
+Copy this one service into your existing compose file — **no clone needed**,
+it pulls the published image. Or skip the copying and stack the shipped
+dashboard-only file next to yours:
 
-Put this repository in a directory **beside your compose file**, because
-`build:` is resolved relative to the compose file, not to your shell's working
-directory:
+```bash
+curl -LO https://raw.githubusercontent.com/paldash/paldash/main/docker-compose.dashboard.yml
+docker compose -f docker-compose.yml -f docker-compose.dashboard.yml up -d
+```
+
+Either way, three things must line up: the **same bind
+mount**, a **shared network**, and `RESTAPIEnabled=True` on the server.
 
 ```
 your-server-dir/
 ├── docker-compose.yml
 ├── .env
-├── palworld/               <- the game's data, already bind-mounted
-└── paldash/                <- this repo
+└── palworld/               <- the game's data, already bind-mounted
 ```
+
+(Only if you want to build from source instead: clone this repo into a
+directory beside your compose file — `build:` resolves relative to the compose
+file, not your shell — and swap the `image:` line for `build: ./paldash`.)
 
 ```yaml
 services:
