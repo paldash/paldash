@@ -177,11 +177,14 @@ const PIN = {
   base: '/icons/map/base.webp',
   player: '/icons/map/player.webp',
   palbox: '/icons/structures/T_icon_buildObject_PalBoxV2.webp',
-  // Fast travel finally has real artwork. The game's *own* fast-travel asset
+  // The game's *own* fast-travel asset
   // (`structures/T_icon_buildObject_FastTravelPoint.webp`) is a 512px stone
-  // plinth measured at luma 8 of 255 — a black blob at marker size, which is why
-  // it was rejected before. These are the compass HUD icons, drawn to be read
-  // small. See `public/icons/map/PROVENANCE.md`.
+  // plinth measured at luma 8 of 255 — a black blob at marker size, which is
+  // why it was rejected. These wiki-traced compass icons shipped before the
+  // public release; the artwork purge removed them and nothing refetches them
+  // (the pak has no legible marker art), so today these paths 404 and the
+  // probe below leaves the CSS fallback pins standing. The paths stay so any
+  // operator who drops marker art into public/icons/map/ gets it used.
   fastTravel: '/icons/map/fasttravel.webp',
   tower: '/icons/map/tower.webp',
   fieldboss: '/icons/map/fieldboss.webp',

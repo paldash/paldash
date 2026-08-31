@@ -105,7 +105,9 @@ container traps that only show up on a real build.
 | `docs/UPGRADING.md` | What to do when Palworld or the dashboard updates — operator and maintainer |
 | `docs/CROSSPLAY.md` | What is known about non-Steam players, and what is not |
 | `docs/LICENSING.md` | Why this is GPL-3.0, and what that does and does not require |
+| `docs/TRANSLATING.md` | Verifying a machine-translated language — a contribution needing no code |
 | `docs/GAMEDATA-SOURCES.md` | Where every fact about the game comes from — read before designing |
+| `docs/SAVE-FIELDS.md` | Every field in a save, its occupancy, and what nothing reads yet |
 | `docs/DATATABLES.md` | Machine-generated index of all 471 server-pak DataTables |
 | `AGENTS.md` | The subtleties that have already caused bugs |
 
@@ -186,9 +188,9 @@ Checklist:
    is where the jammsen image keeps *its* rotating snapshots — two backup systems
    in one directory is a bad trade.
 6. **`PUID`/`PGID` must match.** The dashboard image is built for uid/gid 1000,
-   which is both server images' default. If yours differ, pass
-   `args: { APP_UID: "…", APP_GID: "…" }` under `build:` rather than reverting to
-   root.
+   which is both server images' default. If yours differ, build from source with
+   `args: { APP_UID: "…", APP_GID: "…" }` (swap the `image:` line for `build:`)
+   rather than reverting to root.
 7. If `SAVE_BASE_DIR` doesn't exist, check your image's layout. The Settings tab
    reports the path it resolved.
 
@@ -522,10 +524,12 @@ server to shut down — pair it with `restart: unless-stopped` so it comes back.
 Unknown keys are rejected rather than appended: a typo'd key silently added to
 `OptionSettings` is how you end up with a server that won't boot.
 
-**Your container probably owns some of these settings, not this file.** Both
-`thijsvanloef/palworld-server-docker` and `jammsen/docker-palworld-dedicated-server`
-rewrite `PalWorldSettings.ini` from environment variables *on every start*, so a
-change saved here survives until the next restart and is then silently reverted —
+**Your container may own some of these settings, not this file.**
+`thijsvanloef/palworld-server-docker` rewrites `PalWorldSettings.ini` from
+environment variables *on every start*; `jammsen/docker-palworld-dedicated-server`
+does so only with `SERVER_SETTINGS_MODE=auto` (its default is `manual` — read
+from the image's own metadata, not its docs). Where rewriting applies, a change
+saved here survives until the next restart and is then silently reverted —
 worse than a refusal, because you watched it succeed. The settings tab now flags
 those keys with the variable that overrides them (`SERVER_NAME`,
 `ADMIN_PASSWORD`, `PLAYERS`, `RCON_*`, `REST_API_*`, and others) and points at
@@ -544,7 +548,7 @@ container — not here.
 
 ## Breeding
 
-Uses the game's own full pair table — all 299 Pals and 44,850 parent
+Uses the game's own full pair table — 305 breedable forms and 46,655 parent
 combinations — rather than a reimplementation of the CombiRank formula, so
 special pairings are correct by construction (Sparkit × Relaxaurus →
 Relaxaurus Lux verifies correctly).
@@ -600,11 +604,11 @@ This project stands on other people's work:
   game data here that was hand-entered rather than extracted; see "Element
   matchups". Damage multipliers are *not* taken from it, since it presents those
   as an image.
-- **[Palworld Wiki](https://palworld.fandom.com)** — used twice, both documented
-  where they land: the seven map-marker icons in `public/icons/map/` (see the
-  `PROVENANCE.md` beside them — the game's own compass HUD art, which a headless
-  server install does not ship pixels for), and the condenser progression table
-  that `backend/condenser.py` tests against the game's own files.
+- **[Palworld Wiki](https://palworld.fandom.com)** — the condenser progression
+  table that `backend/condenser.py` tests against the game's own files. (Seven
+  wiki-traced map-marker icons shipped before release; they were removed with
+  the rest of the extracted artwork, and the map's drawn CSS pins stand in —
+  the game's own files carry no legible marker art to fetch.)
 - Palworld is © Pocketpair, Inc. This project is unofficial and unaffiliated.
   **Nothing here is credited that the built image does not contain** —
   `docs/LICENSING.md` holds the shipped-dependency table, and the two credits
@@ -620,7 +624,9 @@ This project stands on other people's work:
 and they are separate maps in-game with separate framings — verified by checking
 all 174 fast-travel points against the coordinate transform: 157/157 Palpagos
 points land on the Palpagos image, 0/17 World Tree points do. Use the region
-switcher above the map. Both images install with:
+switcher above the map. **The container fetches both map images (and all icons)
+automatically at first boot** — ~27 MB once, cached in the volume, off with
+`FETCH_ASSETS_ON_BOOT=false`. Building from a game install instead:
 
 ```bash
 python3 scripts/install-map-assets.py    # extracts from refs/ into public/maps/
@@ -652,15 +658,17 @@ From the game pak, bundled so nothing is fetched at runtime:
   split into 8 tower bosses, 22 watchtowers and 144 ordinary points, because all
   174 drawn identically is why the towers looked missing.
 
-Icons for Pals, items, elements and NPCs install from the reference archive:
+Icons for Pals, items, elements and NPCs arrive the same way — fetched at first
+boot, or offline from the reference archive:
 
 ```bash
-python3 scripts/install-icons.py          # 1,409 icons, 7.7 MB
+python3 scripts/install-icons.py          # ~1,500 icons, ~11 MB
 python3 scripts/install-icons.py --list   # what else is available
 ```
 
 They are optional — without them every view renders text-only rather than a
-column of broken images. Lookups go through a manifest rather than a guessed
+column of broken images, and the map's category pins fall back to drawn CSS
+markers. Lookups go through a manifest rather than a guessed
 path, because the sources disagree on capitalisation and a 404 reads as "this
 Pal has no icon".
 
@@ -855,12 +863,12 @@ The suite is in tiers:
 | `pytest -m "not integration"` | ~1,880 | ~3 min | nothing |
 | `pytest` | ~2,020 | ~25 min | `refworld/` + `palsav` |
 
-**The 60 integration tests are ~19 of those 21 minutes.** Each parses a real
+**The 140 integration tests are most of those 25 minutes.** Each parses a real
 55 MB world, and the write paths take a full verified backup on top. That is the
 cost of testing against a real save rather than a fixture, and it is worth
 paying — but use `-m "not integration"` while iterating.
 
-That is **11,571 lines of backend tests against 17,435 lines of backend code.**
+That is **29,000 lines of backend tests against 37,000 lines of backend code.**
 
 Unit tests cover the corruption guard (every way it must refuse to write), path
 handling, the settings-INI parser, the access-policy ceiling, the container sort
@@ -1012,9 +1020,10 @@ Being straight about what is not done:
 - **The World Tree map is not calibrated, only measured.** Its extent now comes
   from the cell grid and is exact, but the image *orientation* has never been
   checked against a known point up there.
-- **Dungeons are only partially mapped** — the save has 170 markers with state
-  but no position. Extractable from the pak with the same technique the effigies
-  and field bosses used; nobody has done it yet.
+- **Dungeon clear-state has no checklist.** The 2,163 dungeon objects from the
+  game's files are on the map, but no save examined has ever written a
+  `FixedDungeonClearCount` entry, so "which have I cleared" cannot be joined
+  against them and the Progression tab says so rather than showing 0 of 23.
 - **Raid bosses have no map presence, and cannot.** The 19 `RAID_` species are
   summoned at an altar rather than placed in the world, so a table of locations
   has nothing to say about them.
@@ -1033,10 +1042,8 @@ Being straight about what is not done:
 - **Field boss levels ARE available** as of this build — 90 placed bosses,
   levels 11-79, with verified world positions, on the map. This entry used to say
   the opposite; the levels were behind a table the pak reader was refusing.
-- **No optimiser yet.** The inputs are now in place — Pal stats are correct for
-  the first time since the passive term was fixed, work suitabilities and bought
-  work ranks are readable — but nothing yet answers "who should mine".
-- **No 2FA or password-reset flow**, and no dependency scanning in CI.
+- **No 2FA or password-reset flow.** An Owner resets passwords from the Users
+  tab; there is no self-service path.
 - **`docker` is not in the runtime image**, so the container Stop/Start buttons
   stay hidden unless you configure them. Deliberate — see "Maintenance mode".
   `docs/DEPLOYMENT.md` §4 has commands that work without it.
