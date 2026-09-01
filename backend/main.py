@@ -4765,10 +4765,18 @@ def preview_world_export(req: WorldExportRequest, request: Request) -> dict[str,
     # What a prune would remove, counted, alongside the remap. Shown BEFORE the
     # choice rather than after — the counts are the whole safety story for a
     # destructive option.
+    #
+    # `keep_uid` is the SOURCE, here and in `apply_export` — the exported
+    # character's own guild is always kept, and both sides compute it from the
+    # un-remapped world so they cannot disagree. It used to be the target,
+    # which protected nothing when the target was a fresh uid (the
+    # single-player host case, whose all-zeros-prefixed uid the sentinel
+    # collapse in `exportscope._guid` erases outright) and the wrong player's
+    # guild in a swap.
     if req.keepGuilds is not None:
         try:
             plan["prune"] = exportscope.plan(
-                exportscope.load_world(), req.keepGuilds, keep_uid=req.targetUid)
+                exportscope.load_world(), req.keepGuilds, keep_uid=req.sourceUid)
         except exportscope.ExportScopeError as e:
             raise HTTPException(503, str(e))
     return plan

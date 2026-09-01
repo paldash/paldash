@@ -18,11 +18,16 @@ That is a deliberate departure from the reference implementation
 (`PalWorldSaveTools/fix_host_save.py`), which mutates in place. Producing a copy is
 what the operator actually wants, and it costs nothing but disk.
 
-**The target uid is supplied, never inferred.** There is no host-uid constant in
-Palworld that this project has been able to verify — the reference implementation
-asks the user for both uids and hardcodes nothing. Guessing a rule would silently
+**The target uid is supplied, never inferred.** Guessing a rule would silently
 produce an unloadable world, so the caller names the target and the plan reports
-exactly what will change.
+exactly what will change. This paragraph used to add "there is no host-uid
+constant in Palworld that this project has been able to verify"; there is, and
+the reference archive corroborates it twice. The single-player / co-op host is
+always `00000000-0000-0000-0000-000000000001` — PST's `slot_injector.py`
+special-cases exactly that uid as the host, and its integration-test co-op
+save's player file is literally `00000000000000000000000000000001.sav`. The UI
+offers it as a labelled preset; this module still never fills it in, because
+"where is this copy going" is the caller's fact, not a default.
 
 **Rename and swap are different operations, and which one applies is detected.**
 If the target uid already exists in the world, the two characters exchange uids —
@@ -308,7 +313,16 @@ def plan_export(
     source = _fmt_uid(source_uid)
     target = _fmt_uid(target_uid)
     if source == target:
-        raise SoloExportError("Source and target uid are the same — nothing to remap.")
+        # The refusal is correct (a same-uid remap changes zero bytes) and used
+        # to teach nothing — an operator whose goal was "a copy of my own
+        # progress" reasonably typed their own uid here and got a dead end.
+        raise SoloExportError(
+            "Source and target uid are the same — nothing to remap. For a "
+            "single-player or co-op copy, the target is the host uid "
+            "00000000-0000-0000-0000-000000000001. To move to another "
+            "dedicated server under the same account, no remap is needed — "
+            "download a backup instead."
+        )
 
     root = world_dir or savefiles.get_default_world_dir()
     if not root or not os.path.isdir(root):
@@ -546,12 +560,20 @@ def apply_export(
 
         level_gvas, level_type = _load(os.path.join(root, "Level.sav"))
         world = _world_save_data(level_gvas)
-        applied = _remap_level(world, mapping)
 
-        # **The prune runs on the COPY's tree, after the remap and before the
-        # write.** Order matters: remapping first means the kept player already
-        # carries the target uid, so `keep_uid` matches whichever identity the
-        # export is producing.
+        # **The prune runs BEFORE the remap, keyed on the SOURCE uid.** It used
+        # to run after, keyed on the target — reasoning that the kept player
+        # already carried the target uid by then. That failed exactly where it
+        # mattered most: `exportscope._guid` collapses the
+        # `00000000-0000-0000-0000-…` sentinel family to "", and the
+        # single-player host uid is in that family — so a host-uid export
+        # protected no guild at all, and unticking your own guild pruned it
+        # out of your own copy. Pre-remap, the exported character still wears
+        # the source uid, a real Steam-shaped uid that matches its guild, and
+        # the preview computes its plan from the same world state with the
+        # same key, so the two cannot disagree. The remap then counts its
+        # references on the pruned tree; `_verify` asserts completeness, not
+        # a count, so nothing downstream compares the two totals.
         #
         # A refusal here is not an error the caller has to handle — the whole
         # design is that the unpruned copy still gets written. A world missing
@@ -561,13 +583,15 @@ def apply_export(
         prune: dict[str, Any] = {"requested": keep_guilds is not None}
         if keep_guilds is not None:
             try:
-                prune.update(exportscope.apply(world, keep_guilds, keep_uid=target))
+                prune.update(exportscope.apply(world, keep_guilds, keep_uid=source))
             except exportscope.ExportScopeError as e:
                 prune.update({"pruned": False, "refused": str(e)})
                 logger.warning("Prune refused, writing the full copy: %s", e)
             except Exception as e:  # noqa: BLE001 - same outcome, wider net
                 prune.update({"pruned": False, "refused": f"{type(e).__name__}: {e}"})
                 logger.warning("Prune failed, writing the full copy: %s", e)
+
+        applied = _remap_level(world, mapping)
 
         _write(level_gvas, level_type, os.path.join(staging, "Level.sav"))
 

@@ -19,13 +19,11 @@ Two things carry the tests:
 from __future__ import annotations
 
 import math
+import os
 
 import pytest
 
 import teleport
-
-UID = "22b22b02-0000-0000-0000-000000000000"
-
 
 # ─── Validation ──────────────────────────────────────────
 
@@ -107,8 +105,29 @@ def world(refworld, palsav_available):
     return refworld
 
 
+@pytest.fixture
+def UID(world):
+    """
+    A real player uid, read off the reference world at runtime.
+
+    This used to be a committed constant holding a real refworld uid, and the
+    public-release scrub rewrote it to a placeholder — correctly, but
+    `refworld/` on disk is gitignored and kept its real ids, so every test
+    naming a player by the committed value silently stopped finding one.
+    Deriving the uid from the world keeps real Steam IDs out of the repository
+    and keeps these tests working whatever world sits in `refworld/`.
+    """
+    names = sorted(
+        n for n in os.listdir(os.path.join(world, "Players"))
+        if n.endswith(".sav") and not n.endswith("_dps.sav")
+    )
+    assert names, "the reference world has no player saves"
+    raw = names[0][:-4].lower()
+    return f"{raw[0:8]}-{raw[8:12]}-{raw[12:16]}-{raw[16:20]}-{raw[20:32]}"
+
+
 @pytest.mark.integration
-def test_the_position_lives_in_the_player_save_not_the_level(world):
+def test_the_position_lives_in_the_player_save_not_the_level(world, UID):
     """
     Checked rather than assumed. `Level.sav`'s character record carries Exp, Level,
     NickName and a LastJumpedLocation — but no live position, which is why a
@@ -122,7 +141,7 @@ def test_the_position_lives_in_the_player_save_not_the_level(world):
 
 
 @pytest.mark.integration
-def test_a_plan_reports_the_move_without_making_it(world):
+def test_a_plan_reports_the_move_without_making_it(world, UID):
     before = teleport.current_position(UID, world)
     point = teleport.destinations()[0]
 
@@ -138,7 +157,7 @@ def test_a_plan_reports_the_move_without_making_it(world):
 
 
 @pytest.mark.integration
-def test_a_fast_travel_destination_raises_no_height_warning(world):
+def test_a_fast_travel_destination_raises_no_height_warning(world, UID):
     """A verified ground position is exactly what the warning exists to ask for."""
     point = teleport.destinations()[0]
     plan = teleport.plan_teleport(UID, point["x"], point["y"], point["z"], world)
@@ -147,7 +166,7 @@ def test_a_fast_travel_destination_raises_no_height_warning(world):
 
 
 @pytest.mark.integration
-def test_a_destination_far_from_anywhere_known_warns_about_height(world):
+def test_a_destination_far_from_anywhere_known_warns_about_height(world, UID):
     """
     Not an error — most of the map is far from a fast-travel point. But combined
     with a hand-typed z it is the shape of a mistake worth naming.
@@ -163,7 +182,7 @@ def test_a_missing_player_is_refused(world):
 
 
 @pytest.mark.integration
-def test_applying_refuses_when_the_server_is_not_provably_stopped(world):
+def test_applying_refuses_when_the_server_is_not_provably_stopped(world, UID):
     """
     The fail-closed default, with no patching: nothing in a test environment can
     prove a Palworld server is stopped, so a teleport is refused. This is the state
@@ -179,7 +198,7 @@ def test_applying_refuses_when_the_server_is_not_provably_stopped(world):
 
 
 @pytest.mark.integration
-def test_the_write_actually_goes_through_the_guard(world, monkeypatch):
+def test_the_write_actually_goes_through_the_guard(world, UID, monkeypatch):
     """
     Proves the refusal above comes from `guarded_save_write` rather than from the
     write failing for some unrelated reason.

@@ -21,7 +21,18 @@ import { t } from '@/lib/chrome';
  * The target uid is typed, not picked from a list, because it is a uid that
  * generally does *not* exist in this world yet — it is whatever the destination
  * install will present. Offering a dropdown would imply otherwise.
+ *
+ * The one destination everyone shares gets a preset: single-player and co-op
+ * hosting always present the fixed host uid below. Verified against the
+ * reference archive rather than taken from folklore — PST's `slot_injector.py`
+ * special-cases exactly this uid as the host, and its integration-test co-op
+ * save's player file is named `00000000000000000000000000000001.sav`. Without
+ * the preset, the most common use of this panel required a uid no part of the
+ * UI ever named — and typing your own uid instead earns a refusal.
  */
+
+/** What a single-player or co-op-hosting install presents as the player. */
+const HOST_UID = '00000000-0000-0000-0000-000000000001';
 export default function WorldExport({ canManage }: { canManage: boolean }) {
   const [players, setPlayers] = useState<PlayerSaveData[]>([]);
   const [source, setSource] = useState('');
@@ -130,7 +141,7 @@ export default function WorldExport({ canManage }: { canManage: boolean }) {
           <input
             className="input mono"
             style={{ width: '100%' }}
-            placeholder="e.g. 22b22b02-0000-0000-0000-000000000000"
+            placeholder={HOST_UID}
             value={target}
             disabled={busy}
             onChange={(e) => { setTarget(e.target.value); setPlan(null); setResult(null); }}
@@ -140,6 +151,18 @@ export default function WorldExport({ canManage }: { canManage: boolean }) {
         <button className="btn" disabled={busy || !source || !target} onClick={preview}>
           Preview
         </button>
+      </div>
+
+      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6 }}>
+        <button
+          className="btn"
+          style={{ fontSize: 11, padding: '2px 8px', marginRight: 8 }}
+          disabled={busy}
+          onClick={() => { setTarget(HOST_UID); setPlan(null); setResult(null); }}
+        >
+          {t('Single-player / co-op host')}
+        </button>
+        {t('Taking your character into single-player or hosting co-op yourself? The game presents this fixed host id there — use the preset. Moving to another dedicated server under the same account needs no remap at all: download a backup instead.')}
       </div>
 
       {/* The prune. Opt-in, and the counts arrive before the choice is final —
@@ -155,7 +178,12 @@ export default function WorldExport({ canManage }: { canManage: boolean }) {
               Guilds to keep — untick one to remove it and everything it owns.
             </div>
             {guilds.map((g) => {
-              const mine = g.adminUid === target || g.playerUids.includes(target);
+              /* Keyed on the SOURCE — the player being exported — to match the
+                 backend, which force-keeps the source's guild. Keying on the
+                 typed target marked no guild "yours" whenever the target was a
+                 fresh uid, which the single-player host preset makes the
+                 common case. */
+              const mine = g.adminUid === source || g.playerUids.includes(source);
               const ticked = keep?.has(g.guildId) ?? true;
               return (
                 <label

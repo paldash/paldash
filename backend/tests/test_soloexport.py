@@ -185,14 +185,52 @@ def world(refworld, palsav_available):
     return refworld
 
 
+# Memoised across tests: choosing the uids costs a full parse plus five tree
+# walks, and the answer cannot change mid-run.
+_REF_UIDS: list[str] = []
+
+
+@pytest.fixture
+def ref_uids(world):
+    """
+    The reference world's player uids, busiest first, read at runtime.
+
+    These used to be committed constants holding real refworld uids, and the
+    public-release scrub rewrote them to placeholders — correctly, but
+    `refworld/` on disk is gitignored and kept its real ids, so every
+    integration test naming a player by the committed value silently stopped
+    finding one. Deriving them from the world keeps real Steam IDs out of the
+    repository for good.
+
+    Sorted by reference count because the tests that assert on volume
+    ("misses ~1,800 references", "total > 1000") were written against the
+    world's most active player, and which slot of a directory listing that
+    player occupies is an accident.
+    """
+    if not _REF_UIDS:
+        gvas, _ = soloexport._load(os.path.join(world, "Level.sav"))
+        tree = soloexport._world_save_data(gvas)
+        counted = []
+        for name in sorted(os.listdir(os.path.join(world, "Players"))):
+            if not name.endswith(".sav") or name.endswith("_dps.sav"):
+                continue
+            uid = soloexport._fmt_uid(name[: -len(".sav")])
+            counted.append((soloexport._walk_uids(tree, {uid: uid}, apply=False), uid))
+        counted.sort(reverse=True)
+        assert len(counted) >= 2, "these tests need a world with at least two players"
+        _REF_UIDS.extend(uid for _count, uid in counted)
+    return _REF_UIDS
+
+
 @pytest.mark.integration
 @pytest.mark.slow
-def test_the_reference_key_list_would_miss_most_references(world):
+def test_the_reference_key_list_would_miss_most_references(world, ref_uids):
     """
     The measurement behind matching on value rather than on key name. If this ever
     stops being true the design note in `soloexport` should be revisited — but the
     value-based walk is a superset either way, so the export stays correct.
     """
+    A = ref_uids[0]
     gvas, _ = soloexport._load(os.path.join(world, "Level.sav"))
     tree = soloexport._world_save_data(gvas)
 
@@ -221,7 +259,8 @@ def test_the_reference_key_list_would_miss_most_references(world):
 
 @pytest.mark.integration
 @pytest.mark.slow
-def test_a_rename_moves_every_reference(world, tmp_path):
+def test_a_rename_moves_every_reference(world, ref_uids, tmp_path):
+    A = ref_uids[0]
     plan = soloexport.plan_export(A, C, world_dir=world)
     assert plan["mode"] == "rename"
     assert plan["references"]["characterEntries"] == 1
@@ -242,11 +281,12 @@ def test_a_rename_moves_every_reference(world, tmp_path):
 
 @pytest.mark.integration
 @pytest.mark.slow
-def test_a_swap_exchanges_two_identities_exactly(world, tmp_path):
+def test_a_swap_exchanges_two_identities_exactly(world, ref_uids, tmp_path):
     """
     The test the double-visit bug fails. Each player must end up with exactly the
     other's reference count — a partial undo shows up here and nowhere else.
     """
+    A, B = ref_uids[0], ref_uids[1]
     gvas, _ = soloexport._load(os.path.join(world, "Level.sav"))
     before = soloexport._world_save_data(gvas)
     before_a = soloexport._walk_uids(before, {A: A}, apply=False)
@@ -268,7 +308,7 @@ def test_a_swap_exchanges_two_identities_exactly(world, tmp_path):
 
 @pytest.mark.integration
 @pytest.mark.slow
-def test_the_source_world_is_never_written_to(world, tmp_path):
+def test_the_source_world_is_never_written_to(world, ref_uids, tmp_path):
     """
     The structural safety property. Every other writer here needs the server provably
     stopped; this one is safe to run live precisely because it only ever reads the
@@ -286,37 +326,43 @@ def test_the_source_world_is_never_written_to(world, tmp_path):
         return out
 
     before = stamps()
-    soloexport.apply_export(A, C, world_dir=world, destination=str(tmp_path / "e"))
+    soloexport.apply_export(
+        ref_uids[0], C, world_dir=world, destination=str(tmp_path / "e"))
     assert stamps() == before
 
 
 @pytest.mark.integration
 @pytest.mark.slow
-def test_other_players_are_carried_across_untouched(world, tmp_path):
+def test_other_players_are_carried_across_untouched(world, ref_uids, tmp_path):
     """
     This is a copy of the world, not an extraction. Dropping the other players would
     be the destructive operation this module deliberately does not implement.
     """
+    A = ref_uids[0]
     out = str(tmp_path / "exported")
     soloexport.apply_export(A, C, world_dir=world, destination=out)
 
     source_players = set(os.listdir(os.path.join(world, "Players")))
     exported = set(os.listdir(os.path.join(out, "Players")))
-    assert len(exported) == len(source_players)
 
-    renamed = f"{soloexport._file_uid(C)}.sav"
-    assert renamed in exported
-    assert f"{soloexport._file_uid(A)}.sav" not in exported
-    # Everyone else keeps their filename.
-    assert exported - {renamed} == source_players - {f"{soloexport._file_uid(A)}.sav"}
+    # The rename covers the player save AND its `_dps.sav` dimensional-storage
+    # sidecar when the player has one; everyone else keeps their filename. The
+    # old form of this assertion accounted for the `.sav` alone — it passed
+    # only because the hardcoded source player happened to have no sidecar,
+    # which also meant the dps-rename path ran in no test at all.
+    a, c = soloexport._file_uid(A), soloexport._file_uid(C)
+    expected = {n.replace(a, c, 1) if n.startswith(a) else n for n in source_players}
+    assert f"{c}.sav" in exported
+    assert f"{a}.sav" not in exported
+    assert exported == expected
 
 
 @pytest.mark.integration
 @pytest.mark.slow
-def test_the_exported_player_file_claims_its_new_uid(world, tmp_path):
+def test_the_exported_player_file_claims_its_new_uid(world, ref_uids, tmp_path):
     """A file whose name and contents disagree loads the character as a stranger."""
     out = str(tmp_path / "exported")
-    soloexport.apply_export(A, C, world_dir=world, destination=out)
+    soloexport.apply_export(ref_uids[0], C, world_dir=world, destination=out)
 
     gvas, _ = soloexport._load(
         os.path.join(out, "Players", f"{soloexport._file_uid(C)}.sav")
@@ -326,30 +372,31 @@ def test_the_exported_player_file_claims_its_new_uid(world, tmp_path):
 
 @pytest.mark.integration
 @pytest.mark.slow
-def test_the_export_excludes_the_servers_own_snapshots(world, tmp_path):
+def test_the_export_excludes_the_servers_own_snapshots(world, ref_uids, tmp_path):
     """
     `backup/` holds the game's rotating snapshots. Sweeping it in is what turned a
     2.1 MB world into 66 MB archives once already.
     """
     out = str(tmp_path / "exported")
-    result = soloexport.apply_export(A, C, world_dir=world, destination=out)
+    result = soloexport.apply_export(ref_uids[0], C, world_dir=world, destination=out)
     assert not os.path.exists(os.path.join(out, "backup"))
     assert result["sizeBytes"] < 20 * 1024 * 1024
 
 
 @pytest.mark.integration
 @pytest.mark.slow
-def test_a_stale_plan_is_refused(world, tmp_path):
+def test_a_stale_plan_is_refused(world, ref_uids, tmp_path):
     with pytest.raises(soloexport.SoloExportError, match="changed since"):
         soloexport.apply_export(
-            A, C, world_dir=world, destination=str(tmp_path / "e"),
+            ref_uids[0], C, world_dir=world, destination=str(tmp_path / "e"),
             expected_plan_hash="deadbeefdeadbeef",
         )
 
 
 @pytest.mark.integration
 @pytest.mark.slow
-def test_a_matching_plan_hash_is_accepted(world, tmp_path):
+def test_a_matching_plan_hash_is_accepted(world, ref_uids, tmp_path):
+    A = ref_uids[0]
     plan = soloexport.plan_export(A, C, world_dir=world)
     result = soloexport.apply_export(
         A, C, world_dir=world, destination=str(tmp_path / "e"),
@@ -360,10 +407,44 @@ def test_a_matching_plan_hash_is_accepted(world, tmp_path):
 
 @pytest.mark.integration
 @pytest.mark.slow
-def test_the_archive_carries_a_checksum(world, tmp_path):
+def test_the_archive_carries_a_checksum(world, ref_uids, tmp_path):
     out = str(tmp_path / "exported")
-    soloexport.apply_export(A, C, world_dir=world, destination=out)
+    soloexport.apply_export(ref_uids[0], C, world_dir=world, destination=out)
     archive = soloexport.archive_export(out)
     assert archive["path"].endswith(".tar.gz")
     assert len(archive["sha256"]) == 64
     assert archive["sizeBytes"] > 0
+
+
+@pytest.mark.integration
+@pytest.mark.slow
+def test_a_host_uid_export_keeps_the_source_players_own_guild(world, ref_uids, tmp_path):
+    """
+    The single-player case: the target is the fixed host uid, which sits inside
+    the all-zeros sentinel family `exportscope._guid` collapses to "". When the
+    prune ran after the remap keyed on the TARGET, that collapse meant a
+    host-uid export protected no guild at all — `keep_guilds=[]` pruned the
+    exported character's own guild out of their own copy. The prune now runs
+    before the remap, keyed on the SOURCE, and this pins it.
+    """
+    import exportscope
+
+    A = ref_uids[0]
+    host = "00000000-0000-0000-0000-000000000001"
+
+    before = exportscope.guilds(exportscope.load_world(world))
+    mine = [g for g in before if A in g["playerUids"] or g["adminUid"] == A]
+    assert len(mine) == 1, "the reference player should belong to exactly one guild"
+    others = {g["guildId"] for g in before} - {mine[0]["guildId"]}
+    assert others, "the reference world should have guilds to drop"
+
+    out = str(tmp_path / "exported")
+    result = soloexport.apply_export(
+        A, host, world_dir=world, destination=out, keep_guilds=[],
+    )
+    assert result["mode"] == "rename"
+    assert result["prune"]["pruned"] is True
+
+    after = {g["guildId"] for g in exportscope.guilds(exportscope.load_world(out))}
+    assert mine[0]["guildId"] in after, "the exported character's own guild was pruned"
+    assert not (after & others), "unticked guilds should be gone from the copy"
