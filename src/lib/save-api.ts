@@ -823,6 +823,57 @@ export async function downloadExport(kind: ExportKind, id?: string): Promise<voi
   }
 }
 
+// ─── Self-serve world copy ──────────────────────────────
+
+export interface SelfExportStatus {
+  enabled: boolean;
+  linked: boolean;
+  /** null = unknown (world not parsed yet); the backend re-checks at create. */
+  soloGuild: boolean | null;
+  targetUid: string;
+  cooldownSeconds: number;
+  retryInSeconds: number;
+  archive: { createdAt: number; sizeBytes: number; sha256: string } | null;
+}
+
+export interface SelfExportResult {
+  ok: boolean;
+  mode: string;
+  referencesRemapped: number;
+  prune: { guildsRemoved: number };
+  archive: { sizeBytes: number; sha256: string };
+  status: SelfExportStatus;
+}
+
+export async function getSelfExportStatus(): Promise<SelfExportStatus> {
+  return saveFetch('/export/self/status');
+}
+
+export async function createSelfExport(): Promise<SelfExportResult> {
+  return saveFetch('/export/self', { method: 'POST' });
+}
+
+/** Same download-via-fetch approach as `downloadExport`, for the same reason. */
+export async function downloadSelfExport(): Promise<void> {
+  const res = await fetch(`${BASE}/export/self/download`);
+  if (!res.ok) {
+    const detail = await res.json().catch(() => ({}));
+    throw new Error(detail.error || detail.detail || `Download failed (${res.status})`);
+  }
+  const disposition = res.headers.get('content-disposition') ?? '';
+  const named = /filename="([^"]+)"/.exec(disposition);
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  try {
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = named?.[1] ?? 'my-world-copy.tar.gz';
+    link.click();
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
 /** Check an export file without importing it. */
 export async function verifyExport(file: File): Promise<{
   ok: boolean;

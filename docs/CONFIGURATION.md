@@ -217,6 +217,9 @@ still appear, because those are things your world has actually recorded.
 | `POLICY_FILE` | `$CACHE_DIR/policy.json` | Persisted Access-tab settings. |
 | `BACKUP_DIR` | `/palworld/backups` | **Move this off `/palworld`** — see `DEPLOYMENT.md`; it collides with jammsen's own backups and breaks under a read-only mount. |
 | `SOLO_EXPORT_DIR` | `$BACKUP_DIR/exports` | World copies from the uid remap. Never auto-pruned. |
+| `SELF_EXPORT_ENABLED` | `true` | The player-facing "take your world into single-player" card (My account tab). Solo-guild players only; set `false` to remove it entirely. |
+| `SELF_EXPORT_MIN_INTERVAL` | `3600` | Seconds between one account's self-serve exports — the export walks the whole world, so this is a load guard, not a quota. |
+| `SELF_EXPORT_RETENTION_DAYS` | `7` | Self-serve archives older than this are deleted (each account keeps at most one at a time regardless). |
 | `GAMEDATA_PATH`, `EFFIGY_DATA_PATH`, `WORLD_OBJECTS_PATH`, `HABITAT_DATA_PATH` | bundled | Only override to test a regenerated bundle. |
 
 ---

@@ -1,10 +1,14 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { EyeOff, KeyRound, UserCircle, AlertTriangle, Check, Building2 } from 'lucide-react';
+import {
+  EyeOff, KeyRound, UserCircle, AlertTriangle, Check, Building2, Copy, Download,
+} from 'lucide-react';
 import {
   getMyPrivacy, setMyPrivacy, changeOwnPassword,
   getManageableBases, setBaseHidden,
+  getSelfExportStatus, createSelfExport, downloadSelfExport,
+  type SelfExportStatus,
 } from '@/lib/save-api';
 import { useDashboardStore } from '@/lib/store';
 import { ROLE_LABEL, type Role } from '@/lib/auth-types';
@@ -92,6 +96,8 @@ export default function AccountSettings() {
           </p>
         )}
       </div>
+
+      <SelfWorldExport />
 
       <div className="glass-card" style={{ padding: 16 }}>
         <SectionTitle icon={<EyeOff size={15} />} text="Map privacy" />
@@ -348,6 +354,123 @@ function SectionTitle({ icon, text }: { icon: React.ReactNode; text: string }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 12, fontSize: 13, fontWeight: 600 }}>
       {icon} {text}
+    </div>
+  );
+}
+
+/**
+ * Take your world into single-player — the self-serve slice of the moderators'
+ * world-copy export.
+ *
+ * Everything is decided server-side: the source is this account's linked
+ * character, the target is the fixed single-player host uid, and the copy is
+ * pruned to your own guild. The card only ever *asks*; every refusal below
+ * (no linked character, a guild with other members, the cooldown) is the
+ * backend's answer restated, not a rule enforced here.
+ */
+function SelfWorldExport() {
+  const [status, setStatus] = useState<SelfExportStatus | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [justExported, setJustExported] = useState(false);
+
+  useEffect(() => {
+    getSelfExportStatus().then(setStatus).catch(() => setStatus(null));
+  }, []);
+
+  // A backend without the feature (older image), a disabled deployment, or an
+  // account that cannot ask all render the same way: no card. The one state
+  // that must stay visible is "linked but ineligible", because silence there
+  // reads as a broken dashboard rather than as a rule.
+  if (!status || !status.enabled || !status.linked) return null;
+
+  const run = async () => {
+    setBusy(true); setError(null); setJustExported(false);
+    try {
+      const result = await createSelfExport();
+      setStatus(result.status);
+      setJustExported(true);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t('Export failed'));
+      getSelfExportStatus().then(setStatus).catch(() => undefined);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const download = async () => {
+    setError(null);
+    try {
+      await downloadSelfExport();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t('Download failed'));
+    }
+  };
+
+  const cooldown = status.retryInSeconds > 0;
+
+  return (
+    <div className="glass-card" style={{ padding: 16 }}>
+      <SectionTitle icon={<Copy size={15} />} text="Take your world into single-player" />
+      <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 12 }}>
+        Builds a playable copy of the world containing your own guild&apos;s
+        progress — your character, Pals, bases and items — with your character
+        set as the world&apos;s host, ready to open in single-player or co-op.
+        {' '}<strong>{t('The live server world is never modified.')}</strong>
+      </p>
+
+      {status.soloGuild === false && (
+        <div className="notice" style={{ fontSize: 12, marginBottom: 10 }}>
+          Your guild has other members, so this export would include their data
+          too — ask a moderator to run it from the Save Tools tab instead.
+        </div>
+      )}
+
+      {error && (
+        <div className="notice notice-danger" style={{ fontSize: 12, marginBottom: 10 }}>
+          <AlertTriangle size={12} style={{ display: 'inline', verticalAlign: '-2px', marginRight: 5 }} />
+          {error}
+        </div>
+      )}
+
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+        <button
+          className="btn btn-primary"
+          disabled={busy || cooldown || status.soloGuild === false}
+          onClick={run}
+        >
+          {busy ? t('Exporting — this can take a minute…') : t('Create my world copy')}
+        </button>
+        {cooldown && !busy && (
+          <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+            Next export available in {Math.ceil(status.retryInSeconds / 60)} min
+          </span>
+        )}
+      </div>
+
+      {status.archive && (
+        <div className="notice" style={{ fontSize: 12, marginTop: 12 }}>
+          {justExported && (
+            <div style={{ marginBottom: 6 }}>
+              <Check size={12} style={{ display: 'inline', verticalAlign: '-2px', marginRight: 5 }} />
+              <strong>{t('Copy written and verified.')}</strong>
+            </div>
+          )}
+          <button className="btn" onClick={download} disabled={busy}>
+            <Download size={13} style={{ marginRight: 5 }} />
+            Download ({(status.archive.sizeBytes / 1024 / 1024).toFixed(1)} MB)
+          </button>
+          <div className="mono" style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 6 }}>
+            {new Date(status.archive.createdAt * 1000).toLocaleString()} · sha256{' '}
+            {status.archive.sha256.slice(0, 24)}…
+          </div>
+          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6 }}>
+            Unpack the archive into your own{' '}
+            <span className="mono">SaveGames/&lt;your id&gt;/</span> directory and
+            the world appears in your local saves list.
+          </div>
+        </div>
+      )}
     </div>
   );
 }

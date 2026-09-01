@@ -279,6 +279,11 @@ const ROUTES: RouteRule[] = [
   // it at all, and it cannot tell whose id is in the query string.
   { pattern: /^export\/(player|pal)$/, methods: ['GET'], capability: CAPABILITIES.VIEW_SELF, feature: null },
   { pattern: /^export\/(world|guild|base|container)$/, methods: ['GET'], capability: CAPABILITIES.VIEW_DETAIL, feature: null },
+  // Self-serve world copy: VIEW_SELF because only the caller's own data can
+  // leave — the backend pins the source to their linked character, forces the
+  // own-guild prune, and the download route takes no parameters at all.
+  { pattern: /^export\/self$/, methods: ['POST'], capability: CAPABILITIES.VIEW_SELF, feature: null },
+  { pattern: /^export\/self\/(status|download)$/, methods: ['GET'], capability: CAPABILITIES.VIEW_SELF, feature: null },
   { pattern: /^reports$/, methods: ['GET'], capability: CAPABILITIES.VIEW_DETAIL, feature: FEATURES.ITEMS },
   { pattern: /^reports\/[a-z-]+$/, methods: ['GET'], capability: CAPABILITIES.VIEW_DETAIL, feature: FEATURES.ITEMS },
   { pattern: /^items\/scopes$/, methods: ['GET'], capability: CAPABILITIES.VIEW_SELF, feature: FEATURES.ITEMS },

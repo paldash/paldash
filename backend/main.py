@@ -71,6 +71,7 @@ import savecache
 import saveedit
 import saveexport
 import saveimport
+import selfexport
 import itemclone
 import slotedit
 import teleport
@@ -4831,6 +4832,82 @@ def create_world_export(req: WorldExportRequest, request: Request) -> dict[str, 
         ip=authz.client_ip(request),
     )
     return {**result, "archive": archive}
+
+
+# ─── Self-serve world copy ───────────────────────────────
+#
+# The player-accessible slice of the export above: source pinned to the caller's
+# own linked character, target fixed to the single-player host uid, prune forced
+# to their own (solo) guild. All three routes sit at VIEW_SELF because the only
+# data that can leave is the caller's own — `selfexport` refuses everything
+# else, including a prune that did not actually happen.
+
+
+@app.get("/api/export/self/status")
+def self_export_status(request: Request) -> dict[str, Any]:
+    user = authz.require_user(request, roles_module.VIEW_SELF)
+    return selfexport.status(user["username"], authz.linked_uid(user))
+
+
+@app.post("/api/export/self")
+def self_export_create(request: Request) -> dict[str, Any]:
+    user = authz.require_user(request, roles_module.VIEW_SELF)
+    uid = authz.linked_uid(user)
+    try:
+        result = selfexport.create(user["username"], uid)
+    except selfexport.SelfExportError as e:
+        # Refusals are audited too — an attempt says who tried, and a cooldown
+        # being probed repeatedly is worth being able to see.
+        audit.record(
+            audit.EXPORT, username=user["username"], role=user["role"],
+            target=f"self-world-copy:{uid or 'unlinked'}",
+            detail=str(e), ip=authz.client_ip(request), result=audit.RESULT_FAILED,
+        )
+        raise HTTPException(e.status, str(e))
+
+    audit.record(
+        audit.EXPORT, username=user["username"], role=user["role"],
+        target=f"self-world-copy:{uid}",
+        detail={
+            "mode": result["mode"],
+            "referencesRemapped": result["referencesRemapped"],
+            "guildsRemoved": result["prune"]["guildsRemoved"],
+            "sha256": result["archive"]["sha256"][:16],
+            "sizeBytes": result["archive"]["sizeBytes"],
+        },
+        ip=authz.client_ip(request),
+    )
+    return result
+
+
+@app.get("/api/export/self/download")
+def self_export_download(request: Request):
+    """
+    Stream the caller's own archive. Takes no parameters — the path comes from
+    the account's row, never from input, so there is nothing to traverse.
+    """
+    import time
+
+    from fastapi.responses import FileResponse
+
+    user = authz.require_user(request, roles_module.VIEW_SELF)
+    try:
+        meta = selfexport.archive_for_download(user["username"])
+    except selfexport.SelfExportError as e:
+        raise HTTPException(e.status, str(e))
+
+    audit.record(
+        audit.EXPORT, username=user["username"], role=user["role"],
+        target="self-world-copy:download",
+        detail={"sha256": meta["sha256"][:16]},
+        ip=authz.client_ip(request),
+    )
+    stamp = time.strftime("%Y-%m-%d", time.localtime(meta["createdAt"]))
+    return FileResponse(
+        meta["path"],
+        media_type="application/gzip",
+        filename=f"my-world-copy-{stamp}.tar.gz",
+    )
 
 
 @app.post("/api/export/verify")
