@@ -5,6 +5,10 @@ export const metadata: Metadata = {
   title: "paldash",
   description: "Enhanced admin dashboard for Palworld dedicated servers — REST API monitoring, interactive map, save file viewer & editor",
   icons: { icon: "/favicon.ico" },
+  // A self-hosted admin panel has no business in a search index. Operators
+  // are told to keep this on a LAN or behind a proxy, but the one who puts it
+  // on a public domain anyway should not find their login page in Google.
+  robots: { index: false, follow: false },
 };
 
 export default function RootLayout({
