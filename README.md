@@ -106,6 +106,7 @@ container traps that only show up on a real build.
 | `docs/COMPATIBILITY.md` | Which server images work, and where they differ |
 | `docs/UPGRADING.md` | What to do when Palworld or the dashboard updates — operator and maintainer |
 | `docs/CROSSPLAY.md` | What is known about non-Steam players, and what is not |
+| `docs/SINGLE-PLAYER-COPY.md` | Taking your progress into single-player — written to be handed to a player |
 | `docs/LICENSING.md` | Why this is GPL-3.0, and what that does and does not require |
 | `docs/TRANSLATING.md` | Verifying a machine-translated language — a contribution needing no code |
 | `docs/GAMEDATA-SOURCES.md` | Where every fact about the game comes from — read before designing |

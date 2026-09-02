@@ -464,11 +464,49 @@ function SelfWorldExport() {
             {new Date(status.archive.createdAt * 1000).toLocaleString()} · sha256{' '}
             {status.archive.sha256.slice(0, 24)}…
           </div>
-          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6 }}>
-            Unpack the archive into your own{' '}
-            <span className="mono">SaveGames/&lt;your id&gt;/</span> directory and
-            the world appears in your local saves list.
-          </div>
+          {/* The instructions live HERE, not in a doc, because the person who
+              just downloaded the file is the person who needs them — and the
+              old one-liner pointed at the SERVER's path shape, which a Windows
+              player will never find. */}
+          <details style={{ marginTop: 8 }}>
+            <summary style={{ fontSize: 12, cursor: 'pointer', color: 'var(--text-primary)' }}>
+              {t('How to install it (Windows / Steam)')}
+            </summary>
+            <ol style={{ fontSize: 11, color: 'var(--text-secondary)', margin: '8px 0 0', paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 5 }}>
+              <li>
+                Start Palworld on your PC, create a <strong>new world</strong>{' '}
+                (any name), enter it once, then quit the game. This makes a
+                fresh save folder for the copy to go into.
+              </li>
+              <li>
+                Extract the downloaded file: right-click it and choose{' '}
+                <strong>Extract All</strong> (Windows 11), or open it with
+                7-Zip (Windows 10).
+              </li>
+              <li>
+                Press <span className="mono">Win+R</span>, paste{' '}
+                <span className="mono">%LOCALAPPDATA%\Pal\Saved\SaveGames</span>{' '}
+                and press Enter. Open the folder with the long number name,
+                then sort by date — the <strong>newest</strong> folder is the
+                world you made in step 1.
+              </li>
+              <li>
+                Copy everything you extracted <strong>into</strong> that
+                folder, replacing files when asked. Don&apos;t delete anything
+                first.
+              </li>
+              <li>
+                Start the game and open that world (it may keep the name from
+                step 1 in the menu). Your character and everything they own is
+                inside, and you are the world&apos;s host.
+              </li>
+            </ol>
+            <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 8 }}>
+              If you load in as a brand-new level-1 character instead of your
+              own, something went wrong with the id remap — tell your server
+              admin rather than continuing.
+            </p>
+          </details>
         </div>
       )}
     </div>
