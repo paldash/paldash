@@ -225,6 +225,7 @@ Merging variants is what keeps their Paldeck entry mapped anyway.
 | Solo-world *extraction* | Would delete every other player's characters, Pals and bases — destroying the world it is meant to preserve. The uid remap is the useful half, and it is built |
 | Full mod save parsing | Out of scope permanently. Detect-and-warn is achievable; parsing arbitrary mod data is not |
 | Cheat mode / arbitrary value injection | **Deliberately never.** Directly opposed to the corruption-safety goal |
+| Service worker / offline mode | **Deliberately never.** Everything shown is live server state — offline, a cached shell could only present stale numbers as current ones. And a stale-SW UI after an upgrade would fight the version-change notifications (#66). The web app manifest (home-screen icon, standalone install over HTTPS) ships without it — `src/app/manifest.ts` records the reasoning |
 | 2FA / password reset | Open |
 | Dependency scanning in CI | Open (`npm audit` + `pip-audit`) |
 | Multi-server management | Would reshape the data model |

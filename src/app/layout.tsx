@@ -1,5 +1,11 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
+
+// Colours the browser chrome (Android status bar, installed-app title bar) to
+// match the dark theme's ground instead of default white.
+export const viewport: Viewport = {
+  themeColor: "#101214",
+};
 
 export const metadata: Metadata = {
   title: "paldash",
