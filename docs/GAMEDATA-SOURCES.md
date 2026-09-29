@@ -112,6 +112,16 @@ of day.
 | `DT_LabResearchDataTable` | 168 | Lab research, keyed by required work suitability |
 | `DT_PalInvader` / `DT_PalInvaderReward` | 240 / 76 | Base raids: who attacks, at what grade, and what drops |
 
+The September map expansion makes the Accumulator (`EnergyStorage_Electric`)
+visible to the reference-world work-table check. It has no row in the raw
+271-row assignment table; the independent `DA_PalBuildObjectCapabilityData`
+asset gives it only `MaxEnergyStorage: 1000000`. Its absence is expected for
+passive storage, and the test now recognizes that exact ID while still
+requiring generators to resolve. Current coverage is **45 of 64 base-placed
+kinds**, with 19 intentionally unlisted; the older 44-of-63 code comments
+describe the earlier map extraction. No work slot or game-data row was invented
+to make the check pass.
+
 ### 1.4 Items, recipes and the economy
 
 | Table | Rows | What it gives you |

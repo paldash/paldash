@@ -1,6 +1,6 @@
 # Pruned dedicated-server copies
 
-The World export section in Save tools now has a separate **Export a pruned server world** panel. This is a local implementation under validation; an isolated in-game server load is still required before treating it as production-proven.
+The World export section in Save tools now has a separate **Export a pruned server world** panel. This feature is implemented on the audit branch with automated structural coverage; an isolated in-game server load is still required before treating it as production-proven.
 
 Use it to give another operator a server world with selected players removed. Retained players keep their original identities. The existing solo/co-op export still remaps a character to a host identity and remains a separate operation.
 
@@ -32,4 +32,6 @@ This is structural player removal, not a guarantee of anonymizing player-written
 
 Keep the original world and archive unchanged. Load an extracted copy on an isolated server with its own save/configuration directory and ports. Do not extract over a running server or its only world copy. Check that retained players reconnect to their existing characters, shared guild leadership works, bases/workers/storage load correctly, removed characters are absent, and a save/restart cycle succeeds.
 
-Local tests cover shared-guild behavior, refusal cases, archive scope, write/read-back integrity and an unchanged source fixture. An actual game-server launch and retained-player reconnect have not been performed here: the local account cannot access the Docker daemon, and no game client is attached. These are explicit acceptance limits, not checks that structural tests can substitute for.
+Local tests cover shared-guild behavior, refusal cases, archive scope, write/read-back integrity and an unchanged source fixture. The dashboard image and native codec were built and tested with rootless Podman. An actual game-server load and retained-player reconnect have not been performed, and no game client is attached. These remain acceptance steps that structural tests cannot substitute for.
+
+The operator has reported a successful in-game solo-world export. That validates their solo-export experience; dedicated-server pruning and retained-player reconnect remain a separate acceptance check.

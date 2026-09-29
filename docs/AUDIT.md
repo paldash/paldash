@@ -2,7 +2,7 @@
 
 **Current follow-through:** [29 September implementation and verification](IMPLEMENTATION-2026-09-29.md). The earlier plan below is historical.
 
-> **2026-09-28 update:** See [the security/project audit](AUDIT-2026-09-28.md), [local implementation and remaining fix plan](IMPLEMENTATION-2026-09-28.md), and [fresh mined-data review](MINED-DATA-REVIEW-2026-09-28.md). The older roadmap below remains historical.
+> **2026-09-29 update:** See [the current implementation and verification report](IMPLEMENTATION-2026-09-29.md), [the security/project audit](AUDIT-2026-09-28.md), and [the mined-data review](MINED-DATA-REVIEW-2026-09-28.md). The older roadmap below remains historical.
 
 **Date:** 2026-07-28 · **Auditor:** Claude (Opus 5) · **Status:** for approval, no code changed
 
