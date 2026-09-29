@@ -75,6 +75,7 @@ WORKDIR /app
 
 ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
+    HOSTNAME=0.0.0.0 \
     PYTHONUNBUFFERED=1 \
     CACHE_DIR=/app/cache
 

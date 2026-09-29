@@ -34,6 +34,7 @@ __pycache__/
 .git
 .github
 .gitignore
+Dockerfile
 *.md
 docs/
 backend/tests/

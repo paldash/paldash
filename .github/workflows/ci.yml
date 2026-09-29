@@ -195,7 +195,7 @@ jobs:
           trap cleanup EXIT
           docker run --detach --name paldash-smoke --network none \
             --cap-drop ALL --security-opt no-new-privileges \
-            -e HOSTNAME=127.0.0.1 -e PANEL_PASSWORD=ci-smoke-only-password \
+            -e PANEL_PASSWORD=ci-smoke-only-password \
             -e BACKUP_DIR=/app/backups -e SAVE_BASE_DIR=/tmp/no-world \
             -e PALWORLD_REST_URL=http://127.0.0.1:9 \
             -e FETCH_ASSETS_ON_BOOT=false -e DATA_REFRESH_ON_BOOT=off \

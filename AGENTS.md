@@ -1129,8 +1129,11 @@ misconfigured ignore file away from publishing a real world save. Pinned by
 than degrading. So `.gitignore`'s date-prefix pattern for the session transcripts
 cannot be copied into that config verbatim.
 
-**Next 16.3.x cannot build in a tree that holds `refs/`, and `next` is pinned
-at 16.2.12 for it (2026-08-27).** With 16.3.2, `next build` in this working
+**Historical Turbopack failure (2026-08-27); superseded by the September fix.**
+The project now uses patched Next 16.3.6 with `next build --webpack`, verified
+in this checkout with `refs/` present. Do not downgrade to vulnerable 16.2.12.
+The following measurements explain why the explicit Webpack build remains.
+With 16.3.2, `next build` in this working
 tree climbed to **10 GB resident and the OOM killer took it**; the identical
 build in a clean checkout is 1.4 GB, and 16.2.12 in this tree is under 1 GB.
 Measured, not inferred: `refs/` moved *out of the project* (a rename inside
@@ -1144,14 +1147,14 @@ from directory metadata alone. `outputFileTracingExcludes` has nothing to do
 with it, `turbopackFileSystemCacheForBuild: false` was tried and changes
 nothing, and Turbopack has no ignore option (only `root` and `ignoreIssue`).
 
-CI and the Docker builder never have `refs/`, so **they pass on 16.3 — a
-green PR is not evidence here.** 16.3.3 was tried in this tree the same day:
-9.9 GB, killed. `.github/dependabot.yml` ignores `next` and
-`eslint-config-next` until an upstream fix is confirmed by building in *this*
-tree. A build that suddenly needs gigabytes on a developer machine and not in
-CI is this again.
+CI and the Docker builder never have `refs/`, so **they passed on 16.3 — a
+green PR was not evidence here.** 16.3.3 was tried in this tree the same day:
+9.9 GB, killed. The old Dependabot exclusions have been removed after the
+patched Webpack build passed in this checkout. Switching back to Turbopack
+still requires verification in *this* tree. A build that suddenly needs
+gigabytes on a developer machine and not in CI is this again.
 
-**Staying on 16.2.12 has a cost, and `package.json` `overrides` pays it.**
+**The old 16.2.12 dependency workaround is historical too.**
 `npm audit --omit=dev --audit-level=high` — the weekly gate in `audit.yml` —
 flags 16.2.12's own pinned `postcss 8.4.31` (four advisories: XSS in
 stringified output, arbitrary `.map` reads via `sourceMappingURL`) and
@@ -1159,7 +1162,8 @@ stringified output, arbitrary `.map` reads via `sourceMappingURL`) and
 exposure is nil: `next/image` is used nowhere, so `sharp` never runs, and
 `postcss` only ever processes this repository's own stylesheets at build
 time. The overrides force the nested copies onto the patched lines so the
-audit stays green without moving Next. Drop them when Next moves.
+audit stayed green without moving Next. Next has now moved; the current
+lockfile and successful audits establish which patched versions ship.
 
 Runs as uid/gid 1000 (`APP_UID`/`APP_GID`), matching the Palworld server image's
 PUID/PGID so the shared bind mount is readable without root. `/app/cache` and
@@ -1172,7 +1176,7 @@ the runtime image, and a `docker …` command fails with
 overstated it: the *feature* works and only that default cannot.
 
 `docs/DEPLOYMENT.md` §4 has the working form — the socket proxy speaks the
-Docker HTTP API and the runtime is `node:20-bookworm-slim`, so `node -e
+Docker HTTP API and the runtime includes Node 22, so `node -e
 "fetch(...)"` is already available and the healthcheck uses it. **A 304 is
 success**, because the API returns 204 when it stopped the container and 304
 when it was already stopped.
