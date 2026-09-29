@@ -144,6 +144,19 @@ def _assert_absent(node, removed, label):
             if needles and any(data[i:i+16] in needles for i in range(len(data) - 15)):
                 raise ServerExportError(f'An opaque {label} field contains a removed identity; no export was produced')
         elif isinstance(value, dict):
+            # The native reader splits these models at incorrect field
+            # boundaries. A GUID can straddle two resulting byte arrays, so
+            # scan the contiguous serialized model as well as tagged fields.
+            import concretemodel
+            if value.get('concrete_model_type') in concretemodel.KINDS:
+                from copy import deepcopy
+                from palsav.rawdata import map_concrete_model
+                try:
+                    encoded = map_concrete_model.encode_bytes(deepcopy(value))
+                except Exception as error:
+                    raise ServerExportError('A concrete model could not be checked safely') from error
+                opaque(encoded)
+                return
             for v in value.values(): opaque(v)
         elif isinstance(value, list):
             # Undecoded byte arrays are often represented as integer lists.

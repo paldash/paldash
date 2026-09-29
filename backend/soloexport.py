@@ -246,12 +246,24 @@ def _walk_uids(node: Any, mapping: dict[str, str], apply: bool) -> int:
     wrapped field, which is most of them. Measured on the reference world: 1,176 of
     3,148 apparent matches were this double visit.
     """
-    return _walk_uids_inner(node, mapping, apply)
+    import concretemodel
+    try:
+        concretemodel.validate_world(node)
+        return _walk_uids_inner(node, mapping, apply)
+    except concretemodel.ConcreteModelError as error:
+        raise SoloExportError(str(error)) from error
 
 
 def _walk_uids_inner(node: Any, mapping: dict[str, str], apply: bool) -> int:
     total = 0
     if isinstance(node, dict):
+        import concretemodel
+        if node.get('concrete_model_type') in concretemodel.KINDS:
+            decoded = concretemodel.decode(node)
+            found = _walk_uids_inner(decoded, mapping, apply)
+            if apply and found:
+                concretemodel.update(node, decoded)
+            return found
         for key in list(node.keys()):
             value = node[key]
             if key == 'CharacterParameterStorageSaveData':
