@@ -7,20 +7,20 @@ vulnerabilities:
   - pkg:deb/debian/libtinfo6@6.5%2B20250216-2?arch=amd64&distro=debian-13.7
   - pkg:deb/debian/ncurses-base@6.5%2B20250216-2?arch=all&distro=debian-13.7
   - pkg:deb/debian/ncurses-bin@6.5%2B20250216-2?arch=amd64&distro=debian-13.7
-  expired_at: '2026-10-13'
+  expired_at: '2026-10-13T00:00:00Z'
   statement: The affected infocmp executable is removed; the advisory concerns progs/infocmp.c,
     not the retained terminfo library. See docs/CONTAINER-SECURITY.md.
 - id: CVE-2026-16742
   purls:
   - pkg:deb/debian/libsystemd0@257.13-1~deb13u1?arch=amd64&distro=debian-13.7
   - pkg:deb/debian/libudev1@257.13-1~deb13u1?arch=amd64&distro=debian-13.7
-  expired_at: '2026-10-13'
+  expired_at: '2026-10-13T00:00:00Z'
   statement: The systemd-homed daemon is absent; only sibling source-package libraries
     are installed. See docs/CONTAINER-SECURITY.md.
 - id: CVE-2026-54369
   purls:
   - pkg:deb/debian/libacl1@2.3.2-2%2Bb1?arch=amd64&distro=debian-13.7
-  expired_at: '2026-10-13'
+  expired_at: '2026-10-13T00:00:00Z'
   statement: 'Mitigated for the supported unprivileged runtime: root startup is refused,
     no effective capabilities or privileged executables remain, and NoNewPrivs is
     enforced. No privileged ACL caller is provided. This is not an upstream library
@@ -36,7 +36,7 @@ vulnerabilities:
   - pkg:deb/debian/login@4.16.0-2%2Breally2.41.5-0%2Bdeb13u1?arch=amd64&distro=debian-13.7&epoch=1
   - pkg:deb/debian/mount@2.41.5-0%2Bdeb13u1?arch=amd64&distro=debian-13.7
   - pkg:deb/debian/util-linux@2.41.5-0%2Bdeb13u1?arch=amd64&distro=debian-13.7
-  expired_at: '2026-10-13'
+  expired_at: '2026-10-13T00:00:00Z'
   statement: The mount executable is removed; the application runs without root or
     capabilities. See docs/CONTAINER-SECURITY.md.
 - id: CVE-2026-78408
@@ -50,7 +50,7 @@ vulnerabilities:
   - pkg:deb/debian/login@4.16.0-2%2Breally2.41.5-0%2Bdeb13u1?arch=amd64&distro=debian-13.7&epoch=1
   - pkg:deb/debian/mount@2.41.5-0%2Bdeb13u1?arch=amd64&distro=debian-13.7
   - pkg:deb/debian/util-linux@2.41.5-0%2Bdeb13u1?arch=amd64&distro=debian-13.7
-  expired_at: '2026-10-13'
+  expired_at: '2026-10-13T00:00:00Z'
   statement: The nsenter executable is removed and not used by the dashboard. See
     docs/CONTAINER-SECURITY.md.
 - id: CVE-2026-78409
@@ -64,7 +64,7 @@ vulnerabilities:
   - pkg:deb/debian/login@4.16.0-2%2Breally2.41.5-0%2Bdeb13u1?arch=amd64&distro=debian-13.7&epoch=1
   - pkg:deb/debian/mount@2.41.5-0%2Bdeb13u1?arch=amd64&distro=debian-13.7
   - pkg:deb/debian/util-linux@2.41.5-0%2Bdeb13u1?arch=amd64&distro=debian-13.7
-  expired_at: '2026-10-13'
+  expired_at: '2026-10-13T00:00:00Z'
   statement: The mount executable is removed; no privileged mount operation exists
     in the supported image. See docs/CONTAINER-SECURITY.md.
 - id: CVE-2026-78410
@@ -78,11 +78,11 @@ vulnerabilities:
   - pkg:deb/debian/login@4.16.0-2%2Breally2.41.5-0%2Bdeb13u1?arch=amd64&distro=debian-13.7&epoch=1
   - pkg:deb/debian/mount@2.41.5-0%2Bdeb13u1?arch=amd64&distro=debian-13.7
   - pkg:deb/debian/util-linux@2.41.5-0%2Bdeb13u1?arch=amd64&distro=debian-13.7
-  expired_at: '2026-10-13'
+  expired_at: '2026-10-13T00:00:00Z'
   statement: The mount executable is removed and all SUID/SGID executables are stripped.
     See docs/CONTAINER-SECURITY.md.
 - id: CVE-2026-9538
   purls:
   - pkg:deb/debian/perl-base@5.40.1-6%2Bdeb13u1?arch=amd64&distro=debian-13.7
-  expired_at: '2026-10-13'
+  expired_at: '2026-10-13T00:00:00Z'
   statement: The affected Archive::Tar Perl module is absent. See docs/CONTAINER-SECURITY.md.
