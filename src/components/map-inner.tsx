@@ -18,6 +18,7 @@ import type {
   StaticWorldObject, NpcPlacement } from '@/lib/types';
 import type { BossSpawner, GuildMarker, RespawnPin } from '@/lib/save-api';
 import { t } from '@/lib/chrome';
+import { tooltipText } from '@/lib/map-text';
 
 interface Props {
   players: Player[];
@@ -701,6 +702,10 @@ export default function MapInner({
       // compose, and the backend ships `composesWithWorkRank: false` saying so;
       // multiplying them in a popup would invent the rule the data refuses.
       const capabilityHtml = capabilityLine(object.capability);
+      const savedHtml = Object.entries(object.savedState || {}).map(([key, value]) =>
+        `<div style="font-size:11px">${escapeHtml(key.replaceAll('_', ' '))}: ${escapeHtml(String(value))}</div>`
+      ).join('');
+      const savedStateHtml = savedHtml ? `<div style="margin-top:6px">Recorded in last save (native units)${savedHtml}</div>` : '';
       // Colour says which kind, shape says which category. Circles stay on the
       // canvas renderer; anything else needs a DOM marker, which is why only
       // the sparse categories get one.
@@ -721,6 +726,7 @@ export default function MapInner({
                <div style="font-weight:600;margin-bottom:3px">${escapeHtml(name)}</div>
                <div style="font-size:12px;color:#a1a7b0">${escapeHtml(style.label)}</div>
                ${capabilityHtml}
+               ${savedStateHtml}
                <div style="font-size:11px;color:#6d747e;margin-top:4px">${coords.x}, ${coords.y}</div>
              </div>`
           )
@@ -741,6 +747,7 @@ export default function MapInner({
              <div style="font-weight:600;margin-bottom:3px">${escapeHtml(name)}</div>
              <div style="font-size:12px;color:#a1a7b0">${escapeHtml(style.label)}</div>
              ${capabilityHtml}
+             ${savedStateHtml}
              <div style="font-size:11px;color:#6d747e;margin-top:4px">${coords.x}, ${coords.y}` +
             (object.opened != null ? ` · ${object.opened ? 'opened' : 'unopened'}` : '') +
             (object.worldPlaced === false ? ' · in a base' : '') +
@@ -805,7 +812,7 @@ export default function MapInner({
                <div style="font-size:11px;color:#6d747e;margin-top:4px">${c.x}, ${c.y}</div>
              </div>`;
           })
-          .bindTooltip(level !== null ? `${label} · Lv ${level}` : label, {
+          .bindTooltip(tooltipText(level !== null ? `${label} · Lv ${level}` : label), {
             direction: 'top',
             offset: [0, -10],
           })
@@ -911,7 +918,7 @@ export default function MapInner({
              <div style="font-size:11px;color:#6d747e;margin-top:4px">${c.x}, ${c.y}</div>
            </div>`;
         })
-        .bindTooltip(npc.name, { direction: 'top', offset: [0, -4] })
+        .bindTooltip(tooltipText(npc.name), { direction: 'top', offset: [0, -4] })
         .addTo(group);
     }
   }, [npcs, layers, region]);
@@ -957,7 +964,7 @@ export default function MapInner({
              <div style="font-size:11px;color:#6d747e;margin-top:4px">${c.x}, ${c.y}</div>
            </div>`;
         })
-        .bindTooltip(marker.guildName || t('Guild marker'), { direction: 'top', offset: [0, -6] })
+        .bindTooltip(tooltipText(marker.guildName || t('Guild marker')), { direction: 'top', offset: [0, -6] })
         .addTo(group);
     }
   }, [guildMarkers, layers, region]);
@@ -997,7 +1004,7 @@ export default function MapInner({
              <div style="font-size:11px;color:#6d747e;margin-top:4px">${c.x}, ${c.y}</div>
            </div>`;
         })
-        .bindTooltip(prettyClass(pin.cls), { direction: 'top', offset: [0, -6] })
+        .bindTooltip(tooltipText(prettyClass(pin.cls)), { direction: 'top', offset: [0, -6] })
         .addTo(group);
     }
   }, [respawns, layers, region]);
@@ -1076,7 +1083,7 @@ export default function MapInner({
            </div>`
         )
         .bindTooltip(
-          `${point.name ?? label}${found ? '' : ' \u2014 not found'}`,
+          tooltipText(`${point.name ?? label}${found ? '' : ' \u2014 not found'}`),
           { direction: 'top', offset: [0, -6] }
         )
         .addTo(group);
@@ -1182,7 +1189,7 @@ export default function MapInner({
         // nothing — which reads as a marker that carries no information rather
         // than one you have not clicked.
         .bindTooltip(
-          `${point.kindName || 'Effigy'}${found === true ? ' \u2713' : ''}`,
+          tooltipText(`${point.kindName || 'Effigy'}${found === true ? ' \u2713' : ''}`),
           { direction: 'top', offset: [0, -4] }
         )
         .addTo(group);
@@ -1221,7 +1228,7 @@ export default function MapInner({
         )
         // The level is the whole reason this layer exists — it was documented
         // as unavailable for months — and it was reachable only by clicking.
-        .bindTooltip(`${boss.name} \u00b7 Lv ${boss.level}`, {
+        .bindTooltip(tooltipText(`${boss.name} \u00b7 Lv ${boss.level}`), {
           direction: 'top',
           offset: [0, -4],
         })

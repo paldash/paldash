@@ -1,5 +1,9 @@
 # Palworld Server Manager — Audit, Gap Analysis & Roadmap
 
+**Current follow-through:** [29 September implementation and verification](IMPLEMENTATION-2026-09-29.md). The earlier plan below is historical.
+
+> **2026-09-29 update:** See [the current implementation and verification report](IMPLEMENTATION-2026-09-29.md), [the security/project audit](AUDIT-2026-09-28.md), and [the mined-data review](MINED-DATA-REVIEW-2026-09-28.md). The older roadmap below remains historical.
+
 **Date:** 2026-07-28 · **Auditor:** Claude (Opus 5) · **Status:** for approval, no code changed
 
 > **2026-08-17 — this audit is now a historical document.** The roadmap in §6/§6b

@@ -1,5 +1,5 @@
 # ─── Stage 1: Build Next.js ──────────────────────────────
-FROM node:20-bookworm-slim AS webbuilder
+FROM node:22-bookworm-slim AS webbuilder
 
 WORKDIR /app
 COPY package.json package-lock.json ./
@@ -17,34 +17,43 @@ RUN npm run build
 # `orjson` are compiled extensions, so their wheels are ABI-tagged (cp311 vs
 # cp312) and pip refuses to install a mismatched one:
 #   ERROR: orjson-...-cp312-...whl is not a supported wheel on this platform.
-# The runtime installs Debian bookworm's `python3`, which is 3.11 — so this is
-# 3.11 too. Bumping one without the other breaks the build outright.
-FROM python:3.11-slim-bookworm AS pybuilder
+# Use the same upstream Python patch and Debian release in both stages.
+# Debian bookworm's older distro Python has unresolved security advisories.
+FROM python:3.11.16-slim-trixie AS pybuilder
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
         git build-essential \
     && rm -rf /var/lib/apt/lists/*
 
 ARG PALSAV_REPO=https://github.com/deafdudecomputers/PalworldSaveTools.git
-ARG PALSAV_REF=main
+ARG PALSAV_REF=87fb4081d6b860778053ac0114754c8cae2b5f57
 
 WORKDIR /build
-RUN git clone --depth 1 --branch "${PALSAV_REF}" --recurse-submodules "${PALSAV_REPO}" pst
+RUN git init pst \
+    && git -C pst remote add origin "${PALSAV_REPO}" \
+    && git -C pst fetch --depth 1 origin "${PALSAV_REF}" \
+    && git -C pst checkout --detach FETCH_HEAD \
+    && test "$(git -C pst rev-parse HEAD)" = "${PALSAV_REF}" \
+    && git -C pst submodule update --init --recursive --depth 1
 
 RUN python -m pip install --no-cache-dir --upgrade pip build wheel \
     && python -m pip wheel --no-cache-dir --wheel-dir /wheels \
         ./pst/src/palsav/palooz \
         ./pst/src/palsav
 
-COPY backend/requirements.txt /tmp/requirements.txt
+COPY backend/requirements.txt backend/constraints.txt /tmp/
 RUN python -m pip wheel --no-cache-dir --wheel-dir /wheels -r /tmp/requirements.txt
 
 # ─── Stage 3: Runtime ────────────────────────────────────
-FROM node:20-bookworm-slim AS runner
+FROM python:3.11.16-slim-trixie AS runner
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        python3 python3-pip \
+        libstdc++6 \
     && rm -rf /var/lib/apt/lists/*
+
+# The standalone app needs the Node executable, not npm/corepack and their
+# separate dependency trees. Keep package-management tooling in build stages.
+COPY --from=webbuilder /usr/local/bin/node /usr/local/bin/node
 
 # Run as a normal user, not root (audit S12). The container has your save
 # directory bind-mounted, so root here is root over your world files.
@@ -52,11 +61,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # These must match the ownership of that bind mount, which is why they default
 # to 1000:1000 — the same PUID/PGID the Palworld server image defaults to. If
 # yours differ, build with --build-arg APP_UID=... rather than reverting to
-# root. The base image already ships a `node` user at 1000, so reuse whatever
-# is there instead of failing on a duplicate id.
+# root. Reuse existing IDs if a future base image already defines them.
 ARG APP_UID=1000
 ARG APP_GID=1000
 RUN set -eux; \
+    test "${APP_UID}" -ne 0; \
+    test "${APP_GID}" -ne 0; \
     getent group "${APP_GID}" >/dev/null || groupadd -g "${APP_GID}" app; \
     getent passwd "${APP_UID}" >/dev/null || \
         useradd -u "${APP_UID}" -g "${APP_GID}" -M -d /app -s /usr/sbin/nologin app
@@ -65,12 +75,13 @@ WORKDIR /app
 
 ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
+    HOSTNAME=0.0.0.0 \
     PYTHONUNBUFFERED=1 \
     CACHE_DIR=/app/cache
 
 # Python deps (prebuilt wheels, so no compiler in the final image)
 COPY --from=pybuilder /wheels /wheels
-RUN pip3 install --no-cache-dir --break-system-packages /wheels/*.whl && rm -rf /wheels
+RUN python3 -m pip install --no-cache-dir /wheels/*.whl && rm -rf /wheels
 
 # Next.js standalone output
 COPY --from=webbuilder --chown=${APP_UID}:${APP_GID} /app/.next/standalone ./
@@ -92,7 +103,9 @@ COPY docker-entrypoint.sh /docker-entrypoint.sh
 # the backend would fail to open its SQLite database on first run.
 RUN chmod +x /docker-entrypoint.sh \
     && mkdir -p /app/cache /app/backups \
-    && chown "${APP_UID}:${APP_GID}" /app /app/cache /app/backups
+    && chown "${APP_UID}:${APP_GID}" /app /app/cache /app/backups \
+    && rm -f /usr/bin/mount /usr/bin/umount /usr/bin/nsenter /usr/bin/infocmp \
+    && find /usr -xdev -type f -perm /6000 -exec chmod a-s {} +
 
 USER ${APP_UID}:${APP_GID}
 

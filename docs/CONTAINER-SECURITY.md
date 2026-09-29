@@ -1,0 +1,22 @@
+# Container security dispositions — 29 September 2026
+
+The first full image scan found 97 high/critical package attributions. Package-lock and Python requirement audits did not cover the base image's global npm tree or its Debian runtime. The runtime now uses upstream Python 3.11.16 on Debian trixie and copies only the Node executable from the frontend builder. The rebuilt image had no high/critical Node or Python package findings; 44 Debian attributions represented eight distinct advisories.
+
+These remaining source-package matches are assessed below. They are **not described as patched Debian packages**. The supported image removes unused affected programs, refuses root startup, strips SUID/SGID bits and enforces `NoNewPrivs`. Compose also drops every capability. The native-codec, startup and `scripts/verify-container-security.py` checks precede the image scan in CI. The latter checks the actual image for affected tools/modules, privileged executables, file capabilities and runtime privilege settings; a failed check blocks publication.
+
+The scanner dispositions in `.github/container-ignores.yaml` match only the exact reviewed Debian package PURLs, including versions and distribution. They expire on **13 October 2026**. A different package/version, a new advisory, a failed runtime proof or expiry requires review and cannot inherit these dispositions. Suppressed findings remain in the JSON scan artifact. `ignore-unfixed` stays false.
+
+| Advisory | Evidence and disposition |
+|---|---|
+| [CVE-2026-76642](https://security-tracker.debian.org/tracker/CVE-2026-76642) | Failed mount-helper handling. The `mount` executable is removed, and the dashboard does not run privileged mount operations. The same source-package advisory is repeated across nine binary packages. |
+| [CVE-2026-78408](https://security-tracker.debian.org/tracker/CVE-2026-78408) | `nsenter --join-cgroup` leaks a descriptor opened by a privileged operator. `nsenter` is removed. |
+| [CVE-2026-78409](https://security-tracker.debian.org/tracker/CVE-2026-78409) | Privileged `X-mount.subdir` handling. The mount executable is removed. |
+| [CVE-2026-78410](https://security-tracker.debian.org/tracker/CVE-2026-78410) | Restricted SUID bind-mount handling. The mount executable is removed and no SUID/SGID executable remains. |
+| [CVE-2025-69720](https://security-tracker.debian.org/tracker/CVE-2025-69720) | Debian identifies `analyze_string` in `progs/infocmp.c`. The `infocmp` executable is removed; retaining the sibling terminfo library does not include that program. |
+| [CVE-2026-16742](https://security-tracker.debian.org/tracker/CVE-2026-16742) | The issue concerns the `systemd-homed` daemon. That daemon is absent; the image contains sibling `libsystemd0`/`libudev1` packages. |
+| [CVE-2026-9538](https://security-tracker.debian.org/tracker/CVE-2026-9538) | Perl `Archive::Tar` processes an attacker-controlled size. That module is absent from the image's minimal `perl-base` installation. |
+| [CVE-2026-54369](https://security-tracker.debian.org/tracker/CVE-2026-54369) | **Mitigated, not patched.** The vulnerable pathname ACL functions require a privileged caller acting on attacker-controlled paths. The supported application runs as its ordinary filesystem owner, rejects root startup, has no effective capabilities or privileged executables, and cannot gain privileges across exec. Python and Node do not link libacl; no privileged ACL service or caller is supplied. This assessment does not cover an operator modifying the image to run privileged tools or overriding its startup protections. Debian has deferred the stable-package fix; replace this disposition with a patched stable package when available. |
+
+The final image still requires its scan and runtime proof after every rebuild. A clean assessed gate is not a claim that custom native code has been proven memory-safe, or that unreviewed deployment changes are covered. The unfiltered and assessed local reports are retained with the other audit evidence under `/tmp/paldash-implementation-20260928/`.
+
+Sources: [official Python image versions](https://github.com/docker-library/official-images/blob/master/library/python), [Debian's Python tarfile advisory and 3.11.16 fix](https://security-tracker.debian.org/tracker/CVE-2026-11940), and [Trivy's scoped/expiring filter format](https://trivy.dev/docs/v0.69/guide/configuration/filtering/).

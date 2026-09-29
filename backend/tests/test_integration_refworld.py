@@ -1038,6 +1038,14 @@ def test_repair_fixes_a_planted_illegal_pal_and_leaves_the_rest(
     charedit._write_property(obj, "Talent_HP", 255)
     atomic_write(level, compress_gvas_to_sav(tree.write(PALWORLD_CUSTOM_PROPERTIES), save_type))
 
+    # This fixture setup is deliberately outside a guarded transaction. Its
+    # fresh replacement must look like external save activity until quiet;
+    # model that quiet interval before testing the repair operation itself.
+    import safety
+    assert safety._probe_save_activity().verdict == 'running'
+    old = time.time() - 7200
+    os.utime(level, (old, old))
+
     # Scan finds exactly the one we planted. The unrecognised-NPC advisories are
     # counted separately and must not contaminate this.
     _players, pals = extract_characters(load_gvas(level))

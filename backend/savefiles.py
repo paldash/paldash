@@ -60,7 +60,8 @@ def get_default_world_dir() -> Optional[str]:
         for d in dirs:
             if os.path.basename(d) == pinned:
                 return d
-        logger.warning("WORLD_GUID=%s not found; falling back to newest", pinned)
+        logger.warning("The pinned WORLD_GUID was not found; refusing to select another world")
+        return None
 
     return max(dirs, key=lambda d: os.path.getmtime(os.path.join(d, "Level.sav")))
 
@@ -232,9 +233,9 @@ def find_settings_ini() -> Optional[str]:
 # ─── Corruption-safe reading ─────────────────────────────────────
 
 
-def _stat_key(path: str) -> tuple[int, float]:
+def _stat_key(path: str) -> tuple[int, int, int, int, int]:
     st = os.stat(path)
-    return st.st_size, st.st_mtime
+    return st.st_dev, st.st_ino, st.st_size, st.st_mtime_ns, st.st_ctime_ns
 
 
 def read_sav_bytes(path: str) -> Optional[bytes]:
@@ -268,7 +269,7 @@ def read_sav_bytes(path: str) -> Optional[bytes]:
                 os.close(fd)
             after = _stat_key(path)
 
-            if before == after and len(data) == before[0]:
+            if before == after and len(data) == before[2]:
                 return data
 
             logger.info(
@@ -316,26 +317,67 @@ def atomic_write(path: str, data: bytes) -> None:
 
     Callers must have already cleared safety.assert_writable().
     """
-    directory = os.path.dirname(path) or "."
+    from pathlib import Path
+    import stat
+    import uuid
+    target = Path(path).absolute()
+    directory = target.parent
+    if any(p.is_symlink() for p in (target, *target.parents)):
+        raise OSError('Atomic write refuses symlinked paths')
     os.makedirs(directory, exist_ok=True)
-    fd, tmp = tempfile.mkstemp(prefix=".tmp_", dir=directory)
+    # Resolve every directory with O_NOFOLLOW, then keep that directory open
+    # through replacement. A renamed parent cannot redirect the write elsewhere.
+    dir_fd = os.open('/', os.O_RDONLY | os.O_DIRECTORY)
     try:
+        for part in directory.parts[1:]:
+            next_fd = os.open(part, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=dir_fd)
+            os.close(dir_fd)
+            dir_fd = next_fd
+    except BaseException:
+        os.close(dir_fd)
+        raise
+    def identity():
+        try:
+            value = os.stat(target.name, dir_fd=dir_fd, follow_symlinks=False)
+            if not stat.S_ISREG(value.st_mode):
+                raise OSError('Atomic write target is not a regular file')
+            return (value.st_dev, value.st_ino, value.st_size, value.st_mtime_ns, value.st_ctime_ns), value.st_mode
+        except FileNotFoundError:
+            return None, 0o600
+    tmp = '.tmp_' + uuid.uuid4().hex
+    try:
+        before, mode = identity()
+        fd = os.open(tmp, os.O_CREAT | os.O_EXCL | os.O_WRONLY | os.O_NOFOLLOW, 0o600, dir_fd=dir_fd)
         with os.fdopen(fd, "wb") as f:
+            os.fchmod(f.fileno(), stat.S_IMODE(mode))
             f.write(data)
             f.flush()
             os.fsync(f.fileno())
-        if os.path.exists(path):
-            shutil.copystat(path, tmp)
-        os.replace(tmp, path)
+        import maintenance
+        maintenance.check_commit()
+        if identity()[0] != before:
+            raise OSError('Atomic write target changed while the replacement was staged')
+        held, current = os.fstat(dir_fd), os.stat(directory, follow_symlinks=False)
+        if (held.st_dev, held.st_ino) != (current.st_dev, current.st_ino):
+            raise OSError('Atomic write directory changed while the replacement was staged')
+        os.replace(tmp, target.name, src_dir_fd=dir_fd, dst_dir_fd=dir_fd)
+        # Subsequent files in this transaction must not mistake our first
+        # verified replacement for a fresh game autosave. Bind the exemption
+        # to exact metadata and bytes; any external rewrite invalidates it.
+        import hashlib
+        with os.fdopen(os.open(target.name, os.O_RDONLY | os.O_NOFOLLOW, dir_fd=dir_fd), 'rb') as written:
+            observed = os.fstat(written.fileno())
+            checksum = hashlib.file_digest(written, 'sha256').digest()
+            if checksum != hashlib.sha256(data).digest() or maintenance.file_identity(observed) != maintenance.file_identity(os.fstat(written.fileno())):
+                raise OSError('Atomic replacement changed during verification')
+        maintenance.record_write(str(target), observed)
         # fsync the directory so the rename itself is durable
-        dir_fd = os.open(directory, os.O_RDONLY)
-        try:
-            os.fsync(dir_fd)
-        finally:
-            os.close(dir_fd)
+        os.fsync(dir_fd)
     except BaseException:
         try:
-            os.unlink(tmp)
+            os.unlink(tmp, dir_fd=dir_fd)
         except OSError:
             pass
         raise
+    finally:
+        os.close(dir_fd)

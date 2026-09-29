@@ -95,6 +95,31 @@ has all of them.** refworld has 23.
 a single-world survey would have called it absent, and which world you happened
 to pick would decide the answer.
 
+The September export audit also decoded the native bodies inside
+`CharacterParameterStorageSaveData.StoredParameterInfoSaveData`. All four
+reference-world records use the existing character codec, re-encode byte for
+byte, and have matching outer `LostPlayerUId` and inner `OwnerPlayerUId` values.
+Their stored character instances are absent from the live character map.
+Selected-player exports remove their owned records and check linked inventory;
+legacy UID exports remap both the tagged metadata and the native body. Retained
+ownership history is scrubbed through decoded fields. Unknown native tails,
+disagreeing owners and ambiguous containers still refuse export. This block is
+distinct from a player's separate `_dps.sav` dimensional storage file.
+
+The same audit found two concrete-model gaps in the pinned native reader.
+`PalBooth` contains a trade array whose Pal identity has **no debug-name string**;
+the old common helper consumes the currency name as that string and misaligns
+the seller. Both reference booths round-trip exactly (one empty, one listing).
+The populated listing independently joins a live character and its owner, with
+`DogCoin` as the cost item. The remaining 24 bytes are preserved as unknown.
+`DroppedCharacter` places its stored-record GUID after a four-byte prefix, then
+has twelve bytes before its owner GUID and an eight-byte suffix. Its four
+reference instances join the stored-character records and their `LostPlayerUId`.
+The adapter requires these joins before remapping, rejects unfamiliar lengths,
+and preserves the unknown bytes. The final removed-reference scan reconstructs
+the complete model, so a GUID spanning the native reader's field boundaries
+cannot escape detection.
+
 Of the 128 paths that are not in every world, **most are absent only from the
 07-22 backup** — the smallest and earliest of the three (708k nodes against
 2.4M). That is occupancy, not a schema difference: an early world has no oil

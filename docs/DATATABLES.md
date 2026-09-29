@@ -9,16 +9,15 @@ grepping this document rather than by concluding it is not.
 Two features shipped documented refusals that this index would have
 prevented — see the script's docstring. Check here first.
 
-**473 tables decode, 2 refuse.**
+**472 tables decode, 3 refuse.**
 
 ## Decodable
 
 | Table | Rows | Columns |
 |---|---:|---|
-| `CT_AmmoMesh` | 2 | `Keys`, `DefaultValue`, `PreInfinityExtrap`, `PostInfinityExtrap`, `ArrayProperty_255`, `ArrayProperty_3071`, `ArrayProperty_68`, `InterpMode` |
 | `DT_AchivementRewardNPC` | 26 | `RequireCount`, `AchivementCategory`, `RewardItemString`, `ExpBonusLevel` |
 | `DT_AreaFindBonusExpTableReferenceNum` | 198 | `ReferenceTableNum` |
-| `DT_ArenaNPCDataTable` | 99 | `NameTextID`, `RankPoint`, `Ranking1`, `Head_of_Village_12799`, `Head_of_Village_7`, `Head_of_Village_1` |
+| `DT_ArenaNPCDataTable` | 100 | `NameTextID`, `RankPoint` |
 | `DT_ArenaRankingNPCIconTable` | 1 | `Icon` |
 | `DT_ArenaSoloNPCTable` | 43 | `ArenaRank`, `NpcId`, `UniqueNpcId`, `Level`, `TalentLevel`, `Rank`, `StatusRank`, `OtomoList` |
 | `DT_ArenaSoloRewardTable` | 7 | `Rank`, `FirstClearReward`, `RepeatClearReward` |
@@ -55,7 +54,7 @@ prevented — see the script's docstring. Check here first.
 | `DT_CharacterCreationMakeInfoPreset` | 12 | `MakeInfo`, `IconTexture` |
 | `DT_CharacterCreationMeshPresetTable_Body` | 3 | `SkeletalMesh`, `SkeletalMesh_MaleHead`, `IconTexture`, `ABPAsset`, `ShiftUIDisplayEyeColor`, `ShiftUIDisplayBodyColor`, `ShiftUIDisplayBrowColor`, `ShiftUIDisplayHairColor` |
 | `DT_CharacterCreationMeshPresetTable_Equipments` | 330 | `SkeletalMeshMap`, `ABPAssetMap`, `IsHairAttachAccessory`, `HairAttachSocketNameMap`, `bUseCustomDepthPass`, `bIsFullBodyEquipment`, `OverrideBodyType`, `BodyShape` |
-| `DT_CharacterCreationMeshPresetTable_Hair` | 38 | `SkeletalMesh`, `SkeletalMesh_MaleHead`, `IconTexture`, `ABPAsset`, `ShiftUIDisplayEyeColor`, `ShiftUIDisplayBodyColor`, `ShiftUIDisplayBrowColor`, `ShiftUIDisplayHairColor`, `/Game/Pal/Blueprint/Character/Player/Imp_Hair/ABP_Player_Hair001_Implementation_185`, `/Game/Pal/Blueprint/Character/Player/Imp_Hair/ABP_Player_Hair001_Implementation_31`, `/Game/Pal/Blueprint/Character/Player/Imp_Hair/ABP_Player_Hair001_Implementation` |
+| `DT_CharacterCreationMeshPresetTable_Hair` | 38 | `SkeletalMesh`, `SkeletalMesh_MaleHead`, `IconTexture`, `ABPAsset`, `ShiftUIDisplayEyeColor`, `ShiftUIDisplayBodyColor`, `ShiftUIDisplayBrowColor`, `ShiftUIDisplayHairColor` |
 | `DT_CharacterCreationMeshPresetTable_Head` | 27 | `SkeletalMesh`, `SkeletalMesh_MaleHead`, `IconTexture`, `ABPAsset`, `ShiftUIDisplayEyeColor`, `ShiftUIDisplayBodyColor`, `ShiftUIDisplayBrowColor`, `ShiftUIDisplayHairColor` |
 | `DT_CharacterTeamMissionChallengeConditionDataTable` | 18 | `DefeatBossType`, `DefeatBossDifficulty`, `DefeatHardBossNum` |
 | `DT_CharacterTeamMissionDataTable` | 18 | `TitleTextId`, `TextureType`, `Difficulty`, `RequiredSeconds`, `RecommendedStrength`, `RequiredElementType`, `RequiredElementNum`, `MaxCharacterNum`, `ItemFieldLotteryName`, `ReleaseCondition`, `ChallengeCondition` |
@@ -96,13 +95,13 @@ prevented — see the script's docstring. Check here first.
 | `DT_ItemDataTable_Common` | 2466 | `OverrideName`, `OverrideDescription`, `IconName`, `TypeA`, `TypeB`, `Rank`, `Rarity`, `MaxStackCount`, `Weight`, `Price`, `SortID`, `bInTreasureBox`, `bNotConsumed`, `bNotAvailableInPVP`, … (+39) |
 | `DT_ItemDescriptionText` | 1924 | `TextData` |
 | `DT_ItemDescriptionText_Common` | 1924 | `TextData` |
-| `DT_ItemDynamicClassDataTable` | 2 | `ClassName`, `DynamicClass`, `NewRow`, `ClassName_6` |
+| `DT_ItemDynamicClassDataTable` | 3 | `ClassName`, `DynamicClass` |
 | `DT_ItemIconDataTable` | 1207 | `Icon` |
 | `DT_ItemIconDataTable_Common` | 1207 | `Icon` |
-| `DT_ItemLotteryDataTable` | 8777 | `FieldName`, `SlotNo`, `WeightInSlot`, `StaticItemId`, `MinNum`, `MaxNum`, `NumUnit`, `TreasureBoxGrade`, `BonusExpRate` |
+| `DT_ItemLotteryDataTable` | 8782 | `FieldName`, `SlotNo`, `WeightInSlot`, `StaticItemId`, `MinNum`, `MaxNum`, `NumUnit`, `TreasureBoxGrade`, `BonusExpRate` |
 | `DT_ItemNameText` | 1994 | `TextData` |
 | `DT_ItemNameText_Common` | 1994 | `TextData` |
-| `DT_ItemPickupDataTable` | 106 | `Item_01_Num`, `Item_02_Id`, `Item_02_Num`, `Item_03_Id`, `Item_03_Num`, `Item_01_Id`, `Test_GrassLand01` |
+| `DT_ItemPickupDataTable` | 107 | `Item_01_Id`, `Item_01_Num`, `Item_02_Id`, `Item_02_Num`, `Item_03_Id`, `Item_03_Num` |
 | `DT_ItemRecipeDataTable` | 1414 | `Product_Id`, `Product_Count`, `WorkAmount`, `WorkableAttribute`, `UnlockItemID`, `Material1_Id`, `Material1_Count`, `Material2_Id`, `Material2_Count`, `Material3_Id`, `Material3_Count`, `Material4_Id`, `Material4_Count`, `Material5_Id`, … (+6) |
 | `DT_ItemRecipeDataTable_Common` | 1414 | `Product_Id`, `Product_Count`, `WorkAmount`, `WorkableAttribute`, `UnlockItemID`, `Material1_Id`, `Material1_Count`, `Material2_Id`, `Material2_Count`, `Material3_Id`, `Material3_Count`, `Material4_Id`, `Material4_Count`, `Material5_Id`, … (+6) |
 | `DT_ItemRequestNPCData` | 11 | `RequestCategory`, `RequestItem`, `RequestNum`, `RewardItemString`, `ExpBonusLevel` |
@@ -127,8 +126,8 @@ prevented — see the script's docstring. Check here first.
 | `DT_MapObjectMasterDataTable` | 1034 | `OverrideNameMsgID`, `BlueprintClassName`, `BlueprintClassSoft`, `MaterialType`, `MaterialSubType`, `bCollectionObject`, `Hp`, `Defense`, `Hp_PVP`, `Defense_PVP`, `bBelongToBaseCamp`, `DistributeExpAroundPlayer`, `DeteriorationDamage`, `ExtinguishBurnWorkAmount`, … (+3) |
 | `DT_MapObjectMasterDataTable_Common` | 632 | `OverrideNameMsgID`, `BlueprintClassName`, `BlueprintClassSoft`, `MaterialType`, `MaterialSubType`, `bCollectionObject`, `Hp`, `Defense`, `Hp_PVP`, `Defense_PVP`, `bBelongToBaseCamp`, `DistributeExpAroundPlayer`, `DeteriorationDamage`, `ExtinguishBurnWorkAmount`, … (+3) |
 | `DT_MapObjectMasterDataTable_EnemyCamp` | 402 | `OverrideNameMsgID`, `BlueprintClassName`, `BlueprintClassSoft`, `MaterialType`, `MaterialSubType`, `bCollectionObject`, `Hp`, `Defense`, `Hp_PVP`, `Defense_PVP`, `bBelongToBaseCamp`, `DistributeExpAroundPlayer`, `DeteriorationDamage`, `ExtinguishBurnWorkAmount`, … (+3) |
-| `DT_MapObjectNameText` | 616 | `TextData` |
-| `DT_MapObjectNameText_Common` | 616 | `TextData` |
+| `DT_MapObjectNameText` | 617 | `TextData` |
+| `DT_MapObjectNameText_Common` | 617 | `TextData` |
 | `DT_MapObjectSpawnerDataTable` | 1 | `BlueprintClassName`, `BlueprintClassSoft` |
 | `DT_MapRespawnPointInfoText` | 199 | `TextData` |
 | `DT_NPCAppearFlagDable` | 2 | `DummyValue` |
@@ -143,8 +142,8 @@ prevented — see the script's docstring. Check here first.
 | `DT_NpcTalkText` | 869 | `TextData` |
 | `DT_NpcTalkText_Common` | 869 | `TextData` |
 | `DT_OperatingTablePassiveSkillDataTable` | 54 | `PassiveSkill`, `Price`, `RequireItemId` |
-| `DT_OptionGraphicsTable` | 5 | `AntiAliasingType`, `CommonQuality`, `ViewDistanceQuality`, `MapObjectDrawDistanceType`, `FoliageQuality`, `ShadowQuality`, `TextureQuality`, `bEnableMotionBlur`, `ScreenPercentage`, `GraphicsLevel`, `VeryLow` |
-| `DT_OptionWorldModePresetTable` | 4 | `bCanPickupOtherGuildDeathPenaltyDrop`, `bEnableNonLoginPenalty`, `bIsStartLocationSelectByMap`, `bExistPlayerAfterLogout`, `bEnableDefenseOtherGuildPlayer`, `WorldMode`, `bEnablePlayerToPlayerDamage`, `Single`, `bCanPickupOtherGuildDeathPenaltyDrop_100663295` |
+| `DT_OptionGraphicsTable` | 5 | `GraphicsLevel`, `AntiAliasingType`, `CommonQuality`, `ViewDistanceQuality`, `MapObjectDrawDistanceType`, `FoliageQuality`, `ShadowQuality`, `TextureQuality`, `bEnableMotionBlur`, `ScreenPercentage` |
+| `DT_OptionWorldModePresetTable` | 4 | `WorldMode`, `bEnablePlayerToPlayerDamage`, `bCanPickupOtherGuildDeathPenaltyDrop`, `bEnableNonLoginPenalty`, `bIsStartLocationSelectByMap`, `bExistPlayerAfterLogout`, `bEnableDefenseOtherGuildPlayer` |
 | `DT_OptionWorldPresetTable` | 4 | `Diffculty`, `RandomizerType`, `DayTimeSpeedRate`, `NightTimeSpeedRate`, `ExpRate`, `PalCaptureRate`, `PalSpawnNumRate`, `PalDamageRateAttack`, `PalDamageRateDefense`, `PlayerDamageRateAttack`, `PlayerDamageRateDefense`, `PlayerStomachDecreaceRate`, `PlayerStaminaDecreaceRate`, `PlayerAutoHPRegeneRate`, … (+32) |
 | `DT_PL_MainWorld_2_Stylescape_FoliageType0001` | 753 | `FoliageTypeName`, `Location`, `Rotator`, `Scale3D` |
 | `DT_PL_MainWorld_2_Stylescape_FoliageType002` | 949 | `FoliageTypeName`, `Location`, `Rotator`, `Scale3D` |
@@ -174,12 +173,12 @@ prevented — see the script's docstring. Check here first.
 | `DT_PalCharacterIconDataTable` | 674 | `Icon` |
 | `DT_PalCharacterIconDataTable_Common` | 674 | `Icon` |
 | `DT_PalCharacterIconDataTable_SkinOverride` | 25 | `Icon` |
-| `DT_PalCharacterIconDataTable_SkinOverride_Common` | 24 | `Icon`, `PinkCat_Skin001`, `/Game/Pal/Texture/PalIcon/SKin/T_Anubis_Skin001_Icon_Normal_5375` |
+| `DT_PalCharacterIconDataTable_SkinOverride_Common` | 25 | `Icon` |
 | `DT_PalCombiUnique` | 258 | `ParentTribeA`, `ParentGenderA`, `ParentTribeB`, `ParentGenderB`, `ChildCharacterID` |
 | `DT_PalCurveBallDataTable` | 18 | `CurveID`, `InitVelocity`, `CurveVelocity`, `CurveInterval`, `ForwardVelocity`, `GravityScale`, `GravityInterval` |
 | `DT_PalDisplayNPCData` | 54 | `RequestCategory`, `RequestPalID`, `RewardItems`, `ExpBonusLevel` |
 | `DT_PalDropItem` | 1044 | `CharacterID`, `Level`, `ItemId1`, `Rate1`, `min1`, `Max1`, `ItemId2`, `Rate2`, `min2`, `Max2`, `ItemId3`, `Rate3`, `min3`, `Max3`, … (+28) |
-| `DT_PalDropItem_Common` | 1043 | `Max3`, `ItemId4`, `Rate4`, `min4`, `Max4`, `ItemId5`, `Rate5`, `min5`, `Max5`, `ItemId6`, `Rate6`, `min6`, `Max6`, `ItemId7`, … (+31) |
+| `DT_PalDropItem_Common` | 1044 | `CharacterID`, `Level`, `ItemId1`, `Rate1`, `min1`, `Max1`, `ItemId2`, `Rate2`, `min2`, `Max2`, `ItemId3`, `Rate3`, `min3`, `Max3`, … (+28) |
 | `DT_PalExpTable` | 100 | `DropEXP`, `NextEXP`, `PalNextEXP`, `TotalEXP`, `PalTotalEXP`, `BuildEXP`, `CraftEXP`, `PalBuildEXP`, `PalCraftEXP` |
 | `DT_PalExpTable_V1` | 100 | `DropEXP`, `NextEXP`, `PalNextEXP`, `TotalEXP`, `PalTotalEXP`, `BuildEXP`, `CraftEXP`, `PalBuildEXP`, `PalCraftEXP` |
 | `DT_PalFirstActivatedInfoText` | 305 | `TextData` |
@@ -187,14 +186,14 @@ prevented — see the script's docstring. Check here first.
 | `DT_PalFishPondLotteryNameDataTable` | 3 | `TextId` |
 | `DT_PalFishShadowDataTable` | 135 | `FishShadowSize`, `PalId`, `BlueprintClassName`, `FishShadowBlueprintClassSoft`, `MoveSpeedPerSec`, `SearchRadius`, `SearchProbability`, `KingPassiveRate`, `BossPassiveRate`, `RarePassiveRate`, `BehaviorType` |
 | `DT_PalFishingSpotLotteryDataTable` | 1252 | `LotteryName`, `Weight`, `FishShadowId`, `GainItemLotteryName`, `OnlyTime`, `MinLevel`, `MaxLevel`, `Difficulty`, `DecreaseDurability`, `FishingSpotDifficulty` |
-| `DT_PalFishingSpotLotteryNameDataTable` | 111 | `RespawnTime`, `FishingSpot_A_Ocean_Common_110`, `FishingSpot_A_Ocean_Common_1114636287` |
+| `DT_PalFishingSpotLotteryNameDataTable` | 115 | `RespawnTime` |
 | `DT_PalFishingSpotPalSpawnerDataTable` | 3 | `PalName`, `LevelMin`, `LevelMax`, `OverrideBuoyancy`, `OverrideInWaterRate` |
 | `DT_PalGameProgressPreset` | 74 | `Level`, `HPLevel`, `SPLevel`, `AttackLevel`, `WorkLevel`, `WeightLevel`, `CaptureLevel`, `OtomoPals`, `CapturedPals`, `LoadoutItems`, `Items`, `ExecuteCommands` |
 | `DT_PalGameProgressPreset_Common` | 74 | `Level`, `HPLevel`, `SPLevel`, `AttackLevel`, `WorkLevel`, `WeightLevel`, `CaptureLevel`, `OtomoPals`, `CapturedPals`, `LoadoutItems`, `Items`, `ExecuteCommands` |
 | `DT_PalGamepadButtonImage` | 28 | `XboxButtonImage`, `Key` |
 | `DT_PalHumanParameter` | 433 | `OverrideNameTextID`, `NamePrefixID`, `OverridePartnerSkillNameTextID`, `OverridePartnerSkillDescTextID`, `IsPal`, `Tribe`, `BPClass`, `ZukanIndex`, `ZukanIndexSuffix`, `Size`, `Rarity`, `ElementType1`, `ElementType2`, `GenusCategory`, … (+76) |
 | `DT_PalHumanParameter_Common` | 433 | `OverrideNameTextID`, `NamePrefixID`, `OverridePartnerSkillNameTextID`, `OverridePartnerSkillDescTextID`, `IsPal`, `Tribe`, `BPClass`, `ZukanIndex`, `ZukanIndexSuffix`, `Size`, `Rarity`, `ElementType1`, `ElementType2`, `GenusCategory`, … (+76) |
-| `DT_PalInvader` | 143 | `Exp`, `WaveLevelOffset`, `ConditionBuildObjectId`, `GroupName`, `BiomeID`, `InvadeGradeMin`, `InvadeGradeMax`, `Weight`, `CharactorID_A`, `Otomo_A`, `LevelMin_A`, `LevelMax_A`, `Number_A`, `CharactorID_B`, … (+24) |
+| `DT_PalInvader` | 240 | `Wave`, `Interval`, `Exp`, `WaveLevelOffset`, `ConditionBuildObjectId`, `GroupName`, `BiomeID`, `InvadeGradeMin`, `InvadeGradeMax`, `Weight`, `CharactorID_A`, `Otomo_A`, `LevelMin_A`, `LevelMax_A`, … (+21) |
 | `DT_PalInvaderCancelCost` | 80 | `Money` |
 | `DT_PalInvaderReward` | 76 | `GroupName`, `ItemId1`, `Rate1`, `Min1`, `Max1`, `ItemId2`, `Rate2`, `Min2`, `Max2`, `ItemId3`, `Rate3`, `Min3`, `Max3`, `ItemId4`, … (+27) |
 | `DT_PalLongDescriptionText` | 310 | `TextData` |
@@ -208,7 +207,7 @@ prevented — see the script's docstring. Check here first.
 | `DT_PalQuestLocationData` | 166 | `Position`, `Range` |
 | `DT_PalRaidBoss` | 11 | `InfoList`, `SummonMeteor_Num`, `SummonGeneratorClass`, `EggPalIDAndWeight`, `SuccessItemList`, `SuccessAnyOneItemList`, `AchievementId`, `OverrideRaidBossBattleActorClass` |
 | `DT_PalRaidBoss_Common` | 11 | `InfoList`, `SummonMeteor_Num`, `SummonGeneratorClass`, `EggPalIDAndWeight`, `SuccessItemList`, `SuccessAnyOneItemList`, `AchievementId`, `OverrideRaidBossBattleActorClass` |
-| `DT_PalRandomizer` | 739 | `NumMin`, `NumMax`, `PalID`, `BaseLv`, `RAID_NightLady`, `Alpaca_486` |
+| `DT_PalRandomizer` | 743 | `PalID`, `BaseLv`, `NumMin`, `NumMax` |
 | `DT_PalRecruitAppealDataTable` | 75 | `PassiveSkill`, `TextId` |
 | `DT_PalRecruitDataTable` | 6 | `BaseCampLevelMin`, `BaseCampLevelMax`, `PalRecruitMonsterInfo` |
 | `DT_PalRecruitMonster_DarkIsland` | 192 | `PalName`, `Weight`, `LevelMin`, `LevelMax` |
@@ -276,7 +275,7 @@ prevented — see the script's docstring. Check here first.
 | `DT_RandomIncidentMonster_Outbreak_Grass` | 20 | `CharacterId`, `Num`, `LevelMin`, `LevelMax`, `Group`, `IsSquad`, `LocationTable`, `ControllerClass`, `DefaultActionClass` |
 | `DT_RandomIncidentMonster_Outbreak_Grass2` | 11 | `CharacterId`, `Num`, `LevelMin`, `LevelMax`, `Group`, `IsSquad`, `LocationTable`, `ControllerClass`, `DefaultActionClass` |
 | `DT_RandomIncidentMonster_Outbreak_Grass_Desert` | 5 | `CharacterId`, `Num`, `LevelMin`, `LevelMax`, `Group`, `IsSquad`, `LocationTable`, `ControllerClass`, `DefaultActionClass` |
-| `DT_RandomIncidentMonster_Outbreak_Sakurajima` | 3 | `LocationTable`, `ControllerClass`, `DefaultActionClass`, `CharacterId`, `Num`, `LevelMin`, `LevelMax`, `Group`, `IsSquad`, `MONSTER0`, `BoolProperty`, `BoolProperty_3` |
+| `DT_RandomIncidentMonster_Outbreak_Sakurajima` | 15 | `CharacterId`, `Num`, `LevelMin`, `LevelMax`, `Group`, `IsSquad`, `LocationTable`, `ControllerClass`, `DefaultActionClass` |
 | `DT_RandomIncidentMonster_Outbreak_Snow` | 9 | `CharacterId`, `Num`, `LevelMin`, `LevelMax`, `Group`, `IsSquad`, `LocationTable`, `ControllerClass`, `DefaultActionClass` |
 | `DT_RandomIncidentMonster_Outbreak_Test` | 1 | `CharacterId`, `Num`, `LevelMin`, `LevelMax`, `Group`, `IsSquad`, `LocationTable`, `ControllerClass`, `DefaultActionClass` |
 | `DT_RandomIncidentMonster_Outbreak_Volcano` | 11 | `CharacterId`, `Num`, `LevelMin`, `LevelMax`, `Group`, `IsSquad`, `LocationTable`, `ControllerClass`, `DefaultActionClass` |
@@ -336,7 +335,7 @@ prevented — see the script's docstring. Check here first.
 | `DT_RandomIncidentMonster_outbreak_Penguin2` | 7 | `CharacterId`, `Level`, `Group`, `IsSquad`, `SpawnLocation`, `SpawnRadius`, `RotZ_Degree`, `ControllerClass`, `DefaultActionClass` |
 | `DT_RandomIncidentMonster_outbreak_QueenBee` | 4 | `CharacterId`, `Level`, `Group`, `IsSquad`, `SpawnLocation`, `SpawnRadius`, `RotZ_Degree`, `ControllerClass`, `DefaultActionClass` |
 | `DT_RandomIncidentMonster_outbreak_Sheepball` | 7 | `CharacterId`, `Level`, `Group`, `IsSquad`, `SpawnLocation`, `SpawnRadius`, `RotZ_Degree`, `ControllerClass`, `DefaultActionClass` |
-| `DT_RandomIncidentNPC_Aigo_VS_Hunter` | 6 | `Group`, `IsSquad`, `SpawnLocation`, `SpawnRadius`, `RotZ_Degree`, `WalkPathName`, `WalkRadius`, `ControllerClass`, `DefaultAIActionClass`, `CharacterId`, `UniqueNPCId`, `OtomoName`, `Level`, `NPC_SHOP`, … (+9) |
+| `DT_RandomIncidentNPC_Aigo_VS_Hunter` | 6 | `CharacterId`, `UniqueNPCId`, `OtomoName`, `Level`, `Group`, `IsSquad`, `SpawnLocation`, `SpawnRadius`, `RotZ_Degree`, `WalkPathName`, `WalkRadius`, `ControllerClass`, `DefaultAIActionClass` |
 | `DT_RandomIncidentNPC_BadPolice` | 3 | `CharacterId`, `UniqueNPCId`, `OtomoName`, `Level`, `Group`, `IsSquad`, `SpawnLocation`, `SpawnRadius`, `RotZ_Degree`, `WalkPathName`, `WalkRadius`, `ControllerClass`, `DefaultAIActionClass` |
 | `DT_RandomIncidentNPC_Cultist_VS_Hunter` | 6 | `CharacterId`, `UniqueNPCId`, `OtomoName`, `Level`, `Group`, `IsSquad`, `SpawnLocation`, `SpawnRadius`, `RotZ_Degree`, `WalkPathName`, `WalkRadius`, `ControllerClass`, `DefaultAIActionClass` |
 | `DT_RandomIncidentNPC_Cultist_Volcano` | 5 | `CharacterId`, `UniqueNPCId`, `OtomoName`, `Level`, `Group`, `IsSquad`, `SpawnLocation`, `SpawnRadius`, `RotZ_Degree`, `WalkPathName`, `WalkRadius`, `ControllerClass`, `DefaultAIActionClass` |
@@ -397,7 +396,7 @@ prevented — see the script's docstring. Check here first.
 | `DT_SL_MainWorld_3_RealBiomes_TestMap_x00_y00_NewRow_12` | 11778 | `FoliageTypeName`, `Location`, `Rotator`, `Scale3D` |
 | `DT_SL_MainWorld_3_RealBiomes_TestMap_x00_y00_NewRow_13` | 1478 | `FoliageTypeName`, `Location`, `Rotator`, `Scale3D` |
 | `DT_SL_MainWorld_3_RealBiomes_TestMap_x00_y00_NewRow_14` | 931 | `FoliageTypeName`, `Location`, `Rotator`, `Scale3D` |
-| `DT_SL_MainWorld_3_RealBiomes_TestMap_x00_y00_NewRow_15` | 2668 | `Location`, `Rotator`, `Scale3D`, `FoliageTypeName`, `0` |
+| `DT_SL_MainWorld_3_RealBiomes_TestMap_x00_y00_NewRow_15` | 2678 | `FoliageTypeName`, `Location`, `Rotator`, `Scale3D` |
 | `DT_SL_MainWorld_3_RealBiomes_TestMap_x00_y00_NewRow_5` | 34 | `FoliageTypeName`, `Location`, `Rotator`, `Scale3D` |
 | `DT_SL_MainWorld_3_RealBiomes_TestMap_x00_y00_NewRow_7` | 259 | `FoliageTypeName`, `Location`, `Rotator`, `Scale3D` |
 | `DT_SL_MainWorld_3_RealBiomes_TestMap_x00_y00_NewRow_8` | 1827 | `FoliageTypeName`, `Location`, `Rotator`, `Scale3D` |
@@ -416,7 +415,7 @@ prevented — see the script's docstring. Check here first.
 | `DT_SkinStaticClassDataTable` | 7 | `ClassName`, `StaticClass` |
 | `DT_SoundIDList` | 32 | `Description` |
 | `DT_SoundSourceRadius` | 9 | `Radius_Meter`, `bIsMuteable` |
-| `DT_StatusEffectFood` | 54 | `Interaval1`, `EffectType2`, `EffectValue2`, `Interaval2`, `EffectTime`, `EffectType1`, `EffectValue1`, `JamBun`, `BaconEggs_40` |
+| `DT_StatusEffectFood` | 54 | `EffectTime`, `EffectType1`, `EffectValue1`, `Interaval1`, `EffectType2`, `EffectValue2`, `Interaval2` |
 | `DT_SupplyIncident_NPC` | 1 | `CharacterId`, `UniqueNPCId`, `OtomoName`, `Level`, `Group`, `IsSquad`, `SpawnLocation`, `SpawnRadius`, `RotZ_Degree`, `WalkPathName`, `WalkRadius`, `ControllerClass`, `DefaultAIActionClass` |
 | `DT_SupplyIncident_NPC_DarkIsland01` | 3 | `CharacterId`, `UniqueNPCId`, `OtomoName`, `Level`, `Group`, `IsSquad`, `SpawnLocation`, `SpawnRadius`, `RotZ_Degree`, `WalkPathName`, `WalkRadius`, `ControllerClass`, `DefaultAIActionClass` |
 | `DT_SupplyIncident_NPC_Desert01` | 2 | `CharacterId`, `UniqueNPCId`, `OtomoName`, `Level`, `Group`, `IsSquad`, `SpawnLocation`, `SpawnRadius`, `RotZ_Degree`, `WalkPathName`, `WalkRadius`, `ControllerClass`, `DefaultAIActionClass` |
@@ -465,8 +464,8 @@ prevented — see the script's docstring. Check here first.
 | `DT_TutorialMessage_Text` | 35 | `TextData` |
 | `DT_TutorialTriggerCondtion` | 33 | `MsgId`, `Type`, `MultiTrigger`, `ConditionType`, `ConditionObjectIds`, `ConditionCategoryName`, `ConditionValue` |
 | `DT_UIInputAction` | 244 | `DisplayName`, `HoldDisplayName`, `NavBarPriority`, `KeyboardInputTypeInfo`, `DefaultGamepadInputTypeInfo`, `GamepadInputOverrides`, `TouchInputTypeInfo` |
-| `DT_UI_Common_Text` | 3143 | `TextData` |
-| `DT_UI_Common_Text_Common` | 3143 | `TextData` |
+| `DT_UI_Common_Text` | 3175 | `TextData` |
+| `DT_UI_Common_Text_Common` | 3175 | `TextData` |
 | `DT_UniqueNPC` | 216 | `CharacterID`, `NameTextID`, `OneTalkDTName`, `TalkBPClass`, `IsTransientTalkCount`, `Gender`, `SkinColor`, `Face`, `HairStyle`, `HairColor`, `Clothes`, `Scale`, `Level` |
 | `DT_UniqueNPCText` | 167 | `TextData` |
 | `DT_UniqueNPCText_Common` | 167 | `TextData` |
@@ -486,7 +485,7 @@ prevented — see the script's docstring. Check here first.
 | `DT_WorldSecurity_CrimeMasterDataTable` | 6 | `CrimeNameTextId`, `BaseReward` |
 | `DT_pal_test_ground_NewRow` | 211 | `FoliageTypeName`, `Location`, `Rotator`, `Scale3D` |
 | `DT_pal_test_ground_NewRow_0` | 239 | `FoliageTypeName`, `Location`, `Rotator`, `Scale3D` |
-| `DT_partnerSkillIconDataTable` | 309 | `TextureID_8_2B2F889C43EB586246BDB981B6462ACA`, `IsSquare_5_116F13E54A95BA260E4C56848C50332E`, `Umihebi`, `Alpaca_469762047` |
+| `DT_partnerSkillIconDataTable` | 311 | `TextureID_8_2B2F889C43EB586246BDB981B6462ACA`, `IsSquare_5_116F13E54A95BA260E4C56848C50332E` |
 | `DefaultGeometrySurfacePropertiesTable` | 61 | `AcousticTexture`, `TransmissionLoss` |
 
 ## Refused
@@ -497,5 +496,6 @@ distinction.
 
 | Table | Why |
 |---|---|
+| `CT_AmmoMesh` | TableError: ../../../Pal/Content/Pal/Blueprint/Weapon/Component/CT_AmmoMesh.uasset: no row offset produced a walk ending |
 | `DT_SupplyIncident_NPC_Sakura01` | TableError: ../../../Pal/Content/Pal/DataTable/Incident/SupplyIncident/DT_SupplyIncident_NPC_Sakura01.uasset: no row off |
 | `DefaultReverbAssignmentTable` | TableError: ../../../Pal/Content/WwiseAudio/DefaultReverbAssignmentTable.uasset: no row offset produced a walk ending at |

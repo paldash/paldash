@@ -142,8 +142,12 @@ def _to_csv(headers: list[str], rows: Iterable[list[Any]]) -> str:
     # QUOTE_MINIMAL with \r\n: Excel's expected dialect, and item names contain
     # commas ("Pal Sphere, Mega") often enough to matter.
     writer = csv.writer(buf, lineterminator="\r\n")
-    writer.writerow(headers)
-    writer.writerows(rows)
+    def cell(value):
+        if isinstance(value, str) and value.lstrip().startswith(("=", "+", "-", "@", "\t", "\r", "\n")):
+            return "'" + value
+        return value
+    writer.writerow([cell(value) for value in headers])
+    writer.writerows([cell(value) for value in row] for row in rows)
     return buf.getvalue()
 
 

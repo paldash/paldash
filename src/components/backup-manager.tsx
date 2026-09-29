@@ -9,6 +9,7 @@ import {
   getBackups, createBackup, verifyBackup, renameBackup, deleteBackup,
   previewRestore, restoreBackup, pruneBackups, backupDownloadUrl,
   getBackupSchedule, setBackupSchedule,
+  getRecoveryStatus, recoverInterruptedRestore, type RecoveryStatus,
 } from '@/lib/save-api';
 import { useDashboardStore } from '@/lib/store';
 import type {
@@ -54,11 +55,13 @@ export default function BackupManager() {
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [recovery, setRecovery] = useState<RecoveryStatus | null>(null);
 
   const load = useCallback(async () => {
     setBusy(true);
     try {
-      const [listing, sched] = await Promise.all([getBackups(), getBackupSchedule()]);
+      const [listing, sched, pending] = await Promise.all([getBackups(), getBackupSchedule(), getRecoveryStatus()]);
+      setRecovery(pending);
       setData(listing);
       setSchedule(sched);
       setError(null);
@@ -135,6 +138,15 @@ export default function BackupManager() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       {error && <div className="notice notice-warn">{error}</div>}
       {status && <div className="notice">{status}</div>}
+      {recovery?.pending && <div className="notice notice-warn">
+        <p>An interrupted restore needs recovery. Save edits and dashboard start/restart commands are blocked.
+          {recovery.rollbackId && ` Rollback backup: ${recovery.rollbackId}.`}
+          {recovery.error && ` ${recovery.error}`}</p>
+        <button className="btn" disabled={busy || serverProcessRunning}
+          onClick={() => act('Restore recovery completed', recoverInterruptedRestore)}>
+          Recover previous files (server must be stopped)
+        </button>
+      </div>}
       {data?.available === false && (
         /* An unmounted or read-only backup volume — "we could not look" is a
            different answer from "no backups yet", and taking one would fail

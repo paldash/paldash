@@ -21,6 +21,8 @@
  * 157 points were not used to fit it, and every one lands on the image.
  */
 
+import mapFraming from './map-framing.json';
+
 export type MapRegion = 'palpagos' | 'worldtree';
 
 interface RegionTransform {
@@ -70,70 +72,14 @@ const PALPAGOS: RegionTransform = {
   calibrated: true,
 };
 
-/*
- * World Tree — derived from the game's own World Partition grid.
- *
- * WHAT CHANGED, AND WHY IT IS BETTER THAN WHAT WAS HERE BEFORE
- * -----------------------------------------------------------
- * The previous transform assumed the map framed the *fast-travel* bounding box
- * at ~82% of each axis. Both halves of that were wrong, and the game files say
- * so.
- *
- * `Pal-LinuxServer.pak` is unencrypted, and its index lists 9,978 World
- * Partition streaming cells for the main world, named
- * `MainGrid_L0_X<col>_Y<row>`. Those names *are* coordinates. The cell size is
- * measured, not guessed: at 25,600 world units, all **174 of 174** fast-travel
- * points land inside an occupied cell — 157/157 Palpagos and 17/17 World Tree.
- * 12,800 gets 66 and 51,200 gets 157, so the figure is unambiguous.
- *
- * That yields each landmass's true extent, which is the ground truth this
- * region never had. Projecting Palpagos' occupied-cell bounding box through its
- * own independently verified transform shows the map image frames the landmass
- * essentially edge to edge — 97.8% of the image on X, 99.0% on Y — not 82%, and
- * not the fast-travel box. Applying that same framing to the World Tree's cell
- * bounds moves markers by a mean of 80px on X and 196px on Y (max 467px)
- * against the old guess.
- *
- * THE ORIENTATION IS NO LONGER AN ASSUMPTION (measured 2026-08-04)
- * ----------------------------------------------------------------
- * This used to say a flip or a transpose would go unnoticed. It would not.
- * `scripts/fit-worldtree-objects.py` settles it from a live world: 52 real
- * object positions on this landmass, scored against the texture's land mask
- * across all 8 orientations. Chests, drops and placed objects sit on *land* —
- * you cannot open a chest in the ocean — so unlike the streaming-cell
- * silhouette that `fit-worldtree.py` tried, this is a real land signal.
- *
- *     identity          on land  53.8%   <- the convention below
- *     transpose+rot90   on land  38.5%
- *     ...
- *     transpose+rot180  on land   5.8%
- *
- * It wins by 0.154, and the control passes: the same procedure recovers
- * Palpagos' independently-confirmed orientation first, by 0.134. So the axis
- * convention here is measured, not inherited from Palpagos on faith.
- *
- * STILL NOT `calibrated: true`, AND THAT IS STILL DELIBERATE
- * ----------------------------------------------------------
- * Orientation was the larger unknown, not the only one. *Precision* is
- * unestablished, and the same script says why it cannot establish it: refining
- * the extent against 52 land observations resolves to about 0.12 of the map,
- * ~490 px of 4,096. That figure is the measured noise floor — a known-correct
- * Palpagos transform, refined on random 52-point subsamples, wanders by a mean
- * of 0.090 and a max of 0.120. A suggested World Tree correction of 0.100 is
- * therefore not a correction, and must not be applied.
- *
- * **More chests will not fix this.** They only ever say "on land". Calibration
- * needs the other kind of ground truth: a world position whose *pixel* position
- * is independently known, which is exactly what Palpagos' 157 fast-travel
- * points provided.
- *
- * Regenerate the bounds with `scripts/palpak.py` after a game update;
- * a new landmass will show up as a new cell cluster.
- */
-const WORLD_TREE_CELL_BOUNDS = { x1: 332800, x2: 691200, y1: -793600, y2: -486400 };
+/** Source bounds from DT_WorldMapUIData, verified against both texture references
+ * and all known travel points. Orientation retains the independent 52-object
+ * control in fit-worldtree-objects.py; no independent pixel landmark establishes
+ * precision, so calibrated remains false. */
+const WORLD_TREE_SOURCE_BOUNDS = mapFraming.regions.worldtree;
 
-function worldTreeFromCellGrid(): RegionTransform {
-  const { x1, x2, y1, y2 } = WORLD_TREE_CELL_BOUNDS;
+function worldTreeFromSource(): RegionTransform {
+  const { x1, x2, y1, y2 } = WORLD_TREE_SOURCE_BOUNDS;
 
   // world Y -> image X:  y1 -> 0,  y2 -> MAP_SIZE
   const imgXScale = MAP_SIZE / (y2 - y1);
@@ -154,18 +100,13 @@ function worldTreeFromCellGrid(): RegionTransform {
     imgYOffset,
     contains: (worldX) => worldX > WORLD_TREE_X_THRESHOLD,
     calibrated: false,
-    // Narrower than it was, because the orientation question is now answered.
-    // Telling people placement might be mirrored when it measurably is not
-    // costs trust in the rest of the map for no reason.
-    note:
-      'World Tree placement is accurate to roughly a few hundred pixels: the landmass ' +
-      'extent comes from the game’s streaming-cell grid and the orientation is ' +
-      'confirmed against real object positions, but no known pixel position exists up ' +
-      'here to fit the exact scale against.',
+    note: 'World Tree framing comes from the game’s map bounds and texture reference. ' +
+      'Orientation is checked against saved object positions; exact pixel alignment ' +
+      'has not been independently calibrated.',
   };
 }
 
-const WORLD_TREE = worldTreeFromCellGrid();
+const WORLD_TREE = worldTreeFromSource();
 
 export const MAP_REGIONS: RegionTransform[] = [PALPAGOS, WORLD_TREE];
 

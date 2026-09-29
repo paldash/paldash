@@ -21,7 +21,9 @@ from contextlib import asynccontextmanager
 from typing import Any, AsyncIterator, Optional
 
 from fastapi import FastAPI, HTTPException, Query, Request
-from pydantic import BaseModel
+from fastapi.responses import FileResponse, JSONResponse
+from pydantic import BaseModel, Field
+from starlette.concurrency import run_in_threadpool
 
 import accounts
 import announcements
@@ -106,7 +108,7 @@ MAX_UPLOAD_BYTES = int(os.environ.get("MAX_UPLOAD_MB", "64")) * 1024 * 1024
 
 
 @asynccontextmanager
-async def _lifespan(_app: FastAPI) -> AsyncIterator[None]:
+async def _services_lifespan(_app: FastAPI) -> AsyncIterator[None]:
     """
     Prepare storage and make sure somebody can actually sign in.
 
@@ -136,12 +138,42 @@ async def _lifespan(_app: FastAPI) -> AsyncIterator[None]:
             username="system", role="owner", target=created,
             detail="bootstrapped first Owner from PANEL_PASSWORD",
         )
-    yield
-    # Nothing to tear down: the scheduler and metrics samplers run on daemon
-    # threads, and SQLite connections are per-call.
+    import jobs
+    jobs.start({name: _job_handler(name) for name in ('server-export', 'solo-export', 'self-export')})
+    try:
+        yield
+    finally:
+        schedule_module.stop()
+        metrics.stop()
+        jobs.stop()
+        db.close_connection()
+
+
+@asynccontextmanager
+async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
+    import statebackup
+    with statebackup.service_lease():
+        async with _services_lifespan(app):
+            yield
 
 
 app = FastAPI(title="Palworld Save Backend", version="3.0.0", lifespan=_lifespan)
+
+from requestlimits import RequestLimits
+app.add_middleware(RequestLimits, upload_limit=MAX_UPLOAD_BYTES)
+
+
+@app.middleware("http")
+async def enforce_password_rotation(request: Request, call_next):
+    # Inline owner checks and metadata routes must obey rotation too, not only
+    # routes that call require(). Keep exactly the account recovery paths open.
+    allowed = {"/api/auth/login", "/api/auth/session", "/api/auth/password", "/api/auth/logout", "/api/ready"}
+    if request.url.path.startswith("/api/") and request.url.path not in allowed:
+        user = await run_in_threadpool(authz.current_user, request)
+        if user and user.get("mustChangePassword"):
+            return JSONResponse({"detail": "Change your temporary password before using the dashboard."}, status_code=403)
+    return await call_next(request)
+
 
 
 # ─── Authentication ──────────────────────────────────────
@@ -233,7 +265,13 @@ def change_own_password(req: PasswordChange, request: Request) -> dict[str, Any]
 
     ip = authz.client_ip(request)
     try:
-        accounts.authenticate(user["username"], req.currentPassword, ip=ip)
+        accounts.validate_password(req.newPassword)
+    except accounts.AccountError as e:
+        raise HTTPException(400, str(e))
+    try:
+        accounts.authenticate(user["username"], req.currentPassword, ip=ip, issue_session=False)
+    except accounts.RateLimited as e:
+        raise HTTPException(429, str(e), headers={"Retry-After": str(e.retry_after)})
     except accounts.AccountError:
         audit.record(
             audit.USER_PASSWORD, username=user["username"], role=user["role"],
@@ -394,6 +432,12 @@ def get_audit(
 
 
 # ─── Health & status ─────────────────────────────────────
+
+
+@app.get("/api/ready")
+def ready() -> dict[str, str]:
+    db.connect().execute("SELECT 1").fetchone()
+    return {"status": "ok"}
 
 
 @app.get("/api/health")
@@ -1597,7 +1641,7 @@ def get_base_assignment(
         base_id = str(obj.get("baseCampId") or "")
         if base_id in base_names:
             structures_by_base.setdefault(base_id, []).append(
-                {"kind": obj.get("objectId") or ""}
+                {"kind": obj.get("kind") or obj.get("objectId") or ""}
             )
 
     effective = _breeding_owner(request, owner)
@@ -1709,7 +1753,7 @@ def _named_map_objects() -> list[dict]:
     """
     out = []
     for o in savecache.get_section("mapObjects"):
-        object_id = o.get("objectId") or ""
+        object_id = o.get("kind") or o.get("objectId") or ""
         named = {**o, "name": gamedata.structure_name(object_id)}
         capability = gamedata.structure_capability(object_id)
         if capability:
@@ -1741,6 +1785,37 @@ def get_map_objects(request: Request, category: Optional[str] = None) -> list[di
 
 
 # ─── Static world data (bundled, not from the save) ──────
+
+
+@app.get('/api/reference/guides')
+def reference_guide_index(request: Request) -> dict:
+    authz.require(request, roles_module.VIEW_BASIC)
+    import referenceguides
+    try:
+        return referenceguides.index()
+    except (OSError, ValueError) as error:
+        raise HTTPException(503, 'The gameplay reference bundle is unavailable') from error
+
+
+@app.get('/api/world/supply')
+def recorded_supply(request: Request) -> dict:
+    authz.require(request, roles_module.VIEW_DETAIL)
+    data = savecache.get_data() or {}
+    return {**(data.get('supplyState') or {'available': False, 'events': []}),
+            'parsedAt': data.get('parsedAt'),
+            'note': 'Recorded at the last parse. Times are native save values, not wall-clock dates or predictions of the next drop.'}
+
+
+@app.get('/api/reference/guides/{section}')
+def reference_guide(section: str, request: Request) -> dict:
+    authz.require(request, roles_module.VIEW_BASIC)
+    import referenceguides
+    try:
+        return referenceguides.report(section)
+    except KeyError as error:
+        raise HTTPException(404, 'Unknown gameplay reference section') from error
+    except (OSError, ValueError) as error:
+        raise HTTPException(503, 'The gameplay reference bundle is unavailable') from error
 
 
 @app.get("/api/world/fasttravel")
@@ -2559,6 +2634,8 @@ def get_language(code: str, request: Request) -> dict[str, Any]:
     English, which is the same outcome as asking for `en`.
     """
     authz.require(request, roles_module.VIEW_BASIC)
+    if not re.fullmatch(r"[a-z]{2}(?:-[A-Za-z]{2,4})?", code):
+        raise HTTPException(400, "Invalid language code")
     names = viewcache.per_file(
         "language:names",
         os.path.join(gamedata.LANG_DIR, f"{code}.json.gz"),
@@ -4256,7 +4333,7 @@ def get_backups(request: Request) -> dict[str, Any]:
             "scopes": backup_module.RESTORE_SCOPES,
             "retention": backup_module.DEFAULT_RETENTION,
             "available": False,
-            "reason": f"Backup directory is not usable: {e}",
+            "reason": "Backup directory is not usable; check its mount and permissions.",
             "directory": backup_module.BACKUP_DIR,
         }
     return {
@@ -4303,7 +4380,8 @@ def make_backup(req: BackupRequest, request: Request) -> dict:
             audit.BACKUP_CREATE, username=user["username"], role=user["role"],
             detail=str(e), ip=authz.client_ip(request), result=audit.RESULT_FAILED,
         )
-        raise HTTPException(500, f"Backup failed: {e}")
+        logger.exception('Backup creation failed')
+        raise HTTPException(500, "Backup creation failed; see the audit log for details") from e
 
     audit.record(
         audit.BACKUP_CREATE, username=user["username"], role=user["role"],
@@ -4363,6 +4441,31 @@ def preview_restore_route(
 
 class RestoreRequest(BaseModel):
     scope: str = "world"
+
+
+@app.get("/api/maintenance/recovery")
+def recovery_status(request: Request) -> dict:
+    authz.require(request, roles_module.BACKUP_MANAGE)
+    import recovery
+    return recovery.status()
+
+
+@app.post("/api/maintenance/recovery")
+def recover_restore(request: Request) -> dict:
+    user = authz.require_user(request, roles_module.BACKUP_MANAGE)
+    import recovery
+    try:
+        result = recovery.recover()
+    except (BackupError, ServerRunningError, OSError) as error:
+        audit.record(audit.BACKUP_RESTORE, username=user['username'], role=user['role'],
+                     detail='Interrupted restore recovery refused', result=audit.RESULT_FAILED,
+                     ip=authz.client_ip(request))
+        raise HTTPException(409, str(error)) from error
+    audit.record(audit.BACKUP_RESTORE, username=user['username'], role=user['role'],
+                 detail={'recovery': result}, ip=authz.client_ip(request))
+    if result.get('recovered'):
+        savecache.request_parse(force=True)
+    return result
 
 
 @app.post("/api/restore/{backup_id}")
@@ -4784,7 +4887,7 @@ def preview_world_export(req: WorldExportRequest, request: Request) -> dict[str,
 
 
 @app.post("/api/export/world-copy")
-def create_world_export(req: WorldExportRequest, request: Request) -> dict[str, Any]:
+def create_world_export(req: WorldExportRequest, request: Request, background: bool = Query(False)) -> dict[str, Any]:
     """
     Write a copy of the world with one player's uid remapped, and archive it.
 
@@ -4795,12 +4898,16 @@ def create_world_export(req: WorldExportRequest, request: Request) -> dict[str, 
     protection.
     """
     user = authz.require_user(request, roles_module.BACKUP_MANAGE)
+    if background is True:
+        return _queue_export('solo-export', user, req.model_dump())
     try:
         result = soloexport.apply_export(
             req.sourceUid, req.targetUid, expected_plan_hash=req.planHash,
             keep_guilds=req.keepGuilds,
         )
         archive = soloexport.archive_export(result["destination"])
+        import shutil
+        shutil.rmtree(result['destination'])
     except soloexport.SoloExportError as e:
         audit.record(
             audit.EXPORT, username=user["username"], role=user["role"],
@@ -4834,6 +4941,135 @@ def create_world_export(req: WorldExportRequest, request: Request) -> dict[str, 
     return {**result, "archive": archive}
 
 
+# ─── Dedicated-server export (retained identities stay unchanged) ──────────
+
+
+def _queue_export(kind, user, payload):
+    import jobs
+    try:
+        return jobs.submit(kind, user, payload)
+    except jobs.JobError as error:
+        raise HTTPException(409, str(error)) from error
+
+
+def _job_handler(kind):
+    def execute(user, payload):
+        request = Request({'type': 'http', 'headers': [], 'client': ('127.0.0.1', 0),
+                           'state': {'job_identity': authz._JobIdentity(user)}})
+        if kind == 'server-export':
+            return create_server_export(ServerExportCreate(**payload), request, background=False)
+        if kind == 'solo-export':
+            return create_world_export(WorldExportRequest(**payload), request, background=False)
+        if payload.get('uid') != authz.linked_uid(user):
+            raise HTTPException(409, 'The linked character changed while the export was queued')
+        return self_export_create(request, background=False)
+    return execute
+
+
+@app.get('/api/jobs')
+def list_background_jobs(request: Request) -> dict:
+    user = authz.require_user(request, roles_module.VIEW_SELF)
+    import jobs
+    jobs.init()
+    ids = db.connect().execute('SELECT id FROM jobs WHERE owner_id=? ORDER BY created_at DESC LIMIT 10', (user['id'],)).fetchall()
+    return {'jobs': [jobs.get(row['id'], user['id']) for row in ids]}
+
+
+@app.get('/api/jobs/{job_id}')
+def get_background_job(job_id: str, request: Request) -> dict:
+    user = authz.require_user(request, roles_module.VIEW_SELF)
+    import jobs
+    try:
+        return jobs.get(job_id, user['id'])
+    except jobs.JobError as error:
+        raise HTTPException(404, str(error)) from error
+
+
+@app.delete('/api/jobs/{job_id}')
+def cancel_background_job(job_id: str, request: Request) -> dict:
+    user = authz.require_user(request, roles_module.VIEW_SELF)
+    import jobs
+    try:
+        result = jobs.cancel(job_id, user['id'])
+    except jobs.JobError as error:
+        raise HTTPException(409, str(error)) from error
+    audit.record(audit.EXPORT, username=user['username'], role=user['role'],
+                 target='queued-export', detail='Cancelled before execution', ip=authz.client_ip(request))
+    return result
+
+
+@app.get('/api/jobs/{job_id}/download')
+def download_background_export(job_id: str, request: Request):
+    user = authz.require_user(request, roles_module.BACKUP_MANAGE)
+    import jobs
+    from pathlib import Path
+    import hashlib
+    try:
+        job = jobs.get(job_id, user['id'])
+        if job['state'] != 'completed' or job['kind'] != 'solo-export':
+            raise ValueError('No completed world copy')
+        meta = job['result']['archive']
+        path = Path(meta['path']).absolute()
+        if any(p.is_symlink() for p in (path, *path.parents)) or not path.is_relative_to(Path(soloexport._export_base()).absolute()):
+            raise ValueError('Invalid archive location')
+        with path.open('rb') as handle:
+            if hashlib.file_digest(handle, 'sha256').hexdigest() != meta['sha256']:
+                raise ValueError('Archive changed')
+    except (jobs.JobError, OSError, ValueError, KeyError, TypeError) as error:
+        raise HTTPException(404, 'This verified world copy is no longer available') from error
+    audit.record(audit.EXPORT, username=user['username'], role=user['role'], target='world-copy:download', ip=authz.client_ip(request))
+    return FileResponse(str(path), media_type='application/gzip', filename='world-copy.tar.gz')
+
+
+class ServerExportPreview(BaseModel):
+    removeUids: list[str]
+    leaders: dict[str, str] = Field(default_factory=dict)
+
+
+class ServerExportCreate(BaseModel):
+    artifactId: str
+    planHash: str
+
+
+@app.post("/api/export/server/preview")
+def preview_server_export(req: ServerExportPreview, request: Request) -> dict:
+    import serverexport
+    user = authz.require_user(request, roles_module.BACKUP_MANAGE)
+    try:
+        return serverexport.preview(user["id"], req.removeUids, req.leaders)
+    except (serverexport.ServerExportError, soloexport.SoloExportError) as e:
+        raise HTTPException(409, str(e))
+
+
+@app.post("/api/export/server")
+def create_server_export(req: ServerExportCreate, request: Request, background: bool = Query(False)) -> dict:
+    import serverexport
+    user = authz.require_user(request, roles_module.BACKUP_MANAGE)
+    if background is True:
+        return _queue_export('server-export', user, req.model_dump())
+    try:
+        result = serverexport.create(user["id"], req.artifactId, req.planHash)
+    except (serverexport.ServerExportError, soloexport.SoloExportError) as e:
+        audit.record(audit.EXPORT, username=user["username"], role=user["role"],
+                     target="server-copy", detail="Pruned export refused", ip=authz.client_ip(request), result=audit.RESULT_FAILED)
+        raise HTTPException(409, str(e))
+    audit.record(audit.EXPORT, username=user["username"], role=user["role"],
+                 target="server-copy", detail={"removedPlayers": result["removedPlayers"], "sha256": result["sha256"]},
+                 ip=authz.client_ip(request))
+    return result
+
+
+@app.get("/api/export/server/{artifact_id}/download")
+def download_server_export(artifact_id: str, request: Request):
+    import serverexport
+    user = authz.require_user(request, roles_module.BACKUP_MANAGE)
+    try:
+        path = serverexport.download(user["id"], artifact_id)
+    except serverexport.ServerExportError as e:
+        raise HTTPException(404, str(e))
+    return FileResponse(str(path), media_type="application/gzip", filename="pruned-server-world.tar.gz")
+
+
 # ─── Self-serve world copy ───────────────────────────────
 #
 # The player-accessible slice of the export above: source pinned to the caller's
@@ -4850,8 +5086,10 @@ def self_export_status(request: Request) -> dict[str, Any]:
 
 
 @app.post("/api/export/self")
-def self_export_create(request: Request) -> dict[str, Any]:
+def self_export_create(request: Request, background: bool = Query(False)) -> dict[str, Any]:
     user = authz.require_user(request, roles_module.VIEW_SELF)
+    if background is True:
+        return _queue_export('self-export', user, {'uid': authz.linked_uid(user)})
     uid = authz.linked_uid(user)
     try:
         result = selfexport.create(user["username"], uid)
@@ -4931,7 +5169,7 @@ async def verify_export(request: Request) -> dict:
     try:
         document = json.loads(raw)
     except (json.JSONDecodeError, UnicodeDecodeError) as e:
-        return {"ok": False, "problems": [f"Not valid JSON: {e}"], "kind": None}
+        return {"ok": False, "problems": ["Not valid JSON"], "kind": None}
 
     return saveexport.verify(document)
 
@@ -4957,7 +5195,7 @@ async def preview_import(request: Request) -> dict:
     try:
         document = json.loads(raw)
     except (json.JSONDecodeError, UnicodeDecodeError) as e:
-        raise HTTPException(400, f"Not valid JSON: {e}")
+        raise HTTPException(400, "Not valid JSON") from e
 
     container_id = ((document or {}).get("payload") or {}).get("containerId") or ""
     current = savecache.get_data() or {}
@@ -5001,7 +5239,7 @@ async def apply_import(request: Request, planHash: str = Query(...)) -> dict:
     try:
         document = json.loads(raw)
     except (json.JSONDecodeError, UnicodeDecodeError) as e:
-        raise HTTPException(400, f"Not valid JSON: {e}")
+        raise HTTPException(400, "Not valid JSON") from e
 
     def failed(message: str, status: int):
         audit.record(
@@ -5012,7 +5250,8 @@ async def apply_import(request: Request, planHash: str = Query(...)) -> dict:
         return HTTPException(status, message)
 
     try:
-        result = saveimport.apply_container_import(document, expected_plan_hash=planHash)
+        from starlette.concurrency import run_in_threadpool
+        result = await run_in_threadpool(saveimport.apply_container_import, document, expected_plan_hash=planHash)
     except ServerRunningError as e:
         raise failed(str(e), 423)
     except saveimport.ImportRefused as e:

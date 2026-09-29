@@ -206,6 +206,17 @@ def test_the_pak_has_the_tables_worth_mining(pak, tables):
         assert expected in paths
 
 
+@pytest.mark.integration
+def test_declared_counts_recover_fishing_and_mainland_invaders(pak, tables):
+    mod, paths = tables
+    fishing = mod.read_table(pak, paths['DT_PalFishingSpotLotteryNameDataTable'])
+    assert len(fishing) == 115
+    assert all('RespawnTime' in row for row in fishing.values())
+    invaders = mod.read_table(pak, paths['DT_PalInvader'])
+    assert len(invaders) == 240
+    assert len({row['GroupName'] for row in invaders.values()}) == 76
+
+
 # ─── MapProperty: the last opaque container ──────────────────────
 
 

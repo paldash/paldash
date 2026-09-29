@@ -118,6 +118,7 @@ export default function Progression() {
 
       {player && <Counts player={player} totals={totals} />}
       {player && <RecordCounters player={player} />}
+      {player?.savedRecords && <SavedRecordsPanel records={player.savedRecords} />}
       {player && <Relics lines={player.relicLines || []} />}
 
       {detail && !detail.showsMissing && (
@@ -405,7 +406,23 @@ const RECORD_COUNTERS: {
   { key: 'campsConquered', label: tl('Camps conquered') },
   { key: 'oilrigsCleared', label: tl('Oil rigs cleared') },
   { key: 'npcTalks', label: tl('NPC conversations'), distinctLabel: tl('NPCs') },
+  { key: 'fishCaught', label: tl('Fish caught'), distinctLabel: tl('recorded kinds') },
+  { key: 'arenaClears', label: tl('Solo arena clears'), distinctLabel: tl('recorded encounters') },
 ];
+
+function SavedRecordsPanel({ records }: { records: NonNullable<PlayerProgress['savedRecords']> }) {
+  if (!Object.keys(records).length) return null;
+  return <details className="glass-card" style={{ padding: 14 }}>
+    <summary>Fishing, arena and quest records</summary>
+    <p style={{ color: 'var(--text-muted)', fontSize: 12 }}>Internal game IDs are shown where no exact name translation is verified. Quest blocks are saved indices, not completion percentages. Unrecorded expedition progress is not inferred from unlock requirements.</p>
+    {(['fishing', 'arena'] as const).map(key => records[key] && <div key={key}>
+      <h4>{key === 'fishing' ? 'Fishing history' : 'Solo arena history'}</h4>
+      {records[key]!.length ? <ul>{records[key]!.map(row => <li key={row.id}><code>{row.id}</code>: {row.count.toLocaleString()}</li>)}</ul> : <p>No entries recorded.</p>}
+    </div>)}
+    {records.completedQuests && <div><h4>Completed quests ({records.completedQuests.length})</h4><p>{records.completedQuests.join(', ') || 'No entries recorded.'}</p></div>}
+    {records.activeQuests && <div><h4>Active quest blocks</h4><ul>{records.activeQuests.map((row, index) => <li key={`${row.id}:${index}`}><code>{row.id}</code> · block {row.block ?? 'not recorded'}</li>)}</ul></div>}
+  </details>;
+}
 
 function RecordCounters({ player }: { player: PlayerProgress }) {
   const rows = RECORD_COUNTERS

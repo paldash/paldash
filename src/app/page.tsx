@@ -22,6 +22,8 @@ import PlayerRoster from '@/components/player-roster';
 import BaseViewer from '@/components/base-viewer';
 import VersionBanner from '@/components/version-banner';
 import SaveEditor from '@/components/save-editor';
+import BackgroundJobs from '@/components/background-jobs';
+import ReferenceGuides from '@/components/reference-guides';
 import ServerSettings from '@/components/server-settings';
 import BreedingPlanner from '@/components/breeding-planner';
 import Paldeck from '@/components/paldeck';
@@ -65,6 +67,7 @@ const TABS: {
   // rather than a readout of this server's Pals, so it needs no parsed world and
   // discloses nothing a wiki would not.
   { id: 'paldeck', label: 'Paldeck', icon: <BookOpen size={15} />, requires: CAPABILITIES.VIEW_BASIC },
+  { id: 'guides', label: 'Game guides', icon: <BookOpen size={15} />, requires: CAPABILITIES.VIEW_BASIC },
   // VIEW_SELF and an account: progression is read off a player's OWN save, so
   // there is nothing here for a session with no character linked to it. The
   // backend narrows to your own row below VIEW_DETAIL and applies
@@ -288,15 +291,19 @@ export default function Home() {
     let lastLive = Date.now();
     let lastSave = Date.now();
 
+    let liveInFlight = false;
+    let saveInFlight = false;
     const liveTick = () => {
-      if (hidden()) return;
+      if (hidden() || liveInFlight) return;
+      liveInFlight = true;
       lastLive = Date.now();
-      pollLive();
+      void pollLive().finally(() => { liveInFlight = false; });
     };
     const saveTick = () => {
-      if (hidden()) return;
+      if (hidden() || saveInFlight) return;
+      saveInFlight = true;
       lastSave = Date.now();
-      pollSave();
+      void pollSave().finally(() => { saveInFlight = false; });
     };
     const onVisible = () => {
       if (hidden()) return;
@@ -347,12 +354,13 @@ export default function Home() {
 
   const visibleTabs = TABS.filter(
     (t) =>
+      (!store.user?.mustChangePassword || t.id === 'account') &&
       (!t.requires || store.capabilities.includes(t.requires)) &&
       (!t.needsAccount || Boolean(store.user))
   );
   const activeTab = visibleTabs.some((t) => t.id === store.activeTab)
     ? store.activeTab
-    : 'overview';
+    : store.user?.mustChangePassword ? 'account' : 'overview';
 
   return (
     <div className="app-shell">
@@ -591,7 +599,9 @@ export default function Home() {
           {activeTab === 'backups' && <BackupManager />}
           {activeTab === 'users' && <UserManager />}
           {activeTab === 'audit' && <AuditLog />}
+          {store.user && !store.user.mustChangePassword && <BackgroundJobs />}
           {activeTab === 'account' && <AccountSettings />}
+          {activeTab === 'guides' && <ReferenceGuides canViewSavedState={store.capabilities.includes(CAPABILITIES.VIEW_DETAIL)} />}
           </ErrorBoundary>
           {activeTab === 'editor' && <SaveEditor />}
         </div>

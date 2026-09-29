@@ -327,6 +327,7 @@ export default function WorldExport({ canManage }: { canManage: boolean }) {
               )}
             </div>
           )}
+          {result.downloadUrl && <a className="btn btn-primary" download href={result.downloadUrl}>Download world copy</a>}
           <div className="mono" style={{ fontSize: 11, marginTop: 5, wordBreak: 'break-all' }}>
             {result.archive.path}
           </div>

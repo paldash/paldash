@@ -6,7 +6,7 @@ Everything else here checks that the bundle says what the extractor intended,
 which is a tautology dressed as a test — the extractor wrote it. The refworld
 check is different in kind: it compares the table against a world this code has
 never read, and the thing it asserts (that the 19 unlisted structures are chests,
-beds, the palbox, the spa, walls and food boxes) is not something a bad
+beds, the palbox, the spa, walls, food boxes and an accumulator) is not something a bad
 extraction could arrange.
 
 This mapping was twice documented as absent from every game file. It was in
@@ -145,7 +145,7 @@ def test_the_structures_absent_are_exactly_the_unworkable_ones(level_sav, palsav
 
     The assertion is not "coverage is high" — it is that **everything the table
     omits is something no Pal is ever assigned to**. A mis-parsed table would put
-    a quarry or a furnace on the wrong side of that line. Measured: 63 kinds, 44
+    a quarry or a furnace on the wrong side of that line. Measured: 64 kinds, 45
     in the table, 19 out.
     """
     from parser import extract_map_objects, load_gvas
@@ -165,7 +165,15 @@ def test_the_structures_absent_are_exactly_the_unworkable_ones(level_sav, palsav
         r"Chest|PalBox|Bed|Spa|Wall|FoodBox|MedicineBox|Statue|DropItem|PalEgg",
         re.I,
     )
-    surprises = sorted(k for k in absent if not allowed_absent.search(k))
+    # The expanded map now includes the Accumulator. The independent
+    # capability asset gives it storage only; it has no operating work slot.
+    # Require that evidence and exempt this exact ID, not all energy objects
+    # (generators DO require workers and must still resolve in the work table).
+    assert gamedata.structure_capability("EnergyStorage_Electric") == {
+        "MaxEnergyStorage": 1000000.0,
+    }
+    passive_storage = {"EnergyStorage_Electric"}
+    surprises = sorted(k for k in absent if not allowed_absent.search(k) and k not in passive_storage)
     assert surprises == [], (
         f"structures missing from DT_MapObjectAssignData that look workable: "
         f"{surprises}"

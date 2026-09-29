@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { boundedText, BodyLimitError } from '@/lib/request-body';
 import {
   SESSION_COOKIE, crossSiteReason, login, sessionCookieOptions, isGuestEnabled,
   publicUser,
@@ -27,9 +28,10 @@ export async function POST(request: NextRequest) {
 
   let body: { username?: string; password?: string; guest?: boolean };
   try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
+    body = JSON.parse(await boundedText(request, 8192));
+    if (!body || typeof body !== 'object' || Array.isArray(body)) throw new Error();
+  } catch (error) {
+    return NextResponse.json({ error: 'Invalid request body' }, { status: error instanceof BodyLimitError ? 413 : 400 });
   }
 
   if (body.guest) {
@@ -42,7 +44,7 @@ export async function POST(request: NextRequest) {
     return res;
   }
 
-  if (!body.username || !body.password) {
+  if (typeof body.username !== 'string' || typeof body.password !== 'string' || !body.username || !body.password) {
     return NextResponse.json(
       { error: 'Username and password are required' },
       { status: 400 }

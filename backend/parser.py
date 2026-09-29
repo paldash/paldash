@@ -796,7 +796,7 @@ _POI_CATEGORIES: list[tuple[str, re.Pattern]] = [
     ("ranch", re.compile(r"MonsterFarm", re.I)),
     ("statue", re.compile(r"GoddessStatue", re.I)),
     ("crafting", re.compile(r"WeaponFactory|SphereFactory|Workbench|WorkBench|RepairBench", re.I)),
-    ("production", re.compile(r"OilPump|StonePit|QuartzPit|CoalPit|CopperPit|BlastFurnace|Deforest|ElectricGenerator|Crusher|FlourMill|IceCrusher", re.I)),
+    ("production", re.compile(r"OilPump|StonePit|QuartzPit|CoalPit|CopperPit|BlastFurnace|Deforest|ElectricGenerator|EnergyStorage|Crusher|FlourMill|IceCrusher", re.I)),
     ("farm", re.compile(r"FarmBlock", re.I)),
     ("storage", re.compile(r"PalFoodBox|Refrigerator|PalMedicineBox|CoolerBox", re.I)),
     ("comfort", re.compile(r"Spa|PlayerBed|MedicalPalBed", re.I)),
@@ -823,6 +823,7 @@ def extract_map_objects(gvas: Any) -> list[dict]:
     which is what lets chest contents be grouped per base rather than dumped in
     one undifferentiated pile.
     """
+    import savedstate
     objects: list[dict] = []
 
     entries = _v(_world_save_data(gvas), "MapObjectSaveData", "value", "values", default=[]) or []
@@ -861,6 +862,7 @@ def extract_map_objects(gvas: Any) -> list[dict]:
                 # Chest-specific extras, absent on other object types.
                 "opened": concrete.get("opened"),
                 "grade": concrete.get("treasure_grade_type"),
+                "savedState": savedstate.structure(concrete),
             }
         )
 
@@ -1659,6 +1661,8 @@ _PROGRESS_COUNTERS: list[tuple[str, str]] = [
     ("campsConquered", "CampConqueredCount"),
     ("oilrigsCleared", "OilrigClearCount"),
     ("npcTalks", "NPCTalkCountMap"),
+    ("fishCaught", "FishingCountMap"),
+    ("arenaClears", "ArenaSoloClearCount"),
 ]
 
 
@@ -1810,6 +1814,9 @@ def extract_player_progress(gvas: Any) -> dict[str, Any]:
         if kind and isinstance(value, (int, float)) and not isinstance(value, bool):
             spent[kind] = int(value)
     progress["relicsSpent"] = spent
+
+    import savedstate
+    progress['savedRecords'] = savedstate.player(save)
 
     return progress
 

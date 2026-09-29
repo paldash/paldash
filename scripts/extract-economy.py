@@ -113,9 +113,8 @@ def _key(value) -> str:
 
 
 def _read(pak, name: str) -> dict:
-    path = next((p for p in pak.files if p.endswith(name + ".uasset")), None)
-    if path is None:
-        raise SystemExit(f"{name} is not in this pak — did the game update?")
+    from sourceprovenance import canonical_path
+    path = canonical_path(pak, name)
     return uassettable.read_table(pak, path)
 
 
@@ -361,6 +360,19 @@ def _lottery(pak) -> dict:
     return dict(out)
 
 
+def _slot_probabilities(pak) -> dict:
+    result = {}
+    for key, row in _read(pak, 'DT_FieldLotteryNameDataTable').items():
+        slots = {}
+        for slot in range(1, 16):
+            value = row[f'ItemSlot{slot}_ProbabilityPercent']
+            if not isinstance(value, (int, float)) or not 0 <= value <= 100:
+                raise ValueError(f'Invalid slot probability in {key}')
+            slots[str(slot)] = value
+        result[key] = slots
+    return result
+
+
 def _shops(pak) -> dict:
     out = {}
     for key, row in _read(pak, "DT_ItemShopCreateData").items():
@@ -509,6 +521,7 @@ def build(pak=None) -> tuple[dict, dict]:
         "buildObjects": _build_objects(pak),
         "drops": _drops(pak),
         "lottery": _lottery(pak),
+        "slotProbabilities": _slot_probabilities(pak),
         "shops": _shops(pak),
         "palShops": _pal_shops(pak),
         "food": food,

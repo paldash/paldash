@@ -46,12 +46,13 @@ export default function AccountSettings() {
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
+    if (store.user?.mustChangePassword) return;
     getMyPrivacy()
       .then(setPrivacy)
       .catch((e: unknown) =>
         setPrivacyError(e instanceof Error ? e.message : 'Could not load your privacy setting')
       );
-  }, []);
+  }, [store.user?.mustChangePassword]);
 
   const choose = async (mode: string) => {
     if (!privacy || mode === privacy.mode) return;
@@ -69,6 +70,13 @@ export default function AccountSettings() {
       setSaving(false);
     }
   };
+
+  if (store.user?.mustChangePassword) {
+    return <div style={{ maxWidth: 720 }}>
+      <p className="notice">Change your temporary password to continue.</p>
+      <PasswordCard />
+    </div>;
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 18, maxWidth: 720 }}>

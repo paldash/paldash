@@ -287,7 +287,7 @@ Optional, and off by default because it requires container control:
 That calls the Docker HTTP API with `node`, **not** the `docker` CLI — which is
 deliberately not installed in the runtime image, so a command beginning with
 `docker` fails with "not found". Node ships a global fetch and the image is
-node:20, so this needs nothing extra. `docs/DEPLOYMENT.md` §4 covers stop/start
+node:22, so this needs nothing extra. `docs/DEPLOYMENT.md` §4 covers stop/start
 as well, and why `304` counts as success.
 
 Mounting `/var/run/docker.sock` into the dashboard is **root-equivalent on the

@@ -96,7 +96,7 @@
  },
  "invaders.json.gz": {
   "gameBuild": "24575149",
-  "note": "44 base-raid attacker groups across 143 entries, 76 reward tables, 48 friendly visitor types, cancel costs 500-40,000. gradeMeaningKnown is FALSE and travels in the payload: InvadeGradeMin/Max bound a raid to a 'grade' and nothing establishes what a grade is in save terms (base level, guild level and player level are all plausible). This is a reference table, NOT a per-base forecast. The join check runs attacker -> reward, not the reverse. An attacker with no reward is a raid that drops nothing; a reward with no attacker is an unused row, and the game ships 32 of those — rewards exist for the mainland biomes (Basic, Desert, Forest, Volcano) while DT_PalInvader carries only the island groups. Measured 44 of 44 attackers rewarded. The first version checked the harmless direction and would have blocked the extraction over the game having spare data. A few DT_PalInvader columns do not decode and are skipped; the fields read here come through cleanly.",
+  "note": "Corrected 2026-09-29: property-type and declared-row-count validation recovered 97 mainland entries. 240 entries, 76 groups, all 76 reward groups matched. Grade-to-base mapping remains unknown.",
   "regenerateWith": "python3 scripts/extract-invaders.py",
   "source": "Pal-LinuxServer.pak (DT_PalInvader, DT_PalInvaderReward, DT_PalInvaderCancelCost, DT_PalVisitorNPC)"
  },
@@ -111,6 +111,12 @@
   "note": "Switched from the client pak 2026-08-17: the server pak carries the same 27 text tables per language, tagged, and updates with every server update. The client-pak reader (unversioned FText walk) remains in l10n.py as fallback.",
   "regenerateWith": "python3 scripts/extract-language.py --all",
   "source": "Pal-LinuxServer.pak (Pal/Content/L10N/<lang>/ overrides — tagged, read via uassettable)"
+ },
+ "map_framing.json.gz": {
+  "gameBuild": "24575149",
+  "note": "Exact native vector widths, both texture references, independent Palpagos fit and 174 travel points checked. World Tree pixel calibration remains provisional. The compiled frontend and backend bundle must be rebuilt together.",
+  "regenerateWith": "manual: run python3 scripts/extract-map-framing.py in a checkout, then rebuild the web application",
+  "source": "Pal-LinuxServer.pak DT_WorldMapUIData; full archive hash and row digest in bundle"
  },
  "movement_modes.json.gz": {
   "gameBuild": "24575149",
@@ -171,6 +177,12 @@
   "note": "11 summon rows carrying 11 boss forms, levels 35-80, with summon items, rewards and egg weights. CONFIRMS an earlier refusal rather than overturning it: boss_spawners.json.gz holds 90 PLACED field bosses and zero RAID_ ids, which is correct because raid bosses are altar-summoned and a table of locations has nothing to say about them. NO POSITIONS and none must be invented — a map marker would be the BP_LevelObject_TowerLockBarrier mistake. Count FORMS not rows: a row's InfoList can hold more than one boss, and row-counting is what briefly turned 90 field bosses into 159. Advisory: 6 of 11 forms are `_2` difficulty variants (Bellanoir Libero and friends) that the bundled character tables carry no entry for — predicted before the check ran, since AGENTS.md already records what the suffix means. REWARDS SHIPPED EMPTY FOR A WHOLE RELEASE and the fix is the lesson: _items read `ItemId`/`StaticItemId`, the spellings the drop and lottery tables use, while this table's column is `ItemName` -- and an FName at that, so str() on it would have given \"{'Key': 'AncientParts2'}\" even had the name matched. Every boss came out with an empty reward list, no error, and 'this raid drops nothing' reads as an ordinary answer. Now 11 of 11 carry rewards over 50 distinct items, every one resolving in the catalogue, and the extractor REFUSES if not one boss has a reward -- a raid the game does not reward is not a thing, so an empty result across the board is a reader fault by definition. `Rate` is carried because it is a real per-item chance here: these are independent rolls on one success rather than shares of a slot, unlike a lottery weight. EGG WEIGHTS ARE NOT READ AND SAY SO. EggPalIDAndWeight is a MapProperty and uassettable decodes none; the old code iterated it as a list -- over the characters of the string '<MapProperty 98B>' -- and produced [] for every boss, which reads as 'this raid drops no eggs'. eggWeightsRead: false now travels instead. The row key IS the summon item: PalSummon_NightLady resolves in the catalogue as \"Bellanoir's Slab\", so 'what starts this raid' is a lookup rather than an inference, and the rewards chain -- clearing Bellanoir Libero drops the Ultra slab.",
   "regenerateWith": "python3 scripts/extract-raidbosses.py",
   "source": "Pal-LinuxServer.pak (DT_PalRaidBoss)"
+ },
+ "reference_guides.json.gz": {
+  "gameBuild": "24575149",
+  "note": "12 guides with exact catalog/reward/roster joins; weights are local to their group. Rebuild after economy and gamedata. Unverified rates and location assignments are not synthesized.",
+  "regenerateWith": "python3 scripts/extract-reference-guides.py",
+  "source": "Pal-LinuxServer.pak canonical tables and L10N/en DT_CharacterTeamMissionText; archive SHA-256 and full-row digests bundled"
  },
  "reference_totals.json": {
   "gameBuild": null,

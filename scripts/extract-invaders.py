@@ -5,7 +5,7 @@ Base raids: who attacks, at what grade, in which biome, and what they drop.
 Phase 1.8 of `docs/PLAN.md`. Nothing in the dashboard mentions base raids today,
 and four tables describe them completely:
 
-    DT_PalInvader            143  attacker groups, biome, grade band, weight
+    DT_PalInvader            240  attacker groups, biome, grade band, weight
     DT_PalInvaderReward       76  what each group drops
     DT_PalInvaderCancelCost   80  the money to call one off
     DT_PalVisitorNPC          48  friendly visitors, same shape
@@ -21,22 +21,12 @@ first, and inventing it would be the kind of guess `basesupply` refuses to make.
 Recorded rather than worked around, because a reference table is genuinely
 useful on its own and a wrong per-base forecast is not.
 
-SOME COLUMNS DO NOT DECODE and are skipped rather than guessed. `DT_PalInvader`
-rows carry a few opaque entries (`1_510`, `1_3`) where `uassettable` could not
-walk a struct; the fields this reads — group, biome, grade band, weight,
-character ids — come through cleanly. `mine-datatables.py --check` will report
-it if that ever changes.
-
-VERIFICATION, and the direction matters. Every reward item must resolve in the
-catalogue, and **every attacker group must have a reward table** — an attacker
-without one is a raid that drops nothing, a join failure with a consequence.
-
-The converse is *not* checked, because the game ships 32 reward tables with no
-attacker: rewards exist for the mainland biomes (Basic, Desert, Forest, Volcano)
-while `DT_PalInvader` carries only the island groups (Sakurajima, Sorajima,
-Yamishima, Snow). Measured 44 of 44 attackers rewarded, 0 unrewarded. Checking
-the harmless direction first would have blocked this extraction over the game
-having spare data.
+The earlier 143-row decode was misaligned: it accepted non-property names as
+type tags and lost 97 mainland entries. Requiring real property types and the
+header's declared row count recovers 240 entries in 76 groups. All 76 groups
+have rewards; the earlier claim of 32 spare mainland reward groups was wrong.
+Future unused rewards may be legitimate, but must be reported without inventing
+a reason for their absence. Every attacker must still have a reward table.
 
 Usage:  python3 scripts/extract-invaders.py [--verify]
 Output: backend/data/invaders.json.gz
@@ -67,9 +57,8 @@ def _enum(value) -> str:
 
 
 def _read(pak, name: str) -> dict:
-    path = next((p for p in pak.files if p.endswith(name + ".uasset")), None)
-    if path is None:
-        raise SystemExit(f"{name} is not in this pak — did the game update?")
+    from sourceprovenance import canonical_path
+    path = canonical_path(pak, name)
     return uassettable.read_table(pak, path)
 
 
@@ -153,16 +142,8 @@ def main() -> int:
               file=sys.stderr)
         return 2
 
-    # THE CHECK POINTS THIS WAY ROUND DELIBERATELY. An attacker with no reward
-    # table is a raid that drops nothing — a join failure with a visible
-    # consequence. A reward table with no attacker is an unused row, which the
-    # game has 32 of: every Grade1-3 reward exists for the mainland biomes
-    # (Basic, Desert, Forest, Volcano) while `DT_PalInvader` only carries the
-    # island groups (Sakurajima, Sorajima, Yamishima, Snow). Measured: 44 of 44
-    # attackers have rewards, 0 attackers lack one.
-    #
-    # My first version refused on the harmless direction and would have blocked
-    # the extraction over the game shipping spare data.
+    # A missing reward for an attacker is a join failure. Extra rewards are
+    # reported for review; never infer unused mainland data from a bad decode.
     unrewarded = sorted(set(data["groups"]) - set(data["rewards"]))
     if unrewarded:
         print(f"REFUSING: {len(unrewarded)} attacker groups have no reward table "
@@ -174,7 +155,7 @@ def main() -> int:
     if "--verify" in sys.argv:
         print(f"verified {len(data['groups'])} attacker groups; every reward item "
               f"resolves and every attacker has a reward table "
-              f"({len(spare)} spare reward tables, which is fine)")
+              f"({len(spare)} unmatched reward tables)")
         return 0
 
     write_json(OUT, data)
@@ -185,9 +166,7 @@ def main() -> int:
     print(f"  {len(data['visitors'])} friendly visitor types")
     print(f"  cancel costs {data['cancelCosts'][:1]}..{data['cancelCosts'][-1:]}")
     if spare:
-        print(f"  {len(spare)} reward tables have no attacker group — mainland "
-              "biomes the invader table does not carry. Harmless; the check runs "
-              "the other way.")
+        print(f"  {len(spare)} reward tables have no decoded attacker group; review source coverage")
     print("  NOTE: what InvadeGrade means in save terms is NOT established — "
           "this is a reference table, not a per-base forecast")
     return 0

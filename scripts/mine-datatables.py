@@ -71,6 +71,7 @@ if HERE not in sys.path:
 import palpak            # noqa: E402
 import uassettable       # noqa: E402
 import upackage          # noqa: E402
+import sourceprovenance  # noqa: E402
 
 ROOT = os.path.dirname(HERE)
 MD_OUT = os.path.join(ROOT, "docs", "DATATABLES.md")
@@ -130,7 +131,8 @@ def sweep(pak) -> tuple[list[dict], list[dict]]:
     decoded: list[dict] = []
     refused: list[dict] = []
 
-    for path in sorted(pak.files):
+    by_name = {}
+    for path in sorted(pak.files, key=lambda p: ('/L10N/' in p, p)):
         name = path.split("/")[-1]
         if not name.endswith(".uasset"):
             continue
@@ -150,6 +152,15 @@ def sweep(pak) -> tuple[list[dict], list[dict]]:
         # entry per table name: the schema is identical and 20 copies of
         # DT_UI_Common_Text is noise that buries the tables that matter.
         if name in seen:
+            # Localizations have independent values. Keep their coverage/digest
+            # without pretending equal schemas imply equal text.
+            try:
+                rows = uassettable.read_table(pak, path)
+                variant = {'path': path, 'rows': len(rows), 'rowDigest': sourceprovenance.digest(rows),
+                           'opaqueFields': sourceprovenance.opacity(rows)}
+            except Exception as exc:
+                variant = {'path': path, 'error': f'{type(exc).__name__}: {exc}'}
+            by_name[name].setdefault('variants', []).append(variant)
             continue
         seen.add(name)
 
@@ -161,6 +172,7 @@ def sweep(pak) -> tuple[list[dict], list[dict]]:
                 "path": path,
                 "error": f"{type(exc).__name__}: {exc}",
             })
+            by_name[name] = refused[-1]
             continue
 
         sample_key = next(iter(rows), None)
@@ -169,10 +181,13 @@ def sweep(pak) -> tuple[list[dict], list[dict]]:
             "path": path,
             "rows": len(rows),
             "columns": _columns(rows),
+            "rowDigest": sourceprovenance.digest(rows),
+            "opaqueFields": sourceprovenance.opacity(rows),
             "sampleKey": str(sample_key) if sample_key is not None else "",
             "sample": json.dumps(rows.get(sample_key), default=str)[:SAMPLE_CHARS]
             if sample_key is not None else "",
         })
+        by_name[name] = decoded[-1]
 
     return decoded, refused
 
@@ -193,9 +208,9 @@ def sweep_client(pak) -> tuple[list[dict], list[dict]]:
     claiming either would be inventing structure.
 
     Where a table exists in BOTH paks, the server copy is authoritative and this
-    adds nothing. The reason to sweep here at all is the ~464-table gap: those
-    are content the server never needed, and this project has never looked at
-    them.
+    adds reference coverage, not decoded row values. Count client-only assets
+    against both decoded and refused server entries: a failed decode is not
+    evidence that the asset is absent from the server.
     """
     import upackage  # noqa: E402 - only needed for the client sweep
 
@@ -394,11 +409,12 @@ def check(decoded: list[dict], refused: list[dict]) -> int:
         if cols_before != cols_after:
             changed.append((name, sorted(cols_after - cols_before),
                             sorted(cols_before - cols_after)))
-        elif before["rows"] != after["rows"]:
+        elif (before["rows"] != after["rows"] or before.get('rowDigest') != after.get('rowDigest')
+              or before.get('opaqueFields') != after.get('opaqueFields') or before.get('variants') != after.get('variants')):
             changed.append((name, [], []))
 
     if not any((added, removed, newly_readable, newly_refused, changed)):
-        print(f"No change: {len(now)} tables, same columns and row counts.")
+        print(f"No change: {len(now)} tables, same full-row digests, variants, opacity and schema.")
         return 0
 
     for name in added:
@@ -419,6 +435,10 @@ def check(decoded: list[dict], refused: list[dict]) -> int:
             detail.append(f"-{lost}")
         if rows_before != rows_after:
             detail.append(f"rows {rows_before} -> {rows_after}")
+        if was[name].get('rowDigest') != now[name].get('rowDigest'):
+            detail.append('full row values changed (or first digest recorded)')
+        if was[name].get('variants') != now[name].get('variants'):
+            detail.append('localized variant coverage/values changed')
         print(f"CHANGED     {name[:-7]}  {'; '.join(detail)}")
 
     print(
@@ -438,7 +458,8 @@ def main_client(args) -> int:
     # answer is already on disk.
     try:
         with open(JSON_OUT) as f:
-            server_names = {e["table"] for e in json.load(f).get("decoded") or []}
+            server_index = json.load(f)
+            server_names = {e["table"] for key in ("decoded", "refused") for e in server_index.get(key, [])}
     except (OSError, json.JSONDecodeError):
         server_names = set()
 
@@ -504,7 +525,7 @@ def main() -> int:
     os.makedirs(os.path.dirname(MD_OUT), exist_ok=True)
     write_markdown(decoded, refused)
     with open(JSON_OUT, "w") as f:
-        json.dump({"decoded": decoded, "refused": refused}, f, indent=1, sort_keys=True)
+        json.dump({"formatVersion": 2, "source": sourceprovenance.archive(pak), "decoded": decoded, "refused": refused}, f, indent=1, sort_keys=True)
 
     total_rows = sum(e["rows"] for e in decoded)
     print(f"wrote {MD_OUT}")

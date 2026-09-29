@@ -17,6 +17,7 @@ policy allows; the proxy applies those toggles and strips personal data.
 from __future__ import annotations
 
 import logging
+import os
 from typing import Any, Optional
 
 from fastapi import HTTPException, Request
@@ -36,21 +37,35 @@ def client_ip(request: Request) -> str:
     """
     Caller's address.
 
-    X-Forwarded-For is honoured because the documented deployment puts this
-    behind a reverse proxy. It is used for rate-limiting and audit context only —
-    never for authorization — so a spoofed value cannot grant access, at worst it
-    lets an attacker spread their guessing budget.
+    Forwarded addresses are opt-in and accepted only from loopback. The reverse
+    proxy must overwrite client-supplied X-Forwarded-For before enabling this;
+    otherwise attackers could spread their password-guessing budget.
     """
-    forwarded = request.headers.get("X-Forwarded-For", "")
-    if forwarded:
-        return forwarded.split(",")[0].strip()[:64]
-    return (request.client.host if request.client else "") or ""
+    peer = (request.client.host if request.client else "") or ""
+    if os.environ.get("TRUST_PROXY_HEADERS", "false").lower() == "true" and peer in ("127.0.0.1", "::1", "testclient"):
+        import ipaddress
+        forwarded = request.headers.get("X-Forwarded-For", "").split(",")[0].strip()
+        try:
+            return str(ipaddress.ip_address(forwarded))
+        except ValueError:
+            pass
+    return peer
 
 
 def current_user(request: Request) -> Optional[dict[str, Any]]:
     """The signed-in user, or None for an anonymous/guest request."""
+    # This object is attached only to an in-process queued request. Headers and
+    # JSON bodies cannot construct ASGI state or this private Python type.
+    internal = getattr(request.state, 'job_identity', None)
+    if isinstance(internal, _JobIdentity):
+        return internal.user
     token = request.headers.get(SESSION_HEADER, "")
     return accounts.resolve_session(token) if token else None
+
+
+class _JobIdentity:
+    def __init__(self, user):
+        self.user = user
 
 
 def actor(request: Request) -> dict[str, Any]:
@@ -63,6 +78,10 @@ def actor(request: Request) -> dict[str, Any]:
 
 def effective_capabilities(user: Optional[dict[str, Any]]) -> set[str]:
     """Role capabilities intersected with what the security level allows."""
+    if user and user.get("mustChangePassword"):
+        return set()
+    if user is None and os.environ.get("GUEST_VIEW_ENABLED", "true").lower() == "false":
+        return set()
     role = user["role"] if user else "guest"
     allowed = set(policy_module.allowed_capabilities())
     return roles.effective_capabilities(role, allowed)
@@ -76,6 +95,8 @@ def require(request: Request, capability: str) -> dict[str, Any]:
     worth seeing later.
     """
     user = current_user(request)
+    if user and user.get("mustChangePassword"):
+        raise HTTPException(403, "Change your temporary password before using the dashboard.")
     granted = effective_capabilities(user)
 
     if capability in granted:

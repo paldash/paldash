@@ -32,6 +32,8 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Iterator, Optional
 
 import backupstore
+import maintenance
+import recovery
 from backupstore import BackupError, LocalBackupStore
 from safety import ServerRunningError, assert_writable, get_server_state
 from savefiles import BACKUP_DIR, find_settings_ini, get_default_world_dir
@@ -246,7 +248,10 @@ def rename_backup(backup_id: str, description: str) -> Optional[dict[str, Any]]:
     return _public(manifest)
 
 
+@maintenance.serialized
 def delete_backup(backup_id: str) -> bool:
+    if backup_id in recovery.protected_ids():
+        raise BackupError('This backup protects an interrupted restore and cannot be deleted')
     if not store().exists(backup_id):
         return False
     return store().delete(backup_id)
@@ -362,6 +367,7 @@ def _target_path(archive_path: str, world_dir: str) -> Optional[str]:
     return os.path.join(world_dir, archive_path.replace("/", os.sep))
 
 
+@maintenance.serialized
 def restore_backup(
     backup_id: str,
     scope: str = "world",
@@ -375,6 +381,7 @@ def restore_backup(
     verifies the archive before touching anything — restoring from a corrupt
     backup on top of a working world would be the worst possible outcome.
     """
+    recovery.require_clear()
     manifest = _load_manifest(backup_id)
     if not manifest:
         raise BackupError(f"Backup {backup_id} not found")
@@ -411,15 +418,39 @@ def restore_backup(
     try:
         backupstore.extract_archive(store().path_for(backup_id), workspace, only=selected)
 
-        restored = []
+        # Resolve and validate every target before the first replacement. Existing
+        # symlinks cannot redirect a restore out of the selected world.
+        targets = []
         for archive_path in selected:
             source = os.path.join(workspace, archive_path.replace("/", os.sep))
             target = _target_path(archive_path, world_dir)
-            if target is None or not os.path.exists(source):
-                continue
-            os.makedirs(os.path.dirname(target), exist_ok=True)
-            shutil.copy2(source, target)
-            restored.append(archive_path)
+            if target is None or not os.path.isfile(source):
+                raise BackupError("A selected restore file has no available source or target")
+            root = os.path.dirname(target) if archive_path.startswith("config/") else world_dir
+            if os.path.islink(target) or os.path.commonpath([os.path.realpath(target), os.path.realpath(root)]) != os.path.realpath(root):
+                raise BackupError("Restore target escapes its configured directory")
+            targets.append((archive_path, source, target))
+
+        journal = recovery.begin(targets, rollback['id'], world_dir)
+        from savefiles import atomic_write
+        restored = []
+        try:
+            with maintenance.stopped_writes():
+                for index, (archive_path, source, target) in enumerate(targets):
+                    assert_writable()
+                    recovery.verify_target(journal['files'][index])
+                    with open(source, "rb") as handle:
+                        atomic_write(target, handle.read())
+                    if backupstore._sha256_file(target) != journal['files'][index]['after']:
+                        raise BackupError("Restored file failed its read-back checksum")
+                    restored.append(archive_path)
+        except BaseException as error:
+            try:
+                recovery.recover()
+            except BaseException as recovery_error:
+                raise BackupError(f"Restore failed; automatic rollback could not finish. Stop the server and recover from backup {rollback['id']}.") from recovery_error
+            raise BackupError("Restore failed; all attempted replacements were rolled back") from error
+        recovery.finish(journal)
     finally:
         shutil.rmtree(workspace, ignore_errors=True)
 
@@ -436,6 +467,7 @@ def restore_backup(
 # ─── Retention ───────────────────────────────────────────────────
 
 
+@maintenance.serialized
 def prune_backups(
     retention: Optional[dict[str, int]] = None, *, dry_run: bool = False
 ) -> dict[str, Any]:
@@ -453,6 +485,7 @@ def prune_backups(
         return {"kept": 0, "removed": [], "dryRun": dry_run}
 
     keep: set[str] = set()
+    protected: set[str] = recovery.protected_ids()
     now = _utc_now()
 
     for backup in backups[: max(0, rules["keepLatest"])]:
@@ -463,6 +496,7 @@ def prune_backups(
             age = now - _parse_ts(backup["timestamp"])
             if age <= timedelta(hours=SAFETY_GRACE_HOURS):
                 keep.add(backup["id"])
+                protected.add(backup["id"])
 
     seen_days: set[str] = set()
     seen_weeks: set[str] = set()
@@ -477,11 +511,12 @@ def prune_backups(
             seen_weeks.add(week)
             keep.add(backup["id"])
 
-    # Absolute ceiling, applied last and still honouring the newest-first order.
+    # The storage target cannot evict the rollback points protecting edits.
     if rules["maxTotal"] > 0:
         ordered_keeps = [b["id"] for b in backups if b["id"] in keep]
         if len(ordered_keeps) > rules["maxTotal"]:
             keep = set(ordered_keeps[: rules["maxTotal"]])
+    keep.update(protected)
 
     removed = []
     for backup in backups:
@@ -533,46 +568,48 @@ def guarded_save_write(reason: str, world_dir: str) -> Iterator[dict]:
         with guarded_save_write("sort chests", world_dir) as backup:
             ...  # mutate here
     """
-    assert_writable()
+    with maintenance.lease(), maintenance.stopped_writes():
+        recovery.require_clear()
+        assert_writable()
 
-    try:
-        backup = create_backup(
-            world_dir, f"Automatic backup before: {reason}", trigger="pre-edit"
-        )
-    except Exception as e:  # noqa: BLE001
-        logger.error("Pre-write backup failed, aborting '%s': %s", reason, e)
-        raise ServerRunningError(f"Aborted: could not back up before '{reason}': {e}") from e
+        try:
+            backup = create_backup(
+                world_dir, f"Automatic backup before: {reason}", trigger="pre-edit"
+            )
+        except Exception as e:  # noqa: BLE001
+            logger.error("Pre-write backup failed, aborting '%s': %s", reason, e)
+            raise ServerRunningError(f"Aborted: could not back up before '{reason}': {e}") from e
 
-    logger.info("Proceeding with '%s' (rollback point: %s)", reason, backup["id"])
+        logger.info("Proceeding with '%s' (rollback point: %s)", reason, backup["id"])
 
-    # Re-check immediately before handing over: the window between the first
-    # check and here is where someone restarts the server.
-    assert_writable()
+        # Re-check immediately before handing over: the window between the first
+        # check and here is where someone restarts the server.
+        assert_writable()
 
-    yield backup
+        yield backup
 
-    # THE WORLD ON DISK JUST CHANGED, SO THE PARSE CACHE IS NOW A LIE.
-    #
-    # Only `restore` used to refresh it, so every *edit* left the cache holding
-    # the pre-edit world. The next edit was then planned against stale contents:
-    # the slot editor showed the old items, its plan hash no longer matched the
-    # live tree, and the write was refused with nothing on screen explaining
-    # why — "the save data is out of date, re-parse" as a permanent state after
-    # the first successful edit.
-    #
-    # Here rather than in each writer because this is the one function every
-    # mutation passes through, and a writer that forgot the call is exactly how
-    # this happened. It runs only on the success path: an exception propagates
-    # past this line, and a failed write leaves the cache correctly describing
-    # the unchanged world.
-    #
-    # `edit=True` bypasses the Refresh cooldown. That floor exists to stop people
-    # queueing parses of an *unchanged* save; this save demonstrably changed a
-    # moment ago, and making an operator wait two minutes between edits would
-    # reintroduce the bug it is meant to fix.
-    try:
-        import savecache
+        # THE WORLD ON DISK JUST CHANGED, SO THE PARSE CACHE IS NOW A LIE.
+        #
+        # Only `restore` used to refresh it, so every *edit* left the cache holding
+        # the pre-edit world. The next edit was then planned against stale contents:
+        # the slot editor showed the old items, its plan hash no longer matched the
+        # live tree, and the write was refused with nothing on screen explaining
+        # why — "the save data is out of date, re-parse" as a permanent state after
+        # the first successful edit.
+        #
+        # Here rather than in each writer because this is the one function every
+        # mutation passes through, and a writer that forgot the call is exactly how
+        # this happened. It runs only on the success path: an exception propagates
+        # past this line, and a failed write leaves the cache correctly describing
+        # the unchanged world.
+        #
+        # `edit=True` bypasses the Refresh cooldown. That floor exists to stop people
+        # queueing parses of an *unchanged* save; this save demonstrably changed a
+        # moment ago, and making an operator wait two minutes between edits would
+        # reintroduce the bug it is meant to fix.
+        try:
+            import savecache
 
-        savecache.request_parse(force=True, edit=True)
-    except Exception as e:  # noqa: BLE001 - a stale cache must not fail the write
-        logger.warning("Could not re-parse after '%s': %s", reason, e)
+            savecache.request_parse(force=True, edit=True)
+        except Exception as e:  # noqa: BLE001 - a stale cache must not fail the write
+            logger.warning("Could not re-parse after '%s': %s", reason, e)

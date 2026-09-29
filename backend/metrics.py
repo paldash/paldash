@@ -713,3 +713,5 @@ def start() -> None:
 
 def stop() -> None:
     _stop.set()
+    if _thread is not None and _thread is not threading.current_thread():
+        _thread.join()

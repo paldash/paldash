@@ -133,7 +133,11 @@ def _tag(r: _Reader) -> Optional[tuple[str, str, int, dict]]:
     if name == "None":
         return None
     typ = r.name()
+    if not typ.endswith('Property'):
+        raise TableError(f'Invalid property type {typ!r}; the row offset is misaligned')
     size = r.i32()
+    if size < 0:
+        raise TableError('Negative property size')
     r.i32()                                   # arrayIndex
 
     extra: dict[str, Any] = {}
@@ -154,8 +158,13 @@ def _tag(r: _Reader) -> Optional[tuple[str, str, int, dict]]:
         extra["key"] = r.name()
         extra["value"] = r.name()
 
-    if r.u8():                                # hasPropertyGuid
+    has_guid = r.u8()
+    if has_guid not in (0, 1):
+        raise TableError('Invalid property GUID flag')
+    if has_guid:                              # hasPropertyGuid
         r.o += 16
+    if r.o + size > len(r.b):
+        raise TableError('Property extends past the export body')
     return name, typ, size, extra
 
 
@@ -401,6 +410,8 @@ def _value(r: _Reader, typ: str, size: int, extra: dict) -> Any:
         # says "not read" instead of the table saying nothing.
         try:
             fields: Any = _properties(r)
+            if r.o != start + size:
+                raise TableError('Struct did not consume its declared size')
         except Exception:  # noqa: BLE001 - the tag's size is the recovery
             fields = {"_opaque": f"{extra.get('struct') or 'struct'} {size}B"}
         r.o = start + size
@@ -486,6 +497,8 @@ def _walk_rows(body: bytes, names: list[str], start: int) -> Optional[dict]:
             row_name = r.name()
             if row_name == "None":
                 break
+            if row_name in rows:
+                raise TableError('Duplicate row name in table')
             rows[row_name] = _properties(r)
     except (TableError, struct.error, IndexError):
         return None
@@ -524,7 +537,7 @@ def read_table(pak: Pak, asset_path: str) -> dict:
 
     for offset in range(head.o, min(head.o + 32, len(body)), 4):
         rows = _walk_rows(body, names, offset)
-        if rows is not None:
+        if rows is not None and offset >= 4 and struct.unpack_from('<i', body, offset - 4)[0] == len(rows):
             return rows
 
     raise TableError(

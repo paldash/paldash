@@ -145,6 +145,13 @@ def test_the_walk_ignores_uids_that_are_not_mapped():
     assert soloexport._walk_uids(tree, {A: C}, apply=False) == 0
 
 
+def test_the_walk_does_not_stringify_container_subtrees():
+    class NoRendering(list):
+        def __str__(self):
+            raise AssertionError('A non-UID subtree was rendered as text')
+    assert soloexport._walk_uids({'nested': NoRendering([A, {'value': A}])}, {A: C}, apply=False) == 2
+
+
 def test_instance_ids_are_not_touched():
     """
     Character instance ids are full-entropy GUIDs in a different id space from player

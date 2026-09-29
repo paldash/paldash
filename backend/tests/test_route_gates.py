@@ -50,6 +50,7 @@ PERMISSIONS_TS = os.path.join(
 #: are reached by the Next.js auth handler directly — the allowlist REFUSES
 #: those on purpose, so that the proxy can never be used to mint a session.
 _NOT_PROXIED = {
+    "/api/ready",
     "/api/health",
     "/api/auth/login",
     "/api/auth/logout",
@@ -189,7 +190,7 @@ def test_every_route_is_reachable_through_the_proxy():
         stem = path[len("/api/"):]
         probes = [
             re.sub(r"\{[^}]+\}", value, stem)
-            for value in ("sampleid", "world", "pal", "abc-123")
+            for value in ("sampleid", "world", "pal", "abc-123", "a" * 32)
         ]
         if not any(p.match(probe) for probe in probes for p in patterns):
             unreachable.append(f"{method} {path}")

@@ -52,7 +52,7 @@ Legend: ✅ works · 🟡 works with a caveat · 🔴 not built · ⚪ out of sc
 | Game icons | ✅ | 1,409 installed (Pals, items, elements, NPCs). Resolved through a manifest, case-insensitively — a guessed path 404s on exactly the Pals the capitalisation bug already cost us |
 | Reload data packs | ✅ | Admin-only. Re-reads the bundled files from disk after you replace them; no container restart. **Reloads, never regenerates** |
 | Layer toggles + search | ✅ | |
-| World Tree coordinate accuracy | 🟡 | Extent is exact (from the streaming grid); **orientation** is assumed and flagged `calibrated: false` in the UI. Deriving it from the cell silhouette was tried and failed its control — see `scripts/fit-worldtree.py` |
+| World Tree coordinate accuracy | 🟡 | Framing comes from the game’s map bounds and texture references; 174 travel points checked. Orientation has a 52-object control. Exact pixel calibration remains unverified and `calibrated: false`. |
 | Live player position | 🟡 | Polled from REST, 15–30 s floor |
 | Live player *facing* | 🔴 | **Deliberately not built.** The REST API does not return rotation. Documented rather than faked |
 | Fog-of-war / exploration overlay | 🔴 | Data (`FindAreaFlagMap`) is parsed but unused |
@@ -71,6 +71,7 @@ Legend: ✅ works · 🟡 works with a caveat · 🔴 not built · ⚪ out of sc
 | Milestone rewards (the game's own, **not Steam**) | ✅ | 2026-08-12 (task #89). The in-game reward NPC's 26 tiers, per player, read from their own save — offline, and for every player rather than only those who handed over a Steam key. Which tiers are *collected* is exact (the save names the row, 26/26); `BossDefeat` shows no progress bar because no save counter is establishable for it |
 | Pre-1.0 (`PlZ` / zlib) saves | 🟡 | `palsav` supports it; no sample to verify against |
 | Uid remap for co-op / another server | ✅ | **Phase 9** (`soloexport.py`). Writes a *copy*, so it is the one save feature safe to run while the server is up. Matches uids by value, not by key name — a key list misses 1,836 references |
+| Pruned dedicated-server copy | 🟡 | Local implementation (2026-09-28), separate from solo UID remapping. Select players to remove, review shared-guild leadership, verify an unchanged source and retained data. Requires isolated game-server acceptance; see [SERVER-EXPORT.md](SERVER-EXPORT.md). |
 | Self-serve "take my world into single-player" | ✅ | v1.1.0 (`selfexport.py`, My account tab). The player-accessible slice of the remap: source pinned to the caller's linked character, target fixed to the single-player host uid, copy pruned to their own guild — and **solo guilds only**, because a kept guild keeps its members' saves. One archive per account, hourly cooldown, downloads from the same card. `SELF_EXPORT_*` in `CONFIGURATION.md`; player walkthrough in `SINGLE-PLAYER-COPY.md` |
 | Xbox / PS5 / Mac players | 🟡 | Platform is parsed and surfaced; no console player has ever been observed. `docs/CROSSPLAY.md`, task #33 |
 | Game Pass saves | ⚪ | Out of scope. The extraction tool solves a Windows *file-location* problem, not the crossplay question it gets mistaken for |
@@ -436,7 +437,7 @@ among the operator's own affected Pals and is shown before anything is
 pressed.
 
 ### Moving a character between servers
-`soloexport.py` is the one save operation that never writes to the live world:
+`soloexport.py`, like the newer dedicated-server pruner, never writes to the live world:
 it reads the world and produces a remapped **copy**, so it cannot corrupt
 anything and does not require the server stopped. It matches uids **by value,
 not by key name** — the four named keys the reference implementation rewrites
@@ -462,3 +463,13 @@ means a refusal naming it, because a Pal's record carries values specific to
 its save. The preview lists every field it will **not** write (owner,
 container, slot, guild — where a Pal *is*, not what it is), so nobody believes
 an imported Pal changed hands.
+
+## September 2026 audit additions
+
+- **Game guides:** fishing, ponds, bait, expeditions, Operating Table, Soul costs, crops, cages, recruitment, appeals, exact passive-effect stacking flags and base-level tasks. All twelve use bundled game data and checked joins.
+- **Loot:** recorded slot probability is shown separately from an item’s relative weight within that slot; missing joins stay unknown.
+- **Saved state:** fishing/arena counters and quest IDs on Progression; crop/energy fields on placed-object popups; staff-only recorded supply events in Game guides.
+- **Exports:** separate pruned dedicated-server copy, stable snapshots for legacy exports, persistent account-owned jobs, verified downloads and shared capacity limits.
+- **Recovery:** durable interrupted-world-restore recovery and a separate SQLite/policy backup/restore CLI. See [RECOVERY.md](RECOVERY.md).
+
+See [the implementation and verification report](IMPLEMENTATION-2026-09-29.md) for acceptance limits.

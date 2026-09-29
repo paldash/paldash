@@ -22,6 +22,8 @@ import selfexport
 @pytest.fixture
 def sandbox(fresh_db, tmp_path, monkeypatch):
     """A clean database, a temp export root, and no cooldown unless a test sets one."""
+    import accounts
+    accounts.create_user("p1", "test-long-password", steam_uid=UID)
     monkeypatch.setenv("BACKUP_DIR", str(tmp_path / "backups"))
     monkeypatch.setattr(selfexport, "ENABLED", True)
     monkeypatch.setattr(selfexport, "MIN_INTERVAL", 3600)
@@ -32,12 +34,14 @@ def sandbox(fresh_db, tmp_path, monkeypatch):
 def _seed_row(username: str, created_at: float, path: str = "") -> None:
     import db
 
+    import accounts
+    user = accounts.get_user(username) or accounts.create_user(username, "test-long-password", steam_uid=UID)
     selfexport.init()
     with db.transaction() as tx:
         tx.execute(
             "INSERT INTO self_exports (username, uid, path, sha256, size_bytes, "
-            "created_at) VALUES (?, '', ?, '', 0, ?)",
-            (username, path, created_at),
+            "created_at, user_id) VALUES (?, ?, ?, '', 0, ?, ?)",
+            (username, UID, path, created_at, user["id"]),
         )
 
 
@@ -238,6 +242,8 @@ def test_the_archive_holds_exactly_one_players_world(
     raw = names[0][: -len(".sav")].lower()
     uid = f"{raw[0:8]}-{raw[8:12]}-{raw[12:16]}-{raw[16:20]}-{raw[20:32]}"
 
+    import accounts
+    accounts.create_user("tester", "test-long-password", steam_uid=uid)
     result = selfexport.create("tester", uid)
     assert result["ok"] is True
     assert result["prune"]["guildsRemoved"] >= 1
@@ -258,3 +264,39 @@ def test_the_archive_holds_exactly_one_players_world(
     with pytest.raises(selfexport.SelfExportError) as e:
         selfexport.create("tester", uid)
     assert e.value.status == 429
+
+
+def test_recreated_username_cannot_download_previous_accounts_export(sandbox, monkeypatch):
+    import accounts
+    _fake_success(monkeypatch)
+    selfexport.create('p1', UID)
+    accounts.delete_user('p1')
+    accounts.create_user('p1', 'different-long-password', steam_uid=UID)
+    with pytest.raises(selfexport.SelfExportError) as refused:
+        selfexport.archive_for_download('p1')
+    assert refused.value.status == 404
+
+
+def test_relinked_account_and_disabled_feature_cannot_download_old_export(sandbox, monkeypatch):
+    import accounts
+    _fake_success(monkeypatch)
+    selfexport.create('p1', UID)
+    monkeypatch.setattr(selfexport, 'ENABLED', False)
+    with pytest.raises(selfexport.SelfExportError) as refused:
+        selfexport.archive_for_download('p1')
+    assert refused.value.status == 403
+    monkeypatch.setattr(selfexport, 'ENABLED', True)
+    accounts.update_user('p1', steam_uid='22b22b02000000000000000000000000')
+    with pytest.raises(selfexport.SelfExportError) as refused:
+        selfexport.archive_for_download('p1')
+    assert refused.value.status == 404
+
+
+def test_relinking_back_does_not_revive_a_revoked_download(sandbox, monkeypatch):
+    import accounts
+    _fake_success(monkeypatch)
+    selfexport.create('p1',UID)
+    accounts.update_user('p1',steam_uid='22b22b02-0000-0000-0000-000000000000')
+    accounts.update_user('p1',steam_uid=UID)
+    with pytest.raises(selfexport.SelfExportError):
+        selfexport.archive_for_download('p1')
