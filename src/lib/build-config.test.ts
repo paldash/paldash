@@ -87,3 +87,19 @@ describe('build id and cache headers', () => {
     expect(values.every((v) => !v.includes('immutable'))).toBe(true);
   });
 });
+
+describe('tracing directory boundaries', () => {
+  it('excludes private cache directories without removing Next cache modules', async () => {
+    const { createRequire } = await import('node:module');
+    const matcher = createRequire(import.meta.url)('next/dist/compiled/picomatch') as
+      (patterns: string[], options: { contains: boolean; dot: boolean }) => (value: string) => boolean;
+    const config = readFileSync(path.join(process.cwd(), 'next.config.ts'), 'utf8');
+    const excludes = config.slice(config.indexOf('outputFileTracingExcludes:'));
+    const patterns = [...excludes.matchAll(/^\s*"([^"]+)",/gm)].map(match => match[1]);
+    const ignored = matcher(patterns, { contains: true, dot: true });
+    expect(ignored('/project/cache/dashboard.db')).toBe(true);
+    expect(ignored('/project/refworld/Level.sav')).toBe(true);
+    expect(ignored('/project/node_modules/next/dist/server/use-cache/handlers.js')).toBe(false);
+    expect(ignored('/project/node_modules/next/dist/server/response-cache/index.js')).toBe(false);
+  });
+});
