@@ -15,6 +15,7 @@ const BUILD_ID = process.env.BUILD_ID || `t${Date.now().toString(36)}`;
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  images: { unoptimized: true },
 
   // Deterministic per build, and shared with the client through `env` below so
   // both sides compare the same string.
@@ -23,6 +24,15 @@ const nextConfig: NextConfig = {
 
   async headers() {
     return [
+      {
+        source: "/:path*",
+        headers: [
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "X-Frame-Options", value: "DENY" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          { key: "Content-Security-Policy", value: "frame-ancestors 'none'; base-uri 'self'; object-src 'none'" },
+        ],
+      },
       {
         // `public/` is NOT content-hashed — icons and map textures keep their
         // names across builds, so a regenerated set can serve stale from a
@@ -69,12 +79,15 @@ const nextConfig: NextConfig = {
   // `.gitignore`.
   outputFileTracingExcludes: {
     "*": [
-      "refs/**",
-      "refworld/**",
-      "palworld/**",
-      "backups/**",
-      "cache/**",
-      ".venv/**",
+      // Next matches these with picomatch contains:true. A bare "cache/**"
+      // also matches "use-cache/" and "response-cache/", deleting required
+      // framework modules. **/ enforces a directory boundary for each name.
+      "**/refs/**",
+      "**/refworld/**",
+      "**/palworld/**",
+      "**/backups/**",
+      "**/cache/**",
+      "**/.venv/**",
       "**/*.sav",
       "**/PalWorldSettings.ini",
       // Session transcripts dropped in the project root by `/export`; they
