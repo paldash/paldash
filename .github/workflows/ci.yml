@@ -185,6 +185,28 @@ jobs:
           sbom: true
           provenance: mode=max
 
+      - name: Smoke-test the shipped runtime and native codec
+        env:
+          IMAGE: paldash-ci:${{ github.sha }}
+        run: |
+          docker run --rm --network none --entrypoint python3 "$IMAGE" /app/scripts/smoke-native.py
+          docker run --rm --network none --entrypoint python3 "$IMAGE" -c 'import sys; assert sys.version_info[:2] == (3, 11)'
+          cleanup() { docker logs paldash-smoke; docker rm -f paldash-smoke; }
+          trap cleanup EXIT
+          docker run --detach --name paldash-smoke --network none \
+            -e HOSTNAME=127.0.0.1 -e PANEL_PASSWORD=ci-smoke-only-password \
+            -e BACKUP_DIR=/app/backups -e SAVE_BASE_DIR=/tmp/no-world \
+            -e PALWORLD_REST_URL=http://127.0.0.1:9 \
+            -e FETCH_ASSETS_ON_BOOT=false -e DATA_REFRESH_ON_BOOT=off \
+            -e PARSE_AUTO=false -e METRICS_ENABLED=false "$IMAGE"
+          for attempt in {1..60}; do
+            if docker exec paldash-smoke node -e "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"; then
+              exit 0
+            fi
+            sleep 1
+          done
+          exit 1
+
       - name: Scan final OS and library packages
         uses: aquasecurity/trivy-action@d2a0b60797ff03db6132bd4e2b293f9b37081297
         with:
