@@ -135,10 +135,13 @@ def _assert_absent(node, removed, label):
     for value in removed:
         u = uuid.UUID(value); raw = u.bytes
         needles.update((raw, u.bytes_le, b''.join(raw[i:i+4][::-1] for i in range(0,16,4))))
-    pattern = re.compile(b'|'.join(re.escape(n) for n in needles)) if needles else None
     def opaque(value):
         if isinstance(value, (bytes, bytearray)):
-            if pattern is not None and pattern.search(value):
+            # Every encoding is exactly 16 bytes. A regex with thousands of
+            # alternatives retried them at every byte of a large native block;
+            # fixed-width set lookups preserve the same match rule in linear work.
+            data = bytes(value)
+            if needles and any(data[i:i+16] in needles for i in range(len(data) - 15)):
                 raise ServerExportError(f'An opaque {label} field contains a removed identity; no export was produced')
         elif isinstance(value, dict):
             for v in value.values(): opaque(v)

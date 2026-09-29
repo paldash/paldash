@@ -68,6 +68,23 @@ def test_opaque_identity_is_not_silently_copied(graph):
         export.prune(world,players,[A])
 
 
+@pytest.mark.parametrize('encoded', [
+    '123456789abcdef0123456789abcdef0',
+    '78563412bc9af0de123456789abcdef0',
+    '78563412f0debc9a78563412f0debc9a',
+])
+def test_opaque_scanning_covers_all_guid_encodings_and_buffer_edges(encoded):
+    removed = {'12345678-9abc-def0-1234-56789abcdef0'}
+    needle = bytes.fromhex(encoded)
+    for payload in (needle, b'x' * 17 + needle, b'x' + needle + b'y'):
+        for shape in (bytes, bytearray, list):
+            with pytest.raises(export.ServerExportError, match='opaque'):
+                export._assert_absent({'native': shape(payload)}, removed, 'copy')
+    near_match = bytearray(needle)
+    near_match[8] ^= 1
+    export._assert_absent({'native': bytes(near_match)}, removed, 'copy')
+
+
 def test_invalid_leader_choice_is_refused(graph):
     world, players = graph
     with pytest.raises(export.ServerExportError, match='retained member'):
