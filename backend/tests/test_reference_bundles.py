@@ -77,7 +77,7 @@ def test_the_raid_and_field_boss_bundles_stay_disjoint():
 
 def test_invaders_carry_biome_grade_and_loot():
     data = gamedata.invaders()
-    assert len(data["groups"]) == 44
+    assert len(data["groups"]) == 76
     group = next(iter(data["groups"].values()))[0]
     assert group["gradeMin"] <= group["gradeMax"]
     assert group["biome"]
@@ -92,14 +92,13 @@ def test_every_attacker_has_a_reward_table():
     assert set(data["groups"]) <= set(data["rewards"])
 
 
-def test_spare_reward_tables_are_tolerated():
+def test_mainland_attackers_are_not_discarded_as_spare_rewards():
     """
-    The game ships 32 reward tables with no attacker — mainland biomes the
-    invader table does not carry. Harmless, and refusing over it would block the
-    extraction because the game has extra data.
+    A misaligned table walk used to drop 97 entries in 32 mainland groups.
+    All 76 groups join both ways after checking property types and row count.
     """
     data = gamedata.invaders()
-    assert len(set(data["rewards"]) - set(data["groups"])) == 32
+    assert set(data["rewards"]) == set(data["groups"])
 
 
 def test_the_payload_says_a_grade_cannot_be_resolved_to_a_base():

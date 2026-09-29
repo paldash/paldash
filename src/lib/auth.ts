@@ -140,6 +140,7 @@ async function backend(path: string, init: RequestInit = {}): Promise<Response> 
     ...init,
     headers: { 'Content-Type': 'application/json', ...(init.headers ?? {}) },
     cache: 'no-store',
+    signal: init.signal ?? AbortSignal.timeout(10_000),
   });
 }
 

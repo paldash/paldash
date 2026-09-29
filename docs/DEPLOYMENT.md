@@ -108,7 +108,7 @@ costs ~35 MB and was deliberately declined. So as written they fail with
 `STOP_COMMAND not found: docker`.
 
 They do not need the CLI. The socket proxy speaks the Docker HTTP API, and the
-runtime image is `node:20-bookworm-slim`, so `node` with a global `fetch` is
+runtime image is `node:22-bookworm-slim`, so `node` with a global `fetch` is
 already there — the healthcheck uses it. Use these instead:
 
 ```yaml
@@ -413,3 +413,7 @@ podman build --format docker -t palworld-dashboard:latest .
 The build is the only slow part and it happens once. If the goal is just "I do
 not want a clone on my server", `docker save` / `docker load` gets you there
 without a registry, an account, or any of the licensing questions above.
+
+## Recovery and release checks
+
+[RECOVERY.md](RECOVERY.md) documents world-restore journals, dashboard-state snapshots, shared maintenance/export locks, and queue recovery. The runtime image is built with SBOM/provenance, loaded into a containerd image store, scanned for known high/critical OS and library vulnerabilities, and only then published from those same image bytes. Native parser code is pinned and exercised by local real-save tests; advisory scanning cannot prove custom native code memory-safe.

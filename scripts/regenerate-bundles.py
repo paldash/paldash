@@ -54,7 +54,7 @@ PROVENANCE = os.path.join(DATA_DIR, "provenance.json")
 #: independent. Declared rather than inferred: a dependency guessed from an
 #: import graph would miss `install-icons.py`, which is not imported by anything
 #: and must still run first.
-LAST = ("gamedata.json.gz",)
+LAST = ("gamedata.json.gz", "reference_guides.json.gz")
 
 #: Steps that produce no bundle of their own but must run before `LAST`. Kept
 #: empty when provenance already names them — `install-icons.py` has its own

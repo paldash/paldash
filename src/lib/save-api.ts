@@ -83,6 +83,7 @@ const BASE = '/api/save';
 async function saveFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
     ...init,
+    signal: init?.signal ?? AbortSignal.timeout(10 * 60_000),
     headers: {
       'Content-Type': 'application/json',
       ...init?.headers,
@@ -92,8 +93,27 @@ async function saveFetch<T>(path: string, init?: RequestInit): Promise<T> {
     const text = await res.text().catch(() => res.statusText);
     throw new Error(`Save API ${res.status}: ${text}`);
   }
-  return res.json();
+  const data = await res.json();
+  if (data && typeof data.jobId === 'string' && data.state === 'queued' && init?.method === 'POST') {
+    // Creation is durable: navigating away cannot cancel the backend operation.
+    // Individual requests stay short while the worker reports real phases.
+    for (;;) {
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      const job = await saveFetch<BackgroundJob>(`/jobs/${data.jobId}`, { signal: init?.signal });
+      if (job.state === 'completed') return job.result as T;
+      if (job.state === 'failed' || job.state === 'cancelled') throw new Error(job.error || job.stage);
+    }
+  }
+  return data;
 }
+
+export interface BackgroundJob { jobId: string; kind: string; state: string; stage: string; result: unknown; error: string | null }
+export const getBackgroundJobs = () => saveFetch<{ jobs: BackgroundJob[] }>('/jobs');
+export const cancelBackgroundJob = (id: string) => saveFetch(`/jobs/${id}`, { method: 'DELETE' });
+
+export interface ReferenceGuide { id: string; title: string; note: string; columns: string[]; rows: { id: string; cells: Record<string, string | number | null> }[]; source: { archive: string; sha256: string }; tables: Record<string, { rows: number; rowDigest: string }> }
+export const getReferenceGuides = () => saveFetch<{ sections: { id: string; label: string; rows: number }[] }>('/reference/guides');
+export const getReferenceGuide = (section: string) => saveFetch<ReferenceGuide>(`/reference/guides/${encodeURIComponent(section)}`);
 
 // ─── Health & Status ────────────────────────────────────
 
@@ -850,7 +870,7 @@ export async function getSelfExportStatus(): Promise<SelfExportStatus> {
 }
 
 export async function createSelfExport(): Promise<SelfExportResult> {
-  return saveFetch('/export/self', { method: 'POST' });
+  return saveFetch('/export/self?background=true', { method: 'POST' });
 }
 
 /** Same download-via-fetch approach as `downloadExport`, for the same reason. */
@@ -1227,7 +1247,7 @@ export async function createWorldExport(
   planHash: string,
   keepGuilds?: string[]
 ): Promise<WorldExportResult> {
-  return saveFetch('/export/world-copy', {
+  return saveFetch('/export/world-copy?background=true', {
     method: 'POST',
     body: JSON.stringify({ sourceUid, targetUid, planHash, keepGuilds }),
   });
@@ -1739,6 +1759,10 @@ export async function previewRestore(
   return saveFetch(`/backups/${backupId}/preview?scope=${encodeURIComponent(scope)}`);
 }
 
+export type RecoveryStatus = { pending: boolean; rollbackId?: string; files?: number; error?: string };
+export const getRecoveryStatus = () => saveFetch<RecoveryStatus>('/maintenance/recovery');
+export const recoverInterruptedRestore = () => saveFetch('/maintenance/recovery', { method: 'POST' });
+
 export async function restoreBackup(
   backupId: string,
   scope = 'world'
@@ -2112,6 +2136,7 @@ export interface RelicLine {
 
 /** One player's counted progress, from `/api/progress`. */
 export interface PlayerProgress {
+  savedRecords?: SavedRecords;
   uid: string;
   name: string;
   level: number;
@@ -2124,6 +2149,7 @@ export interface PlayerProgress {
     | string
     | number
     | RelicLine[]
+    | SavedRecords
     | Record<string, number>
     | { obtained: number; of: number; source: string }
     // `distinct` is null when the save stores a plain int — a scalar carries
@@ -2131,6 +2157,26 @@ export interface PlayerProgress {
     // game first has something to count.
     | { total: number; distinct: number | null }
     | undefined;
+}
+
+export interface SavedRecords {
+  fishing?: { id: string; count: number }[];
+  arena?: { id: string; count: number }[];
+  completedQuests?: string[];
+  activeQuests?: { id: string; block: number | null }[];
+}
+
+export interface RecordedSupply {
+  available: boolean;
+  parsedAt: number | null;
+  note: string;
+  LastLotteryTime?: number;
+  LastSupplyTime?: number;
+  events: { type?: string; SupplyTime?: number; SupplyLandedTime?: number; bWipedOut_NPC?: boolean; bWipedOut_Pal?: boolean }[];
+}
+
+export async function getRecordedSupply(): Promise<RecordedSupply> {
+  return saveFetch('/world/supply');
 }
 
 export async function getProgress(): Promise<{
@@ -2218,4 +2264,28 @@ export async function getRaidBosses(): Promise<RaidBossReport> {
  */
 export async function getInvaders(): Promise<InvaderReport> {
   return saveFetch('/world/invaders');
+}
+
+export interface ServerExportPlan {
+  artifactId: string;
+  planHash: string;
+  retainedPlayers: number;
+  removedPlayers: number;
+  removedGuilds: number;
+  removedBases: number;
+  removedCharacters: number;
+  removedContainers: number;
+  reassignedSharedReferences: number;
+  leaderChanges: { guildId: string; newLeaderUid: string; retainedMembers: string[] }[];
+  note: string;
+}
+export interface ServerExportResult extends Omit<ServerExportPlan, 'planHash' | 'note'> {
+  sha256: string;
+  sizeBytes: number;
+}
+export function previewServerExport(removeUids: string[], leaders: Record<string, string>) {
+  return saveFetch<ServerExportPlan>('/export/server/preview', { method: 'POST', body: JSON.stringify({ removeUids, leaders }) });
+}
+export function createServerExport(plan: ServerExportPlan) {
+  return saveFetch<ServerExportResult>('/export/server?background=true', { method: 'POST', body: JSON.stringify({ artifactId: plan.artifactId, planHash: plan.planHash }) });
 }

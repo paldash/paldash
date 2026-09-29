@@ -52,7 +52,7 @@ def _label(area_id: str) -> str:
     return re.sub(r"(?<=[A-Za-z])(?=\d)", " ", spaced)
 
 
-def _slot_shares(rows: list[dict]) -> list[dict]:
+def _slot_shares(rows: list[dict], field: str = '') -> list[dict]:
     totals: dict[Any, float] = {}
     for r in rows:
         totals[r.get("slot")] = totals.get(r.get("slot"), 0.0) + float(r.get("weight") or 0.0)
@@ -67,6 +67,7 @@ def _slot_shares(rows: list[dict]) -> list[dict]:
             "name": described.get("name") or item_id,
             "icon": described.get("icon") or "",
             "slotShare": share,
+            "slotProbabilityPercent": (gamedata.economy().get('slotProbabilities') or {}).get(field, {}).get(str(r.get('slot'))),
         })
     return out
 
@@ -103,7 +104,7 @@ def _build() -> dict:
                 missing_lotteries.append(name)
             loot.append({
                 **l,
-                "items": _slot_shares(list(rows)) if rows else None,
+                "items": _slot_shares(list(rows), name) if rows else None,
             })
 
         areas.append({

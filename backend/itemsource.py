@@ -87,6 +87,7 @@ def _build_index() -> dict[str, dict[str, list]]:
                 "field": field,
                 "slot": row.get("slot"),
                 "weight": row.get("weight"),
+                "slotProbabilityPercent": (economy.get('slotProbabilities') or {}).get(field, {}).get(str(row.get('slot'))),
                 # The share of its own slot, which IS comparable — the chance
                 # this item fills that slot when the field is rolled. The raw
                 # weight is not comparable between fields and never travels

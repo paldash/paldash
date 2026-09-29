@@ -239,6 +239,11 @@ def update_user(
         values.append(user["id"])
         with db.transaction() as conn:
             conn.execute(f"UPDATE users SET {', '.join(fields)} WHERE id = ?", values)
+            # Relinking must revoke an existing private export permanently,
+            # even if the account is later linked back to the same character.
+            if steam_uid is not None and (steam_uid or '').replace('-', '').lower() != (user.get('steamUid') or '').replace('-', '').lower():
+                if conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='self_exports'").fetchone():
+                    conn.execute("DELETE FROM self_exports WHERE user_id = ?", (user['id'],))
 
     # A disabled or demoted account should not keep working until its cookie
     # happens to expire.
@@ -342,13 +347,25 @@ def _lockout_seconds(failures: int, threshold: int) -> int:
 
 def check_rate_limit(ip: str, username: str) -> None:
     """Raise RateLimited if this IP or username has been guessing."""
-    by_ip = _lockout_seconds(_recent_failures("ip", ip or ""), MAX_ATTEMPTS_PER_IP)
-    by_user = _lockout_seconds(
-        _recent_failures("username", (username or "").lower()), MAX_ATTEMPTS_PER_USER
-    )
-    delay = max(by_ip, by_user)
-    if delay:
-        raise RateLimited(delay)
+    now = _now()
+    delays = []
+    for column, value, threshold in (("ip", ip or "", MAX_ATTEMPTS_PER_IP),
+                                      ("username", (username or "").lower(), MAX_ATTEMPTS_PER_USER)):
+        if not value:
+            continue
+        since = _iso(now - timedelta(minutes=ATTEMPT_WINDOW_MINUTES))
+        rows = db.connect().execute(
+            f"SELECT ts FROM login_attempts WHERE {column} = ? AND success = 0 AND ts > ? ORDER BY ts",
+            (value, since),
+        ).fetchall()
+        if len(rows) >= threshold:
+            # Retry-After names the instant the count actually drops below the
+            # threshold, rather than a nominal delay that never unlocks anything.
+            unlock = datetime.fromisoformat(rows[len(rows) - threshold]["ts"]) + timedelta(minutes=ATTEMPT_WINDOW_MINUTES)
+            import math
+            delays.append(max(1, math.ceil((unlock - now).total_seconds())))
+    if delays:
+        raise RateLimited(max(delays))
 
 
 def record_attempt(ip: str, username: str, success: bool) -> None:
@@ -374,7 +391,7 @@ def _hash_token(token: str) -> str:
 
 
 def authenticate(
-    username: str, password: str, ip: str = "", user_agent: str = ""
+    username: str, password: str, ip: str = "", user_agent: str = "", *, issue_session: bool = True
 ) -> tuple[str, dict[str, Any]]:
     """
     Verify credentials and open a session. Returns (token, user).
@@ -404,6 +421,9 @@ def authenticate(
         raise AccountError("This account has been disabled.")
 
     record_attempt(ip, username, True)
+
+    if not issue_session:
+        return "", _row_to_user(user_row)
 
     token = secrets.token_urlsafe(32)
     now = _now()

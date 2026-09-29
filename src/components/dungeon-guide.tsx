@@ -132,7 +132,7 @@ function AreaRow({ area, open, toggle }: {
                     <span>{it.name}</span>
                     {it.slotShare != null && (
                       <span style={{ color: 'var(--text-muted)' }}>
-                        {Math.round(it.slotShare * 100)}%
+                        item share {Math.round(it.slotShare * 100)}% · slot roll {it.slotProbabilityPercent == null ? 'unknown' : `${it.slotProbabilityPercent}%`}
                       </span>
                     )}
                   </span>

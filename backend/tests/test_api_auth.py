@@ -236,7 +236,8 @@ def test_account_changes_are_audited(client, owner):
     assert any(e["target"] == "newbie" and e["username"] == "owner1" for e in entries)
 
 
-def test_audit_records_the_client_address(client, owner):
+def test_audit_records_the_client_address(client, owner, monkeypatch):
+    monkeypatch.setenv("TRUST_PROXY_HEADERS", "true")
     client.get(
         "/api/users", headers={**auth(owner["token"]), "X-Forwarded-For": "203.0.113.7"}
     )

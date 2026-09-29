@@ -102,7 +102,9 @@ def _probe_rest_api() -> Signal:
         # live server with a wrong password, NOT a stopped server.
         return Signal("rest_api", "running", f"REST API responded {e.code} (server is up, auth may be wrong)")
     except (urllib.error.URLError, TimeoutError, socket.timeout, OSError) as e:
-        return Signal("rest_api", "stopped", f"REST API unreachable ({type(e).__name__})")
+        cause = e.reason if isinstance(e, urllib.error.URLError) else e
+        verdict = "stopped" if isinstance(cause, ConnectionRefusedError) else "unknown"
+        return Signal("rest_api", verdict, f"REST API unreachable ({type(cause).__name__})")
     except Exception as e:  # noqa: BLE001 - never let a probe crash the verdict
         logger.warning("REST probe error: %s", e)
         return Signal("rest_api", "unknown", f"probe error: {e}")
@@ -116,8 +118,10 @@ def _probe_tcp() -> Signal:
         port = parsed.port or 8212
         with socket.create_connection((host, port), timeout=PROBE_TIMEOUT):
             return Signal("tcp_port", "running", f"{host}:{port} accepting connections")
-    except (socket.timeout, ConnectionRefusedError, OSError) as e:
-        return Signal("tcp_port", "stopped", f"REST port closed ({type(e).__name__})")
+    except ConnectionRefusedError:
+        return Signal("tcp_port", "stopped", "REST port refused the connection")
+    except (socket.timeout, OSError) as e:
+        return Signal("tcp_port", "unknown", f"REST port could not be checked ({type(e).__name__})")
     except Exception as e:  # noqa: BLE001
         return Signal("tcp_port", "unknown", f"probe error: {e}")
 
@@ -129,12 +133,19 @@ def _probe_save_activity() -> Signal:
     This is the signal that works even with no REST API at all, and it is the
     reason the dashboard is safe when it shares a bind mount with the server.
     """
-    if not os.path.isdir(SAVE_BASE_DIR):
+    activity_root = SAVE_BASE_DIR
+    if os.environ.get("WORLD_GUID"):
+        import savefiles
+        selected = savefiles.get_default_world_dir()
+        if not selected:
+            return Signal("save_activity", "unknown", "configured world is unavailable")
+        activity_root = selected
+    if not os.path.isdir(activity_root):
         return Signal("save_activity", "unknown", f"save dir not found: {SAVE_BASE_DIR}")
 
     newest = 0.0
     newest_file = ""
-    for path in glob.glob(os.path.join(SAVE_BASE_DIR, "**", "*.sav"), recursive=True):
+    for path in glob.glob(os.path.join(activity_root, "**", "*.sav"), recursive=True):
         try:
             mtime = os.path.getmtime(path)
         except OSError:

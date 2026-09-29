@@ -299,14 +299,14 @@ function Loot({ loot }: { loot: NonNullable<ItemSources['loot']> }) {
       // The percentage is the item's share of its own slot. Nothing in the
       // game's data says how often a given chest is rolled, so this is not a
       // per-chest chance and must not be labelled as one.
-      note="The percentage is this item's share of that slot, not how often the container appears."
+      note="Slot roll is recorded by the game; item share is relative weight within that slot. Neither establishes container timing or unconditional item chance."
     >
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
         {loot.slice(0, 24).map((l) => (
           <span key={`${l.field}-${l.slot}`} className="badge" title={`${l.field} slot ${l.slot}`}>
             {l.field}{' '}
             <span className="mono" style={{ color: 'var(--text-muted)' }}>
-              {l.slotShare != null ? `${Math.round(l.slotShare * 100)}%` : '—'} ×
+              slot roll {l.slotProbabilityPercent != null ? `${l.slotProbabilityPercent}%` : 'unknown'} · item share {l.slotShare != null ? `${Math.round(l.slotShare * 100)}%` : '—'} ×
               {l.min === l.max ? l.min : `${l.min}-${l.max}`}
             </span>
           </span>

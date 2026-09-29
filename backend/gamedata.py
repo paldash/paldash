@@ -1458,6 +1458,7 @@ def found_in_loot(item_id: str) -> list[dict[str, Any]]:
                 "field": field,
                 "slot": row.get("slot"),
                 "weight": row.get("weight"),
+                "slotProbabilityPercent": (economy().get('slotProbabilities') or {}).get(field, {}).get(str(row.get('slot'))),
                 # The share of its own slot, which IS comparable — it is the
                 # chance this item fills that slot when the field is rolled.
                 "slotShare": (

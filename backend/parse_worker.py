@@ -39,7 +39,7 @@ logger = logging.getLogger(__name__)
 # update, with nothing anywhere saying why. `savecache` now discards a cache
 # whose schema does not match this, so the worst case is one re-parse instead of
 # a wrong number.
-SCHEMA_VERSION = 16  # 16: respawnState (#141)
+SCHEMA_VERSION = 17  # 17: recorded crops/energy, supply events and player records
 
 
 def lower_priority() -> None:
@@ -168,6 +168,8 @@ def main() -> int:
     # free, and the most human number this dashboard can show.
     world_clock = extract_world_clock(gvas)
     respawn_state = extract_respawn_state(gvas)
+    import savedstate
+    supply_state = savedstate.supply(gvas.properties.get('worldSaveData'))
 
     # Which placed object owns which container, and therefore which base. Cheap
     # (it re-walks an already-decoded MapObjectSaveData) and it is what turns a
@@ -312,6 +314,7 @@ def main() -> int:
         "workAssignments": work_assignments,
         "worldClock": world_clock,
         "respawnState": respawn_state,
+        "supplyState": supply_state,
         "items": items,
         "counts": {
             "guilds": len(guilds),

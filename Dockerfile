@@ -1,5 +1,5 @@
 # ─── Stage 1: Build Next.js ──────────────────────────────
-FROM node:20-bookworm-slim AS webbuilder
+FROM node:22-bookworm-slim AS webbuilder
 
 WORKDIR /app
 COPY package.json package-lock.json ./
@@ -26,21 +26,26 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 ARG PALSAV_REPO=https://github.com/deafdudecomputers/PalworldSaveTools.git
-ARG PALSAV_REF=main
+ARG PALSAV_REF=87fb4081d6b860778053ac0114754c8cae2b5f57
 
 WORKDIR /build
-RUN git clone --depth 1 --branch "${PALSAV_REF}" --recurse-submodules "${PALSAV_REPO}" pst
+RUN git init pst \
+    && git -C pst remote add origin "${PALSAV_REPO}" \
+    && git -C pst fetch --depth 1 origin "${PALSAV_REF}" \
+    && git -C pst checkout --detach FETCH_HEAD \
+    && test "$(git -C pst rev-parse HEAD)" = "${PALSAV_REF}" \
+    && git -C pst submodule update --init --recursive --depth 1
 
 RUN python -m pip install --no-cache-dir --upgrade pip build wheel \
     && python -m pip wheel --no-cache-dir --wheel-dir /wheels \
         ./pst/src/palsav/palooz \
         ./pst/src/palsav
 
-COPY backend/requirements.txt /tmp/requirements.txt
+COPY backend/requirements.txt backend/constraints.txt /tmp/
 RUN python -m pip wheel --no-cache-dir --wheel-dir /wheels -r /tmp/requirements.txt
 
 # ─── Stage 3: Runtime ────────────────────────────────────
-FROM node:20-bookworm-slim AS runner
+FROM node:22-bookworm-slim AS runner
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
         python3 python3-pip \

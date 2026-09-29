@@ -467,3 +467,88 @@ def test_prune_drops_an_expired_safety_backup(world, monkeypatch):
     backup_module.prune_backups({"keepLatest": 1, "keepDaily": 0, "keepWeekly": 0})
     remaining = {b["id"] for b in backup_module.list_backups()}
     assert remaining == {newest["id"]}
+
+
+def test_restore_failure_rolls_back_every_attempted_file(world, monkeypatch):
+    import savefiles
+    from pathlib import Path
+    root = Path(world['world'])
+    snapshot = backup_module.create_backup(str(root), 'restore fault test')
+    files = [Path(p) for p, _ in backupstore.collect_world_files(str(root))]
+    for index, path in enumerate(files):
+        path.write_bytes(f'current-{index}'.encode())
+    before = {path: path.read_bytes() for path in files}
+    real_write = savefiles.atomic_write
+    calls = 0
+    def failing_write(path, data):
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            raise OSError('injected replacement failure')
+        return real_write(path, data)
+    monkeypatch.setattr(savefiles, 'atomic_write', failing_write)
+    with pytest.raises(BackupError, match='rolled back'):
+        backup_module.restore_backup(snapshot['id'])
+    assert {path: path.read_bytes() for path in files} == before
+
+
+def test_crashed_restore_blocks_start_and_recovers_after_restart(world, monkeypatch):
+    """Kill the writer after its first live replacement, bypassing finally/except."""
+    from pathlib import Path
+    import lifecycle
+    import recovery
+    import savefiles
+    snapshot = backup_module.create_backup(world['world'])
+    files = [Path(p) for p, _ in backupstore.collect_world_files(world['world'])]
+    for i, path in enumerate(files):
+        path.write_bytes(f'current {i}'.encode())
+    before = {p: p.read_bytes() for p in files}
+    pid = os.fork()
+    if pid == 0:
+        original = savefiles.atomic_write
+        def interrupted(path, data):
+            original(path, data)
+            if str(path).endswith('Level.sav'):
+                os._exit(79)
+        savefiles.atomic_write = interrupted
+        backup_module.restore_backup(snapshot['id'])
+        os._exit(80)
+    _, result = os.waitpid(pid, 0)
+    assert os.waitstatus_to_exitcode(result) == 79
+    pending = recovery.status()
+    assert pending['pending']
+    monkeypatch.setattr(lifecycle, 'START_COMMAND', '/bin/true')
+    with pytest.raises(RuntimeError, match='recovery'):
+        lifecycle.run_start_command()
+    with pytest.raises(safety.ServerRunningError, match='recovery'):
+        with backup_module.guarded_save_write('blocked', world['world']):
+            pytest.fail('write guard opened')
+    with pytest.raises(BackupError, match='protects'):
+        backup_module.delete_backup(pending['rollbackId'])
+    _backdate(pending['rollbackId'], '2000-01-01T00:00:00+00:00')
+    backup_module.prune_backups({'keepLatest': 0, 'keepDaily': 0, 'keepWeekly': 0, 'maxTotal': 1})
+    assert backup_module.find_backup(pending['rollbackId'])
+    assert recovery.recover()['recovered']
+    assert not recovery.status()['pending']
+    assert {p: p.read_bytes() for p in files} == before
+    assert recovery.recover() == {'recovered': False}
+
+
+def test_recovery_refuses_external_changes_and_corrupt_undo(world, tmp_path):
+    from pathlib import Path
+    import recovery
+    root = Path(world['world'])
+    target = root / 'Level.sav'
+    source = tmp_path / 'replacement'
+    source.write_bytes(b'next')
+    data = recovery.begin([('Level.sav', str(source), str(target))], 'abc123', str(root))
+    target.write_bytes(b'external change')
+    with pytest.raises(BackupError, match='outside'):
+        recovery.recover()
+    assert target.read_bytes() == b'external change'
+    target.write_bytes(b'next')
+    (recovery._root() / data['id'] / '0').write_bytes(b'corrupt')
+    with pytest.raises(BackupError, match='verification'):
+        recovery.recover()
+    assert target.read_bytes() == b'next'
+    assert recovery.status()['pending']

@@ -764,6 +764,9 @@ function SettingRow({
           style={{ width: 180 }}
           type={option.type === 'int' || option.type === 'float' ? 'number' : 'text'}
           step={option.type === 'float' ? '0.1' : undefined}
+          min={option.bounds?.min}
+          max={option.bounds?.max}
+          title={option.bounds ? `Documented bounds: ${option.bounds.min ?? 'no stated minimum'} to ${option.bounds.max ?? 'no stated maximum'}` : undefined}
           value={String(current)}
           onChange={(e) =>
             onChange(

@@ -211,8 +211,8 @@ def init() -> None:
     logger.info("Database ready at %s", DB_PATH)
 
 
-def reset_for_tests() -> None:
-    """Drop the cached connection so a test can point DB_PATH somewhere else."""
+def close_connection() -> None:
+    """Close this thread's connection before its worker or service exits."""
     conn = getattr(_local, "conn", None)
     if conn is not None:
         try:
@@ -220,3 +220,8 @@ def reset_for_tests() -> None:
         except sqlite3.Error:
             pass
     _local.conn = None
+
+
+def reset_for_tests() -> None:
+    """Drop the cached connection so a test can point DB_PATH somewhere else."""
+    close_connection()

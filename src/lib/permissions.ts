@@ -92,6 +92,14 @@ interface RouteRule {
 }
 
 const ROUTES: RouteRule[] = [
+  { pattern: /^jobs\/[a-f0-9]{32}\/download$/, methods: ['GET'], capability: CAPABILITIES.BACKUP_MANAGE, feature: null },
+  { pattern: /^world\/supply$/, methods: ['GET'], capability: CAPABILITIES.VIEW_DETAIL, feature: null },
+  { pattern: /^reference\/guides(?:\/[a-zA-Z]+)?$/, methods: ['GET'], capability: CAPABILITIES.VIEW_BASIC, feature: FEATURES.MAP_OBJECTS },
+  { pattern: /^jobs$/, methods: ['GET'], capability: CAPABILITIES.VIEW_SELF, feature: null },
+  { pattern: /^jobs\/[a-f0-9]{32}$/, methods: ['GET', 'DELETE'], capability: CAPABILITIES.VIEW_SELF, feature: null },
+  { pattern: /^maintenance\/recovery$/, methods: ['GET', 'POST'], capability: CAPABILITIES.BACKUP_MANAGE, feature: null },
+  { pattern: /^export\/server(?:\/preview)?$/, methods: ['POST'], capability: CAPABILITIES.BACKUP_MANAGE, feature: null },
+  { pattern: /^export\/server\/[a-f0-9]{32}\/download$/, methods: ['GET'], capability: CAPABILITIES.BACKUP_MANAGE, feature: null },
   // ─── Reads ───
   { pattern: /^health$/, methods: ['GET'], capability: CAPABILITIES.VIEW_BASIC, feature: FEATURES.SERVER_STATUS },
   { pattern: /^bases$/, methods: ['GET'], capability: CAPABILITIES.VIEW_BASIC, feature: FEATURES.BASES },

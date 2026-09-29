@@ -3,7 +3,6 @@ import type {
   ServerInfo,
   ServerMetrics,
   Player,
-  ServerSettings,
   BanList,
   MetricsHistory,
   MetricsSummary,
@@ -63,6 +62,7 @@ export async function getSession(): Promise<{
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
     ...init,
+    signal: init?.signal ?? AbortSignal.timeout(15_000),
     headers: {
       'Content-Type': 'application/json',
       ...init?.headers,
@@ -88,10 +88,6 @@ export async function getServerMetrics(): Promise<ServerMetrics> {
 export async function getPlayers(): Promise<Player[]> {
   const data = await apiFetch<{ players: Player[] }>('/players');
   return data.players ?? [];
-}
-
-export async function getServerSettings(): Promise<ServerSettings> {
-  return apiFetch<ServerSettings>('/settings');
 }
 
 // ─── Commands ───────────────────────────────────────────

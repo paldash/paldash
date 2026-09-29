@@ -168,6 +168,9 @@ def create_archive(
 
         manifest["archiveBytes"] = os.path.getsize(temp)
         manifest["archiveSha256"] = _sha256_file(temp)
+        verified = verify_archive(temp, manifest)
+        if not verified["ok"]:
+            raise BackupError("Backup changed while being captured: " + "; ".join(verified["problems"][:3]))
         os.replace(temp, destination)
     except BaseException:
         if os.path.exists(temp):

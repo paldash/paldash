@@ -14,11 +14,9 @@ The knobs, and why each is fixed rather than offered:
   target   the single-player / co-op host uid. That is the one destination every
            self-serve user shares; anything else is the moderators' panel.
   prune    own guild only (`keep_guilds=[]`, the exporting character's guild kept
-           by `keep_uid`). And unlike the moderator flow, **a refused prune is a
-           refused export**: the moderator flow writes the full copy because an
-           operator asked for the whole world and the prune was an extra; here
-           the prune IS the permission, so a copy that kept everyone's data must
-           never reach the caller. It is deleted and the export refused.
+           by `keep_uid`). A refused prune is a refused export in both flows.
+           Here the prune is also the permission, so a copy that kept everyone's
+           data must never reach the caller. Publication requires verified scope.
 
 **Solo guilds only.** The prune cannot cut below guild level — a kept guild
 keeps its members' player saves, full inventories included, which is more than a
@@ -46,11 +44,13 @@ import time
 from hashlib import sha256
 from typing import Any, Optional
 
+import accounts
 import db
 import exportscope
 import privacy
 import savecache
 import soloexport
+import exportlimits
 
 logger = logging.getLogger(__name__)
 
@@ -80,7 +80,7 @@ CREATE TABLE IF NOT EXISTS self_exports (
 # One export at a time, whoever asks. An export decompresses and walks the whole
 # world on the machine running the game; two at once is the one load shape the
 # per-account cooldown cannot prevent.
-_RUNNING = threading.Lock()
+_RUNNING = exportlimits.RUNNING
 
 
 class SelfExportError(Exception):
@@ -92,6 +92,11 @@ class SelfExportError(Exception):
 def init() -> None:
     with db.transaction() as conn:
         conn.executescript(SCHEMA)
+        columns = {r["name"] for r in conn.execute("PRAGMA table_info(self_exports)")}
+        if "user_id" not in columns:
+            # Historical username-only rows have no provable owner. Do not adopt
+            # them into whichever account happens to have that name today.
+            conn.execute("ALTER TABLE self_exports ADD COLUMN user_id INTEGER REFERENCES users(id) ON DELETE CASCADE")
 
 
 # ─── Storage ─────────────────────────────────────────────
@@ -119,8 +124,10 @@ def _slug(username: str) -> str:
 def _row(username: str) -> Optional[dict[str, Any]]:
     init()
     r = db.connect().execute(
-        "SELECT username, uid, path, sha256, size_bytes, created_at "
-        "FROM self_exports WHERE username = ?",
+        "SELECT e.username, e.uid, e.path, e.sha256, e.size_bytes, e.created_at, e.user_id "
+        "FROM self_exports e JOIN users u ON u.id = e.user_id "
+        "WHERE e.username = ? AND u.disabled = 0 "
+        "AND lower(replace(u.steam_uid, '-', '')) = lower(replace(e.uid, '-', ''))",
         (username,),
     ).fetchone()
     return dict(r) if r else None
@@ -152,6 +159,16 @@ def _sweep_expired() -> None:
     if rows:
         with db.transaction() as tx:
             tx.execute("DELETE FROM self_exports WHERE created_at < ?", (cutoff,))
+    # Account deletion/relinking revokes the row immediately. Reclaim its
+    # timestamped artifact later too, without following arbitrary directories.
+    from pathlib import Path
+    root = Path(_base_dir())
+    for path in root.glob('*/world-copy-*'):
+        if path.is_symlink() or path.parent.is_symlink() or not re.fullmatch(r'world-copy-\d+(?:\.tar\.gz)?', path.name):
+            continue
+        if path.stat().st_mtime < cutoff:
+            if path.is_dir(): shutil.rmtree(path)
+            elif path.is_file(): path.unlink()
 
 
 # ─── Eligibility ─────────────────────────────────────────
@@ -249,6 +266,10 @@ def create(username: str, uid: str) -> dict[str, Any]:
             "(or ask an admin) first."
         )
 
+    account = accounts.get_user(username)
+    if not account or account.get("disabled") or privacy.normalise_uid(account.get("steamUid")) != privacy.normalise_uid(uid):
+        raise SelfExportError("The linked account changed; sign in again.", 403)
+    account_id = account["id"]
     _sweep_expired()
     row = _row(username)
     remaining = _cooldown_remaining(row)
@@ -285,11 +306,10 @@ def create(username: str, uid: str) -> dict[str, Any]:
         os.makedirs(os.path.dirname(dest), exist_ok=True)
 
         result = soloexport.apply_export(
-            uid, HOST_UID, destination=dest, keep_guilds=[]
+            uid, HOST_UID, destination=dest, keep_guilds=[], strict_solo=True
         )
 
-        # The moderator flow writes the full copy when a prune is refused,
-        # because there the prune was optional. Here it is the permission.
+        # Verify the scope result as a separate defense before publication.
         if not result.get("prune", {}).get("pruned"):
             shutil.rmtree(dest, ignore_errors=True)
             reason = result.get("prune", {}).get("refused") or "prune did not run"
@@ -309,15 +329,19 @@ def create(username: str, uid: str) -> dict[str, Any]:
             _delete_artifacts(row)
         init()
         with db.transaction() as tx:
+            current = tx.execute("SELECT id, steam_uid, disabled FROM users WHERE id = ?", (account_id,)).fetchone()
+            if not current or current["disabled"] or privacy.normalise_uid(current["steam_uid"]) != privacy.normalise_uid(uid):
+                _delete_artifacts(archive)
+                raise SelfExportError("The linked account changed during export; no download was published.", 403)
             tx.execute(
                 "INSERT INTO self_exports "
-                "(username, uid, path, sha256, size_bytes, created_at) "
-                "VALUES (?, ?, ?, ?, ?, ?) "
-                "ON CONFLICT(username) DO UPDATE SET uid = excluded.uid, "
+                "(username, uid, path, sha256, size_bytes, created_at, user_id) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?) "
+                "ON CONFLICT(username) DO UPDATE SET uid = excluded.uid, user_id = excluded.user_id, "
                 "path = excluded.path, sha256 = excluded.sha256, "
                 "size_bytes = excluded.size_bytes, created_at = excluded.created_at",
                 (username, uid, archive["path"], archive["sha256"],
-                 archive["sizeBytes"], time.time()),
+                 archive["sizeBytes"], time.time(), account_id),
             )
 
         return {
@@ -341,10 +365,21 @@ def create(username: str, uid: str) -> dict[str, Any]:
 
 def archive_for_download(username: str) -> dict[str, Any]:
     """The caller's own archive, or a refusal. No parameters by design."""
+    if not ENABLED:
+        raise SelfExportError("Self-serve export is disabled on this server.", 403)
+    _sweep_expired()
     row = _row(username)
     if not row or not row.get("path") or not os.path.isfile(row["path"]):
         raise SelfExportError("No export archive exists for this account — "
                               "create one first.", status=404)
+    from pathlib import Path
+    path = Path(row['path'])
+    root = Path(_base_dir()).resolve()
+    if path.is_symlink() or not path.resolve().is_relative_to(root) or any(p.is_symlink() for p in path.parents):
+        raise SelfExportError('Export archive is outside its private storage', 409)
+    import backupstore
+    if not row['sha256'] or backupstore._sha256_file(str(path)) != row['sha256']:
+        raise SelfExportError('Export archive failed verification; create a fresh copy', 409)
     return {
         "path": row["path"],
         "sha256": row["sha256"],

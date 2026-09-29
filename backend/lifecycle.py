@@ -33,6 +33,7 @@ import threading
 import time
 from typing import Any, Optional
 
+import maintenance
 from safety import get_server_state
 
 logger = logging.getLogger(__name__)
@@ -155,11 +156,11 @@ def note_shutdown(reason: str = "") -> dict[str, Any]:
         _state["shutdownRequestedAt"] = time.time()
         _state["shutdownReason"] = reason
         _state["cameBack"] = None
-        if _state["watching"]:
-            return status()
+        already_watching = _state["watching"]
         _state["watching"] = True
 
-    threading.Thread(target=_watch_for_return, name="server-return-watch", daemon=True).start()
+    if not already_watching:
+        threading.Thread(target=_watch_for_return, name="server-return-watch", daemon=True).start()
     return status()
 
 
@@ -203,6 +204,7 @@ def run_stop_command() -> dict[str, Any]:
     return _run_configured(STOP_COMMAND, "STOP_COMMAND", "stop the server container")
 
 
+@maintenance.serialized
 def _run_configured(command: str, name: str, description: str) -> dict[str, Any]:
     """
     Run an operator-configured command.
@@ -218,6 +220,12 @@ def _run_configured(command: str, name: str, description: str) -> dict[str, Any]
             "manually."
         )
 
+    if name in {'START_COMMAND', 'RESTART_COMMAND'}:
+        import recovery
+        try:
+            recovery.require_clear()
+        except Exception as error:
+            raise RuntimeError(str(error)) from error
     argv = shlex.split(command)
     logger.info("Running %s: %s", name, argv)
 

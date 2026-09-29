@@ -20,6 +20,8 @@ directory) — it simply will not apply until a restart.
 from __future__ import annotations
 
 import logging
+import math
+import maintenance
 import json
 import os
 import re
@@ -28,12 +30,22 @@ from datetime import datetime, timezone
 from typing import Any, Optional
 
 import gamedata
+import safety
 from savefiles import BACKUP_DIR, atomic_write, find_settings_ini
 
 logger = logging.getLogger(__name__)
 
 SECTION = "[/Script/Pal.PalGameWorldSettings]"
 _OPTION_RE = re.compile(r"^(\s*OptionSettings\s*=\s*)\((.*)\)(\s*)$")
+
+# Only bounds Pocketpair explicitly documents. Preset defaults are not limits.
+BOUNDS_SOURCE = 'https://docs.palworldgame.com/settings-and-operation/configuration/'
+VERIFIED_BOUNDS = {
+    'BaseCampMaxNumInGuild': {'max': 10},
+    'BaseCampWorkerMaxNum': {'max': 50},
+    'ServerReplicatePawnCullDistance': {'min': 5000, 'max': 15000},
+    'FishingDifficultyRate': {'min': 0.1, 'max': 1.0},
+}
 
 
 class SettingsError(Exception):
@@ -87,25 +99,38 @@ def _classify(raw: str) -> tuple[str, Any]:
 
 def _format(value: Any, value_type: str, original_raw: str) -> str:
     """Render a new value in the same style as the original."""
+    if isinstance(value, str) and any(ord(c) < 32 or ord(c) == 127 for c in value):
+        raise SettingsError("Settings cannot contain control characters or line breaks")
     if value_type == "bool":
-        if isinstance(value, str):
-            value = value.strip().lower() in ("true", "1", "yes", "on")
-        return "True" if value else "False"
-
-    if value_type == "float":
-        decimals = 6
-        if "." in original_raw:
-            decimals = len(original_raw.split(".", 1)[1])
-        return f"{float(value):.{decimals}f}"
-
-    if value_type == "int":
-        return str(int(float(value)))
-
+        if isinstance(value, bool):
+            return "True" if value else "False"
+        if isinstance(value, str) and value.lower() in ("true", "false"):
+            return "True" if value.lower() == "true" else "False"
+        raise SettingsError("Expected a boolean setting")
+    if value_type in ("float", "int"):
+        try:
+            number = float(value)
+        except (ValueError, TypeError):
+            raise SettingsError("Expected a numeric setting") from None
+        if isinstance(value, bool) or not math.isfinite(number):
+            raise SettingsError("Numeric settings must be finite numbers")
+        if value_type == "int":
+            if not number.is_integer():
+                raise SettingsError("Expected a whole number setting")
+            return str(int(number))
+        decimals = len(original_raw.split(".", 1)[1]) if "." in original_raw else 6
+        return f"{number:.{decimals}f}"
+    if not isinstance(value, str):
+        raise SettingsError("Expected a text setting")
     if value_type == "string":
-        escaped = str(value).replace('"', "")
-        return f'"{escaped}"'
-
-    return str(value).strip()
+        if '"' in value:
+            raise SettingsError('Settings cannot contain double quotes')
+        return f'"{value}"'
+    if re.fullmatch(r'\(\s*(?:"[A-Za-z0-9_]+"(?:\s*,\s*"[A-Za-z0-9_]+")*)?\s*\)', value):
+        return value
+    if not re.fullmatch(r"[A-Za-z0-9_:.-]*", value):
+        raise SettingsError("Invalid enum setting")
+    return value
 
 
 # Settings whose values must not leave this process.
@@ -258,6 +283,8 @@ def read_ini(path: Optional[str] = None, reveal: bool = False) -> dict[str, Any]
             key = key.strip()
             value_type, value = _classify(raw)
             entry = {"value": value, "type": value_type, "raw": raw.strip()}
+            if key in VERIFIED_BOUNDS:
+                entry['bounds'] = {**VERIFIED_BOUNDS[key], 'source': BOUNDS_SOURCE, 'reviewed': '2026-09-29'}
             equiv = ENV_EQUIVALENTS.get(key)
             if equiv:
                 # Per-image env names for every key both templates cover. A key
@@ -300,13 +327,14 @@ def _backup_ini(path: str) -> str:
     """Timestamped copy of the INI before we touch it."""
     dest_dir = os.path.join(BACKUP_DIR, "config")
     os.makedirs(dest_dir, exist_ok=True)
-    stamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S_%f")
     dest = os.path.join(dest_dir, f"PalWorldSettings_{stamp}.ini")
     shutil.copy2(path, dest)
     logger.info("Backed up INI to %s", dest)
     return dest
 
 
+@maintenance.serialized
 def write_ini(changes: dict[str, Any], path: Optional[str] = None) -> dict[str, Any]:
     """
     Apply `changes` to the OptionSettings line.
@@ -314,6 +342,11 @@ def write_ini(changes: dict[str, Any], path: Optional[str] = None) -> dict[str, 
     Unknown keys are rejected rather than appended — a typo'd key silently added
     to the line is how people end up with a server that will not boot.
     """
+    import recovery
+    try:
+        recovery.require_clear()
+    except safety.ServerRunningError as error:
+        raise SettingsError(str(error)) from error
     # reveal=True: the diff below compares against the current raw value, and a
     # masked one would make every password write look like a change.
     current = read_ini(path, reveal=True)
@@ -346,6 +379,13 @@ def write_ini(changes: dict[str, Any], path: Optional[str] = None) -> dict[str, 
     for key, new_value in changes.items():
         meta = options[key]
         new_raw = _format(new_value, meta["type"], meta["raw"])
+        bounds = VERIFIED_BOUNDS.get(key)
+        if bounds:
+            # Validate the requested number before formatting can round it.
+            value = float(new_value)
+            if ('min' in bounds and value < bounds['min']) or ('max' in bounds and value > bounds['max']):
+                limits = ', '.join(f'{bound} {limit}' for bound, limit in bounds.items())
+                raise SettingsError(f'{key}: documented range is {limits}')
         if new_raw == meta["raw"]:
             continue
         replacements[key] = new_raw
@@ -369,6 +409,10 @@ def write_ini(changes: dict[str, Any], path: Optional[str] = None) -> dict[str, 
     # fire, and a Windows server's INI came back rewritten with LF endings.
     with open(path, "r", encoding="utf-8", errors="replace", newline="") as f:
         original = f.read()
+    # Validate the same version we are about to replace, including edits by a
+    # server container that does not participate in our maintenance lease.
+    if read_ini(path, reveal=True)['options'] != options:
+        raise SettingsError('Settings changed while preparing the edit; reload and try again')
 
     newline = "\r\n" if "\r\n" in original else "\n"
     lines = original.splitlines()
@@ -397,7 +441,28 @@ def write_ini(changes: dict[str, Any], path: Optional[str] = None) -> dict[str, 
         raise SettingsError("OptionSettings line vanished between read and write")
 
     backup_path = _backup_ini(path)
-    atomic_write(path, (newline.join(lines) + newline).encode("utf-8"))
+    expected = (newline.join(lines) + newline).encode("utf-8")
+    try:
+        with open(path, 'rb') as current_file:
+            if current_file.read() != original.encode('utf-8'):
+                raise SettingsError('Settings changed before replacement; reload and try again')
+        atomic_write(path, expected)
+        with open(path, "rb") as written:
+            if written.read() != expected:
+                raise SettingsError("Settings failed read-back verification")
+        checked = read_ini(path, reveal=True)["options"]
+        if any(checked.get(key, {}).get("raw") != value for key, value in replacements.items()):
+            raise SettingsError("Settings did not parse back to the requested values")
+    except Exception as error:
+        with open(path, 'rb') as current_file:
+            current_bytes = current_file.read()
+        if current_bytes == original.encode('utf-8'):
+            raise SettingsError('Settings write failed; the original file is unchanged') from error
+        if current_bytes != expected:
+            raise SettingsError('Settings changed outside this edit; automatic rollback refused. The backup was retained for review') from error
+        with open(backup_path, "rb") as previous:
+            atomic_write(path, previous.read())
+        raise SettingsError("Settings write failed; previous settings were restored") from error
     logger.info("Wrote %d setting(s) to %s", len(applied), path)
 
     # Baseline for the regeneration check. Recorded HERE rather than in the API

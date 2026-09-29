@@ -58,10 +58,8 @@ class ExportScopeError(Exception):
     """
     Raised when a prune cannot be completed cleanly.
 
-    **Every raise here means the caller writes the UNPRUNED copy.** That is the
-    whole safety argument: the export's defence is that a bad result is a folder
-    you delete, and it only holds if the bad result is *whole*. A half-pruned
-    world loads today and fails when somebody walks into the cell.
+    The caller must refuse publication. Falling back to an unpruned copy could
+    disclose the players the operator or account intended to exclude.
     """
 
 
@@ -76,7 +74,7 @@ def _v(node: Any, *keys: str, default: Any = None) -> Any:
 def _guid(value: Any) -> str:
     """A GUID as a comparable lowercase string. `None` and '' both become ''."""
     text = str(value or "").strip().lower()
-    return "" if text.startswith("00000000-0000-0000-0000") else text
+    return "" if text == "00000000-0000-0000-0000-000000000000" else text
 
 
 def load_world(world_dir: Optional[str] = None) -> dict[str, Any]:
@@ -229,9 +227,8 @@ def plan(world: dict[str, Any], keep_guilds: Optional[list] = None,
         "note": (
             "This counts what a prune would remove. `apply` performs it on the "
             "exported copy and refuses outright if any surviving structure "
-            "still points at a removed id, in which case the unpruned copy is "
-            "written instead — a world missing half a reference loads and "
-            "fails later, so a partial prune is never an outcome."
+            "still points at a removed id. No export is produced on refusal; "
+            "a partial prune or an unpruned fallback is never an outcome."
         ),
     }
 
@@ -335,7 +332,7 @@ def apply(world: dict[str, Any], keep_guilds: Optional[list] = None,
     still owning its objects rather than owning nothing.
 
     Raises `ExportScopeError` if any surviving structure still points at a
-    dropped id. The caller must then write the unpruned copy.
+    dropped id. The caller must then refuse publication.
     """
     scope = plan(world, keep_guilds, keep_uid)
     drop = set(scope["dropGuildIds"])
@@ -401,8 +398,8 @@ def apply(world: dict[str, Any], keep_guilds: Optional[list] = None,
         raise ExportScopeError(
             "Prune left "
             + ", ".join(f"{n} {what}" for what, n in sorted(dangling.items()))
-            + ". Refusing — the unpruned copy is written instead, because a "
-              "world missing half a reference loads and fails later."
+            + ". Refusing export because a world missing half a reference "
+              "can load and fail later."
         )
 
     return {"pruned": True, "removed": removed, "playerUids": scope["playerUids"],

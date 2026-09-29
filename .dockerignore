@@ -11,6 +11,9 @@
 # ─── Never build-context these ───
 refworld/
 refs/
+palworld/
+**/*.sav
+**/PalWorldSettings.ini
 # Exported conversation transcripts (see .gitignore).
 [0-9][0-9][0-9][0-9]-[0-9][0-9]-*.txt
 

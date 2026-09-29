@@ -51,9 +51,9 @@ def test_world_guid_pin_selects_that_world(world, monkeypatch):
     assert savefiles.get_default_world_dir() == str(world)
 
 
-def test_unknown_world_guid_falls_back(world, monkeypatch):
+def test_unknown_world_guid_refuses_fallback(world, monkeypatch):
     monkeypatch.setenv("WORLD_GUID", "does-not-exist")
-    assert savefiles.get_default_world_dir() == str(world)
+    assert savefiles.get_default_world_dir() is None
 
 
 def test_player_path_exact_match(world):
@@ -170,7 +170,7 @@ def test_atomic_write_preserves_original_on_failure(tmp_path, monkeypatch):
     path = tmp_path / "precious.bin"
     path.write_bytes(b"original")
 
-    def boom(src, dst):
+    def boom(src, dst, **kwargs):
         raise OSError("disk full")
 
     monkeypatch.setattr(savefiles.os, "replace", boom)
@@ -181,6 +181,37 @@ def test_atomic_write_preserves_original_on_failure(tmp_path, monkeypatch):
     assert path.read_bytes() == b"original"
     leftovers = [p.name for p in tmp_path.iterdir() if p.name.startswith(".tmp_")]
     assert leftovers == [], "temp file must be cleaned up even when the write fails"
+
+
+def test_atomic_write_refuses_symlink_parents(tmp_path):
+    outside = tmp_path / 'outside'
+    outside.mkdir()
+    alias = tmp_path / 'alias'
+    alias.symlink_to(outside, target_is_directory=True)
+    with pytest.raises(OSError, match='symlink'):
+        savefiles.atomic_write(str(alias / 'Level.sav'), b'unsafe')
+    assert not list(outside.iterdir())
+
+
+def test_atomic_write_refuses_an_external_writer(tmp_path, monkeypatch):
+    import maintenance
+    target = tmp_path / 'Level.sav'
+    target.write_bytes(b'original')
+    monkeypatch.setattr(maintenance, 'check_commit', lambda: target.write_bytes(b'external'))
+    with pytest.raises(OSError, match='changed'):
+        savefiles.atomic_write(str(target), b'replacement')
+    assert target.read_bytes() == b'external'
+
+
+def test_atomic_write_fsync_failure_before_replace_keeps_original(tmp_path, monkeypatch):
+    target = tmp_path / 'Level.sav'
+    target.write_bytes(b'original')
+    def fail(fd):
+        raise OSError('injected fsync failure')
+    monkeypatch.setattr(savefiles.os, 'fsync', fail)
+    with pytest.raises(OSError, match='fsync'):
+        savefiles.atomic_write(str(target), b'replacement')
+    assert target.read_bytes() == b'original'
 
 
 def test_atomic_write_is_observably_atomic(tmp_path):

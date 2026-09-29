@@ -62,6 +62,8 @@ import os
 import shutil
 import tempfile
 import time
+from contextlib import contextmanager
+from pathlib import Path
 from typing import Any, Optional
 
 import exportscope
@@ -299,7 +301,42 @@ def _player_identity(player_gvas) -> dict[str, str]:
     }
 
 
-def plan_export(
+@contextmanager
+def snapshot(world_dir: Optional[str] = None):
+    """Capture a stable file set once; every parse in an export reads this copy."""
+    import serverexport
+    import jobs
+    import exportlimits
+    jobs.checkpoint('Capturing a stable world snapshot')
+    root = world_dir or savefiles.get_default_world_dir()
+    if not root or not os.path.isdir(root):
+        raise SoloExportError('World directory not found.')
+    if not exportlimits.RUNNING.acquire(blocking=False):
+        raise SoloExportError('Another export is running; try again after it finishes')
+    try:
+        source_bytes = sum(os.stat(path).st_size for path, _ in serverexport._files(root))
+        if source_bytes * 4 > exportlimits.MAX_BYTES or shutil.disk_usage(tempfile.gettempdir()).free < source_bytes * 4:
+            raise SoloExportError('Not enough export capacity for a private world snapshot')
+        with tempfile.TemporaryDirectory(prefix='solo-snapshot-') as captured:
+            fingerprint = serverexport._fingerprint(root, Path(captured))
+            yield captured, fingerprint
+    except serverexport.ServerExportError as error:
+        raise SoloExportError(str(error)) from error
+    finally:
+        exportlimits.RUNNING.release()
+
+
+def plan_export(source_uid: str, target_uid: str, world_dir: Optional[str] = None) -> dict[str, Any]:
+    # Cheap validation stays ahead of filesystem work.
+    if _fmt_uid(source_uid) == _fmt_uid(target_uid):
+        raise SoloExportError('Source and target uid are the same — nothing to remap.')
+    with snapshot(world_dir) as (root, fingerprint):
+        plan = _plan_export(source_uid, target_uid, root)
+        plan['planHash'] = hashlib.sha256((plan['planHash'] + fingerprint).encode()).hexdigest()
+        return plan
+
+
+def _plan_export(
     source_uid: str, target_uid: str, world_dir: Optional[str] = None
 ) -> dict[str, Any]:
     """
@@ -519,12 +556,38 @@ def _remap_player_file(player_gvas, new_uid: str, mapping: dict[str, str]) -> No
 
 
 def apply_export(
+    source_uid: str, target_uid: str, world_dir: Optional[str] = None,
+    destination: Optional[str] = None, expected_plan_hash: Optional[str] = None,
+    keep_guilds: Optional[list] = None, strict_solo: bool = False,
+) -> dict[str, Any]:
+    import exportlimits
+    if not exportlimits.RUNNING.acquire(blocking=False):
+        raise SoloExportError('Another export is running; try again after it finishes')
+    try:
+        with snapshot(world_dir) as (root, fingerprint):
+            # All web exporters live below this common quota root. Explicit
+            # destinations outside it remain supported by the offline CLI.
+            base = _export_base()
+            if destination and os.path.commonpath([os.path.abspath(destination), os.path.abspath(base)]) != os.path.abspath(base):
+                base = os.path.dirname(destination)
+            exportlimits.check_storage(base, _tree_size(root) * 4)
+            return _apply_export(source_uid, target_uid, root, destination,
+                                 expected_plan_hash, keep_guilds, strict_solo, fingerprint)
+    except OSError as error:
+        raise SoloExportError(str(error)) from error
+    finally:
+        exportlimits.RUNNING.release()
+
+
+def _apply_export(
     source_uid: str,
     target_uid: str,
     world_dir: Optional[str] = None,
     destination: Optional[str] = None,
     expected_plan_hash: Optional[str] = None,
     keep_guilds: Optional[list] = None,
+    strict_solo: bool = False,
+    fingerprint: str = '',
 ) -> dict[str, Any]:
     """
     Write a remapped copy of the world. The source world is never modified.
@@ -537,7 +600,8 @@ def apply_export(
     verification, so an interrupted export leaves no half-written world looking like
     a finished one.
     """
-    plan = plan_export(source_uid, target_uid, world_dir)
+    plan = _plan_export(source_uid, target_uid, world_dir)
+    plan['planHash'] = hashlib.sha256((plan['planHash'] + fingerprint).encode()).hexdigest()
     if expected_plan_hash and expected_plan_hash != plan["planHash"]:
         raise SoloExportError(
             "The world changed since this export was previewed. Preview again — "
@@ -558,54 +622,68 @@ def apply_export(
     try:
         os.makedirs(os.path.join(staging, "Players"), exist_ok=True)
 
-        level_gvas, level_type = _load(os.path.join(root, "Level.sav"))
+        import serverexport
+        import jobs
+        jobs.checkpoint('Parsing and checking the export scope')
+        level_gvas, level_type, players = serverexport._load_snapshot(Path(root))
         world = _world_save_data(level_gvas)
 
-        # **The prune runs BEFORE the remap, keyed on the SOURCE uid.** It used
-        # to run after, keyed on the target — reasoning that the kept player
-        # already carried the target uid by then. That failed exactly where it
-        # mattered most: `exportscope._guid` collapses the
-        # `00000000-0000-0000-0000-…` sentinel family to "", and the
-        # single-player host uid is in that family — so a host-uid export
-        # protected no guild at all, and unticking your own guild pruned it
-        # out of your own copy. Pre-remap, the exported character still wears
-        # the source uid, a real Steam-shaped uid that matches its guild, and
-        # the preview computes its plan from the same world state with the
-        # same key, so the two cannot disagree. The remap then counts its
-        # references on the pruned tree; `_verify` asserts completeness, not
-        # a count, so nothing downstream compares the two totals.
-        #
-        # A refusal here is not an error the caller has to handle — the whole
-        # design is that the unpruned copy still gets written. A world missing
-        # half a reference loads and fails later; an untidy one just has other
-        # people's bases in it, which is what the export did before this option
-        # existed.
+        # Scope is checked on the actual parsed tree being serialized, not a
+        # preceding live parse that could have seen different guild membership.
+        if strict_solo:
+            own = [g for g in exportscope.guilds(world) if source in g["playerUids"] or source == g["adminUid"]]
+            if len(own) != 1 or set(own[0]["playerUids"] + [own[0]["adminUid"]]) - {source, ""}:
+                raise SoloExportError("The character is no longer in a solo guild; no export was produced")
         prune: dict[str, Any] = {"requested": keep_guilds is not None}
+        removed_ids = set()
         if keep_guilds is not None:
             try:
+                scope = exportscope.plan(world, keep_guilds, keep_uid=source)
+                removed_players = scope['playerUids']
+                if target in removed_players:
+                    raise SoloExportError('The target identity belongs to a removed guild; choose an unused target identity')
+                if removed_players:
+                    stronger = serverexport.prune(world, players, removed_players)
+                    removed_ids.update(stronger['_removedIds'])
+                    # Serialize the scrubbed retained player trees below.
+                    players = {u: pair for u, pair in players.items() if u not in removed_players}
+                # This also handles already-empty guilds selected for removal.
                 prune.update(exportscope.apply(world, keep_guilds, keep_uid=source))
-            except exportscope.ExportScopeError as e:
-                prune.update({"pruned": False, "refused": str(e)})
-                logger.warning("Prune refused, writing the full copy: %s", e)
-            except Exception as e:  # noqa: BLE001 - same outcome, wider net
-                prune.update({"pruned": False, "refused": f"{type(e).__name__}: {e}"})
-                logger.warning("Prune failed, writing the full copy: %s", e)
+                removed_ids.update(scope['dropGuildIds'])
+                prune.update({'pruned': True, 'playerUids': removed_players,
+                              'dropGuildIds': scope['dropGuildIds']})
+                serverexport._assert_absent(world, removed_ids, 'scoped world')
+            except Exception as e:
+                raise SoloExportError("The requested pruning could not be verified; no export was produced") from e
 
         applied = _remap_level(world, mapping)
 
         _write(level_gvas, level_type, os.path.join(staging, "Level.sav"))
 
-        # Only skip player files when the prune actually happened. A refused
-        # prune must leave the copy complete, and dropping saves for guilds that
-        # are still in `Level.sav` is the exact half-finished state this refuses.
+        # Skip player files belonging to the pruned guilds. A refused prune
+        # raises above, before any output can be published.
         skip = set(prune.get("playerUids") or []) if prune.get("pruned") else set()
-        _copy_players(root, staging, mapping, skip_uids=skip)
+        _copy_players(root, staging, mapping, skip_uids=skip, players=players)
         for name in VERBATIM:
+            if strict_solo and name == 'WorldOption.sav':
+                continue  # Server configuration is not part of a player's progress.
             src = os.path.join(root, name)
             if os.path.isfile(src):
                 shutil.copy2(src, os.path.join(staging, name))
 
+        if strict_solo:
+            allowed = {_file_uid(target) + ".sav", _file_uid(target) + "_dps.sav"}
+            if set(os.listdir(os.path.join(staging, "Players"))) - allowed:
+                raise SoloExportError("The scoped copy contains another or an unidentified player file; no export was produced")
+        jobs.checkpoint('Re-reading and verifying the exported files')
         report = _verify(staging, plan, mapping)
+        # Walk every serialized file, including dimensional storage and metadata.
+        # Opaque references cause refusal rather than accidental disclosure.
+        for path in Path(staging).rglob('*.sav'):
+            tree, _ = _load(str(path))
+            serverexport._assert_absent(tree.properties, removed_ids, 'serialized copy')
+            if plan['mode'] == 'rename':
+                serverexport._assert_absent(tree.properties, {source}, 'serialized remap')
         os.replace(staging, out_root)
         staging = ""
     finally:
@@ -629,17 +707,19 @@ def apply_export(
     }
 
 
+def _export_base() -> str:
+    return EXPORT_DIR or os.path.join(os.environ.get('BACKUP_DIR', savefiles.BACKUP_DIR), 'exports')
+
+
 def _default_destination(source: str, target: str) -> str:
-    base = EXPORT_DIR or os.path.join(
-        os.environ.get("BACKUP_DIR", tempfile.gettempdir()), "exports"
-    )
+    base = _export_base()
     os.makedirs(base, exist_ok=True)
-    stamp = time.strftime("%Y%m%d-%H%M%S")
+    stamp = time.strftime("%Y%m%d-%H%M%S") + '-' + str(time.time_ns())
     return os.path.join(base, f"world-{source[:8]}-to-{target[:8]}-{stamp}")
 
 
 def _copy_players(root: str, staging: str, mapping: dict[str, str],
-                  skip_uids: Optional[set] = None) -> None:
+                  skip_uids: Optional[set] = None, players: Optional[dict] = None) -> None:
     """
     Copy every player save, rewriting and renaming the remapped ones.
 
@@ -680,22 +760,19 @@ def _copy_players(root: str, staging: str, mapping: dict[str, str],
             # sibling, which is why this sits before the dps branch below.
             continue
 
-        new_uid = mapping.get(dashed)
-        if not new_uid:
-            shutil.copy2(src, os.path.join(staging, "Players", name))
-            continue
+        new_uid = mapping.get(dashed, dashed)
 
         suffix = "_dps" if is_dps else ""
         out_name = f"{_file_uid(new_uid)}{suffix}.sav"
         out_path = os.path.join(staging, "Players", out_name)
 
         if is_dps:
-            # Dimensional pal storage carries no uid inside it — the filename is
-            # the whole binding — so it is copied rather than rewritten.
-            shutil.copy2(src, out_path)
+            tree, kind = _load(src)
+            _walk_uids(tree.properties, mapping, apply=True)
+            _write(tree, kind, out_path)
             continue
 
-        player_gvas, player_type = _load(src)
+        player_gvas, player_type = players[dashed] if players is not None else _load(src)
         _remap_player_file(player_gvas, new_uid, mapping)
         _write(player_gvas, player_type, out_path)
 
@@ -797,16 +874,42 @@ def archive_export(export_dir: str) -> dict[str, Any]:
     `copytree` sweeping in the server's own rotating snapshots.
     """
     import tarfile
+    import jobs
+    jobs.checkpoint('Packaging and verifying the archive')
 
     if not os.path.isdir(export_dir):
         raise SoloExportError(f"No export at {export_dir}")
 
     archive_path = export_dir.rstrip(os.sep) + ".tar.gz"
-    with tarfile.open(archive_path, "w:gz") as tar:
-        for root, _dirs, files in os.walk(export_dir):
-            for name in sorted(files):
-                full = os.path.join(root, name)
-                tar.add(full, arcname=os.path.relpath(full, export_dir))
+    part = archive_path + '.part'
+    expected = {}
+    try:
+        with tarfile.open(part, "w:gz") as tar:
+            for root, dirs, files in os.walk(export_dir, followlinks=False):
+                if any(Path(root, n).is_symlink() for n in dirs + files):
+                    raise SoloExportError('Export archive refuses symlinks')
+                for name in sorted(files):
+                    full = Path(root, name)
+                    relative = str(full.relative_to(export_dir))
+                    expected[relative] = hashlib.sha256(full.read_bytes()).hexdigest()
+                    tar.add(full, arcname=relative, recursive=False)
+        # Verify the archive bytes, not just the files we intended to put in it.
+        with tarfile.open(part, 'r:gz') as tar:
+            members = tar.getmembers()
+            if len(members) != len(expected) or {m.name for m in members} != set(expected):
+                raise SoloExportError('Export archive scope failed verification')
+            for member in members:
+                if not member.isfile():
+                    raise SoloExportError('Export archive contains a non-file entry')
+                handle = tar.extractfile(member)
+                if handle is None or hashlib.file_digest(handle, 'sha256').hexdigest() != expected[member.name]:
+                    raise SoloExportError('Export archive failed verification')
+        with open(part, 'rb') as handle:
+            os.fsync(handle.fileno())
+        os.replace(part, archive_path)
+    finally:
+        if os.path.exists(part):
+            os.unlink(part)
 
     digest = hashlib.sha256()
     with open(archive_path, "rb") as f:

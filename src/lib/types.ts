@@ -786,6 +786,7 @@ export interface FpsHistoryPoint {
 }
 
 export type DashboardTab =
+  | 'guides'
   | 'overview'
   | 'map'
   | 'players'
@@ -1011,6 +1012,7 @@ export interface ExportPrunePlan {
 }
 
 export interface WorldExportResult {
+  downloadUrl?: string;
   ok: boolean;
   mode: string;
   destination: string;
@@ -1203,6 +1205,7 @@ export interface WorldClock {
 
 /** A placed world object with coordinates: chest, palbox, farm, bench… */
 export interface MapObject {
+  savedState?: Record<string, number | string>;
   id: string;
   kind: string;
   category: string;
@@ -1327,6 +1330,7 @@ export interface LifecycleStatus {
 // ─── Settings (PalWorldSettings.ini) ────────────────────
 
 export interface IniOption {
+  bounds?: { min?: number; max?: number; source: string; reviewed: string };
   value: string | number | boolean;
   type: 'bool' | 'int' | 'float' | 'string' | 'enum';
   raw: string;
@@ -1882,6 +1886,7 @@ export interface DungeonRosterEntry {
 }
 
 export interface DungeonLootItem {
+  slotProbabilityPercent?: number | null;
   itemId: string;
   name: string;
   icon: string;
@@ -2102,6 +2107,7 @@ export interface ItemDropSource {
  * is rolled.
  */
 export interface ItemLootSource {
+  slotProbabilityPercent?: number | null;
   field: string;
   slot: number;
   weight: number;

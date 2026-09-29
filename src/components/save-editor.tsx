@@ -17,6 +17,7 @@ import GuildMove from './guild-move';
 import PalCheck from './pal-check';
 import PalImport from './pal-import';
 import WorldExport from './world-export';
+import ServerExport from './server-export';
 import { t } from '@/lib/chrome';
 
 /**
@@ -313,7 +314,10 @@ docker compose start palworld    # bring it back`}
       {/* Not gated on `canEdit`. The export is the one operation here that
           never writes to the live world — it reads it and produces a separate
           copy — so a running server is no reason to hide it. */}
-      {section === 'export' && <WorldExport canManage={has(CAPABILITIES.BACKUP_MANAGE)} />}
+      {section === 'export' && <>
+        <WorldExport canManage={has(CAPABILITIES.BACKUP_MANAGE)} />
+        <ServerExport canManage={has(CAPABILITIES.BACKUP_MANAGE)} />
+      </>}
 
       {['pals', 'bulk', 'slots', 'guilds', 'import'].includes(section) && (
         has(CAPABILITIES.SAVE_EDIT_FULL) ? (

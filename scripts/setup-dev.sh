@@ -30,6 +30,12 @@ if [ ! -f "$ARCHIVE" ]; then
 fi
 
 echo "==> Extracting palsav from refs/"
+EXPECTED_ARCHIVE_SHA256=3e751b51ac48eb662375cf90f3baa3d64c541dc910b52fab0e4fcf4fef1acfa3
+ACTUAL_ARCHIVE_SHA256="$(sha256sum "$ARCHIVE" | cut -d ' ' -f 1)"
+if [ "$ACTUAL_ARCHIVE_SHA256" != "$EXPECTED_ARCHIVE_SHA256" ]; then
+    echo "!! Decoder archive differs from the reviewed commit 87fb4081d6b860778053ac0114754c8cae2b5f57. Review and update the pin before building." >&2
+    exit 1
+fi
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 unzip -q "$ARCHIVE" -d "$WORK"

@@ -31,6 +31,24 @@ shared bind mount.
   contains real Steam IDs and player names — never commit it, never paste its
   contents into an issue).
 
+## Audit correction — 2026-09-29
+
+Read `docs/IMPLEMENTATION-2026-09-29.md` for the security fixes, export queue,
+recovery journals and the new reference guides. A table reaching the end of its
+buffer is **not sufficient** to establish alignment. The reader now checks
+property type tags, declared row counts, duplicate rows and field boundaries.
+This recovered 97 mainland invader entries (240 entries, 76 groups; all 76 reward
+groups matched) and four fishing-group rows (115 total). The old claim of 32
+unused mainland reward groups was caused by a bad decode. The fresh catalog has
+472 decoded tables, 183,228 rows and three explicit refusals; CurveTable
+`CT_AmmoMesh` is no longer mislabeled as a decoded DataTable. Catalog checks now
+compare full-row digests, localized variants and interior-opacity counts.
+
+The new `savedstate` projection exposes only recorded fishing/arena/quest,
+crop/energy and supply-event state through existing privacy boundaries. It does
+not turn absent fields into zero, native event times into wall-clock dates, or
+reference expedition requirements into saved expedition progress.
+
 ## Commands
 
 ```bash
@@ -190,11 +208,13 @@ transform is wrong.
 In-game map *coordinates* (`worldToGameMap`, what players read and type) are one
 continuous scale across both. Only the image placement differs.
 
-**Palpagos is calibrated; World Tree is `calibrated: false` and says so in the
-UI.** There is no ground truth to fit it against yet — the reference save has
-zero objects on that landmass. It becomes fittable the moment anyone builds or
-opens a chest there; then replace four constants and flip the flag. Do not
-quietly present the provisional transform as exact.
+**Palpagos is calibrated; World Tree remains `calibrated: false`.** Its framing
+now comes from `DT_WorldMapUIData`, with exact vector widths, both texture
+references and all 174 travel points checked. Orientation has the independent
+52-object control in `fit-worldtree-objects.py`; the earlier assertion that no
+World Tree objects were available was stale. Exact world-to-image pixel
+landmarks are still missing, so source-derived framing does not establish pixel
+calibration. Rebuild both bundles and the web application after changing it.
 
 Axes swap: in-game map X derives from world **Y**, and map Y from world X.
 

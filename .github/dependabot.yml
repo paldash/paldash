@@ -4,15 +4,13 @@
 # moves together and CI judges the set rather than twenty PRs that each pass
 # alone and break in combination. MAJORS ARE NEVER PROPOSED HERE — the first
 # run offered typescript 5->7, eslint 9->10, @types/node 20->26 against a
-# Node 20 runtime, and a node:25 (non-LTS) base image, all at once. Those are
+# Node 22 runtime, and a node:25 (non-LTS) base image, all at once. Those are
 # peer-locked decisions taken by hand, in one commit, with the Dockerfile's
 # runtime pairing in view. Security alerts and security updates are repo
 # settings, independent of this file, and still cover majors.
 #
-# No pip entry on purpose: backend/requirements.txt pins lower bounds
-# (`fastapi>=0.104.0`), and Dependabot's only move on a range is to raise the
-# floor, which changes nothing anyone installs. pip security alerts do not
-# need an entry here.
+# Python versions are resolved in backend/constraints.txt so updates change
+# the versions installed and audited by CI.
 #
 # This works because GitHub is the source of truth and the Forgejo copy is
 # pushed *from* the working clone (`git push backup`, one branch). Nothing
@@ -21,6 +19,21 @@
 # Dependabot branch on each sync and auto-close the PRs.
 version: 2
 updates:
+  - package-ecosystem: pip
+    directory: /backend
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+    groups:
+      pip-minor-and-patch:
+        patterns: ["*"]
+        update-types: [minor, patch]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+    open-pull-requests-limit: 2
+
   - package-ecosystem: npm
     directory: /
     schedule:
@@ -34,13 +47,6 @@ updates:
     ignore:
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
-      # Next 16.3.x OOMs `next build` in any working tree that holds refs/
-      # (10 GB resident, from file sizes it never reads — AGENTS.md, "Next
-      # 16.3.x cannot build in a tree that holds refs/"). CI clones have no
-      # refs/, so a green PR proves nothing. Lift both entries only after a
-      # newer Next builds in a tree with refs/ present.
-      - dependency-name: next
-      - dependency-name: eslint-config-next
     open-pull-requests-limit: 2
 
   - package-ecosystem: github-actions
@@ -59,5 +65,5 @@ updates:
 # match Debian bookworm's runtime python3 (3.11): a newer builder produces
 # wheels the runtime's pip refuses and the image does not build (AGENTS.md,
 # "The builder and runtime Python minor versions must match").
-# `node:20-bookworm-slim` is the LTS line shared by builder and runner and
+# `node:22-bookworm-slim` is the LTS line shared by builder and runner and
 # assumed by the healthcheck. Base images move by hand, both stages together.

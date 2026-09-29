@@ -1,5 +1,7 @@
 # Where every fact about Palworld comes from
 
+Fresh inventory, corrected source claims and proposed additions: [MINED-DATA-REVIEW-2026-09-28.md](MINED-DATA-REVIEW-2026-09-28.md).
+
 A map of every data source this project can read, what is in each, what it is
 good for, and — just as important — what has been searched for and **is not
 there**.
@@ -45,7 +47,7 @@ Oodle-compressed, and this project already ships an Oodle decompressor for saves
 
 ## 1. Server pak — DataTables
 
-**471 unique tables, 182,962 rows, 32 refusals.** Read with
+**Fresh scan, 2026-09-29: 475 unique table assets, 472 decoded tables, 183,228 rows, 3 refusals.** Read with
 `scripts/uassettable.py`. Verification is that the property walk terminates
 *exactly* at the end of the buffer — a reader that has drifted does not land on
 the last byte. Do not trust a partial decode that "looks right".
@@ -71,7 +73,7 @@ Tables ending `_Common` are duplicates of the same schema; ignore them.
 | `DT_PaldexDistributionData` | 365 | **`dayTimeLocations` / `nightTimeLocations`** — the game's own habitat map |
 | `DT_PalCombiUnique` | 258 | Unique breeding combinations (parent tribes + genders → child) |
 | `DT_TalentUpItem` | 3 | What raises an IV |
-| `DT_CharacterUpgradeMasterDataTable` | 20 | Condenser costs per rank |
+| `DT_CharacterUpgradeMasterDataTable` | 20 | Pal Soul/stat-upgrade material costs and reset money; not condenser costs |
 | `DT_GainWorkSuitabilityRankItem` | 13 | The Pal Soul tickets. **Ships a *dummy* for oil extraction**, and carries no rank column — which is why no maximum work rank is enforced anywhere |
 | `DT_GainStatusPointsItem` | 11 | Status point items |
 
@@ -108,7 +110,7 @@ of day.
 | `DT_BaseCampWorkerSickDataTable` | 9 | Illness types, their work/move/satiety penalties, and palbox recovery chance |
 | `DT_BaseCampWorkerEventDataTable` | 11 | Worker behaviour triggers, including `TriggerSanity` |
 | `DT_LabResearchDataTable` | 168 | Lab research, keyed by required work suitability |
-| `DT_PalInvader` / `DT_PalInvaderReward` | 143 / 76 | Base raids: who attacks, at what grade, and what drops |
+| `DT_PalInvader` / `DT_PalInvaderReward` | 240 / 76 | Base raids: who attacks, at what grade, and what drops |
 
 ### 1.4 Items, recipes and the economy
 
@@ -172,7 +174,7 @@ of day.
   localisation keys, the client pak gives everything else.
 - **25 icon/UI tables** — asset paths, already resolved by `install-icons.py`.
 
-### 1.8 The 32 refusals
+### 1.8 The remaining refusals
 
 Listed with their errors in `DATATABLES.md`. "This exists and we cannot read it"
 is a different and more useful statement than silence.
@@ -295,20 +297,15 @@ produces no error — the hierarchy simply appears empty.
 
 ### Its DataTables hold nothing the server pak does not — measured, 2026-08-05
 
-The raw count looks alarming: **935 DataTables in the client pak against 471 in
-the server pak**, roughly double. It is duplicates. Deduping by filename the way
-the server sweep does gives **503 unique**, of which **471 are the same tables**
-that decode completely on the server side.
+The 2026-09-28 class-based scan finds **475 unique table names in each pak**.
+All client names are present in the server's decoded **or refused** table lists.
+The old claim of 32 client-only tables confused 31 weather-preset assets with
+DataTables and a refused server decode with a missing server asset.
 
-**32 exist only in the client pak, and they are all cosmetic:** 31
-`PPSC_Weather_*` post-process settings (Clear, Cloudy, Fog, Overcast, …) and one
-`SupplyIncident_NPC_Sakura01`. Nothing of substance.
-
-So the client pak is **not** a second source of game rules, and the gap that
-looked like 464 unexamined tables is zero. `scripts/mine-datatables.py --pak client`
-regenerates `DATATABLES-CLIENT.md`; run it after a game update alongside the
-server sweep, because a *new* client-only table would be the interesting case
-this one turned out not to have.
+`DT_SupplyIncident_NPC_Sakura01` is present on the server but still cannot be
+fully decoded. The weather files have export class `PPSkyCreatorWeatherPreset`.
+See [the fresh mined-data review](MINED-DATA-REVIEW-2026-09-28.md) for coverage,
+map framing recovered from native vectors, unused gameplay tables and limits.
 
 ### And its Blueprint CDOs are not usefully tagged
 

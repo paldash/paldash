@@ -95,8 +95,9 @@ def test_format_bool_accepts_strings():
     assert settings_ini._format(False, "bool", "True") == "False"
 
 
-def test_format_string_strips_embedded_quotes():
-    assert settings_ini._format('a"b', "string", '"x"') == '"ab"'
+def test_format_string_refuses_embedded_quotes():
+    with pytest.raises(SettingsError, match="quotes"):
+        settings_ini._format('a"b', "string", '"x"')
 
 
 # ─── Reading ─────────────────────────────────────────────────────
@@ -411,3 +412,31 @@ def test_every_env_managed_key_exists_in_a_real_server_config(real_ini):
     options = settings_ini.read_ini(real_ini)["options"]
     missing = [k for k in settings_ini.ENV_MANAGED_KEYS if k not in options]
     assert not missing, f"ENV_MANAGED names settings a 1.0 server does not have: {missing}"
+
+
+@pytest.mark.parametrize('key,bad', [('BaseCampMaxNumInGuild', 11), ('BaseCampWorkerMaxNum', 51), ('FishingDifficultyRate', 0.09), ('FishingDifficultyRate', 1.01), ('ServerReplicatePawnCullDistance', 4999)])
+def test_documented_bounds_refuse_before_writing(ini, key, bad):
+    from pathlib import Path
+    path = Path(ini)
+    path.write_text('OptionSettings=(BaseCampMaxNumInGuild=4,BaseCampWorkerMaxNum=15,FishingDifficultyRate=1.0,ServerReplicatePawnCullDistance=10000,ExpRate=1.0)\n')
+    before = path.read_bytes()
+    with pytest.raises(SettingsError, match='documented range'):
+        settings_ini.write_ini({key: bad}, ini)
+    assert path.read_bytes() == before
+
+
+def test_unstated_rate_limit_is_not_invented(ini):
+    settings_ini.write_ini({'ExpRate': 25}, ini)
+    assert settings_ini.read_ini(ini)['options']['ExpRate']['value'] == 25
+
+
+def test_external_writer_is_not_clobbered_by_rollback(ini, monkeypatch):
+    from pathlib import Path
+    external = b'OptionSettings=(ExpRate=9.0)\n'
+    def changed(path, data):
+        Path(path).write_bytes(external)
+        raise OSError('an external writer won')
+    monkeypatch.setattr(settings_ini, 'atomic_write', changed)
+    with pytest.raises(SettingsError, match='rollback refused'):
+        settings_ini.write_ini({'ExpRate': 2}, ini)
+    assert Path(ini).read_bytes() == external

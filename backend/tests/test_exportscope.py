@@ -15,6 +15,12 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(__file__))))
 import exportscope  # noqa: E402
 
 
+def test_coop_host_is_a_real_uid_not_the_nil_sentinel():
+    host = '00000000-0000-0000-0000-000000000001'
+    assert exportscope._guid(host) == host
+    assert exportscope._guid('00000000-0000-0000-0000-000000000000') == ''
+
+
 MINE, THEIRS = "aaaaaaaa-0000-0000-0000-000000000000", "bbbbbbbb-0000-0000-0000-000000000000"
 ME, THEM = "11111111-0000-0000-0000-000000000000", "22222222-0000-0000-0000-000000000000"
 MY_BASE, THEIR_BASE = "cccccccc-1111-2222-3333-444444444444", "dddddddd-1111-2222-3333-444444444444"
@@ -118,4 +124,4 @@ def test_the_plan_now_reports_that_apply_exists_and_says_how_it_fails():
     plan = exportscope.plan(_world(), keep_uid=ME)
     assert plan["applyImplemented"] is True
     assert "refuses" in plan["note"]
-    assert "unpruned copy is written instead" in plan["note"]
+    assert "No export is produced on refusal" in plan["note"]

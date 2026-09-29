@@ -58,15 +58,15 @@ MAX_FILES = 128
 
 _lock = threading.Lock()
 _derived: dict[str, tuple[int, Any]] = {}
-_files: "OrderedDict[str, tuple[tuple[int, float], Any]]" = OrderedDict()
+_files: "OrderedDict[str, tuple[tuple[int, ...], Any]]" = OrderedDict()
 
 
-def _stamp(path: str) -> Optional[tuple[int, float]]:
+def _stamp(path: str) -> Optional[tuple[int, ...]]:
     try:
         st = os.stat(path)
     except OSError:
         return None
-    return st.st_size, st.st_mtime
+    return st.st_dev, st.st_ino, st.st_size, st.st_mtime_ns, st.st_ctime_ns
 
 
 def derived(key: str, build: Callable[[], Any]) -> Any:

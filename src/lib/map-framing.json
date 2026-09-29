@@ -1,0 +1,31 @@
+{
+  "regions": {
+    "palpagos": {
+      "sourceRow": "MainMap",
+      "texture": "/Game/Pal/Texture/UI/Map/T_WorldMap.T_WorldMap",
+      "x1": -1099400.0,
+      "x2": 349400.0,
+      "y1": -724400.0,
+      "y2": 724400.0
+    },
+    "worldtree": {
+      "sourceRow": "Tree",
+      "texture": "/Game/Pal/Texture/UI/Map/T_TreeMap.T_TreeMap",
+      "x1": 347351.5,
+      "x2": 689148.5,
+      "y1": -818197.0,
+      "y2": -476400.0
+    }
+  },
+  "rowDigest": "723d66d5c84ebfa7c9b5bc9201d8bac0f044f5becc18673405a7c6ceb2c5d826",
+  "source": {
+    "archive": "Pal-LinuxServer.pak",
+    "bytes": 4797106687,
+    "sha256": "6d67f99d39ddb226b28d4fc254923fedd8ce0896c765b9344e8cc7d1eabe4833"
+  },
+  "table": "DT_WorldMapUIData",
+  "travelPointCoverage": {
+    "palpagos": 157,
+    "worldtree": 17
+  }
+}

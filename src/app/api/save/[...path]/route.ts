@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { crossSiteReason, getSession, getSessionToken, SESSION_HEADER } from '@/lib/auth';
+import { boundedText, BodyLimitError } from '@/lib/request-body';
+import { crossSiteReason, getSession, getSessionToken, isGuestEnabled, SESSION_HEADER } from '@/lib/auth';
 import { describeSavePath, FEATURES } from '@/lib/permissions';
 import { guestMaySee } from '@/lib/permissions-server';
 
@@ -78,6 +79,10 @@ async function handle(request: NextRequest, path: string[], method: string) {
   const session = await getSession(request);
   const signedIn = session.user !== null;
 
+  if (!signedIn && (!isGuestEnabled() || !route.capability || !session.capabilities.includes(route.capability))) {
+    return NextResponse.json({ error: 'Sign in to view this information.' }, { status: 401 });
+  }
+
   // Guests: read-only, and only what the visibility policy exposes.
   if (!signedIn) {
     if (method !== 'GET') {
@@ -123,10 +128,13 @@ async function proxyToBackend(
       request.headers.get('x-forwarded-for') ?? request.headers.get('x-real-ip');
     if (forwardedFor) headers['X-Forwarded-For'] = forwardedFor;
 
-    const init: RequestInit = { method, headers };
+    const init: RequestInit = { method, headers, redirect: 'error', cache: 'no-store',
+      signal: AbortSignal.any([request.signal, AbortSignal.timeout(method === 'GET' ? 60_000 : 10 * 60_000)]) };
 
     if (method === 'POST' || method === 'PATCH') {
-      const body = await request.text().catch(() => '');
+      const limit = /\/api\/(import\/(preview|apply)|export\/verify)(\?|$)/.test(apiPath)
+        ? Number(process.env.MAX_UPLOAD_MB || 64) * 1024 * 1024 : 1024 * 1024;
+      const body = await boundedText(request, limit);
       if (body) init.body = body;
     }
 
@@ -140,6 +148,7 @@ async function proxyToBackend(
     const isDownload = (res.headers.get('content-disposition') ?? '').includes('attachment');
     if (isDownload || !contentType.includes('application/json')) {
       const headers = new Headers();
+      headers.set('Cache-Control', 'private, no-store');
       for (const header of ['content-type', 'content-length', 'content-disposition']) {
         const value = res.headers.get(header);
         if (value) headers.set(header, value);
@@ -165,9 +174,9 @@ async function proxyToBackend(
       );
     }
 
-    return NextResponse.json(data, { status: res.status });
+    return NextResponse.json(data, { status: res.status, headers: { 'Cache-Control': 'private, no-store' } });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Backend connection failed';
-    return NextResponse.json({ error: message, backendOffline: true }, { status: 503 });
+    if (error instanceof BodyLimitError) return NextResponse.json({ error: error.message }, { status: 413 });
+    return NextResponse.json({ error: 'Backend request could not be completed', backendOffline: true }, { status: 503 });
   }
 }
