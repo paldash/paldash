@@ -197,9 +197,12 @@ def _uid_str(value: Any) -> Optional[str]:
         return None
     if isinstance(value, str):
         text = value.strip().lower()
-    else:
-        # palsav.archive.UUID and stdlib uuid.UUID both stringify to the dashed form.
+    elif type(value).__name__ == 'UUID':
+        # Only UUID objects need stringification. Rendering a list/dict of save
+        # nodes here repeatedly serialized whole subtrees during every walk.
         text = str(value).strip().lower()
+    else:
+        return None
     if len(text) != 36 or text.count("-") != 4:
         return None
     return text
@@ -251,6 +254,24 @@ def _walk_uids_inner(node: Any, mapping: dict[str, str], apply: bool) -> int:
     if isinstance(node, dict):
         for key in list(node.keys()):
             value = node[key]
+            if key == 'CharacterParameterStorageSaveData':
+                # The outer LostPlayerUId is tagged; the saved character's own
+                # ownership/history is inside a native byte array. Count and
+                # remap both, using the verified character codec rather than
+                # searching and replacing opaque bytes.
+                import storedcharacter
+                entries = _v(value, 'value', 'StoredParameterInfoSaveData', 'value', 'values', default=None)
+                if not isinstance(entries, list):
+                    raise SoloExportError('Unsupported stored-character list')
+                for record in entries:
+                    try:
+                        decoded = storedcharacter.decode(record)
+                        found = _walk_uids_inner(decoded, mapping, apply)
+                        if apply and found:
+                            storedcharacter.update(record, decoded)
+                        total += found
+                    except storedcharacter.StoredCharacterError as error:
+                        raise SoloExportError(str(error)) from error
             uid = _uid_str(value)
             if uid is not None and uid in mapping:
                 total += 1

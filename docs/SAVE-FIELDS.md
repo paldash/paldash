@@ -95,6 +95,17 @@ has all of them.** refworld has 23.
 a single-world survey would have called it absent, and which world you happened
 to pick would decide the answer.
 
+The September export audit also decoded the native bodies inside
+`CharacterParameterStorageSaveData.StoredParameterInfoSaveData`. All four
+reference-world records use the existing character codec, re-encode byte for
+byte, and have matching outer `LostPlayerUId` and inner `OwnerPlayerUId` values.
+Their stored character instances are absent from the live character map.
+Selected-player exports remove their owned records and check linked inventory;
+legacy UID exports remap both the tagged metadata and the native body. Retained
+ownership history is scrubbed through decoded fields. Unknown native tails,
+disagreeing owners and ambiguous containers still refuse export. This block is
+distinct from a player's separate `_dps.sav` dimensional storage file.
+
 Of the 128 paths that are not in every world, **most are absent only from the
 07-22 backup** — the smallest and earliest of the three (708k nodes against
 2.4M). That is occupancy, not a schema difference: an early world has no oil

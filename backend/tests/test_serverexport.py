@@ -173,3 +173,97 @@ def test_snapshot_fingerprint_is_stable_after_filename_canonicalization(tmp_path
     target = tmp_path / 'copy'
     target.mkdir()
     assert export._fingerprint(str(source), target) == export._fingerprint(str(target))
+
+
+def _stored(owner, instance, record_id):
+    from test_storedcharacter import make_native_record
+    return {**make_native_record(owner), 'LostPlayerUId': prop(owner),
+            'ID': {'value': {'ID': prop(record_id)}},
+            'InstanceId': {'value': {'PlayerUId': prop(export.ZERO), 'InstanceId': prop(instance)}}}
+
+
+def _stored_list(world, entries):
+    world['CharacterParameterStorageSaveData'] = {'value': {
+        'StoredParameterInfoSaveData': {'value': {'values': entries}},
+    }}
+
+
+def test_lost_character_records_and_their_private_inventory_are_pruned(graph):
+    import storedcharacter
+    pytest.importorskip('palsav')
+    from palsav.archive import UUID
+    world, players = graph
+    dropped = _stored(A, uid(1001), uid(1002))
+    retained = _stored(B, uid(1003), uid(1004))
+    expected_retained = deepcopy(retained)
+    inventory = uid(1005)
+    decoded = storedcharacter.decode(dropped)
+    field = deepcopy(decoded['object']['SaveParameter']['value']['OwnerPlayerUId'])
+    field['value'] = UUID.from_str(inventory)
+    decoded['object']['SaveParameter']['value']['ItemContainerId'] = field
+    storedcharacter.update(dropped, decoded)
+    world['ItemContainerSaveData']['value'].append(container(inventory))
+    entries = [dropped, retained]; _stored_list(world, entries)
+    export.prune(world, players, [A])
+    assert entries == [expected_retained]
+    assert not export.map_entries(world, 'ItemContainerSaveData')
+    assert export.ids(world).isdisjoint({A, uid(1001), uid(1002), inventory})
+
+
+def test_retained_stored_character_history_is_scrubbed_without_changing_owner(graph):
+    import storedcharacter
+    pytest.importorskip('palsav')
+    from palsav.archive import UUID
+    world, players = graph
+    retained = _stored(B, uid(1003), uid(1004))
+    decoded = storedcharacter.decode(retained)
+    decoded['object']['SaveParameter']['value']['LastNickNameModifierPlayerUid']['value'] = UUID.from_str(A)
+    storedcharacter.update(retained, decoded)
+    _stored_list(world, [retained])
+    export.prune(world, players, [A])
+    parameter = storedcharacter.decode(retained)['object']['SaveParameter']['value']
+    assert export.guid(parameter['OwnerPlayerUId']) == B
+    assert str(parameter['LastNickNameModifierPlayerUid']['value']) == export.ZERO
+
+
+def test_disagreeing_stored_character_owner_refuses(graph):
+    world, players = graph
+    record = _stored(B, uid(1003), uid(1004))
+    record['LostPlayerUId'] = prop(A)
+    _stored_list(world, [record])
+    with pytest.raises(export.ServerExportError, match='ownership disagrees'):
+        export.prune(world, players, [A])
+
+
+def test_stored_character_that_is_also_live_refuses(graph):
+    world, players = graph
+    _stored_list(world, [_stored(A, PAL, uid(1002))])
+    with pytest.raises(export.ServerExportError, match='live character map'):
+        export.prune(world, players, [A])
+
+
+def test_typed_lost_player_reference_removes_the_personal_object(graph):
+    world, players = graph
+    objects = export.array_entries(world, 'MapObjectSaveData')
+    objects[0]['LostPlayerUId'] = prop(A)
+    export.prune(world, players, [A])
+    assert not objects
+
+
+def test_stored_inventory_shared_with_retained_character_refuses(graph):
+    import storedcharacter
+    pytest.importorskip('palsav')
+    from palsav.archive import UUID
+    world, players = graph
+    records = [_stored(A, uid(1001), uid(1002)), _stored(B, uid(1003), uid(1004))]
+    inventory = uid(1005)
+    world['ItemContainerSaveData']['value'].append(container(inventory))
+    for record in records:
+        decoded = storedcharacter.decode(record)
+        field = deepcopy(decoded['object']['SaveParameter']['value']['OwnerPlayerUId'])
+        field['value'] = UUID.from_str(inventory)
+        decoded['object']['SaveParameter']['value']['ItemContainerId'] = field
+        storedcharacter.update(record, decoded)
+    _stored_list(world, records)
+    with pytest.raises(export.ServerExportError, match='shares a container'):
+        export.prune(world, players, [A])

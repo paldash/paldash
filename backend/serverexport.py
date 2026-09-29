@@ -166,6 +166,58 @@ def _guilds(world):
     return result
 
 
+def _prune_stored_characters(world, removed, known_containers, active_characters):
+    """Lost Pals have independent records, outside the live character map."""
+    if 'CharacterParameterStorageSaveData' not in world:
+        return set(), set(), set(), set()
+    import storedcharacter
+    entries = _v(world, 'CharacterParameterStorageSaveData', 'value',
+                 'StoredParameterInfoSaveData', 'value', 'values', default=None)
+    if not isinstance(entries, list):
+        raise ServerExportError('Unsupported stored-character list')
+    kept = []; record_ids = set(); instances = set()
+    dropped_records = set(); dropped_characters = set()
+    dropped_items = set(); kept_items = set()
+    item_containers = {_key_id(c) for c in map_entries(world, 'ItemContainerSaveData')}
+    for entry in entries:
+        if not isinstance(entry, dict):
+            raise ServerExportError('Unsupported stored-character record')
+        owner = guid(entry.get('LostPlayerUId'))
+        record_id = guid(_v(entry, 'ID', 'value', 'ID'))
+        instance = guid(_v(entry, 'InstanceId', 'value', 'InstanceId'))
+        if not owner or not record_id or not instance or record_id in record_ids or instance in instances:
+            raise ServerExportError('Unsupported stored-character identity')
+        if instance in active_characters:
+            raise ServerExportError('A stored character also exists in the live character map')
+        attached_player = guid(_v(entry, 'InstanceId', 'value', 'PlayerUId'))
+        if attached_player and attached_player != owner:
+            raise ServerExportError('Stored-character ownership disagrees with its instance record')
+        record_ids.add(record_id); instances.add(instance)
+        try:
+            decoded = storedcharacter.decode(entry)
+        except storedcharacter.StoredCharacterError as error:
+            raise ServerExportError(str(error)) from error
+        parameter = decoded['object']['SaveParameter']['value']
+        if guid(parameter.get('OwnerPlayerUId')) != owner:
+            raise ServerExportError('Stored-character ownership disagrees with its lost-player record')
+        inventory = ids(parameter.get('EquipItemContainerId', {})) | ids(parameter.get('ItemContainerId', {}))
+        if inventory - item_containers or (ids(parameter) & known_containers) - inventory:
+            raise ServerExportError('A stored character has an unresolved container reference')
+        if owner in removed:
+            dropped_records.add(record_id); dropped_characters.add(instance)
+            dropped_items.update(inventory)
+        else:
+            kept_items.update(inventory)
+            _scrub_history(decoded, removed)
+            try:
+                storedcharacter.update(entry, decoded)
+            except storedcharacter.StoredCharacterError as error:
+                raise ServerExportError(str(error)) from error
+            kept.append(entry)
+    entries[:] = kept
+    return dropped_records, dropped_characters, dropped_items, kept_items
+
+
 def prune(world: dict, players: dict, remove_uids: list[str], leaders: dict | None = None) -> dict:
     """Modify a disposable parsed snapshot and independently verify its scope."""
     removed = {soloexport._fmt_uid(u) for u in remove_uids}
@@ -240,6 +292,14 @@ def prune(world: dict, players: dict, remove_uids: list[str], leaders: dict | No
             raise ServerExportError('A guild chest container could not be resolved safely')
         (dropped_containers if _key_id(entry) in drop_guilds else shared_containers).add(cid)
 
+    stored_ids, dropped_characters, stored_items, kept_stored_items = _prune_stored_characters(
+        world, removed, known_containers,
+        {character_id(c) for c in map_entries(world, 'CharacterSaveParameterMap')},
+    )
+    dropped_ids.update(stored_ids | dropped_characters)
+    dropped_containers.update(stored_items)
+    kept_private.update(kept_stored_items)
+
     objects = array_entries(world, 'MapObjectSaveData'); objects_keep = []; reassigned = 0
     for obj in objects:
         raw = _v(obj, 'Model', 'value', 'RawData', 'value', default={})
@@ -248,7 +308,8 @@ def prune(world: dict, players: dict, remove_uids: list[str], leaders: dict | No
         # A dropped player's loose structure or death bag has no surviving
         # shared guild to own it. Shared structures transfer to that guild's leader.
         if guid(raw.get('build_player_uid')) in removed and gid not in leader_by_guild: drop = True
-        if any(value in removed and path.endswith('LostPlayerUId.value') for path, value in references(obj)): drop = True
+        if any(value in removed and path.endswith(('.LostPlayerUId', '.LostPlayerUId.value'))
+               for path, value in references(obj)): drop = True
         for path, value in references(obj):
             if 'target_container_id' in path:
                 (dropped_containers if drop else shared_containers).add(value)
@@ -267,7 +328,7 @@ def prune(world: dict, players: dict, remove_uids: list[str], leaders: dict | No
     if dropped_containers & (kept_private | shared_containers):
         raise ServerExportError('A removed asset shares a container with retained data')
 
-    characters = map_entries(world, 'CharacterSaveParameterMap'); character_keep = []; dropped_characters = set()
+    characters = map_entries(world, 'CharacterSaveParameterMap'); character_keep = []
     for entry in characters:
         sp = parameter(entry)
         raw = _v(entry, 'value', 'RawData', 'value', default={})
