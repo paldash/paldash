@@ -8,6 +8,23 @@
 # container a second after boot, every time. Do not "simplify" this back to sh.
 set -e
 
+# The supported runtime is unprivileged. Enforce this even outside Compose;
+# child processes must not acquire privilege through an executable later on.
+if [[ "$EUID" -eq 0 ]]; then
+    echo "Run paldash with its configured non-root UID, not root." >&2
+    exit 1
+fi
+no_new_privs=0
+while read -r key value rest; do
+    if [[ "$key" == "NoNewPrivs:" && "$value" == 1 ]]; then
+        no_new_privs=1
+        break
+    fi
+done < /proc/self/status
+if [[ "$no_new_privs" != 1 ]]; then
+    exec setpriv --no-new-privs "$0" "$@"
+fi
+
 echo "paldash starting..."
 
 # ── Self-provisioned state from previous boots (#149) ──

@@ -161,10 +161,12 @@ All three were invisible to the test suite and only appeared on a real build and
 run. If you change the Dockerfile or the entrypoint, **build and run it** — do not
 rely on tests.
 
-- **The builder and runtime Python minor versions must match.** The runtime
-  installs Debian bookworm's `python3`, which is **3.11**. `orjson` and `palooz`
+- **The builder and runtime Python versions must match.** Both stages use
+  upstream **Python 3.11.16 on Debian trixie**. `orjson` and `palooz`
   are compiled extensions, so a `python:3.12` builder produces cp312 wheels that
-  pip refuses outright and the image does not build.
+  pip refuses outright and the image does not build. The runtime copies only
+  the Node executable from the web builder; npm and its dependency tree are
+  unnecessary for the standalone app and stay out of the shipped image.
 - **`docker-entrypoint.sh` is `#!/bin/bash`, not `sh`.** It uses `wait -n`, a
   bashism. Debian's `/bin/sh` is dash, which errors on it, and `set -e` then
   killed the container about a second after boot — every time, silently.

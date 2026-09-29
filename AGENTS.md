@@ -1099,10 +1099,13 @@ storage. Only the map layer was affected.
 All three were invisible to the test suite and only showed up on a real build
 and run. If you touch the Dockerfile or the entrypoint, build and run it.
 
-- **The builder and runtime Python minor versions must match.** The runtime
-  installs Debian bookworm's `python3` (**3.11**). `orjson` and `palooz` are
+- **The builder and runtime Python versions must match.** Both now use
+  upstream **Python 3.11.16 on Debian trixie**. `orjson` and `palooz` are
   compiled extensions, so a `python:3.12` builder produces cp312 wheels that pip
-  refuses outright and the image does not build.
+  refuses outright and the image does not build. The September image scan
+  exposed unresolved advisories in bookworm's distro Python and in the base
+  image's global npm packages. The runtime now copies only the Node binary
+  from the web builder, leaving npm out of the standalone runtime.
 - **`docker-entrypoint.sh` is `#!/bin/bash`, not `sh`.** It uses `wait -n`, a
   bashism; Debian's `/bin/sh` is dash, which errors, and `set -e` then killed
   the container about a second after boot — every time, silently.

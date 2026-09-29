@@ -59,11 +59,8 @@ updates:
       actions:
         patterns: ["*"]
 
-# No docker entry on purpose: BOTH base images in the Dockerfile are pins
-# where any bump is a trap, and Docker image versioning slips past semver
-# ignores — 3.11 -> 3.14 counts as "minor". `python:3.11-slim-bookworm` must
-# match Debian bookworm's runtime python3 (3.11): a newer builder produces
-# wheels the runtime's pip refuses and the image does not build (AGENTS.md,
-# "The builder and runtime Python minor versions must match").
-# `node:22-bookworm-slim` is the LTS line shared by builder and runner and
-# assumed by the healthcheck. Base images move by hand, both stages together.
+# Base-image version changes are coordinated manually: Docker versioning can
+# classify a Python minor-version jump as an ordinary minor update. Both
+# Python stages must remain on the same reviewed patch and Debian release.
+# Node 22 supplies the frontend build and the runtime executable. Each update
+# must pass the final-image scan, runtime startup and native-codec smoke test.

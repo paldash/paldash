@@ -75,6 +75,10 @@ services:
     # would oblige you to do.
     container_name: paldash
     restart: unless-stopped
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
     depends_on:
       - palworld
     ports:
