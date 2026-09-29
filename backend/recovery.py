@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import os
 from pathlib import Path
 import shutil
@@ -15,6 +16,8 @@ import uuid
 
 import maintenance
 from backupstore import BackupError
+
+logger = logging.getLogger(__name__)
 
 
 def _root() -> Path:
@@ -58,8 +61,10 @@ def _read() -> dict | None:
 def status() -> dict:
     try:
         data = _read()
-    except BackupError as error:
-        return {'pending': True, 'error': str(error)}
+    except BackupError:
+        logger.warning('Could not read restore recovery status', exc_info=True)
+        return {'pending': True,
+                'error': 'Restore recovery record is unavailable; start and edits remain blocked'}
     return ({'pending': True, 'rollbackId': data['rollbackId'], 'files': len(data['files'])}
             if data else {'pending': False})
 

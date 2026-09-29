@@ -596,6 +596,9 @@ def preview(owner_id: int, remove_uids: list[str], leaders: dict | None = None, 
 
 def _plan(owner_id, artifact_id):
     if not _ID.fullmatch(artifact_id): raise ServerExportError('Invalid export identifier')
+    # Keep the strict external spelling, then construct the path component from
+    # the parsed identifier rather than carrying request text into storage.
+    artifact_id = uuid.UUID(hex=artifact_id).hex
     folder = _base() / artifact_id
     if folder.is_symlink(): raise ServerExportError('Invalid export storage')
     try: data = json.loads((folder / 'plan.json').read_text())

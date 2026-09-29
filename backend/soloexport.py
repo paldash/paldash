@@ -62,6 +62,7 @@ import os
 import shutil
 import tempfile
 import time
+import uuid
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Optional
@@ -148,7 +149,9 @@ def _fmt_uid(uid: str) -> str:
         )
     if any(c not in "0123456789abcdef" for c in raw):
         raise SoloExportError(f"Not a Palworld player uid: {uid!r} is not hexadecimal.")
-    return f"{raw[0:8]}-{raw[8:12]}-{raw[12:16]}-{raw[16:20]}-{raw[20:32]}"
+    # Reconstruct the identifier from its 128-bit value. Paths must receive a
+    # canonical UUID, never slices of the original request string.
+    return str(uuid.UUID(hex=raw))
 
 
 def _file_uid(uid: str) -> str:
