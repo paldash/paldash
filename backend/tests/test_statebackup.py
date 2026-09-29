@@ -79,3 +79,32 @@ def test_interrupted_state_restore_blocks_boot_and_can_recover(state, monkeypatc
     assert statebackup.recover()['recovered']
     with sqlite3.connect(db.DB_PATH) as conn:
         assert conn.execute('SELECT count(*) FROM users').fetchone()[0] == 2
+
+
+def test_restore_revokes_filesystem_exports_even_when_account_ids_are_reused(state, monkeypatch):
+    import exportidentity
+    import serverexport
+    root = state / 'exports'
+    root.mkdir()
+    monkeypatch.setattr(serverexport, '_base', lambda: root)
+    generation = exportidentity.current()
+    snapshot = statebackup.create()
+    old_owner = accounts.create_user('later-owner', 'later-owner-password', role='owner')
+    owner = accounts.get_user('owner')
+    for ident, account in (('a' * 32, owner), ('b' * 32, old_owner)):
+        folder = root / ident
+        folder.mkdir()
+        (folder / 'plan.json').write_text(json.dumps({'ownerId': account['id'], 'ownerGeneration': generation}))
+        assert serverexport._plan(account['id'], ident)
+    db.close_connection()
+    statebackup.restore(snapshot['id'])
+    replacement = accounts.create_user('replacement-owner', 'replacement-password', role='owner')
+    assert replacement['id'] == old_owner['id']
+    assert exportidentity.current() != generation
+    for ident, account in (('a' * 32, owner), ('b' * 32, replacement)):
+        with pytest.raises(serverexport.ServerExportError, match='earlier dashboard database'):
+            serverexport._plan(account['id'], ident)
+    # A legacy plan with no generation is refused, never silently adopted.
+    (root / ('a' * 32) / 'plan.json').write_text(json.dumps({'ownerId': owner['id']}))
+    with pytest.raises(serverexport.ServerExportError, match='earlier dashboard database'):
+        serverexport._plan(owner['id'], 'a' * 32)

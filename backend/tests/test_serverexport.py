@@ -6,6 +6,8 @@ import uuid
 import pytest
 import serverexport as export
 
+pytestmark = pytest.mark.usefixtures('fresh_db')
+
 
 def uid(n): return str(uuid.UUID(int=n))
 A, B, G, BASE, PRIV_A, PRIV_B, SHARED, CA, CB, PAL, WORKER = [uid(n) for n in range(10,21)]
@@ -141,9 +143,10 @@ def test_affected_guild_with_missing_member_file_is_refused(graph):
 
 def test_changed_plan_is_refused_before_loading_a_world(tmp_path, monkeypatch):
     import json
+    import exportidentity
     monkeypatch.setattr(export,'_base',lambda:tmp_path)
     folder=tmp_path/('a'*32);folder.mkdir()
-    payload={'ownerId':1,'worldDir':'unused','sourceHash':'original','removeUids':[A],'leaders':{},'summary':{},'createdAt':export.time.time()}
+    payload={'ownerId':1,'ownerGeneration':exportidentity.current(),'worldDir':'unused','sourceHash':'original','removeUids':[A],'leaders':{},'summary':{},'createdAt':export.time.time()}
     plan_hash=export._hash(payload)
     payload['sourceHash']='tampered'
     (folder/'plan.json').write_text(json.dumps({'planHash':plan_hash,**payload}))

@@ -29,7 +29,7 @@ docker compose run --rm --no-deps --entrypoint python3 dashboard backend/stateba
 docker compose up -d dashboard
 ```
 
-Restore verifies the archive and SQLite integrity, creates its own rollback point, restores policy and database, and invalidates sessions, export records and queued jobs. Sign in again afterward. An interrupted restore blocks backend startup. Recover the previous state before restarting:
+Restore verifies the archive and SQLite integrity, creates its own rollback point, restores policy and database, and invalidates sessions, export records and queued jobs. It also rotates the database generation bound into filesystem server exports: restoring an old account-ID sequence must never grant a new account access to an old archive. Sign in and create fresh exports afterward. An interrupted restore blocks backend startup. Recover the previous state before restarting:
 
 ```bash
 docker compose run --rm --no-deps --entrypoint python3 dashboard backend/statebackup.py recover

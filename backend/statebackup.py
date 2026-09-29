@@ -213,6 +213,8 @@ def restore(ident: str) -> dict:
                 for table in ('sessions', 'self_exports', 'jobs'):
                     if table in tables:
                         conn.execute(f'DELETE FROM {table}')
+                import exportidentity
+                exportidentity.rotate(conn)
                 conn.commit()
                 conn.execute('PRAGMA journal_mode=DELETE')
             # Checkpoint the current database before removing its WAL/SHM, with the

@@ -474,6 +474,7 @@ def _hash(payload):
 
 
 def preview(owner_id: int, remove_uids: list[str], leaders: dict | None = None, world_dir: str | None = None):
+    import exportidentity
     with _operation():
         root = world_dir or savefiles.get_default_world_dir()
         if not root: raise ServerExportError('No world directory is selected')
@@ -502,7 +503,8 @@ def preview(owner_id: int, remove_uids: list[str], leaders: dict | None = None, 
             fingerprint = _fingerprint(root, snapshot)
             level, _, players = _load_snapshot(snapshot)
             summary = prune(soloexport._world_save_data(level), players, remove_uids, leaders)
-            payload = {'ownerId': owner_id, 'worldDir': os.path.realpath(root), 'sourceHash': fingerprint,
+            payload = {'ownerId': owner_id, 'ownerGeneration': exportidentity.current(),
+                       'worldDir': os.path.realpath(root), 'sourceHash': fingerprint,
                        'removeUids': sorted({soloexport._fmt_uid(u) for u in remove_uids}),
                        'leaders': leaders or {}, 'summary': _public(summary), 'createdAt': time.time()}
             plan_hash = _hash(payload)
@@ -522,6 +524,9 @@ def _plan(owner_id, artifact_id):
     try: data = json.loads((folder / 'plan.json').read_text())
     except (OSError, ValueError): raise ServerExportError('Export preview is unavailable or expired') from None
     if data['ownerId'] != owner_id: raise ServerExportError('Export preview belongs to another account')
+    import exportidentity
+    if data.get('ownerGeneration') != exportidentity.current():
+        raise ServerExportError('This export belongs to an earlier dashboard database; preview again after recovery')
     return folder, data
 
 
