@@ -30,9 +30,9 @@ done
 
 BACKEND_PORT="${BACKEND_PORT:-8400}"
 
-# Bind the save backend to loopback only. It has no auth of its own — the
-# Next.js layer enforces admin/guest — so it must never be reachable from
-# outside the container.
+# Bind the save backend to loopback only. It enforces its own authorization;
+# Next.js provides the public proxy and route allowlist. Only that public
+# frontend should be reachable from outside the container.
 BACKEND_HOST="${BACKEND_HOST:-127.0.0.1}"
 export BACKEND_HOST BACKEND_PORT
 

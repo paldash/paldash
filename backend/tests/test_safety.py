@@ -191,3 +191,52 @@ def test_missing_save_dir_is_unknown_not_stopped(monkeypatch, tmp_path):
 def test_empty_save_dir_is_unknown_not_stopped(monkeypatch, tmp_path):
     monkeypatch.setattr(safety, "SAVE_BASE_DIR", str(tmp_path))
     assert safety._probe_save_activity().verdict == "unknown"
+
+
+def test_guarded_multifile_write_distinguishes_own_changes_from_autosave(monkeypatch, tmp_path):
+    import os
+    import time
+    import maintenance
+    import savefiles
+    monkeypatch.delenv('WORLD_GUID', raising=False)
+    monkeypatch.setattr(safety, 'SAVE_BASE_DIR', str(tmp_path))
+    monkeypatch.setattr(safety, '_probe_rest_api', lambda: Signal('rest_api', 'stopped', 'test'))
+    monkeypatch.setattr(safety, '_probe_tcp', lambda: Signal('tcp_port', 'stopped', 'test'))
+    monkeypatch.setattr(safety, '_probe_process', lambda: Signal('process', 'unknown', 'test'))
+    level, player = tmp_path / 'Level.sav', tmp_path / 'Player.sav'
+    for path in (level, player):
+        path.write_bytes(b'before')
+        os.utime(path, (time.time() - 7200, time.time() - 7200))
+    with maintenance.lease(), maintenance.stopped_writes():
+        savefiles.atomic_write(str(level), b'after')
+        assert safety.get_server_state().editable
+        savefiles.atomic_write(str(player), b'after')
+        assert safety.get_server_state().editable
+        # Same bytes and same mtime still change inode/ctime. An external
+        # writer cannot borrow our transaction's exemption.
+        stamp = level.stat().st_mtime_ns
+        level.write_bytes(b'after')
+        os.utime(level, ns=(stamp, stamp))
+        assert not safety.get_server_state().editable
+        with pytest.raises(ServerRunningError):
+            savefiles.atomic_write(str(player), b'unsafe')
+    assert not safety.get_server_state().editable
+
+
+def test_own_write_never_overrides_a_live_rest_signal(monkeypatch, tmp_path):
+    import os
+    import time
+    import maintenance
+    import savefiles
+    monkeypatch.delenv('WORLD_GUID', raising=False)
+    monkeypatch.setattr(safety, 'SAVE_BASE_DIR', str(tmp_path))
+    monkeypatch.setattr(safety, '_probe_rest_api', lambda: Signal('rest_api', 'stopped', 'test'))
+    monkeypatch.setattr(safety, '_probe_tcp', lambda: Signal('tcp_port', 'stopped', 'test'))
+    monkeypatch.setattr(safety, '_probe_process', lambda: Signal('process', 'unknown', 'test'))
+    level = tmp_path / 'Level.sav'
+    level.write_bytes(b'before')
+    os.utime(level, (time.time() - 7200, time.time() - 7200))
+    with maintenance.lease(), maintenance.stopped_writes():
+        savefiles.atomic_write(str(level), b'after')
+        monkeypatch.setattr(safety, '_probe_rest_api', lambda: Signal('rest_api', 'running', 'test'))
+        assert not safety.get_server_state().editable

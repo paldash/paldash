@@ -6,6 +6,8 @@ Every multi-file restore first publishes a durable journal and a verified rollba
 
 Recovery refuses a changed target, corrupt undo bytes, a different mounted world or a symlink path. Keep the journal and its protected rollback backup intact if it refuses. Inspect the external change before choosing a manual recovery; deleting the journal would remove the start/write protection.
 
+After a process crash, recently written saves must pass the normal save-activity quiet window before recovery can proceed. Verified writes are recognized only within the active maintenance transaction; that exemption does not survive a restart. REST, TCP and process evidence still apply throughout a multi-file operation, and an external rewrite invalidates the exemption even if it preserves the file's bytes and modification time.
+
 The maintenance lease coordinates dashboard operations. It cannot stop an external supervisor or another program from writing the world. The configured REST endpoint and mounted save directory must refer to the same game instance.
 
 ## Dashboard accounts, policy and schedules

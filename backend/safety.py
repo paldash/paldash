@@ -145,15 +145,23 @@ def _probe_save_activity() -> Signal:
 
     newest = 0.0
     newest_file = ""
+    own_writes = 0
+    import maintenance
     for path in glob.glob(os.path.join(activity_root, "**", "*.sav"), recursive=True):
         try:
-            mtime = os.path.getmtime(path)
+            stat = os.stat(path)
         except OSError:
+            return Signal('save_activity', 'unknown', 'a save could not be inspected')
+        if maintenance.is_own_write(path, stat):
+            own_writes += 1
             continue
+        mtime = stat.st_mtime
         if mtime > newest:
             newest, newest_file = mtime, path
 
     if not newest:
+        if own_writes:
+            return Signal('save_activity', 'stopped', 'only verified writes from this maintenance transaction')
         return Signal("save_activity", "unknown", "no .sav files found")
 
     age = time.time() - newest

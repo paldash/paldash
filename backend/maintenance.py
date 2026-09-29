@@ -30,9 +30,11 @@ def lease():
         try:
             fcntl.flock(fd, fcntl.LOCK_EX)
             _local.depth = 1
+            _local.writes = {}
             yield
         finally:
             _local.depth = 0
+            _local.writes = {}
             fcntl.flock(fd, fcntl.LOCK_UN)
             os.close(fd)
 
@@ -60,3 +62,18 @@ def check_commit():
     check = getattr(_local, 'check_commit', None)
     if check is not None:
         check()
+
+
+def file_identity(stat):
+    return (stat.st_dev, stat.st_ino, stat.st_size, stat.st_mtime_ns, stat.st_ctime_ns)
+
+
+def record_write(path, stat):
+    """Remember verified writes only for the current guarded transaction."""
+    if getattr(_local, 'depth', 0) and getattr(_local, 'check_commit', None):
+        _local.writes[os.path.abspath(path)] = file_identity(stat)
+
+
+def is_own_write(path, stat):
+    return bool(getattr(_local, 'depth', 0) and
+                getattr(_local, 'writes', {}).get(os.path.abspath(path)) == file_identity(stat))

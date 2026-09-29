@@ -8,7 +8,9 @@ The PR updated several dependencies but still resolved a vulnerable Next.js/tran
 
 [PR #16](https://github.com/paldash/paldash/pull/16) now contains commit `7a7b86ab371776c90e777cd00378254d8319092b`: Next/ESLint 16.3.6, compatible dependency updates, patched transitives, disabled unused image optimization, and the verified standalone tracing fix. **Every remote check passed**: npm, pip, backend, web/e2e/Lighthouse, container, PR title and CodeQL. The PR remains open, not merged.
 
-PR #17 appeared during this work for `fast-uri` 3.1.8, already present in the tested baseline. It inherited the same vulnerable baseline as #16. Its isolated repair brings in #16 and checks that the resulting complete repository tree is identical to the tested dependency repair. Exact-head remote checks are tracked below.
+[PR #17](https://github.com/paldash/paldash/pull/17) appeared during this work for `fast-uri` 3.1.8, already present in the tested baseline. It inherited the same vulnerable baseline as #16. Its isolated repair, commit `1b956890ebd0ce5bd5e8c28600093203dfc6a483`, brings in #16 and verifies that the resulting complete repository tree is identical to the tested dependency repair. **Every remote check passed** on this head as well. Neither dependency PR is merged.
+
+The existing main-branch ruleset now requires npm and pip audits, backend tests, web checks and the container check, with the branch required to be up to date. Its existing deletion and force-push protections remain in place.
 
 ## Completed implementation
 
@@ -36,6 +38,7 @@ PR #17 appeared during this work for `fast-uri` 3.1.8, already present in the te
 - Final npm and constrained Python advisory checks: **zero known vulnerabilities**.
 - Frontend: **186 unit tests**, lint and production build passed; **10 browser tests** passed, including all twelve actual bundled guides and queued export polling.
 - Focused queue/data tests: **26 passed**. Final settings/recovery/export-boundary tests: **69 passed**. These overlap the full suite and are not added to its total.
+- Multi-file write regression checks: **91 passed**, including real-world restore and player-edit round trips. A full-suite run exposed that the per-file safety recheck mistook the transaction's own first replacement for a game autosave. Verified replacements are now tracked by exact file identity within the maintenance lease; external writes and live-server signals still refuse the next write.
 - Full-row catalog recheck: **no change** in digests, variants, opacity or schemas after regeneration.
 - Full backend suite, including real-save slow cases: running; final result will replace this line.
 - Final implementation-head CI/container scan: pending the review branch.
@@ -44,7 +47,7 @@ Evidence is local under `/tmp/paldash-implementation-20260928/`. The two failed 
 
 ## Acceptance limits
 
-Structural tests do not replace a real game-server load, retained-player reconnect, shared-storage check and save/restart cycle. This environment has no Docker socket access and no attached game client, so those checks remain a release acceptance step. No production deployment or game-world mutation was attempted.
+Structural tests do not replace a real game-server load, retained-player reconnect, shared-storage check and save/restart cycle. There is no attached game client, so reconnect checks remain a release acceptance step. A local rootless Podman build is being used for container validation despite the unavailable Docker socket. No production deployment or live game-world mutation was attempted.
 
 The external game process and its restart supervisor must cooperate with maintenance; an advisory file lock cannot control them. Custom native parsers are pinned and exercised, but a clean vulnerability scan is not proof of memory safety. Unknown save schemas, opaque removed references and ambiguous ownership are refused.
 

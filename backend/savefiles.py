@@ -361,6 +361,16 @@ def atomic_write(path: str, data: bytes) -> None:
         if (held.st_dev, held.st_ino) != (current.st_dev, current.st_ino):
             raise OSError('Atomic write directory changed while the replacement was staged')
         os.replace(tmp, target.name, src_dir_fd=dir_fd, dst_dir_fd=dir_fd)
+        # Subsequent files in this transaction must not mistake our first
+        # verified replacement for a fresh game autosave. Bind the exemption
+        # to exact metadata and bytes; any external rewrite invalidates it.
+        import hashlib
+        with os.fdopen(os.open(target.name, os.O_RDONLY | os.O_NOFOLLOW, dir_fd=dir_fd), 'rb') as written:
+            observed = os.fstat(written.fileno())
+            checksum = hashlib.file_digest(written, 'sha256').digest()
+            if checksum != hashlib.sha256(data).digest() or maintenance.file_identity(observed) != maintenance.file_identity(os.fstat(written.fileno())):
+                raise OSError('Atomic replacement changed during verification')
+        maintenance.record_write(str(target), observed)
         # fsync the directory so the rename itself is durable
         os.fsync(dir_fd)
     except BaseException:
