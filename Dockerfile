@@ -3,6 +3,7 @@ FROM node:22-bookworm-slim AS webbuilder
 
 WORKDIR /app
 COPY package.json package-lock.json ./
+COPY tools/next-eslint-glob ./tools/next-eslint-glob
 RUN npm ci
 
 COPY . .
