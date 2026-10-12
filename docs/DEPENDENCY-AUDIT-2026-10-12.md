@@ -35,6 +35,14 @@ actual Next lint rule, requiring it to report native links to a Pages route and
 an App Router home page. The Docker dependency-install layer copies the adapter
 before running `npm ci`, so clean builds resolve the same local package.
 
+The fresh container build also exposed a Python wheelhouse conflict: building
+the native parser without the application constraints downloaded orjson 3.13.0,
+while a later requirements pass added pinned orjson 3.12.0. Installing every
+wheel then tried to install both versions. The Dockerfile now resolves the
+native parser and application requirements in one constrained `pip wheel`
+invocation. Runtime Python pins are unchanged; future shared-dependency conflicts
+fail during resolution instead of leaving an inconsistent wheelhouse.
+
 Sources:
 
 - [Next.js cache-poisoning advisory](https://github.com/advisories/GHSA-mcj8-r9mp-w47p)

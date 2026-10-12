@@ -37,13 +37,15 @@ RUN git init pst \
     && test "$(git -C pst rev-parse HEAD)" = "${PALSAV_REF}" \
     && git -C pst submodule update --init --recursive --depth 1
 
+COPY backend/requirements.txt backend/constraints.txt /tmp/
+# Resolve native-parser and application dependencies together. Separate wheel
+# passes can retain two versions of a shared dependency (for example orjson),
+# which makes the final /wheels/*.whl installation impossible.
 RUN python -m pip install --no-cache-dir --upgrade pip build wheel \
     && python -m pip wheel --no-cache-dir --wheel-dir /wheels \
+        -r /tmp/requirements.txt \
         ./pst/src/palsav/palooz \
         ./pst/src/palsav
-
-COPY backend/requirements.txt backend/constraints.txt /tmp/
-RUN python -m pip wheel --no-cache-dir --wheel-dir /wheels -r /tmp/requirements.txt
 
 # ─── Stage 3: Runtime ────────────────────────────────────
 FROM python:3.11.16-slim-trixie AS runner
