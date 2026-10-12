@@ -3,6 +3,7 @@ FROM node:22-bookworm-slim AS webbuilder
 
 WORKDIR /app
 COPY package.json package-lock.json ./
+COPY tools/next-eslint-glob ./tools/next-eslint-glob
 RUN npm ci
 
 COPY . .
@@ -36,18 +37,23 @@ RUN git init pst \
     && test "$(git -C pst rev-parse HEAD)" = "${PALSAV_REF}" \
     && git -C pst submodule update --init --recursive --depth 1
 
+COPY backend/requirements.txt backend/constraints.txt /tmp/
+# Resolve native-parser and application dependencies together. Separate wheel
+# passes can retain two versions of a shared dependency (for example orjson),
+# which makes the final /wheels/*.whl installation impossible.
 RUN python -m pip install --no-cache-dir --upgrade pip build wheel \
     && python -m pip wheel --no-cache-dir --wheel-dir /wheels \
+        -r /tmp/requirements.txt \
         ./pst/src/palsav/palooz \
         ./pst/src/palsav
-
-COPY backend/requirements.txt backend/constraints.txt /tmp/
-RUN python -m pip wheel --no-cache-dir --wheel-dir /wheels -r /tmp/requirements.txt
 
 # ─── Stage 3: Runtime ────────────────────────────────────
 FROM python:3.11.16-slim-trixie AS runner
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# Apply stable security updates even when the upstream Python tag has not been
+# rebuilt yet. CI deliberately rebuilds this stage instead of caching this step.
+RUN apt-get update && apt-get upgrade -y --no-install-recommends \
+    && apt-get install -y --no-install-recommends \
         libstdc++6 \
     && rm -rf /var/lib/apt/lists/*
 

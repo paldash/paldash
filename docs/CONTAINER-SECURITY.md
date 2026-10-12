@@ -1,10 +1,27 @@
-# Container security dispositions — 29 September 2026
+# Container security dispositions — reviewed 12 October 2026
 
 The first full image scan found 97 high/critical package attributions. Package-lock and Python requirement audits did not cover the base image's global npm tree or its Debian runtime. The runtime now uses upstream Python 3.11.16 on Debian trixie and copies only the Node executable from the frontend builder. The rebuilt image had no high/critical Node or Python package findings; 44 Debian attributions represented eight distinct advisories.
 
 These remaining source-package matches are assessed below. They are **not described as patched Debian packages**. The supported image removes unused affected programs, refuses root startup, strips SUID/SGID bits and enforces `NoNewPrivs`. Compose also drops every capability. The native-codec, startup and `scripts/verify-container-security.py` checks precede the image scan in CI. The latter checks the actual image for affected tools/modules, privileged executables, file capabilities and runtime privilege settings; a failed check blocks publication.
 
 The scanner dispositions in `.github/container-ignores.yaml` match only the exact reviewed Debian package PURLs, including versions and distribution. They expire on **13 October 2026**. A different package/version, a new advisory, a failed runtime proof or expiry requires review and cannot inherit these dispositions. Suppressed findings remain in the JSON scan artifact. `ignore-unfixed` stays false.
+
+The 12 October review rechecked all eight Debian advisory pages linked below.
+Stable trixie still has no fixed versions for these entries; the absent-tool
+assessments and the libacl mitigation remain applicable. The fresh image from
+[CI run 38306081487](https://github.com/paldash/paldash/actions/runs/38306081487)
+passed the native-codec and runtime-proof steps, and its 44 reviewed advisory/PURL
+pairs exactly matched the existing scope. No advisory, package, version or
+distribution was added to that scope; the original expiry is retained.
+
+That scan also correctly blocked publication on **four new package entries**
+from two advisories: [PCRE2 CVE-2026-103111](https://security-tracker.debian.org/tracker/CVE-2026-103111)
+and [OpenSSL CVE-2026-84782](https://security-tracker.debian.org/tracker/CVE-2026-84782).
+Debian provides fixes at `10.46-1~deb13u3` and `3.5.7-1~deb13u3`, respectively.
+These are patched by applying stable OS updates in the runtime stage, not added
+to the exceptions. CI pulls current base images and rebuilds the runtime stage
+on every build so a cached package-install layer cannot hide available updates.
+The resulting image must still pass the native/runtime proof and full scan.
 
 | Advisory | Evidence and disposition |
 |---|---|

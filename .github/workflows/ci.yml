@@ -175,6 +175,9 @@ jobs:
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
         with:
           context: .
+          pull: true
+          # Always refresh runtime OS security updates, even with a cached base.
+          no-cache-filters: runner
           load: true
           tags: |
             paldash-ci:${{ github.sha }}

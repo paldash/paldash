@@ -1,0 +1,11 @@
+{
+  "name": "@paldash/next-eslint-glob",
+  "version": "1.0.0",
+  "private": true,
+  "license": "GPL-3.0",
+  "main": "index.js",
+  "type": "commonjs",
+  "dependencies": {
+    "tinyglobby": "0.2.17"
+  }
+}
