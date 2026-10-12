@@ -171,6 +171,21 @@ jobs:
       # from their own upstream inside the Dockerfile, and refs/ and refworld/
       # are excluded by .dockerignore (live server passwords and real Steam
       # IDs must never enter a build context).
+      - name: Verify pinned runtime families and Python stage pairing
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          stages = dict((stage, image) for image, stage in re.findall(
+              r'^FROM (\S+) AS (\S+)$', Path('Dockerfile').read_text(), re.MULTILINE))
+          assert set(stages) == {'webbuilder', 'pybuilder', 'runner'}, 'Review changed build stages'
+          assert re.fullmatch(r'node:22(?:\.\d+(?:\.\d+)?)?-bookworm-slim@sha256:[0-9a-f]{64}', stages['webbuilder']), 'Review Node family or missing digest'
+          assert re.fullmatch(r'python:3\.11\.\d+-slim-trixie@sha256:[0-9a-f]{64}', stages['runner']), 'Review Python family or missing digest'
+          assert stages['pybuilder'] == stages['runner'], 'Python build/runtime images must match exactly'
+          print('Verified immutable base references and matching Python stages')
+          PY
+
       - name: Build the image to scan
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
         with:

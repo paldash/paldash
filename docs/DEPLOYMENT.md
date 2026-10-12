@@ -288,14 +288,57 @@ docker build -t ghcr.io/<you>/palworld-dashboard:1.0 .
 docker push ghcr.io/<you>/palworld-dashboard:1.0
 ```
 
-Tag a version rather than relying on `latest`: this image can write to your save
-files, and "which build is running" is a question you want answerable during an
-incident.
+Pin the reviewed image digest: this image can write to your save files, and
+"which build is running" needs an exact answer. A version tag is useful as a
+label, but tags can move; the digest identifies the image content.
 
-The bundled compose files already default to the published image
-(`ghcr.io/paldash/paldash:latest`, or pin `:1.0.0`). To run your own build
-instead, replace the `image:` line with `build: .` — or with the tag you
-pushed above.
+All three bundled Compose files pin the published dashboard image from commit
+`39c2989dd045dfbc93bdebcb1632a0f5dc3dde0f`:
+
+```yaml
+image: ghcr.io/paldash/paldash@sha256:8615763d1e61404a5196bc1e8d692000a9103eb4347851124172fd1b2cb3ddc0
+```
+
+This is the reviewed 12 October main-branch build, published through the `edge`
+channel, not a new stable release. Its [CI build, native codec, runtime security
+proof and container scan passed](https://github.com/paldash/paldash/actions/runs/38309263177).
+The published image is Linux amd64; other architectures need a separately
+validated build. This pin does not move automatically when `edge` or `latest`
+changes. To build locally instead, replace `image:` with `build: .`.
+
+### Image pins and updates
+
+The Dockerfile pins the reviewed Node and Python base-image indexes by digest.
+Both Python stages use the exact same reference. Weekly Dependabot proposals
+cover these base digests and patch updates; minor/major runtime changes require
+a coordinated review. CI also rejects an unpinned reference, a different runtime
+or Debian family, or unequal Python build/runtime references. Updates must pass
+the normal build, startup, native-codec, runtime security and vulnerability gates.
+
+The runtime still installs current Debian stable security updates on every CI
+build. A pinned base does not freeze vulnerable OS packages, and the final scan
+judges the resulting image. Published images are immutable: an installed image
+receives fixes only when replaced by a newly built, tested image.
+
+For a dashboard image update:
+
+1. Identify the candidate image by digest and source commit from a successful
+   publication run. Review its scan, runtime proof and application tests.
+2. Update the same digest in all three Compose files and the README example;
+   update the source commit and evidence above. Keep `cap_drop: [ALL]` and
+   `no-new-privileges:true` on the dashboard service. Review the rendered Compose
+   configuration before applying it.
+3. Pull and recreate only the dashboard service in the operator's Compose
+   project, using the same `-f` files used to start it:
+
+   ```bash
+   docker compose pull dashboard
+   docker compose up -d --no-deps dashboard
+   ```
+
+Base updates do not automatically advance this deployment pin. Neither base nor
+deployment updates automatically renew the narrowly scoped container exceptions;
+each renewal requires a current assessment and owner approval.
 
 **With no registry at all**, which is often the right answer for one LAN box:
 
@@ -337,16 +380,16 @@ tool — but a public image ships those assets to everyone who pulls it, which i
 different act from using them yourself. Settle this separately from the code
 licence; it is not answered by going GPL.
 
-**3. `PALSAV_REF` defaults to `main`, so builds are not reproducible.** The
-Dockerfile clones `PalworldSaveTools` at build time:
+**3. The native parser is pinned to a reviewed commit.** The Dockerfile clones
+`PalworldSaveTools` at build time and verifies the checkout:
 
 ```dockerfile
-ARG PALSAV_REF=main
+ARG PALSAV_REF=87fb4081d6b860778053ac0114754c8cae2b5f57
 ```
 
-`main` moves. Two images built a week apart from the same commit of *this* repo
-can contain different parsers, and a GPL source offer has to correspond to the
-binary you actually shipped. Pin a commit SHA before publishing:
+Keep an immutable commit when deliberately updating that parser. The source
+offer must correspond to the binary actually shipped; run the native-codec and
+real-save integration checks for any change:
 
 ```bash
 docker build --build-arg PALSAV_REF=<sha> -t … .

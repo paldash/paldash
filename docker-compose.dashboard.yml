@@ -17,9 +17,14 @@
 # (thijsvanloef server + dashboard) and docker-compose.jammsen.yml.
 services:
   dashboard:
-    image: ghcr.io/paldash/paldash:latest
+    # Reviewed image from commit 39c2989; update the digest after CI and review.
+    image: ghcr.io/paldash/paldash@sha256:8615763d1e61404a5196bc1e8d692000a9103eb4347851124172fd1b2cb3ddc0
     container_name: paldash
     restart: unless-stopped
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
     # Uncomment and match your server's service name so the dashboard starts
     # after it. Left off by default because that name varies per setup:
     # depends_on:

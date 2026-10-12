@@ -47,8 +47,10 @@ The container scan then found patched Debian updates for OpenSSL and PCRE2.
 The runtime stage applies stable OS updates, and CI pulls current bases and
 rebuilds that stage every time. The eight previously reviewed mitigations were
 rechecked against Debian's current advisories and a fresh runtime proof, with
-all 44 exact advisory/PURL pairs unchanged. Their original 13 October expiry is
-retained; no new vulnerability was added to the exceptions. See
+all 44 exact advisory/PURL pairs unchanged. After explicit owner approval, the
+same exceptions were renewed to 27 October 2026 at 00:00 UTC; no new
+vulnerability was added. Base and deployment images are pinned by digest, with
+reviewed updates and stable OS security updates retained. See
 [the container assessment](CONTAINER-SECURITY.md).
 
 Sources:

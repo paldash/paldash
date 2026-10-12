@@ -101,13 +101,14 @@ services:
 
   # ─── The dashboard ──────────────────────────────────────
   dashboard:
-    image: ghcr.io/paldash/paldash:latest
+    # Reviewed image from commit 39c2989; update the digest after CI and review.
+    image: ghcr.io/paldash/paldash@sha256:8615763d1e61404a5196bc1e8d692000a9103eb4347851124172fd1b2cb3ddc0
     # The published image needs no clone and no refs/ to run: the game DATA is
     # committed, and the game ARTWORK (not distributed — see NOTICE) is fetched
     # once at first boot into the cache volume by the self-provisioning boot, or
-    # installed offline with scripts/install-icons.py. Pin a version instead of
-    # `latest` (e.g. `:1.0.0`) if you want "which build is running" answerable
-    # during an incident.
+    # installed offline with scripts/install-icons.py. The digest keeps the
+    # reviewed build fixed even when a registry tag moves. See
+    # docs/DEPLOYMENT.md for the update procedure and source commit.
     #
     # Building from a clone instead? Swap the image line for `build: .`. That is
     # also the path when your server runs ids other than the image's uid/gid
@@ -121,6 +122,10 @@ services:
     # would oblige you to do.
     container_name: paldash
     restart: unless-stopped
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
     depends_on:
       - palworld
     ports:
