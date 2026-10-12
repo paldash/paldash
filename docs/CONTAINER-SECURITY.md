@@ -4,24 +4,34 @@ The first full image scan found 97 high/critical package attributions. Package-l
 
 These remaining source-package matches are assessed below. They are **not described as patched Debian packages**. The supported image removes unused affected programs, refuses root startup, strips SUID/SGID bits and enforces `NoNewPrivs`. Compose also drops every capability. The native-codec, startup and `scripts/verify-container-security.py` checks precede the image scan in CI. The latter checks the actual image for affected tools/modules, privileged executables, file capabilities and runtime privilege settings; a failed check blocks publication.
 
-The scanner dispositions in `.github/container-ignores.yaml` match only the exact reviewed Debian package PURLs, including versions and distribution. They expire on **13 October 2026**. A different package/version, a new advisory, a failed runtime proof or expiry requires review and cannot inherit these dispositions. Suppressed findings remain in the JSON scan artifact. `ignore-unfixed` stays false.
+The scanner dispositions in `.github/container-ignores.yaml` match only the exact reviewed Debian package PURLs, including versions and distribution. Following explicit owner approval, their expiry is renewed to **27 October 2026 at 00:00 UTC** (26 October at 17:00 Pacific). A different package/version, a new advisory, a failed runtime proof or expiry requires review and cannot inherit these dispositions. Suppressed findings remain in the JSON scan artifact. `ignore-unfixed` stays false.
 
 The 12 October review rechecked all eight Debian advisory pages linked below.
 Stable trixie still has no fixed versions for these entries; the absent-tool
 assessments and the libacl mitigation remain applicable. The fresh image from
-[CI run 38306081487](https://github.com/paldash/paldash/actions/runs/38306081487)
+[CI run 38309263177](https://github.com/paldash/paldash/actions/runs/38309263177)
 passed the native-codec and runtime-proof steps, and its 44 reviewed advisory/PURL
 pairs exactly matched the existing scope. No advisory, package, version or
-distribution was added to that scope; the original expiry is retained.
+distribution was added to that scope. The renewal changes only the review date
+and expiry; it does not claim the remaining packages are patched. Reassess before
+expiry and remove each exception when a stable fix is installed and verified.
 
-That scan also correctly blocked publication on **four new package entries**
+The preceding scan correctly blocked publication on **four new package entries**
 from two advisories: [PCRE2 CVE-2026-103111](https://security-tracker.debian.org/tracker/CVE-2026-103111)
 and [OpenSSL CVE-2026-84782](https://security-tracker.debian.org/tracker/CVE-2026-84782).
 Debian provides fixes at `10.46-1~deb13u3` and `3.5.7-1~deb13u3`, respectively.
-These are patched by applying stable OS updates in the runtime stage, not added
-to the exceptions. CI pulls current base images and rebuilds the runtime stage
+The published image contains those patched versions; they were not added
+to the exceptions. CI pulls the reviewed base digests and rebuilds the runtime stage
 on every build so a cached package-install layer cannot hide available updates.
-The resulting image must still pass the native/runtime proof and full scan.
+The resulting image passed the native/runtime proof and full scan. Both checks
+remain required for every rebuild.
+
+Base images are now pinned by digest, with weekly Dependabot proposals for
+digest refreshes and patch releases. CI rejects an unpinned base, a changed
+runtime/distribution family or mismatched Python stages. Debian security updates
+remain enabled inside the pinned base. All three supplied Compose files pin the
+reviewed dashboard image and explicitly drop capabilities and prevent privilege
+escalation. See [the image update procedure](DEPLOYMENT.md#image-pins-and-updates).
 
 | Advisory | Evidence and disposition |
 |---|---|

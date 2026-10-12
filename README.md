@@ -146,9 +146,14 @@ services:
   # ... your existing palworld server service ...
 
   dashboard:
-    image: ghcr.io/paldash/paldash:latest   # or, from a clone: build: ./paldash
+    # Reviewed image; see docs/DEPLOYMENT.md for digest updates.
+    image: ghcr.io/paldash/paldash@sha256:8615763d1e61404a5196bc1e8d692000a9103eb4347851124172fd1b2cb3ddc0
     container_name: paldash
     restart: unless-stopped
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
     depends_on:
       - palworld                   # <- your server's service name
     ports:

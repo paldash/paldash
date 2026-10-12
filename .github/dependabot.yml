@@ -59,8 +59,22 @@ updates:
       actions:
         patterns: ["*"]
 
-# Base-image version changes are coordinated manually: Docker versioning can
-# classify a Python minor-version jump as an ordinary minor update. Both
-# Python stages must remain on the same reviewed patch and Debian release.
-# Node 22 supplies the frontend build and the runtime executable. Each update
-# must pass the final-image scan, runtime startup and native-codec smoke test.
+  # Digest refreshes and patch updates require review and the full image gates.
+  # Minor/major runtime upgrades remain coordinated changes. CI also checks
+  # the Python stage pairing and approved runtime/distribution families.
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+    allow:
+      - dependency-name: node
+      - dependency-name: python
+    groups:
+      container-bases:
+        patterns: [node, python]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+    open-pull-requests-limit: 2
