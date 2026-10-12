@@ -43,6 +43,14 @@ native parser and application requirements in one constrained `pip wheel`
 invocation. Runtime Python pins are unchanged; future shared-dependency conflicts
 fail during resolution instead of leaving an inconsistent wheelhouse.
 
+The container scan then found patched Debian updates for OpenSSL and PCRE2.
+The runtime stage applies stable OS updates, and CI pulls current bases and
+rebuilds that stage every time. The eight previously reviewed mitigations were
+rechecked against Debian's current advisories and a fresh runtime proof, with
+all 44 exact advisory/PURL pairs unchanged. Their original 13 October expiry is
+retained; no new vulnerability was added to the exceptions. See
+[the container assessment](CONTAINER-SECURITY.md).
+
 Sources:
 
 - [Next.js cache-poisoning advisory](https://github.com/advisories/GHSA-mcj8-r9mp-w47p)

@@ -50,7 +50,10 @@ RUN python -m pip install --no-cache-dir --upgrade pip build wheel \
 # ─── Stage 3: Runtime ────────────────────────────────────
 FROM python:3.11.16-slim-trixie AS runner
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# Apply stable security updates even when the upstream Python tag has not been
+# rebuilt yet. CI deliberately rebuilds this stage instead of caching this step.
+RUN apt-get update && apt-get upgrade -y --no-install-recommends \
+    && apt-get install -y --no-install-recommends \
         libstdc++6 \
     && rm -rf /var/lib/apt/lists/*
 
