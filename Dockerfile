@@ -21,7 +21,7 @@ RUN npm run build
 #   ERROR: orjson-...-cp312-...whl is not a supported wheel on this platform.
 # Use the same upstream Python patch and Debian release in both stages.
 # Debian bookworm's older distro Python has unresolved security advisories.
-FROM python:3.11.16-slim-trixie@sha256:e41613d42d4891e4930f79523f93f81bbc7632584ec65e36ab055f41a800b41e AS pybuilder
+FROM python:3.11.17-slim-trixie@sha256:e88e9763f943ec1834f992a4b51e0f24500486803e8bc534e5767af9ea65f6ce AS pybuilder
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
         git build-essential \
@@ -49,7 +49,7 @@ RUN python -m pip install --no-cache-dir --upgrade pip build wheel \
         ./pst/src/palsav
 
 # ─── Stage 3: Runtime ────────────────────────────────────
-FROM python:3.11.16-slim-trixie@sha256:e41613d42d4891e4930f79523f93f81bbc7632584ec65e36ab055f41a800b41e AS runner
+FROM python:3.11.17-slim-trixie@sha256:e88e9763f943ec1834f992a4b51e0f24500486803e8bc534e5767af9ea65f6ce AS runner
 
 # Apply stable security updates even when the upstream Python tag has not been
 # rebuilt yet. CI deliberately rebuilds this stage instead of caching this step.
