@@ -1,6 +1,6 @@
 # ─── Stage 1: Build Next.js ──────────────────────────────
 # Reviewed base digests; Dependabot proposes updates for CI and human review.
-FROM node:22-bookworm-slim@sha256:c3de60bf2f9dd0ac6370e6117950ff62d6e339527e7472301c9c78a017978392 AS webbuilder
+FROM node:22-bookworm-slim@sha256:de170b39439eb0e5a3444ad7d60b015614a381e10fecae2e30ec9e735122f38d AS webbuilder
 
 WORKDIR /app
 COPY package.json package-lock.json ./
@@ -21,7 +21,7 @@ RUN npm run build
 #   ERROR: orjson-...-cp312-...whl is not a supported wheel on this platform.
 # Use the same upstream Python patch and Debian release in both stages.
 # Debian bookworm's older distro Python has unresolved security advisories.
-FROM python:3.11.16-slim-trixie@sha256:e41613d42d4891e4930f79523f93f81bbc7632584ec65e36ab055f41a800b41e AS pybuilder
+FROM python:3.11.17-slim-trixie@sha256:b7a9e5f6a93d6d4a31f129bbd4bdee69efccb6ded0fb230d78aafaf37af98377 AS pybuilder
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
         git build-essential \
@@ -49,7 +49,7 @@ RUN python -m pip install --no-cache-dir --upgrade pip build wheel \
         ./pst/src/palsav
 
 # ─── Stage 3: Runtime ────────────────────────────────────
-FROM python:3.11.16-slim-trixie@sha256:e41613d42d4891e4930f79523f93f81bbc7632584ec65e36ab055f41a800b41e AS runner
+FROM python:3.11.17-slim-trixie@sha256:b7a9e5f6a93d6d4a31f129bbd4bdee69efccb6ded0fb230d78aafaf37af98377 AS runner
 
 # Apply stable security updates even when the upstream Python tag has not been
 # rebuilt yet. CI deliberately rebuilds this stage instead of caching this step.
