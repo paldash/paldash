@@ -630,6 +630,9 @@ From the game pak, bundled so nothing is fetched at runtime:
 - **174 fast-travel points**, validated 117/117 against a real player's unlocks —
   split into 8 tower bosses, 22 watchtowers and 144 ordinary points, because all
   174 drawn identically is why the towers looked missing.
+- **90 placed field bosses**, levels 11-79, with verified world positions. Their
+  levels sit behind a table the pak reader used to refuse, so earlier builds
+  listed them as missing.
 
 Icons for Pals, items, elements and NPCs arrive the same way — fetched at first
 boot, or offline from the reference archive:
@@ -871,9 +874,6 @@ Being straight about what is not done:
 - **Element matchups carry no damage multipliers**, and the chart behind them is
   the one piece of game data here that was hand-entered rather than extracted —
   it is in neither the pak nor the reference archive. See "Element matchups".
-- **Field boss levels ARE available** as of this build — 90 placed bosses,
-  levels 11-79, with verified world positions, on the map. This entry used to say
-  the opposite; the levels were behind a table the pak reader was refusing.
 - **No 2FA or password-reset flow.** An Owner resets passwords from the Users
   tab; there is no self-service path.
 - **`docker` is not in the runtime image**, so the container Stop/Start buttons
