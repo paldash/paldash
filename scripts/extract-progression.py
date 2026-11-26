@@ -3,7 +3,7 @@
 What the relics you collected actually did, where the quests are, what the
 regions are called, and what is in each dungeon.
 
-Phase 1.6 of `docs/PLAN.md`. Six tables, all small, all feeding the progression
+Six tables, all small, all feeding the progression
 tab (#47) and the effigy panel (#61):
 
     DT_PlayerStatusRankMasterDataTable  279  relic ranks and their effects

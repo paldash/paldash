@@ -3,7 +3,7 @@
 Where every item comes from: recipes, Pal drops, loot tables, shops, food effects
 and what production structures yield.
 
-Phase 1.3 of `docs/PLAN.md`, and it closes the two oldest extraction tasks (#35
+This closes the two oldest extraction tasks (#35
 item drops, #36 technology recipes and shop stock) which were both filed against
 the *client* pak and were impossible there. The client's properties are
 unversioned, so a DataTable gives only its name table. The server pak's are

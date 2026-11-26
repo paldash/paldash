@@ -471,5 +471,3 @@ an imported Pal changed hands.
 - **Saved state:** fishing/arena counters and quest IDs on Progression; crop/energy fields on placed-object popups; staff-only recorded supply events in Game guides.
 - **Exports:** separate pruned dedicated-server copy, stable snapshots for legacy exports, persistent account-owned jobs, verified downloads and shared capacity limits.
 - **Recovery:** durable interrupted-world-restore recovery and a separate SQLite/policy backup/restore CLI. See [RECOVERY.md](RECOVERY.md).
-
-See [the implementation and verification report](IMPLEMENTATION-2026-09-29.md) for acceptance limits.

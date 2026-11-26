@@ -68,7 +68,7 @@ CELL_SIZE = 25600
 CONTROLS = (12800, 51200)
 
 # The bar the workaround set. Coverage below this is a regression, not a
-# trade-off — see `docs/PLAN.md` §1.4, which makes it the acceptance criterion.
+# trade-off; it is the acceptance criterion.
 WORKAROUND_SPECIES = 348
 
 
