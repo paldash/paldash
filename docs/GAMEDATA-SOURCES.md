@@ -1,7 +1,5 @@
 # Where every fact about Palworld comes from
 
-Fresh inventory, corrected source claims and proposed additions: [MINED-DATA-REVIEW-2026-09-28.md](MINED-DATA-REVIEW-2026-09-28.md).
-
 A map of every data source this project can read, what is in each, what it is
 good for, and — just as important — what has been searched for and **is not
 there**.
@@ -314,8 +312,6 @@ DataTables and a refused server decode with a missing server asset.
 
 `DT_SupplyIncident_NPC_Sakura01` is present on the server but still cannot be
 fully decoded. The weather files have export class `PPSkyCreatorWeatherPreset`.
-See [the fresh mined-data review](MINED-DATA-REVIEW-2026-09-28.md) for coverage,
-map framing recovered from native vectors, unused gameplay tables and limits.
 
 ### And its Blueprint CDOs are not usefully tagged
 

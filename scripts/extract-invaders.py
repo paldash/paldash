@@ -2,7 +2,7 @@
 """
 Base raids: who attacks, at what grade, in which biome, and what they drop.
 
-Phase 1.8 of `docs/PLAN.md`. Nothing in the dashboard mentions base raids today,
+Nothing in the dashboard mentions base raids today,
 and four tables describe them completely:
 
     DT_PalInvader            240  attacker groups, biome, grade band, weight

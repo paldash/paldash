@@ -359,7 +359,7 @@ def apply_game_names(data: dict) -> dict[str, dict[str, int]]:
     """
     Replace every display name and description with the **game's own**.
 
-    This is the last piece of `docs/PLAN.md`'s attribution work: the numbers in
+    This finishes the attribution work: the numbers in
     this bundle already come from the server pak (verified 13,836 of 13,836),
     and after this the strings come from the client pak's `L10N/` overrides. The
     third-party archive is left supplying artwork and catalogue membership only.

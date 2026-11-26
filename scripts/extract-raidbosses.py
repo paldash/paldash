@@ -2,7 +2,7 @@
 """
 Raid bosses: what summons them, at what level, and what they drop.
 
-Phase 1.7 of `docs/PLAN.md`. `DT_PalRaidBoss`, 11 rows.
+`DT_PalRaidBoss`, 11 rows.
 
 THIS CONFIRMS AN EARLIER REFUSAL RATHER THAN OVERTURNING IT. `boss_spawners.json.gz`
 carries 90 *placed* field bosses from `DT_BossSpawnerLoactionData`, and zero of

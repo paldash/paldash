@@ -33,8 +33,7 @@ shared bind mount.
 
 ## Audit correction — 2026-09-29
 
-Read `docs/IMPLEMENTATION-2026-09-29.md` for the security fixes, export queue,
-recovery journals and the new reference guides. A table reaching the end of its
+A table reaching the end of its
 buffer is **not sufficient** to establish alignment. The reader now checks
 property type tags, declared row counts, duplicate rows and field boundaries.
 This recovered 97 mainland invader entries (240 entries, 76 groups; all 76 reward

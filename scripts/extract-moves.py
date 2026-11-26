@@ -3,7 +3,7 @@
 Moves, what learns them, what inherits them through an egg, and the game's own
 unique breeding combinations.
 
-Phase 1.5 of `docs/PLAN.md`. Four tables:
+Four tables:
 
     DT_WazaDataTable      384  element, category, power, cooldown, range
     DT_WazaMasterLevel  5,772  which species learns which move at which level

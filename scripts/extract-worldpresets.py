@@ -2,7 +2,7 @@
 """
 The game's own difficulty presets — every rate, as Pocketpair sets it.
 
-Phase 1.9 of `docs/PLAN.md`. `DT_OptionWorldPresetTable` (4 rows) and
+`DT_OptionWorldPresetTable` (4 rows) and
 `DT_OptionWorldModePresetTable` (4).
 
 WHY THIS IS MORE THAN CONVENIENCE. `DefaultPalWorldSettings.ini` is the

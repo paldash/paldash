@@ -3,9 +3,9 @@
 Check the bundled catalogue against the game's own tables — the first thing that
 has ever verified `gamedata.json.gz`.
 
-WHAT PHASE 1.10 SET OUT TO DO, AND WHY IT CANNOT BE DONE
---------------------------------------------------------
-`docs/PLAN.md` proposed regenerating `gamedata.json.gz` from the server pak
+WHY THE BUNDLE IS NOT REGENERATED FROM THE SERVER PAK
+-----------------------------------------------------
+The plan was to regenerate `gamedata.json.gz` from the server pak
 instead of `refs/PalWorldSaveTools-main.zip`, dropping a third-party attribution
 and — the real prize — giving the bundle a real `gameBuild` so staleness
 detection works. It is the only bundle with `gameBuild: null`.
